@@ -180,7 +180,9 @@ function ChatView({ theme }) {
                 <div className="msg-edit-btns"><button onClick={confirmEdit}>{'\u2713'}</button><button onClick={() => setEditIdx(-1)}>{'\u2717'}</button></div>
               </div>
             ) : (
-              <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>{msg.content}</div>
+              <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
+                {msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
+              </div>
             )}
             {menuIdx === i && msg.role !== 'system' && (
               <div className="msg-menu">
@@ -196,6 +198,17 @@ function ChatView({ theme }) {
         <div ref={bottomRef} />
       </div>
       <div className="chat-input-area" style={theme?.systemBg?{background:theme.systemBg}:{}}>
+        <label className="chat-plus-btn">{'+'}
+          <input type="file" accept="image/*" hidden onChange={e => {
+            const file = e.target.files[0]; if (!file) return
+            const reader = new FileReader()
+            reader.onload = () => {
+              setMessages(m => [...m, {role:'user',content:`[img]${reader.result}[/img]`}])
+            }
+            reader.readAsDataURL(file)
+            e.target.value = ''
+          }} />
+        </label>
         <input className="chat-input" style={theme?.inputBg?{background:theme.inputBg}:{}} value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
@@ -256,10 +269,19 @@ function ThemePanel() {
   function savePreset() {
     const name = prompt('\u7ed9\u8fd9\u4e2a\u4e3b\u9898\u8d77\u4e2a\u540d\u5b57:')
     if (!name) return
-    const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
-    presets[name] = {...theme}
-    localStorage.setItem('pool_theme_presets', JSON.stringify(presets))
-    alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
+    try {
+      const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
+      // 预设不存图标数据（太大），只存颜色和壁纸URL
+      const lite = {...theme}
+      delete lite.icons
+      presets[name] = lite
+      localStorage.setItem('pool_theme_presets', JSON.stringify(presets))
+      syncToBackend('pool_theme_presets', presets)
+      setShowPresets(false)
+      alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
+    } catch(e) {
+      alert('\u4fdd\u5b58\u9884\u8bbe\u5931\u8d25: ' + e.message)
+    }
   }
 
   function loadPreset(name) {
@@ -520,7 +542,20 @@ function SettingsPanel() {
         <div className="settings-item"><label>API Key</label>
           <input type="password" value={defaultCfg.apiKey||''} onChange={e=>setDefaultCfg({...defaultCfg,apiKey:e.target.value})} placeholder="sk-..." className="settings-input"/></div>
         <div className="settings-item"><label>{'\u6a21\u578b'}</label>
-          <input value={defaultCfg.model||''} onChange={e=>setDefaultCfg({...defaultCfg,model:e.target.value})} placeholder="gpt-4o-mini" className="settings-input"/></div>
+          <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+            <input value={defaultCfg.model||''} onChange={e=>setDefaultCfg({...defaultCfg,model:e.target.value})} placeholder="gpt-4o-mini" className="settings-input" style={{flex:1}}/>
+            <button className="fetch-models-btn" onClick={async()=>{
+              if(!defaultCfg.apiBase||!defaultCfg.apiKey){alert('\u8bf7\u5148\u586b\u5199API Base\u548cKey');return}
+              try{
+                const r=await fetch('/api/models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiBase:defaultCfg.apiBase,apiKey:defaultCfg.apiKey})})
+                const d=await r.json()
+                if(d.models&&d.models.length){
+                  const pick=prompt('\u53ef\u7528\u6a21\u578b:\n'+d.models.slice(0,30).join('\n')+'\n\n\u8f93\u5165\u6a21\u578b\u540d:',d.models[0])
+                  if(pick)setDefaultCfg({...defaultCfg,model:pick})
+                }else{alert('\u672a\u627e\u5230\u6a21\u578b')}
+              }catch(e){alert('\u62c9\u53d6\u5931\u8d25: '+e.message)}
+            }}>{'\u62c9\u53d6'}</button>
+          </div></div>
       </div>
 
       {FEATURES.map(f => {
@@ -822,6 +857,8 @@ export default function Home() {
         .msg-bubble.user { background: #c77dba; color: #fff; border-bottom-right-radius: 4px; }
         .msg-bubble.assistant { background: #1f1f1f; color: #e0e0e0; border-bottom-left-radius: 4px; }
         .chat-input-area { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid #1a1a1a; background: #111; flex-shrink: 0; }
+        .chat-plus-btn { width: 34px; height: 34px; border-radius: 50%; background: #2a2a3e; color: #e0e0e0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; flex-shrink: 0; border: 1px solid #3a3a4e; }
+        .fetch-models-btn { padding: 6px 10px; background: #c77dba; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
         .chat-input { flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px; padding: 9px 14px; color: #e0e0e0; font-size: 14px; outline: none; font-family: inherit; }
         .chat-input:focus { border-color: #e8a0bf; }
         .chat-send { width: 34px; height: 34px; border-radius: 50%; background: #c77dba; color: #fff; border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
