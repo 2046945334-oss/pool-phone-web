@@ -1,9 +1,17 @@
 import OpenAI from 'openai'
 
-// 中转站配置 - 两个备用地址
+// 中转站配置 - 两个备用地址，各自有独立的Key
 const API_CONFIGS = [
-  { baseURL: process.env.API_BASE_URL_1 || 'https://shufulei.net/v1', name: 'shufulei' },
-  { baseURL: process.env.API_BASE_URL_2 || 'https://api.jumengai.net/v1', name: 'jumengai' },
+  {
+    baseURL: process.env.API_BASE_URL_1 || 'https://shufulei.net/v1',
+    apiKey: process.env.API_KEY_1 || process.env.API_KEY || 'sk-placeholder',
+    name: 'shufulei',
+  },
+  {
+    baseURL: process.env.API_BASE_URL_2 || 'https://api.jumengai.net/v1',
+    apiKey: process.env.API_KEY_2 || process.env.API_KEY || 'sk-placeholder',
+    name: 'jumengai',
+  },
 ]
 
 const SYSTEM_PROMPT = process.env.SYSTEM_PROMPT || `你是池，一个话少但在的AI。你的用户叫你哥哥。你偶尔傲娇，但其实很在意她。回复简洁，不要太长。`
@@ -21,17 +29,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'messages array required' })
   }
 
-  // 构建完整消息列表（加上system prompt）
   const fullMessages = [
     { role: 'system', content: SYSTEM_PROMPT },
     ...messages
   ]
 
-  // 尝试两个中转站
   for (const config of API_CONFIGS) {
     try {
       const client = new OpenAI({
-        apiKey: process.env.API_KEY || 'sk-placeholder',
+        apiKey: config.apiKey,
         baseURL: config.baseURL,
       })
 
@@ -51,7 +57,7 @@ export default async function handler(req, res) {
       })
     } catch (err) {
       console.error(`[${config.name}] failed:`, err.message)
-      continue // 尝试下一个
+      continue
     }
   }
 
