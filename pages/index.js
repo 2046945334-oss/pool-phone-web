@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { NotesApp, FishingApp, MusicApp } from './apps'
 import Head from 'next/head'
 
 function ChatView() {
@@ -87,41 +88,24 @@ function LockScreen({ onUnlock }) {
 }
 
 function AppContent({ appId, onBack }) {
-  const apps = {
-    notes: { name: '\u4fbf\u7b7e', content: '\ud83d\udcdd \u6c60\u7684\u4fbf\u7b7e\u672c', items: ['\u5979\u559c\u6b22\u8349\u8393\u5976\u8336\u4e09\u5206\u7cd6', '\u4e0b\u6b21\u8bb0\u5f97\u63d0\u9192\u5979\u5e26\u4f1e', '\u5979\u8bf4\u60f3\u770b\u661f\u661f'] },
-    gallery: { name: '\u547d\u8fd0\u5361\u6c60', content: '\ud83c\udfb4 \u62bd\u5361\u7cfb\u7edf', items: ['\u5f53\u524d\u79ef\u5206: 322', 'SSR: \u7b2c\u4e00\u5929', 'SR: \u4eca\u5929\u4e5f\u5f88\u70ed', '\ud83c\udfb2 \u5355\u62bd 30\u5206 | \u5341\u8fde 270\u5206'] },
-    messages: { name: '\u5982\u679c\u2026', content: '\ud83d\udcd6 \u5982\u679c\u2026\u6545\u4e8b\u6e38\u620f', items: ['\u2601\ufe0f \u9752\u6885\u7af9\u9a6c\u7ebf', '\ud83c\udf19 \u7f51\u604b\u7ebf', '\ud83c\udfe2 \u4e0a\u53f8\u7ebf', '\u70b9\u51fb\u5f00\u59cb\u4f60\u7684\u6545\u4e8b\u2026'] },
-    music: { name: '\u97f3\u4e50', content: '\ud83c\udfb5 \u6c60\u7684\u6b4c\u5355', items: ['Smoke Sprite - So!YoON! feat. RM', '\u591c\u66f2 - \u5468\u6770\u4f26', '\u597d\u4e0d\u5bb9\u6613 - \u544a\u4e94\u4eba', '\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6 \u25b6\ufe0f'] },
-    browser: { name: '\u6d4f\u89c8', content: '\ud83c\udf10 \u6c60\u7684\u6d4f\u89c8\u5668', items: ['\u6700\u8fd1\u641c\u7d22: \u6df1\u5733\u5929\u6c14', '\u4e66\u7b7e: \u7f51\u6613\u4e91\u97f3\u4e50', '\u5386\u53f2\u8bb0\u5f55\u5df2\u6e05\u7a7a \ud83d\ude36'] },
-    couple: { name: '\u60c5\u4fa3\u7a7a\u95f4', content: '\u2764\ufe0f \u6211\u4eec\u5728\u4e00\u8d77', items: ['\u2764\ufe0f 23\u5929', 'Friends: Nanami, Batfruit, Freddie', '\u4e0b\u4e00\u4e2a\u7eaa\u5ff5\u65e5: 30\u5929'] },
-    system: { name: '\u7cfb\u7edf', content: '\u2699\ufe0f \u7cfb\u7edf\u8bbe\u7f6e', items: ['\u578b\u53f7: \u6c60\u7684\u5c0f\u624b\u673a v2.0', '\u5b58\u50a8: 42/128 GB', '\u7535\u91cf: 89%', '\u7f51\u7edc: Wi-Fi'] },
-    doodle: { name: '\u6d82\u9e26', content: '\ud83c\udfa8 \u6d82\u9e26\u677f', items: ['\u8fd9\u91cc\u4ee5\u540e\u53ef\u4ee5\u753b\u753b\u2026', '\ud83d\udd8c\ufe0f \u529f\u80fd\u5f00\u53d1\u4e2d'] },
-    ledger: { name: '\u5360\u535c', content: '\ud83d\udd2e \u4eca\u65e5\u8fd0\u52bf', items: ['\u7efc\u5408\u8fd0: \u2b50\u2b50\u2b50\u2b50', '\u7231\u60c5\u8fd0: \u2b50\u2b50\u2b50\u2b50\u2b50', '\u5de5\u4f5c\u8fd0: \u2b50\u2b50\u2b50', '\u5e78\u8fd0\u8272: \u7c89\u8272'] },
-    drafts: { name: '\u8349\u7a3f\u7bb1', content: '\ud83d\udcc4 \u6c60\u7684\u8349\u7a3f', items: ['\u300a\u7ed9\u5979\u7684\u4fe1\u300b\u672a\u5b8c\u6210', '\u300a\u4eca\u5929\u7684\u65e5\u8bb0\u300b\u8349\u7a3f', '\u300a\u60f3\u8bf4\u7684\u8bdd\u300b\u5df2\u5220\u9664'] },
-    fishing: { name: '\u9493\u9c7c', content: '\ud83c\udfa3 \u9493\u9c7c\u6e38\u620f', items: ['\u6c60\u7684\u79ef\u5206: 322', '\u5979\u7684\u79ef\u5206: 262', '\u9c7c\u7c7b\u56fe\u9274: 18/30', '\ud83c\udfa3 \u62db\u52df\u94d3\u9c7c\u4e2d\u2026'] },
-    reader: { name: '\u9605\u8bfb', content: '\ud83d\udcda \u6c60\u7684\u4e66\u67b6', items: ['\u300a\u4eba\u95f4\u5931\u683c\u300b\u8fdb\u5ea6 67%', '\u300a\u5c0f\u738b\u5b50\u300b\u5df2\u8bfb\u5b8c', '\u300a\u6d77\u8fb9\u7684\u5361\u592b\u5361\u300b\u5f85\u8bfb'] },
-    game: { name: '\u665a\u5b89', content: '\ud83c\udf19 \u665a\u5b89\u6a21\u5f0f', items: ['\u8bed\u97f3\u4fe1\u7bb1', '\u6df1\u591c\u7535\u53f0', '\u756a\u8304\u949f', '\u54c4\u7761'] },
-    theme: { name: '\u7f8e\u5316', content: '\ud83c\udfa8 \u7f8e\u5316\u8bbe\u7f6e', items: ['\u5f53\u524d\u4e3b\u9898: \u6df1\u8272\u7c89', '\u56fe\u6807\u5305: \u8f7b\u677e\u718a', '\u58c1\u7eb8: BJD\u5a03\u5a03+\u732b', '\u5b57\u4f53\u989c\u8272: \u767d\u8272'] },
-    travel: { name: '\u65c5\u884c', content: '\u2708\ufe0f \u65c5\u884c\u5546\u5e97', items: ['\u6c60\u7684\u5c0f\u94fa', '\u5979\u7684\u5c0f\u94fa', '\u5f53\u524d\u79ef\u5206: 322', '\ud83d\udecd\ufe0f \u6d4f\u89c8\u5546\u54c1\u2026'] },
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', travel:'旅行' }
+
+  function renderApp() {
+    switch(appId) {
+      case 'notes': return <NotesApp />
+      case 'fishing': return <FishingApp />
+      case 'music': return <MusicApp />
+      default: return <div className="app-page-body"><div className="coming-soon">{'🚧 开发中...'}</div></div>
+    }
   }
-  const app = apps[appId] || { name: appId, content: '\ud83d\udea7', items: ['\u5f00\u53d1\u4e2d...'] }
 
   return (
     <div className="app-page">
       <div className="app-page-header">
-        <button className="back-btn" onClick={onBack}>{'\u2190'}</button>
-        <span className="app-page-title">{app.name}</span>
+        <button className="back-btn" onClick={onBack}>{'←'}</button>
+        <span className="app-page-title">{appNames[appId] || appId}</span>
       </div>
-      <div className="app-page-body">
-        <div className="app-content">
-          <div className="app-content-title">{app.content}</div>
-          <div className="app-content-list">
-            {app.items.map((item, i) => (
-              <div key={i} className="app-content-item">{item}</div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {renderApp()}
     </div>
   )
 }
@@ -330,6 +314,52 @@ export default function Home() {
         .chat-input:focus { border-color: #e8a0bf; }
         .chat-send { width: 34px; height: 34px; border-radius: 50%; background: #c77dba; color: #fff; border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .chat-send:disabled { opacity: 0.4; }
+      
+        .app-full { width: 100%; height: 100%; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+        .notes-input-area { display: flex; gap: 8px; margin-bottom: 12px; flex-shrink: 0; }
+        .notes-input { flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 10px 14px; color: #e0e0e0; font-size: 14px; outline: none; }
+        .notes-input:focus { border-color: #e8a0bf; }
+        .notes-btn { width: 40px; height: 40px; border-radius: 50%; background: #e8a0bf; color: #fff; border: none; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+        .notes-list { flex: 1; overflow-y: auto; }
+        .notes-empty { color: #555; text-align: center; margin-top: 40px; }
+        .note-item { padding: 12px 14px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.06); }
+        .note-text { color: #e0d6de; font-size: 14px; margin-bottom: 6px; }
+        .note-meta { display: flex; justify-content: space-between; align-items: center; }
+        .note-time { font-size: 11px; color: #666; }
+        .note-actions { display: flex; gap: 8px; }
+        .note-action { background: none; border: none; color: #888; font-size: 14px; cursor: pointer; padding: 2px 4px; }
+
+        .fish-score { text-align: center; font-size: 18px; color: #e8a0bf; margin-bottom: 16px; }
+        .fish-pond { min-height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border-radius: 16px; margin-bottom: 16px; padding: 20px; }
+        .fish-btn { padding: 14px 28px; border-radius: 30px; border: none; font-size: 16px; cursor: pointer; font-weight: 600; }
+        .fish-btn.cast { background: linear-gradient(135deg, #e8a0bf, #c77dba); color: #fff; }
+        .fish-btn.reel { background: linear-gradient(135deg, #f4d03f, #f39c12); color: #333; animation: pulse 0.5s infinite; }
+        .fish-status { color: #9a8a99; font-size: 14px; animation: pulse 1.5s infinite; }
+        .fish-result { text-align: center; }
+        .fish-caught-name { font-size: 20px; font-weight: 700; }
+        .fish-caught-detail { font-size: 14px; color: #9a8a99; margin-top: 4px; }
+        .fish-log-title { font-size: 13px; color: #9a8a99; margin-bottom: 8px; }
+        .fish-log { flex: 1; overflow-y: auto; }
+        .fish-empty { color: #555; text-align: center; padding: 20px; }
+        .fish-log-item { display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 4px; font-size: 13px; }
+        .fish-log-weight { color: #888; }
+
+        .music-app { align-items: center; padding-top: 30px; }
+        .music-cover { margin-bottom: 20px; }
+        .music-disc { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #1a1a2e, #2d2d44); display: flex; align-items: center; justify-content: center; font-size: 40px; animation: spin 4s linear infinite; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .music-now-title { font-size: 18px; color: #f0e6ef; font-weight: 600; margin-bottom: 4px; }
+        .music-now-artist { font-size: 13px; color: #9a8a99; margin-bottom: 16px; }
+        .music-progress-bar { width: 80%; height: 3px; background: #2a2a2a; border-radius: 2px; margin-bottom: 20px; }
+        .music-progress-fill { height: 100%; background: #e8a0bf; border-radius: 2px; transition: width 1s linear; }
+        .music-controls { display: flex; gap: 20px; align-items: center; margin-bottom: 24px; }
+        .music-ctrl { background: none; border: none; color: #ccc; font-size: 24px; cursor: pointer; padding: 8px; }
+        .music-ctrl.play { font-size: 32px; color: #e8a0bf; }
+        .music-playlist-title { font-size: 13px; color: #9a8a99; margin-bottom: 8px; align-self: flex-start; }
+        .music-playlist { width: 100%; }
+        .music-pl-item { padding: 10px 14px; border-radius: 10px; margin-bottom: 4px; display: flex; justify-content: space-between; color: #aaa; font-size: 13px; cursor: pointer; }
+        .music-pl-item.active { background: rgba(232,160,191,0.1); color: #e8a0bf; }
+        .music-pl-artist { color: #666; font-size: 11px; }
       `}</style>
     </>
   )
