@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 
 function ChatView() {
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
+  useEffect(() => { try { localStorage.setItem('pool_chat_history', JSON.stringify(messages)) } catch {} }, [messages])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
