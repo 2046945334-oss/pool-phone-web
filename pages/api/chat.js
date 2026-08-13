@@ -5,7 +5,8 @@ export default async function handler(req, res) {
   const { messages, apiBase, apiKey, model } = req.body
   if (!apiBase || !apiKey) return res.status(400).json({ error: 'Missing API configuration' })
 
-  const url = `${apiBase.replace(/\/$/, '')}/v1/chat/completions`
+  const base = apiBase.replace(/\/+$/, '').replace(/\/v1$/, '')
+  const url = `${base}/v1/chat/completions`
 
   try {
     const response = await fetch(url, {
