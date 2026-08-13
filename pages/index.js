@@ -150,7 +150,7 @@ function ChatView({ theme }) {
         {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
         {messages.map((msg, i) => (
           <div key={i} className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
-            {msg.role === 'assistant' && <div className="msg-avatar">{'\u6c60'}</div>}
+            {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
             {msg.role === 'system' ? (
               <div className="msg-system">{msg.content}</div>
             ) : editIdx === i ? (
@@ -159,8 +159,9 @@ function ChatView({ theme }) {
                 <div className="msg-edit-btns"><button onClick={confirmEdit}>{'\u2713'}</button><button onClick={() => setEditIdx(-1)}>{'\u2717'}</button></div>
               </div>
             ) : (
-              <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'&&theme?.bubbleUser?{background:theme.bubbleUser}:msg.role==='assistant'&&theme?.bubbleAI?{background:theme.bubbleAI}:{}}>{msg.content}</div>
+              <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>{msg.content}</div>
             )}
+            {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
             {menuIdx === i && msg.role !== 'system' && (
               <div className="msg-menu">
                 <button onClick={() => copyMsg(i)}>{'\ud83d\udccb \u590d\u5236'}</button>
@@ -227,20 +228,48 @@ function ThemePanel() {
     const file = e.target.files[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => { setTheme({...theme, [key]: reader.result}) }
+    reader.onload = () => { setTheme(t => ({...t, [key]: reader.result})) }
     reader.readAsDataURL(file)
   }
 
-  function handleUrlInput(key, url) { setTheme({...theme, [key]: url}) }
+  function handleUrlInput(key, url) { setTheme(t => ({...t, [key]: url})) }
+
+  function setNested(group, key, val) {
+    setTheme(t => ({...t, [group]: {...(t[group]||{}), [key]: val}}))
+  }
+
+  function handleNestedUpload(group, key, e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => { setNested(group, key, reader.result) }
+    reader.readAsDataURL(file)
+  }
 
   return (
     <div className="settings-panel">
+      <div className="settings-section">
+        <h3 className="settings-title">{'\ud83d\udc64 \u5934\u50cf'}</h3>
+        <div className="theme-item">
+          <label>{'\u6211\u7684\u5934\u50cf'}</label>
+          <input className="settings-input" value={theme.avatarUser||''} onChange={e=>handleUrlInput('avatarUser',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('avatarUser',e)} hidden /></label>
+          {theme.avatarUser && <img src={theme.avatarUser} className="theme-preview-sm" />}
+        </div>
+        <div className="theme-item">
+          <label>{'AI\u5934\u50cf'}</label>
+          <input className="settings-input" value={theme.avatarAI||''} onChange={e=>handleUrlInput('avatarAI',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('avatarAI',e)} hidden /></label>
+          {theme.avatarAI && <img src={theme.avatarAI} className="theme-preview-sm" />}
+        </div>
+      </div>
+
       <div className="settings-section">
         <h3 className="settings-title">{'\ud83c\udfa8 \u58c1\u7eb8'}</h3>
         <div className="theme-item">
           <label>{'\u4e3b\u5c4f\u58c1\u7eb8'}</label>
           <input className="settings-input" value={theme.wallpaper||''} onChange={e=>handleUrlInput('wallpaper',e.target.value)} placeholder={'\u8d34\u5165\u56fe\u7247URL...'} />
-          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20\u56fe\u7247'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('wallpaper',e)} hidden /></label>
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('wallpaper',e)} hidden /></label>
           {theme.wallpaper && <img src={theme.wallpaper} className="theme-preview" />}
         </div>
         <div className="theme-item">
@@ -258,21 +287,52 @@ function ThemePanel() {
       </div>
 
       <div className="settings-section">
+        <h3 className="settings-title">{'\ud83c\udfc0 \u684c\u9762\u5361\u7247'}</h3>
+        <div className="theme-item">
+          <label>{'\u9876\u90e8Banner\u56fe'}</label>
+          <input className="settings-input" value={theme.bannerImg||''} onChange={e=>handleUrlInput('bannerImg',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('bannerImg',e)} hidden /></label>
+          {theme.bannerImg && <img src={theme.bannerImg} className="theme-preview" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\u60c5\u4fa3\u5361\u7247\u80cc\u666f'}</label>
+          <input className="settings-input" value={theme.coupleBg||''} onChange={e=>handleUrlInput('coupleBg',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('coupleBg',e)} hidden /></label>
+          {theme.coupleBg && <img src={theme.coupleBg} className="theme-preview" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\u97f3\u4e50\u5361\u7247\u80cc\u666f\u8272'}</label>
+          <input type="color" value={theme.musicCardBg||'#1a1520'} onChange={e=>handleUrlInput('musicCardBg',e.target.value)} />
+          <span style={{color:'#888',fontSize:11,marginLeft:6}}>{theme.musicCardBg||'#1a1520'}</span>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <h3 className="settings-title">{'\ud83c\udf08 \u4e3b\u9898\u8272'}</h3>
         <div className="theme-color-row">
           <label>{'\u5f3a\u8c03\u8272'}</label>
-          <input type="color" value={theme.accentColor||'#e8a0bf'} onChange={e=>setTheme({...theme,accentColor:e.target.value})} />
+          <input type="color" value={theme.accentColor||'#e8a0bf'} onChange={e=>setTheme(t=>({...t,accentColor:e.target.value}))} />
           <span>{theme.accentColor||'#e8a0bf'}</span>
         </div>
         <div className="theme-color-row">
           <label>{'\u6c14\u6ce1\u8272(\u6211)'}</label>
-          <input type="color" value={theme.bubbleUser||'#e8a0bf'} onChange={e=>setTheme({...theme,bubbleUser:e.target.value})} />
-          <span>{theme.bubbleUser||'#e8a0bf'}</span>
+          <input type="color" value={theme.bubbleUser||'#c77dba'} onChange={e=>setTheme(t=>({...t,bubbleUser:e.target.value}))} />
+          <span>{theme.bubbleUser||'#c77dba'}</span>
         </div>
         <div className="theme-color-row">
           <label>{'\u6c14\u6ce1\u8272(AI)'}</label>
-          <input type="color" value={theme.bubbleAI||'#2a2a3e'} onChange={e=>setTheme({...theme,bubbleAI:e.target.value})} />
-          <span>{theme.bubbleAI||'#2a2a3e'}</span>
+          <input type="color" value={theme.bubbleAI||'#1f1f1f'} onChange={e=>setTheme(t=>({...t,bubbleAI:e.target.value}))} />
+          <span>{theme.bubbleAI||'#1f1f1f'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u5b57\u4f53\u8272(\u6211)'}</label>
+          <input type="color" value={theme.textUser||'#ffffff'} onChange={e=>setTheme(t=>({...t,textUser:e.target.value}))} />
+          <span>{theme.textUser||'#ffffff'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u5b57\u4f53\u8272(AI)'}</label>
+          <input type="color" value={theme.textAI||'#e0e0e0'} onChange={e=>setTheme(t=>({...t,textAI:e.target.value}))} />
+          <span>{theme.textAI||'#e0e0e0'}</span>
         </div>
       </div>
 
@@ -282,8 +342,8 @@ function ThemePanel() {
         {APP_LIST.map(id => (
           <div key={id} className="theme-icon-row">
             <span className="theme-icon-name">{APP_NAMES[id]}</span>
-            <input className="settings-input theme-icon-input" value={(theme.icons||{})[id]||''} onChange={e=>setTheme({...theme,icons:{...(theme.icons||{}),[id]:e.target.value}})} placeholder={'URL...'} />
-            <label className="theme-upload-sm">{'\ud83d\udcf7'}<input type="file" accept="image/*" onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>setTheme({...theme,icons:{...(theme.icons||{}),[id]:r.result}});r.readAsDataURL(f)}} hidden /></label>
+            <input className="settings-input theme-icon-input" value={(theme.icons||{})[id]||''} onChange={e=>setNested('icons',id,e.target.value)} placeholder={'URL...'} />
+            <label className="theme-upload-sm">{'\ud83d\udcf7'}<input type="file" accept="image/*" onChange={e=>handleNestedUpload('icons',id,e)} hidden /></label>
           </div>
         ))}
       </div>
@@ -427,9 +487,9 @@ function AppContent({ appId, onBack }) {
         <span className="app-page-title">{appNames[appId] || appId}</span>
       </div>
       {htmlFile === '__settings__' ? (
-        <SettingsPanel />
+        <div className="app-page-body"><SettingsPanel /></div>
       ) : htmlFile === '__theme__' ? (
-        <ThemePanel />
+        <div className="app-page-body"><ThemePanel /></div>
       ) : htmlFile ? (
         <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
       ) : (
@@ -480,8 +540,8 @@ function HomeScreen({ onOpenApp, theme }) {
   return (
     <div className="home-screen" style={theme?.wallpaper ? {backgroundImage:`url(${theme.wallpaper})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}>
       <div className="home-top">
-        <div className="home-banner"><img src="/header_bg.jpg" alt="" className="banner-img" /></div>
-        <div className="music-card" onClick={() => onOpenApp('music')}>
+        <div className="home-banner"><img src={theme?.bannerImg || '/header_bg.jpg'} alt="" className="banner-img" /></div>
+        <div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?{background:theme.musicCardBg}:{}}>
           <div className="music-icon">{'\u266a'}</div>
           <div className="music-info">
             <div className="music-title">{'\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
@@ -489,7 +549,7 @@ function HomeScreen({ onOpenApp, theme }) {
           </div>
         </div>
         <div className="couple-card" onClick={() => onOpenApp('couple')}>
-          <div className="couple-bg"><img src="/couple_bg.jpg" alt="" /></div>
+          <div className="couple-bg"><img src={theme?.coupleBg || '/couple_bg.jpg'} alt="" /></div>
           <div className="couple-overlay">
             <div className="couple-days">{'\u2764\ufe0f'} {coupleDays}{'\u5929'}</div>
             <div className="couple-hint">{'\u70b9\u51fb\u8fdb\u5165\u60c5\u4fa3\u7a7a\u95f4'}</div>
@@ -752,6 +812,10 @@ export default function Home() {
         .theme-icon-name { color: #ccc; font-size: 12px; width: 60px; flex-shrink: 0; }
         .theme-icon-input { flex: 1; font-size: 11px !important; }
         .theme-upload-sm { padding: 4px 8px; background: #2a2a3e; border: 1px solid #444; border-radius: 6px; color: #aaa; font-size: 12px; cursor: pointer; }
+        .theme-preview-sm { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-top: 6px; border: 2px solid #444; }
+        .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .user-avatar { background: #c77dba; }
+        .msg-row.user { flex-direction: row-reverse; }
       `}</style>
     </>
   )
