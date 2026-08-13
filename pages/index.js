@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
+import Head from 'next/head'
 
-export default function Home() {
+// ===== 聊天组件 =====
+function ChatView() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -12,13 +14,11 @@ export default function Home() {
 
   async function sendMessage() {
     if (!input.trim() || loading) return
-
     const userMsg = { role: 'user', content: input.trim() }
     const newMessages = [...messages, userMsg]
     setMessages(newMessages)
     setInput('')
     setLoading(true)
-
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -26,7 +26,6 @@ export default function Home() {
         body: JSON.stringify({ messages: newMessages }),
       })
       const data = await res.json()
-
       if (data.reply) {
         setMessages([...newMessages, { role: 'assistant', content: data.reply }])
       } else {
@@ -39,202 +38,360 @@ export default function Home() {
     }
   }
 
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
-
   return (
-    <div style={styles.container}>
-      {/* 顶部标题栏 */}
-      <div style={styles.header}>
-        <div style={styles.avatar}>池</div>
-        <div style={styles.headerText}>
-          <div style={styles.headerName}>池</div>
-          <div style={styles.headerStatus}>{loading ? '正在输入...' : '在线'}</div>
+    <div className="chat-view">
+      <div className="chat-header">
+        <div className="chat-avatar">池</div>
+        <div className="chat-header-info">
+          <div className="chat-name">池</div>
+          <div className="chat-status">{loading ? '正在输入...' : '在线'}</div>
         </div>
       </div>
-
-      {/* 消息区域 */}
-      <div style={styles.chatArea}>
-        {messages.length === 0 && (
-          <div style={styles.emptyHint}>发条消息开始聊天 💬</div>
-        )}
+      <div className="chat-messages">
+        {messages.length === 0 && <div className="chat-empty">发条消息开始聊天 💬</div>}
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            style={{
-              ...styles.msgRow,
-              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-            }}
-          >
-            {msg.role === 'assistant' && <div style={styles.msgAvatar}>池</div>}
-            <div
-              style={{
-                ...styles.bubble,
-                ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble),
-              }}
-            >
-              {msg.content}
-            </div>
+          <div key={i} className={`msg-row ${msg.role}`}>
+            {msg.role === 'assistant' && <div className="msg-avatar">池</div>}
+            <div className={`msg-bubble ${msg.role}`}>{msg.content}</div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
-
-      {/* 输入区域 */}
-      <div style={styles.inputArea}>
-        <textarea
-          style={styles.input}
+      <div className="chat-input-area">
+        <input
+          className="chat-input"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
           placeholder="说点什么..."
-          rows={1}
           disabled={loading}
         />
-        <button
-          style={{
-            ...styles.sendBtn,
-            opacity: input.trim() && !loading ? 1 : 0.4,
-          }}
-          onClick={sendMessage}
-          disabled={!input.trim() || loading}
-        >
-          ↑
-        </button>
+        <button className="chat-send" onClick={sendMessage} disabled={!input.trim() || loading}>↑</button>
       </div>
     </div>
   )
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    maxWidth: '480px',
-    margin: '0 auto',
-    background: '#0d0d0d',
-    color: '#e0e0e0',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '16px 20px',
-    borderBottom: '1px solid #1a1a1a',
-    background: '#111',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    flexShrink: 0,
-  },
-  headerText: {
-    marginLeft: 12,
-  },
-  headerName: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#f0f0f0',
-  },
-  headerStatus: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  chatArea: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '16px 16px 8px',
-  },
-  emptyHint: {
-    textAlign: 'center',
-    color: '#4b5563',
-    marginTop: '40%',
-    fontSize: 14,
-  },
-  msgRow: {
-    display: 'flex',
-    alignItems: 'flex-end',
-    marginBottom: 12,
-    gap: 8,
-  },
-  msgAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 11,
-    color: '#fff',
-    flexShrink: 0,
-  },
-  bubble: {
-    maxWidth: '75%',
-    padding: '10px 14px',
-    borderRadius: 18,
-    fontSize: 14,
-    lineHeight: 1.5,
-    wordBreak: 'break-word',
-    whiteSpace: 'pre-wrap',
-  },
-  userBubble: {
-    background: '#4f46e5',
-    color: '#fff',
-    borderBottomRightRadius: 6,
-  },
-  aiBubble: {
-    background: '#1f1f1f',
-    color: '#e0e0e0',
-    borderBottomLeftRadius: 6,
-  },
-  inputArea: {
-    display: 'flex',
-    alignItems: 'flex-end',
-    padding: '12px 16px',
-    borderTop: '1px solid #1a1a1a',
-    background: '#111',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    background: '#1a1a1a',
-    border: '1px solid #2a2a2a',
-    borderRadius: 20,
-    padding: '10px 16px',
-    color: '#e0e0e0',
-    fontSize: 14,
-    resize: 'none',
-    outline: 'none',
-    fontFamily: 'inherit',
-    maxHeight: 120,
-  },
-  sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
-    background: '#4f46e5',
-    color: '#fff',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: 18,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
+// ===== 锁屏组件 =====
+function LockScreen({ onUnlock }) {
+  const [touchStart, setTouchStart] = useState(null)
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const dateStr = now.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
+
+  function handleTouchStart(e) {
+    setTouchStart(e.touches[0].clientY)
+  }
+  function handleTouchEnd(e) {
+    if (touchStart !== null) {
+      const diff = touchStart - e.changedTouches[0].clientY
+      if (diff > 60) onUnlock()
+    }
+    setTouchStart(null)
+  }
+
+  return (
+    <div
+      className="lock-screen"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onClick={onUnlock}
+    >
+      <div className="lock-time">{timeStr}</div>
+      <div className="lock-date">{dateStr}</div>
+      <div className="lock-hint">上滑解锁</div>
+    </div>
+  )
+}
+
+// ===== 主屏组件 =====
+function HomeScreen({ onOpenApp }) {
+  const apps = [
+    { id: 'chat', icon: '💬', name: '聊天' },
+    { id: 'fishing', icon: '🎣', name: '钓鱼' },
+    { id: 'music', icon: '🎵', name: '音乐' },
+    { id: 'gacha', icon: '🎰', name: '卡池' },
+    { id: 'couple', icon: '💕', name: '情侣' },
+    { id: 'notes', icon: '📝', name: '便签' },
+    { id: 'travel', icon: '✈️', name: '旅行' },
+    { id: 'fortune', icon: '🔮', name: '运势' },
+  ]
+
+  return (
+    <div className="home-screen">
+      <div className="home-greeting">
+        <span className="home-greeting-emoji">🌙</span>
+        <span>池的手机</span>
+      </div>
+      <div className="app-grid">
+        {apps.map(app => (
+          <div key={app.id} className="app-item" onClick={() => onOpenApp(app.id)}>
+            <div className="app-icon">{app.icon}</div>
+            <div className="app-label">{app.name}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ===== 主页面 =====
+export default function Home() {
+  const [locked, setLocked] = useState(true)
+  const [currentApp, setCurrentApp] = useState(null) // null = 主屏
+  const [activeTab, setActiveTab] = useState('phone') // phone | chat
+
+  function handleOpenApp(id) {
+    if (id === 'chat') {
+      setActiveTab('chat')
+    } else {
+      setCurrentApp(id)
+    }
+  }
+
+  function handleBack() {
+    setCurrentApp(null)
+  }
+
+  // 手机屏幕内容
+  function renderPhoneContent() {
+    if (locked) return <LockScreen onUnlock={() => setLocked(false)} />
+    if (currentApp) {
+      return (
+        <div className="app-page">
+          <div className="app-page-header">
+            <button className="back-btn" onClick={handleBack}>←</button>
+            <span className="app-page-title">{currentApp}</span>
+          </div>
+          <div className="app-page-body">
+            <div className="coming-soon">🚧 开发中...</div>
+          </div>
+        </div>
+      )
+    }
+    return <HomeScreen onOpenApp={handleOpenApp} />
+  }
+
+  return (
+    <>
+      <Head>
+        <title>池的小手机</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+        <meta name="theme-color" content="#0a0a0a" />
+      </Head>
+      <div className="shell">
+        {/* 手机外壳 */}
+        <div className="phone-frame">
+          {/* 状态栏 */}
+          <div className="status-bar">
+            <span className="status-time">{new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+            <span className="status-icons">📶 🔋</span>
+          </div>
+          {/* 屏幕内容 */}
+          <div className="phone-screen">
+            {activeTab === 'phone' ? renderPhoneContent() : <ChatView />}
+          </div>
+          {/* 底部导航 */}
+          <div className="bottom-nav">
+            <button
+              className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('phone') }}
+            >
+              <span className="nav-icon">📱</span>
+              <span className="nav-label">手机</span>
+            </button>
+            <button
+              className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('chat'); setLocked(false) }}
+            >
+              <span className="nav-icon">💬</span>
+              <span className="nav-label">聊天</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; background: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+
+        .shell {
+          width: 100%; height: 100vh;
+          display: flex; align-items: center; justify-content: center;
+          padding: 0;
+        }
+
+        /* 手机外框 */
+        .phone-frame {
+          width: 100%; max-width: 420px; height: 100vh;
+          background: #111;
+          display: flex; flex-direction: column;
+          overflow: hidden;
+          position: relative;
+        }
+        @media (min-width: 768px) {
+          .phone-frame {
+            height: 90vh; max-height: 800px;
+            border-radius: 40px;
+            border: 3px solid #333;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+          }
+        }
+
+        /* 状态栏 */
+        .status-bar {
+          display: flex; justify-content: space-between; align-items: center;
+          padding: 8px 20px 4px;
+          font-size: 12px; color: #999;
+          background: #111;
+          flex-shrink: 0;
+        }
+
+        /* 屏幕 */
+        .phone-screen {
+          flex: 1; overflow: hidden;
+          position: relative;
+          background: #0d0d0d;
+        }
+
+        /* 底部导航 */
+        .bottom-nav {
+          display: flex; justify-content: space-around; align-items: center;
+          padding: 8px 0 12px;
+          background: #111;
+          border-top: 1px solid #1a1a1a;
+          flex-shrink: 0;
+        }
+        .nav-btn {
+          background: none; border: none; color: #666;
+          display: flex; flex-direction: column; align-items: center; gap: 2px;
+          cursor: pointer; padding: 4px 16px;
+          transition: color 0.2s;
+        }
+        .nav-btn.active { color: #a78bfa; }
+        .nav-icon { font-size: 20px; }
+        .nav-label { font-size: 10px; }
+
+        /* ===== 锁屏 ===== */
+        .lock-screen {
+          width: 100%; height: 100%;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          background: linear-gradient(180deg, #1a1025 0%, #0d0d1a 100%);
+          color: #fff; cursor: pointer;
+          user-select: none;
+        }
+        .lock-time { font-size: 64px; font-weight: 200; letter-spacing: -2px; }
+        .lock-date { font-size: 14px; color: #888; margin-top: 8px; }
+        .lock-hint {
+          position: absolute; bottom: 30px;
+          font-size: 12px; color: #555;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        /* ===== 主屏 ===== */
+        .home-screen {
+          width: 100%; height: 100%; padding: 20px 16px;
+          overflow-y: auto;
+          background: linear-gradient(180deg, #12101a 0%, #0d0d0d 100%);
+        }
+        .home-greeting {
+          text-align: center; color: #a78bfa;
+          font-size: 16px; font-weight: 500;
+          margin-bottom: 24px; padding-top: 8px;
+        }
+        .home-greeting-emoji { margin-right: 6px; }
+        .app-grid {
+          display: grid; grid-template-columns: repeat(4, 1fr);
+          gap: 20px 8px;
+        }
+        .app-item {
+          display: flex; flex-direction: column; align-items: center; gap: 6px;
+          cursor: pointer; padding: 8px 4px; border-radius: 12px;
+          transition: background 0.2s;
+        }
+        .app-item:active { background: rgba(167,139,250,0.1); }
+        .app-icon {
+          width: 48px; height: 48px; border-radius: 14px;
+          background: rgba(255,255,255,0.05);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 24px;
+        }
+        .app-label { font-size: 11px; color: #ccc; text-align: center; }
+
+        /* ===== App页面 ===== */
+        .app-page { width: 100%; height: 100%; display: flex; flex-direction: column; background: #0d0d0d; }
+        .app-page-header {
+          display: flex; align-items: center; gap: 12px;
+          padding: 12px 16px; border-bottom: 1px solid #1a1a1a;
+        }
+        .back-btn {
+          background: none; border: none; color: #a78bfa;
+          font-size: 20px; cursor: pointer; padding: 4px 8px;
+        }
+        .app-page-title { color: #e0e0e0; font-size: 16px; font-weight: 500; }
+        .app-page-body { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .coming-soon { color: #555; font-size: 16px; }
+
+        /* ===== 聊天 ===== */
+        .chat-view { width: 100%; height: 100%; display: flex; flex-direction: column; }
+        .chat-header {
+          display: flex; align-items: center; padding: 12px 16px;
+          border-bottom: 1px solid #1a1a1a; background: #111;
+        }
+        .chat-avatar {
+          width: 36px; height: 36px; border-radius: 50%;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px; color: #fff; font-weight: 600;
+        }
+        .chat-header-info { margin-left: 10px; }
+        .chat-name { font-size: 15px; font-weight: 600; color: #f0f0f0; }
+        .chat-status { font-size: 11px; color: #6b7280; margin-top: 1px; }
+        .chat-messages {
+          flex: 1; overflow-y: auto; padding: 14px 14px 8px;
+        }
+        .chat-empty { text-align: center; color: #4b5563; margin-top: 40%; font-size: 14px; }
+        .msg-row { display: flex; align-items: flex-end; margin-bottom: 10px; gap: 8px; }
+        .msg-row.user { justify-content: flex-end; }
+        .msg-row.assistant { justify-content: flex-start; }
+        .msg-avatar {
+          width: 26px; height: 26px; border-radius: 50%;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 10px; color: #fff; flex-shrink: 0;
+        }
+        .msg-bubble {
+          max-width: 72%; padding: 9px 13px; border-radius: 16px;
+          font-size: 14px; line-height: 1.5; word-break: break-word; white-space: pre-wrap;
+        }
+        .msg-bubble.user { background: #4f46e5; color: #fff; border-bottom-right-radius: 4px; }
+        .msg-bubble.assistant { background: #1f1f1f; color: #e0e0e0; border-bottom-left-radius: 4px; }
+        .chat-input-area {
+          display: flex; align-items: center; gap: 8px;
+          padding: 10px 14px; border-top: 1px solid #1a1a1a; background: #111;
+        }
+        .chat-input {
+          flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a;
+          border-radius: 20px; padding: 9px 14px; color: #e0e0e0;
+          font-size: 14px; outline: none; font-family: inherit;
+        }
+        .chat-send {
+          width: 34px; height: 34px; border-radius: 50%;
+          background: #4f46e5; color: #fff; border: none;
+          cursor: pointer; font-size: 16px;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .chat-send:disabled { opacity: 0.4; }
+      `}</style>
+    </>
+  )
 }
