@@ -17,7 +17,7 @@ function getApiConfig(feature) {
   const fc = all[feature] || {}
   return { apiBase: fc.apiBase || def.apiBase || '', apiKey: fc.apiKey || def.apiKey || '', model: fc.model || def.model || '' }
 }
-function ChatView() {
+function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { localStorage.setItem('pool_chat_history', JSON.stringify(messages)) } catch {} }, [messages])
   const [input, setInput] = useState('')
@@ -146,7 +146,7 @@ function ChatView() {
           <button onClick={clearChat} style={{background:'none',border:'none',color:'#9a8a99',fontSize:'18px',cursor:'pointer'}} title={'\u6e05\u7a7a\u5bf9\u8bdd'}>{'\ud83d\uddd1'}</button>
         </div>
       </div>
-      <div className="chat-messages" onClick={() => setMenuIdx(-1)}>
+      <div className="chat-messages" style={theme?.chatBg ? {backgroundImage:`url(${theme.chatBg})`,backgroundSize:'cover',backgroundPosition:'center'} : {}} onClick={() => setMenuIdx(-1)}>
         {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
         {messages.map((msg, i) => (
           <div key={i} className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
@@ -159,7 +159,7 @@ function ChatView() {
                 <div className="msg-edit-btns"><button onClick={confirmEdit}>{'\u2713'}</button><button onClick={() => setEditIdx(-1)}>{'\u2717'}</button></div>
               </div>
             ) : (
-              <div className={`msg-bubble ${msg.role}`}>{msg.content}</div>
+              <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'&&theme?.bubbleUser?{background:theme.bubbleUser}:msg.role==='assistant'&&theme?.bubbleAI?{background:theme.bubbleAI}:{}}>{msg.content}</div>
             )}
             {menuIdx === i && msg.role !== 'system' && (
               <div className="msg-menu">
@@ -184,7 +184,7 @@ function ChatView() {
     </div>
   )
 }
-function LockScreen({ onUnlock }) {
+function LockScreen({ onUnlock, theme }) {
   const [touchStart, setTouchStart] = useState(null)
   const [now, setNow] = useState(new Date())
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t) }, [])
@@ -199,8 +199,10 @@ function LockScreen({ onUnlock }) {
     setTouchStart(null)
   }
 
+  const lockStyle = theme?.lockWallpaper ? { backgroundImage: `url(${theme.lockWallpaper})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}
+
   return (
-    <div className="lock-screen" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onClick={onUnlock}>
+    <div className="lock-screen" style={lockStyle} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onClick={onUnlock}>
       <div className="lock-time">{timeStr}</div>
       <div className="lock-date">{dateStr}</div>
       <div className="lock-quote">{'\u201c\u9501\u5c4f\u5199\u7740\u60f3\u4f60 \u5176\u5b9e\u662f\u6015\u4f60\u70ed\u7740\u201d'}</div>
@@ -437,7 +439,7 @@ function AppContent({ appId, onBack }) {
   )
 }
 
-function HomeScreen({ onOpenApp }) {
+function HomeScreen({ onOpenApp, theme }) {
   const page1Apps = [
     { id: 'notes', icon: '/icons/notes.png', name: '\u4fbf\u7b7e' },
     { id: 'gallery', icon: '/icons/gallery.png', name: '\u547d\u8fd0\u5361\u6c60' },
@@ -457,6 +459,8 @@ function HomeScreen({ onOpenApp }) {
     { id: 'theme', icon: '/icons/theme.png', name: '\u7f8e\u5316' },
     { id: 'travel', icon: '/icons/notifications.png', name: '\u65c5\u884c' },
   ]
+  const icons = theme?.icons || {}
+  const getIcon = (app) => icons[app.id] || app.icon
   const [page, setPage] = useState(0)
   const [swipeX, setSwipeX] = useState(null)
   const startDate = new Date(2026, 6, 21)
@@ -474,7 +478,7 @@ function HomeScreen({ onOpenApp }) {
   }
 
   return (
-    <div className="home-screen">
+    <div className="home-screen" style={theme?.wallpaper ? {backgroundImage:`url(${theme.wallpaper})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}>
       <div className="home-top">
         <div className="home-banner"><img src="/header_bg.jpg" alt="" className="banner-img" /></div>
         <div className="music-card" onClick={() => onOpenApp('music')}>
@@ -501,7 +505,7 @@ function HomeScreen({ onOpenApp }) {
         <div className="app-grid">
           {(page === 0 ? page1Apps : page2Apps).map(app => (
             <div key={app.id} className="app-item" onClick={() => onOpenApp(app.id)}>
-              <div className="app-icon"><img src={app.icon} alt={app.name} /></div>
+              <div className="app-icon"><img src={getIcon(app)} alt={app.name} /></div>
               <div className="app-label">{app.name}</div>
             </div>
           ))}
@@ -519,14 +523,22 @@ export default function Home() {
   const [locked, setLocked] = useState(true)
   const [currentApp, setCurrentApp] = useState(null)
   const [activeTab, setActiveTab] = useState('phone')
+  const [theme, setTheme] = useState({})
+
+  useEffect(() => {
+    const load = () => setTheme(JSON.parse(localStorage.getItem('pool_theme') || '{}'))
+    load()
+    window.addEventListener('theme-changed', load)
+    return () => window.removeEventListener('theme-changed', load)
+  }, [])
 
   function handleOpenApp(id) { if (id === 'chat') { setActiveTab('chat') } else { setCurrentApp(id) } }
   function handleBack() { setCurrentApp(null) }
 
   function renderPhoneContent() {
-    if (locked) return <LockScreen onUnlock={() => setLocked(false)} />
+    if (locked) return <LockScreen onUnlock={() => setLocked(false)} theme={theme} />
     if (currentApp) return <AppContent appId={currentApp} onBack={handleBack} />
-    return <HomeScreen onOpenApp={handleOpenApp} />
+    return <HomeScreen onOpenApp={handleOpenApp} theme={theme} />
   }
 
   return (
@@ -544,7 +556,7 @@ export default function Home() {
           </div>
           <div className="phone-screen">
             <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%'}}>{renderPhoneContent()}</div>
-            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView /></div>
+            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
           </div>
           <div className="bottom-nav">
             <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
