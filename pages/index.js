@@ -105,6 +105,7 @@ function HomeScreen({ onOpenApp }) {
     { id: 'game', icon: '/icons/game.png', name: '\u665a\u5b89' },
   ]
   const [page, setPage] = useState(0)
+  const [swipeX, setSwipeX] = useState(null)
   const startDate = new Date(2026, 6, 21)
   const today = new Date()
   const coupleDays = Math.floor((today - startDate) / (1000*60*60*24))
@@ -132,7 +133,16 @@ function HomeScreen({ onOpenApp }) {
           <div className="memo-text">{'\u4eca\u5929\u5979\u5976\u8336\u559d\u4e86\u51e0\u676f\u6765\u7740\u2026'}</div>
         </div>
         <div className="home-section-title">{page === 0 ? '\ud83c\udf19 \u6c60\u7684\u624b\u673a' : '\u66f4\u591a\u5e94\u7528'}</div>
-        <div className="home-pager">
+        <div className="home-pager"
+          onTouchStart={e => setSwipeX(e.touches[0].clientX)}
+          onTouchEnd={e => {
+            if (swipeX !== null) {
+              const diff = swipeX - e.changedTouches[0].clientX
+              if (diff > 50 && page === 0) setPage(1)
+              if (diff < -50 && page === 1) setPage(0)
+            }
+            setSwipeX(null)
+          }}>
           <div style={{ display: page === 0 ? 'block' : 'none' }}>
             <div className="app-grid">
               {page1Apps.map(app => (
