@@ -112,30 +112,66 @@ function LockScreen({ onUnlock }) {
 
 // ===== 主屏组件 =====
 function HomeScreen({ onOpenApp }) {
-  const apps = [
-    { id: 'chat', icon: '💬', name: '聊天' },
-    { id: 'fishing', icon: '🎣', name: '钓鱼' },
-    { id: 'music', icon: '🎵', name: '音乐' },
-    { id: 'gacha', icon: '🎰', name: '卡池' },
-    { id: 'couple', icon: '💕', name: '情侣' },
-    { id: 'notes', icon: '📝', name: '便签' },
-    { id: 'travel', icon: '✈️', name: '旅行' },
-    { id: 'fortune', icon: '🔮', name: '运势' },
+  // App列表 - 跟Operit小手机一致，使用自定义图标
+  const page1Apps = [
+    { id: 'notes', icon: '/icons/notes.png', name: '便签' },
+    { id: 'gallery', icon: '/icons/gallery.png', name: '命运卡池' },
+    { id: 'messages', icon: '/icons/messages.png', name: '如果' },
+    { id: 'music', icon: '/icons/music.png', name: '音乐' },
+    { id: 'browser', icon: '/icons/browser.png', name: '浏览' },
+    { id: 'couple', icon: '/icons/couple.png', name: '情侣' },
+    { id: 'system', icon: '/icons/system.png', name: '系统' },
+    { id: 'doodle', icon: '/icons/doodle.png', name: '涂鸦' },
   ]
+  const page2Apps = [
+    { id: 'ledger', icon: '/icons/ledger.png', name: '占卜' },
+    { id: 'drafts', icon: '/icons/drafts.png', name: '草稿' },
+    { id: 'fishing', icon: '/icons/fishing.png', name: '钓鱼' },
+    { id: 'reader', icon: '/icons/reader.png', name: '阅读' },
+    { id: 'game', icon: '/icons/game.png', name: '晚安' },
+  ]
+
+  const [page, setPage] = useState(0)
 
   return (
     <div className="home-screen">
-      <div className="home-greeting">
-        <span className="home-greeting-emoji">🌙</span>
-        <span>池的手机</span>
-      </div>
-      <div className="app-grid">
-        {apps.map(app => (
-          <div key={app.id} className="app-item" onClick={() => onOpenApp(app.id)}>
-            <div className="app-icon">{app.icon}</div>
-            <div className="app-label">{app.name}</div>
+      <div className="home-pager">
+        <div className="home-page" style={{ display: page === 0 ? 'block' : 'none' }}>
+          <div className="home-greeting">
+            <span className="home-greeting-emoji">🌙</span>
+            <span>池的手机</span>
           </div>
-        ))}
+          <div className="app-grid">
+            {page1Apps.map(app => (
+              <div key={app.id} className="app-item" onClick={() => onOpenApp(app.id)}>
+                <div className="app-icon">
+                  <img src={app.icon} alt={app.name} />
+                </div>
+                <div className="app-label">{app.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="home-page" style={{ display: page === 1 ? 'block' : 'none' }}>
+          <div className="home-greeting">
+            <span>更多应用</span>
+          </div>
+          <div className="app-grid">
+            {page2Apps.map(app => (
+              <div key={app.id} className="app-item" onClick={() => onOpenApp(app.id)}>
+                <div className="app-icon">
+                  <img src={app.icon} alt={app.name} />
+                </div>
+                <div className="app-label">{app.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* 页面指示点 */}
+      <div className="page-dots">
+        <div className={`dot ${page === 0 ? 'active' : ''}`} onClick={() => setPage(0)} />
+        <div className={`dot ${page === 1 ? 'active' : ''}`} onClick={() => setPage(1)} />
       </div>
     </div>
   )
@@ -144,8 +180,8 @@ function HomeScreen({ onOpenApp }) {
 // ===== 主页面 =====
 export default function Home() {
   const [locked, setLocked] = useState(true)
-  const [currentApp, setCurrentApp] = useState(null) // null = 主屏
-  const [activeTab, setActiveTab] = useState('phone') // phone | chat
+  const [currentApp, setCurrentApp] = useState(null)
+  const [activeTab, setActiveTab] = useState('phone')
 
   function handleOpenApp(id) {
     if (id === 'chat') {
@@ -159,15 +195,20 @@ export default function Home() {
     setCurrentApp(null)
   }
 
-  // 手机屏幕内容
   function renderPhoneContent() {
     if (locked) return <LockScreen onUnlock={() => setLocked(false)} />
     if (currentApp) {
+      const appNames = {
+        notes: '便签', gallery: '命运卡池', messages: '如果…',
+        music: '音乐', browser: '浏览', couple: '情侣空间',
+        system: '系统', doodle: '涂鸦', ledger: '占卜',
+        drafts: '草稿箱', fishing: '钓鱼', reader: '阅读', game: '晚安'
+      }
       return (
         <div className="app-page">
           <div className="app-page-header">
             <button className="back-btn" onClick={handleBack}>←</button>
-            <span className="app-page-title">{currentApp}</span>
+            <span className="app-page-title">{appNames[currentApp] || currentApp}</span>
           </div>
           <div className="app-page-body">
             <div className="coming-soon">🚧 开发中...</div>
@@ -186,30 +227,20 @@ export default function Home() {
         <meta name="theme-color" content="#0a0a0a" />
       </Head>
       <div className="shell">
-        {/* 手机外壳 */}
         <div className="phone-frame">
-          {/* 状态栏 */}
           <div className="status-bar">
             <span className="status-time">{new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
             <span className="status-icons">📶 🔋</span>
           </div>
-          {/* 屏幕内容 */}
           <div className="phone-screen">
             {activeTab === 'phone' ? renderPhoneContent() : <ChatView />}
           </div>
-          {/* 底部导航 */}
           <div className="bottom-nav">
-            <button
-              className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('phone') }}
-            >
+            <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
               <span className="nav-icon">📱</span>
               <span className="nav-label">手机</span>
             </button>
-            <button
-              className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('chat'); setLocked(false) }}
-            >
+            <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
               <span className="nav-icon">💬</span>
               <span className="nav-label">聊天</span>
             </button>
@@ -221,58 +252,38 @@ export default function Home() {
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { height: 100%; background: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
 
-        .shell {
-          width: 100%; height: 100vh;
-          display: flex; align-items: center; justify-content: center;
-          padding: 0;
-        }
+        .shell { width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
 
-        /* 手机外框 */
         .phone-frame {
           width: 100%; max-width: 420px; height: 100vh;
-          background: #111;
-          display: flex; flex-direction: column;
-          overflow: hidden;
-          position: relative;
+          background: #111; display: flex; flex-direction: column;
+          overflow: hidden; position: relative;
         }
         @media (min-width: 768px) {
           .phone-frame {
             height: 90vh; max-height: 800px;
-            border-radius: 40px;
-            border: 3px solid #333;
+            border-radius: 40px; border: 3px solid #333;
             box-shadow: 0 20px 60px rgba(0,0,0,0.8);
           }
         }
 
-        /* 状态栏 */
         .status-bar {
           display: flex; justify-content: space-between; align-items: center;
-          padding: 8px 20px 4px;
-          font-size: 12px; color: #999;
-          background: #111;
-          flex-shrink: 0;
+          padding: 8px 20px 4px; font-size: 12px; color: #999;
+          background: #111; flex-shrink: 0;
         }
 
-        /* 屏幕 */
-        .phone-screen {
-          flex: 1; overflow: hidden;
-          position: relative;
-          background: #0d0d0d;
-        }
+        .phone-screen { flex: 1; overflow: hidden; position: relative; background: #0d0d0d; }
 
-        /* 底部导航 */
         .bottom-nav {
           display: flex; justify-content: space-around; align-items: center;
-          padding: 8px 0 12px;
-          background: #111;
-          border-top: 1px solid #1a1a1a;
-          flex-shrink: 0;
+          padding: 8px 0 12px; background: #111;
+          border-top: 1px solid #1a1a1a; flex-shrink: 0;
         }
         .nav-btn {
           background: none; border: none; color: #666;
           display: flex; flex-direction: column; align-items: center; gap: 2px;
-          cursor: pointer; padding: 4px 16px;
-          transition: color 0.2s;
+          cursor: pointer; padding: 4px 16px; transition: color 0.2s;
         }
         .nav-btn.active { color: #a78bfa; }
         .nav-icon { font-size: 20px; }
@@ -283,48 +294,63 @@ export default function Home() {
           width: 100%; height: 100%;
           display: flex; flex-direction: column;
           align-items: center; justify-content: center;
-          background: linear-gradient(180deg, #1a1025 0%, #0d0d1a 100%);
-          color: #fff; cursor: pointer;
-          user-select: none;
+          background: url('/wallpaper_lock.jpg') center/cover no-repeat;
+          color: #fff; cursor: pointer; user-select: none;
+          position: relative;
         }
-        .lock-time { font-size: 64px; font-weight: 200; letter-spacing: -2px; }
-        .lock-date { font-size: 14px; color: #888; margin-top: 8px; }
+        .lock-screen::before {
+          content: ''; position: absolute; inset: 0;
+          background: rgba(0,0,0,0.3);
+        }
+        .lock-time { font-size: 64px; font-weight: 200; letter-spacing: -2px; position: relative; z-index: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+        .lock-date { font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 8px; position: relative; z-index: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
         .lock-hint {
-          position: absolute; bottom: 30px;
-          font-size: 12px; color: #555;
+          position: absolute; bottom: 30px; z-index: 1;
+          font-size: 12px; color: rgba(255,255,255,0.5);
           animation: pulse 2s infinite;
         }
         @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
 
         /* ===== 主屏 ===== */
         .home-screen {
-          width: 100%; height: 100%; padding: 20px 16px;
-          overflow-y: auto;
+          width: 100%; height: 100%; display: flex; flex-direction: column;
           background: linear-gradient(180deg, #12101a 0%, #0d0d0d 100%);
         }
+        .home-pager { flex: 1; overflow-y: auto; padding: 16px 12px; }
         .home-greeting {
           text-align: center; color: #a78bfa;
           font-size: 16px; font-weight: 500;
-          margin-bottom: 24px; padding-top: 8px;
+          margin-bottom: 20px; padding-top: 8px;
         }
         .home-greeting-emoji { margin-right: 6px; }
         .app-grid {
           display: grid; grid-template-columns: repeat(4, 1fr);
-          gap: 20px 8px;
+          gap: 18px 6px;
         }
         .app-item {
           display: flex; flex-direction: column; align-items: center; gap: 6px;
-          cursor: pointer; padding: 8px 4px; border-radius: 12px;
-          transition: background 0.2s;
+          cursor: pointer; padding: 6px 4px; border-radius: 12px;
+          transition: transform 0.1s, background 0.2s;
         }
-        .app-item:active { background: rgba(167,139,250,0.1); }
+        .app-item:active { transform: scale(0.92); background: rgba(167,139,250,0.08); }
         .app-icon {
-          width: 48px; height: 48px; border-radius: 14px;
-          background: rgba(255,255,255,0.05);
+          width: 52px; height: 52px; border-radius: 14px;
+          overflow: hidden;
           display: flex; align-items: center; justify-content: center;
-          font-size: 24px;
         }
-        .app-label { font-size: 11px; color: #ccc; text-align: center; }
+        .app-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px; }
+        .app-label { font-size: 11px; color: #fff; text-align: center; }
+
+        /* 页面指示点 */
+        .page-dots {
+          display: flex; justify-content: center; gap: 8px;
+          padding: 12px 0 16px; flex-shrink: 0;
+        }
+        .dot {
+          width: 6px; height: 6px; border-radius: 3px;
+          background: #444; cursor: pointer; transition: all 0.3s;
+        }
+        .dot.active { width: 16px; background: #a78bfa; }
 
         /* ===== App页面 ===== */
         .app-page { width: 100%; height: 100%; display: flex; flex-direction: column; background: #0d0d0d; }
@@ -332,10 +358,7 @@ export default function Home() {
           display: flex; align-items: center; gap: 12px;
           padding: 12px 16px; border-bottom: 1px solid #1a1a1a;
         }
-        .back-btn {
-          background: none; border: none; color: #a78bfa;
-          font-size: 20px; cursor: pointer; padding: 4px 8px;
-        }
+        .back-btn { background: none; border: none; color: #a78bfa; font-size: 20px; cursor: pointer; padding: 4px 8px; }
         .app-page-title { color: #e0e0e0; font-size: 16px; font-weight: 500; }
         .app-page-body { flex: 1; display: flex; align-items: center; justify-content: center; }
         .coming-soon { color: #555; font-size: 16px; }
@@ -355,9 +378,7 @@ export default function Home() {
         .chat-header-info { margin-left: 10px; }
         .chat-name { font-size: 15px; font-weight: 600; color: #f0f0f0; }
         .chat-status { font-size: 11px; color: #6b7280; margin-top: 1px; }
-        .chat-messages {
-          flex: 1; overflow-y: auto; padding: 14px 14px 8px;
-        }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 14px 14px 8px; }
         .chat-empty { text-align: center; color: #4b5563; margin-top: 40%; font-size: 14px; }
         .msg-row { display: flex; align-items: flex-end; margin-bottom: 10px; gap: 8px; }
         .msg-row.user { justify-content: flex-end; }
