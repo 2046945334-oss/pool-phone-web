@@ -16,10 +16,16 @@ function ChatView() {
     setInput('')
     setLoading(true)
     try {
+      const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+      if (!cfg.apiBase || !cfg.apiKey) {
+        setMessages([...newMessages, { role: 'assistant', content: '请先在系统App中配置API' }])
+        setLoading(false)
+        return
+      }
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages.slice(-20), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
       })
       const data = await res.json()
       if (data.reply) {
