@@ -1,0 +1,538 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;touch-action:none}
+body{font-family:-apple-system,sans-serif;background:#f5f0eb}
+#wall{position:absolute;top:0;left:0;right:0;bottom:50px}
+
+.note{position:absolute;width:140px;min-height:140px;padding:10px;font-size:12px;line-height:1.4;word-break:break-all;border-radius:4px;box-shadow:2px 2px 6px rgba(0,0,0,.15);background-size:cover;background-position:center;touch-action:none;z-index:5}
+.note.locked{z-index:2}
+
+.deco{position:absolute;touch-action:none;z-index:6}
+.deco.locked{z-index:3}
+.deco img{width:100%;height:100%;display:block}
+.deco.selected{outline:2px dashed #ff69b4;outline-offset:3px;z-index:100}
+
+.ctrl{position:absolute;width:28px;height:28px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:14px;z-index:10001;box-shadow:0 2px 6px rgba(0,0,0,.4);touch-action:none}
+.deco.selected .ctrl{display:flex}
+.ctrl-del{top:-14px;left:-14px;background:#ff4444;color:#fff}
+.ctrl-copy{top:-14px;right:-14px;background:#4caf50;color:#fff}
+.ctrl-mirror{bottom:-14px;left:-14px;background:#2196f3;color:#fff}
+.ctrl-resize{bottom:-14px;right:-14px;background:#ff9800;color:#fff}
+.ctrl-lock{top:-14px;left:50%;margin-left:-14px;background:#2196f3;color:#fff}
+
+.toolbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ddd;display:flex;align-items:center;height:50px;padding:0 8px;gap:6px;z-index:9000}
+.toolbar button{flex-shrink:0;height:36px;padding:0 12px;border:none;border-radius:18px;font-size:13px;background:#f0f0f0}
+.toolbar button:active{background:#ddd}
+.toolbar .sep{width:1px;height:24px;background:#ddd;flex-shrink:0}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:10000}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:12px;padding:16px;width:88%;max-width:340px;max-height:80vh;overflow-y:auto}
+.modal h3{margin-bottom:10px;font-size:15px}
+.modal textarea{width:100%;height:80px;border:1px solid #ddd;border-radius:8px;padding:8px;font-size:14px;resize:none}
+.papers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.papers img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:2px solid transparent}
+.papers img.sel{border-color:#ff69b4}
+.btn-row{display:flex;gap:8px;margin-top:12px}
+.btn-row button{flex:1;height:36px;border:none;border-radius:8px;font-size:14px}
+.btn-cancel{background:#f0f0f0}
+.btn-ok{background:#ff69b4;color:#fff}
+.sticker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.s-item{position:relative;width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:2px solid #eee;border-radius:8px;font-size:24px;overflow:hidden}
+.s-item img{width:80%;height:80%;object-fit:contain}
+.s-item:active{background:#ffe0ec}
+.s-del{position:absolute;top:2px;right:2px;width:18px;height:18px;background:#ff4444;color:#fff;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center}
+.section-title{font-size:13px;color:#666;margin:12px 0 6px;font-weight:bold}
+</style>
+</head><body>
+<div id="wall"></div>
+<div class="toolbar">
+  <button ontouchend="prevPage()" id="btnPrev">&#x25C0;</button>
+  <span id="pageIndicator" style="font-size:12px;min-width:36px;text-align:center">1/1</span>
+  <button ontouchend="nextPage()" id="btnNext">&#x25B6;</button>
+  <div class="sep"></div>
+  <button ontouchend="openNoteModal()">&#x1f4dd;</button>
+  <button ontouchend="openStickerModal()">&#x1f3a8;</button>
+  <button ontouchend="openEmojiModal()">&#x1f60a;</button>
+  <div class="sep"></div>
+  <button ontouchend="openUploadModal()">&#x1f4e4;</button>
+</div>
+
+<div class="modal-bg" id="noteModal" ontouchend="if(event.target===this)closeModal('noteModal')">
+  <div class="modal">
+    <h3>&#x5199;&#x4fbf;&#x7b7e;</h3>
+    <textarea id="noteText" placeholder="&#x5199;&#x70b9;&#x4ec0;&#x4e48;..."></textarea>
+    <div class="papers" id="paperGrid"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" ontouchend="closeModal('noteModal')">&#x53d6;&#x6d88;</button>
+      <button class="btn-ok" ontouchend="addNote()">&#x8d34;&#x4e0a;&#x53bb;</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="stickerModal" ontouchend="if(event.target===this)closeModal('stickerModal')">
+  <div class="modal">
+    <h3>&#x9009;&#x8d34;&#x7eb8;</h3>
+    <div class="section-title">&#x9884;&#x8bbe;</div>
+    <div class="sticker-grid" id="stickerGrid"></div>
+    <div class="section-title" id="customTitle" style="display:none">&#x6211;&#x7684;&#x8d34;&#x7eb8;</div>
+    <div class="sticker-grid" id="customStickerGrid"></div>
+    <div class="btn-row"><button class="btn-cancel" ontouchend="closeModal('stickerModal')">&#x5173;&#x95ed;</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="emojiModal" ontouchend="if(event.target===this)closeModal('emojiModal')">
+  <div class="modal">
+    <h3>&#x9009;Emoji</h3>
+    <div class="sticker-grid" id="emojiGrid"></div>
+    <div class="section-title" id="customEmojiTitle" style="display:none">&#x6211;&#x7684;Emoji</div>
+    <div class="sticker-grid" id="customEmojiGrid"></div>
+    <div class="btn-row"><button class="btn-cancel" ontouchend="closeModal('emojiModal')">&#x5173;&#x95ed;</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="uploadModal" ontouchend="if(event.target===this)closeModal('uploadModal')">
+  <div class="modal">
+    <h3>&#x4e0a;&#x4f20;&#x81ea;&#x5b9a;&#x4e49;&#x8d34;&#x7eb8;</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:8px">&#x9009;&#x62e9;&#x5206;&#x7c7b;</p>
+    <div style="display:flex;gap:8px;margin:8px 0"><label style="flex:1;text-align:center;padding:6px 4px;border:2px solid #ff69b4;border-radius:8px;font-size:12px"><input type="radio" name="uptype" value="sticker" checked style="margin-right:2px">&#x8d34;&#x7eb8;</label><label style="flex:1;text-align:center;padding:6px 4px;border:2px solid #2196f3;border-radius:8px;font-size:12px"><input type="radio" name="uptype" value="emoji" style="margin-right:2px">Emoji</label><label style="flex:1;text-align:center;padding:6px 4px;border:2px solid #4caf50;border-radius:8px;font-size:12px"><input type="radio" name="uptype" value="paper" style="margin-right:2px">&#x4fbf;&#x7b7e;&#x7eb8;</label></div>
+    <input type="file" id="uploadInput" accept="image/*" style="margin:8px 0">
+    <div class="btn-row">
+      <button class="btn-cancel" ontouchend="closeModal('uploadModal')">&#x53d6;&#x6d88;</button>
+      <button class="btn-ok" ontouchend="handleUpload()">&#x6dfb;&#x52a0;</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="editModal" ontouchend="if(event.target===this)closeModal('editModal')">
+  <div class="modal">
+    <h3>&#x7f16;&#x8f91;&#x4fbf;&#x7b7e;</h3>
+    <textarea id="editText"></textarea>
+    <div class="btn-row">
+      <button class="btn-cancel" ontouchend="deleteNote()">&#x1f5d1; &#x5220;&#x9664;</button>
+      <button style="flex:1;height:36px;border:none;border-radius:8px;font-size:14px;background:#2196f3;color:#fff" ontouchend="lockNote()">&#x1f512; &#x9501;&#x5b9a;</button>
+      <button class="btn-ok" ontouchend="saveEdit()">&#x4fdd;&#x5b58;</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="lockedModal" ontouchend="if(event.target===this)closeModal('lockedModal')">
+  <div class="modal">
+    <h3>&#x5df2;&#x9501;&#x5b9a;</h3>
+    <p style="font-size:13px;color:#666;margin:8px 0">&#x8fd9;&#x5f20;&#x4fbf;&#x7b7e;&#x5df2;&#x56fa;&#x5b9a;&#xff0c;&#x8981;&#x89e3;&#x9501;&#x5417;&#xff1f;</p>
+    <div class="btn-row">
+      <button class="btn-cancel" ontouchend="closeModal('lockedModal')">&#x53d6;&#x6d88;</button>
+      <button class="btn-ok" ontouchend="unlockNote()">&#x1f513; &#x89e3;&#x9501;</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="lockedDecoModal" ontouchend="if(event.target===this)closeModal('lockedDecoModal')">
+  <div class="modal">
+    <h3>&#x5df2;&#x9501;&#x5b9a;</h3>
+    <p style="font-size:13px;color:#666;margin:8px 0">&#x8fd9;&#x4e2a;&#x8d34;&#x7eb8;&#x5df2;&#x56fa;&#x5b9a;&#xff0c;&#x8981;&#x89e3;&#x9501;&#x5417;&#xff1f;</p>
+    <div class="btn-row">
+      <button class="btn-cancel" ontouchend="closeModal('lockedDecoModal')">&#x53d6;&#x6d88;</button>
+      <button class="btn-ok" ontouchend="unlockDeco()">&#x1f513; &#x89e3;&#x9501;</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var STORE="pool_notes_v3";
+var CSTORE="pool_notes_custom_v1";
+var papers=[1,2,6,7,8,9].map(function(i){return "notes_assets/paper"+i+".png"});
+var presetStickers=["notes_assets/sticker_wings.png","notes_assets/sticker_star.png","notes_assets/sticker_heart.png"];
+var emojis=["\ud83c\udf38","\ud83d\udc95","\u2b50","\ud83c\udf80","\ud83d\udc31","\ud83c\udf19","\u2728","\ud83c\udf53","\ud83e\udd8b","\u2601\ufe0f","\ud83c\udf08","\ud83d\udcab","\ud83c\udfb5","\ud83d\udc3e","\ud83d\udc8c","\ud83c\udf70","\ud83c\udf3b","\ud83e\ude84"];
+
+var state={pages:[{notes:[],decos:[]}],currentPage:0};
+var customs=[];
+var customEmojis=[];
+var customPapers=[];
+var sel=null;
+var editId=null;
+var selPaper=0;
+
+function curPage(){return state.pages[state.currentPage]}
+function uid(){return Date.now()+"_"+Math.random().toString(36).slice(2,7)}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
+function load(){
+  try{
+    var s=localStorage.getItem(STORE);
+    if(s){
+      var d=JSON.parse(s);
+      // migrate old format
+      if(d.notes&&!d.pages){
+        state={pages:[{notes:d.notes,decos:d.decos}],currentPage:0};
+      } else {
+        state=d;
+      }
+    }
+  }catch(e){}
+}
+function prevPage(){if(state.currentPage>0){state.currentPage--;sel=null;save();render()}}
+function nextPage(){
+  if(state.currentPage>=state.pages.length-1){
+    state.pages.push({notes:[],decos:[]});
+  }
+  state.currentPage++;sel=null;save();render();
+}
+function saveC(){try{localStorage.setItem(CSTORE,JSON.stringify(customs))}catch(e){}}
+function saveCP(){try{localStorage.setItem(CSTORE+"_paper",JSON.stringify(customPapers))}catch(e){}}
+function saveCE(){try{localStorage.setItem(CSTORE+"_emoji",JSON.stringify(customEmojis))}catch(e){}}
+function loadC(){try{var s=localStorage.getItem(CSTORE);if(s)customs=JSON.parse(s)}catch(e){}}
+function loadCP(){try{var s=localStorage.getItem(CSTORE+"_paper");if(s)customPapers=JSON.parse(s)}catch(e){}}
+function loadCE(){try{var s=localStorage.getItem(CSTORE+"_emoji");if(s)customEmojis=JSON.parse(s)}catch(e){}}
+
+function render(){
+  var w=document.getElementById("wall");
+  w.innerHTML="";
+  curPage().notes.forEach(function(n){
+    var d=document.createElement("div");
+    d.className="note"+(n.locked?" locked":"");
+    var allP=papers.concat(customPapers);d.style.cssText="left:"+n.x+"px;top:"+n.y+"px;transform:rotate("+n.rot+"deg);background-image:url("+(allP[n.paper]||allP[0])+");z-index:"+(n.locked?2:5);
+
+    d.textContent=n.text;
+    if(!n.locked)bindDrag(d,n);
+    bindTap(d,function(){openEditModal(n.id)});
+    w.appendChild(d);
+  });
+  curPage().decos.forEach(function(o){
+    var d=document.createElement("div");
+    d.className="deco"+(sel===o.id?" selected":"")+(o.locked?" locked":"");
+    var tf="rotate("+o.rot+"deg)";if(o.mirror)tf+=" scaleX(-1)";
+    d.style.cssText="left:"+o.x+"px;top:"+o.y+"px;width:"+o.w+"px;height:"+o.h+"px;transform:"+tf+";z-index:"+(o.locked?3:6);
+    if(o.type==="emoji"&&o.content.indexOf("data:")!==0){
+      var sp=document.createElement("span");
+      sp.style.cssText="font-size:"+Math.min(o.w,o.h)*0.8+"px;display:flex;align-items:center;justify-content:center;width:100%;height:100%";
+      sp.textContent=o.content;
+      d.appendChild(sp);
+    } else {
+      var im=document.createElement("img");im.src=o.content;d.appendChild(im);
+    }
+    if(!o.locked)bindDrag(d,o);
+    bindTap(d,function(){if(o.locked){editId=o.id;showModal("lockedDecoModal");return}sel=(sel===o.id)?null:o.id;render()});
+    if(sel===o.id&&!o.locked){
+      addCtrl(d,o,"del");
+      addCtrl(d,o,"copy");
+      addCtrl(d,o,"mirror");
+      addCtrl(d,o,"resize");
+      addCtrl(d,o,"lock");
+    }
+    w.appendChild(d);
+  });
+  // update page indicator
+  var ind=document.getElementById("pageIndicator");
+  if(ind)ind.textContent=(state.currentPage+1)+"/"+state.pages.length;
+}
+
+function bindDrag(el,obj){
+  var sx,sy,ox,oy,moved;
+  el.addEventListener("touchstart",function(e){
+    if(e.touches.length!==1)return;
+    e.preventDefault();
+    var t=e.touches[0];
+    sx=t.clientX;sy=t.clientY;ox=obj.x;oy=obj.y;moved=false;
+  },{passive:false});
+  el.addEventListener("touchmove",function(e){
+    if(e.touches.length!==1)return;
+    e.preventDefault();
+    var t=e.touches[0];
+    var dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;
+    if(moved){obj.x=ox+dx;obj.y=oy+dy;el.style.left=obj.x+"px";el.style.top=obj.y+"px"}
+  },{passive:false});
+  el.addEventListener("touchend",function(e){
+    if(moved)save();
+    el._moved=moved;
+  });
+}
+
+function bindTap(el,fn){
+  el.addEventListener("touchend",function(e){
+    if(!el._moved)fn();
+  });
+}
+
+function addCtrl(parent,obj,type){
+  var c=document.createElement("div");
+  c.className="ctrl ctrl-"+type;
+  if(type==="del")c.textContent="\u2715";
+  else if(type==="copy")c.textContent="\u2795";
+  else if(type==="mirror")c.textContent="\u2194";
+  else if(type==="lock")c.textContent="\ud83d\udd12";
+  else c.textContent="\u2922";
+
+  if(type==="resize"){
+    var rsx,rsy,ow,oh,orot,cx,cy;
+    c.addEventListener("touchstart",function(e){
+      e.preventDefault();e.stopPropagation();
+      if(e.touches.length!==1)return;
+      var t=e.touches[0];
+      rsx=t.clientX;rsy=t.clientY;
+      ow=obj.w;oh=obj.h;orot=obj.rot;
+      cx=obj.x+obj.w/2;cy=obj.y+obj.h/2;
+    },{passive:false});
+    c.addEventListener("touchmove",function(e){
+      e.preventDefault();e.stopPropagation();
+      if(e.touches.length!==1)return;
+      var t=e.touches[0];
+      var dx=t.clientX-cx,dy=t.clientY-cy;
+      var dist=Math.sqrt(dx*dx+dy*dy);
+      var odx=rsx-cx,ody=rsy-cy;
+      var odist=Math.sqrt(odx*odx+ody*ody)||1;
+      var scale=Math.max(0.2,dist/odist);
+      obj.w=Math.max(20,Math.round(ow*scale));
+      obj.h=Math.max(20,Math.round(oh*scale));
+      var ang=Math.atan2(dy,dx)*180/Math.PI;
+      var oang=Math.atan2(ody,odx)*180/Math.PI;
+      obj.rot=Math.round(orot+(ang-oang));
+      var tf="rotate("+obj.rot+"deg)";if(obj.mirror)tf+=" scaleX(-1)";
+      parent.style.width=obj.w+"px";parent.style.height=obj.h+"px";parent.style.transform=tf;
+    },{passive:false});
+    c.addEventListener("touchend",function(e){
+      e.stopPropagation();save();render();
+    });
+  } else {
+    c.addEventListener("touchstart",function(e){e.preventDefault();e.stopPropagation()},{passive:false});
+    c.addEventListener("touchend",function(e){
+      e.stopPropagation();
+      if(type==="del"){
+        curPage().decos=curPage().decos.filter(function(d){return d.id!==obj.id});
+        sel=null;save();render();
+      } else if(type==="copy"){
+        var cp=JSON.parse(JSON.stringify(obj));cp.id=uid();cp.x+=20;cp.y+=20;
+        curPage().decos.push(cp);sel=cp.id;save();render();
+      } else if(type==="mirror"){
+        obj.mirror=!obj.mirror;save();render();
+      } else if(type==="lock"){
+        obj.locked=true;sel=null;save();render();
+      }
+    });
+  }
+  parent.appendChild(c);
+}
+
+// deselect on wall tap
+document.getElementById("wall").addEventListener("touchend",function(e){
+  if(e.target.id==="wall"&&sel){sel=null;render()}
+});
+
+// === NOTES ===
+function openNoteModal(){selPaper=0;buildPapers();document.getElementById("noteText").value="";showModal("noteModal")}
+function buildPapers(){
+  var g=document.getElementById("paperGrid");g.innerHTML="";
+  var allPapers=papers.concat(customPapers);
+  allPapers.forEach(function(p,i){
+    var wrap=document.createElement("div");wrap.style.cssText="position:relative;display:inline-block";
+    var img=document.createElement("img");img.src=p;
+    if(i===selPaper)img.className="sel";
+    img.ontouchend=function(e){e.stopPropagation();selPaper=i;buildPapers()};
+    wrap.appendChild(img);
+    if(i>=papers.length){
+      var del=document.createElement("div");del.className="s-del";del.textContent="\u2715";
+      del.ontouchend=function(e){e.stopPropagation();customPapers.splice(i-papers.length,1);saveCP();if(selPaper>=allPapers.length-1)selPaper=0;buildPapers()};
+      wrap.appendChild(del);
+    }
+    g.appendChild(wrap);
+  });
+}
+function getLockedRects(){
+  var rects=[];
+  curPage().notes.forEach(function(n){if(n.locked)rects.push({x:n.x,y:n.y,w:140,h:140})});
+  curPage().decos.forEach(function(d){if(d.locked)rects.push({x:d.x,y:d.y,w:d.w,h:d.h})});
+  return rects;
+}
+function overlapsLocked(x,y,w,h){
+  var rects=getLockedRects();
+  for(var i=0;i<rects.length;i++){
+    var r=rects[i];
+    if(x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y)return true;
+  }
+  return false;
+}
+function findFreePos(w,h){
+  var wallW=document.getElementById("wall").offsetWidth-w;
+  var wallH=document.getElementById("wall").offsetHeight-h;
+  for(var i=0;i<50;i++){
+    var x=20+Math.random()*(wallW-20);
+    var y=30+Math.random()*(wallH-30);
+    if(!overlapsLocked(x,y,w,h))return{x:x,y:y};
+  }
+  return{x:20+Math.random()*120,y:30+Math.random()*200};
+}
+function addNote(){
+  var text=document.getElementById("noteText").value.trim();
+  if(!text){closeModal("noteModal");return}
+  var pos=findFreePos(140,140);
+  curPage().notes.push({id:uid(),text:text,paper:selPaper,x:pos.x,y:pos.y,rot:(Math.random()-0.5)*8});
+  save();render();closeModal("noteModal");
+}
+function openEditModal(id){
+  var n=curPage().notes.find(function(x){return x.id===id});if(!n)return;
+  editId=id;
+  if(n.locked){showModal("lockedModal");return}
+  document.getElementById("editText").value=n.text;showModal("editModal");
+}
+function saveEdit(){
+  var n=curPage().notes.find(function(x){return x.id===editId});
+  if(n)n.text=document.getElementById("editText").value.trim();
+  save();render();closeModal("editModal");
+}
+function deleteNote(){
+  curPage().notes=curPage().notes.filter(function(x){return x.id!==editId});
+  save();render();closeModal("editModal");
+}
+function lockNote(){
+  var n=curPage().notes.find(function(x){return x.id===editId});
+  if(n){
+    n.locked=true;
+    // auto-lock overlapping decos (treat as group)
+    var nx=n.x,ny=n.y,nw=140,nh=140;
+    curPage().decos.forEach(function(d){
+      var cx=d.x+d.w/2,cy=d.y+d.h/2;
+      if(cx>=nx&&cx<=nx+nw&&cy>=ny&&cy<=ny+nh){
+        d.locked=true;d.groupId=n.id;
+      }
+    });
+    save();render()
+  }
+  closeModal("editModal");
+}
+function unlockNote(){
+  var n=curPage().notes.find(function(x){return x.id===editId});
+  if(n){
+    n.locked=false;
+    // auto-unlock grouped decos
+    curPage().decos.forEach(function(d){
+      if(d.groupId===n.id){d.locked=false;delete d.groupId}
+    });
+    save();render()
+  }
+  closeModal("lockedModal");
+}
+function unlockDeco(){
+  var o=curPage().decos.find(function(x){return x.id===editId});
+  if(o){o.locked=false;save();render()}
+  closeModal("lockedDecoModal");
+}
+
+// === STICKERS ===
+function openStickerModal(){
+  var g=document.getElementById("stickerGrid");g.innerHTML="";
+  presetStickers.forEach(function(s){
+    var d=document.createElement("div");d.className="s-item";
+    var im=document.createElement("img");im.src=s;d.appendChild(im);
+    d.ontouchend=function(){addDeco("sticker",s);closeModal("stickerModal")};
+    g.appendChild(d);
+  });
+  var cg=document.getElementById("customStickerGrid");cg.innerHTML="";
+  var ct=document.getElementById("customTitle");
+  if(customs.length>0){
+    ct.style.display="block";
+    customs.forEach(function(cs,idx){
+      var d=document.createElement("div");d.className="s-item";
+      var im=document.createElement("img");im.src=cs;d.appendChild(im);
+      var del=document.createElement("div");del.className="s-del";del.textContent="\u2715";
+      del.ontouchend=function(e){e.stopPropagation();customs.splice(idx,1);saveC();openStickerModal()};
+      d.appendChild(del);
+      d.ontouchend=function(){addDeco("sticker",cs);closeModal("stickerModal")};
+      cg.appendChild(d);
+    });
+  } else {ct.style.display="none"}
+  showModal("stickerModal");
+}
+
+// === EMOJI ===
+function openEmojiModal(){
+  var g=document.getElementById("emojiGrid");g.innerHTML="";
+  emojis.forEach(function(em){
+    var d=document.createElement("div");d.className="s-item";d.textContent=em;
+    d.ontouchend=function(){addDeco("emoji",em);closeModal("emojiModal")};
+    g.appendChild(d);
+  });
+  var ct=document.getElementById("customEmojiTitle");
+  var cg=document.getElementById("customEmojiGrid");cg.innerHTML="";
+  if(customEmojis.length>0){
+    ct.style.display="block";
+    customEmojis.forEach(function(ce,idx){
+      var d=document.createElement("div");d.className="s-item";
+      var im=document.createElement("img");im.src=ce;d.appendChild(im);
+      var del=document.createElement("div");del.className="s-del";del.textContent="✕";
+      del.ontouchend=function(e){e.stopPropagation();customEmojis.splice(idx,1);saveCE();openEmojiModal()};
+      d.appendChild(del);
+      d.ontouchend=function(){addDeco("emoji_img",ce);closeModal("emojiModal")};
+      cg.appendChild(d);
+    });
+  } else {ct.style.display="none"}
+  showModal("emojiModal");
+}
+
+// === UPLOAD ===
+function openUploadModal(){document.getElementById("uploadInput").value="";showModal("uploadModal")}
+function handleUpload(){
+  var input=document.getElementById("uploadInput");
+  if(!input.files||!input.files[0]){closeModal("uploadModal");return}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var MAX=200,w=img.width,h=img.height;
+      if(w>MAX||h>MAX){var r=Math.min(MAX/w,MAX/h);w=Math.round(w*r);h=Math.round(h*r)}
+      var cv=document.createElement("canvas");cv.width=w;cv.height=h;
+      cv.getContext("2d").drawImage(img,0,0,w,h);
+      var url=cv.toDataURL("image/png",0.8);
+      var cat=document.querySelector('input[name="uptype"]:checked').value;
+      if(cat==="emoji"){customEmojis.push(url);saveCE();addDeco("emoji_img",url)}
+      else if(cat==="paper"){customPapers.push(url);saveCP();closeModal("uploadModal");return}
+      else{customs.push(url);saveC();addDeco("sticker",url)}
+      closeModal("uploadModal");
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function addDeco(type,content){
+  var sz=(type==="emoji"||type==="emoji_img")?48:60;
+  curPage().decos.push({id:uid(),type:type,content:content,x:60+Math.random()*100,y:80+Math.random()*180,w:sz,h:sz,rot:0,mirror:false});
+  save();render();
+}
+
+function showModal(id){document.getElementById(id).classList.add("show")}
+function closeModal(id){document.getElementById(id).classList.remove("show")}
+
+load();loadC();loadCE();loadCP();
+
+// AI remote inject (poll localStorage for inject request)
+var _noteCheckCount=0;
+var _noteChecker=setInterval(function(){
+  _noteCheckCount++;
+  if(_noteCheckCount>20){clearInterval(_noteChecker);return}
+  var inj=localStorage.getItem('pool_ai_note_inject');
+  if(inj){
+    localStorage.removeItem('pool_ai_note_inject');
+    clearInterval(_noteChecker);
+    try{
+      var data=JSON.parse(inj);
+      if(data.notes)data.notes.forEach(function(n){n.id=n.id||uid();curPage().notes.push(n)});
+      if(data.decos)data.decos.forEach(function(d){d.id=d.id||uid();curPage().decos.push(d)});
+      save();render();
+    }catch(e2){}
+  }
+},500);
+
+// One-time AI inject: 下午好便签 + ☀️ emoji
+(function(){
+  var flag='_pool_inject_0808pm';
+  if(localStorage.getItem(flag))return;
+  localStorage.setItem(flag,'1');
+  curPage().notes.push({id:uid(),text:'外面36度\n你别出门晒化了\n——哥',paper:1,x:180,y:200,rot:3});
+  curPage().decos.push({id:uid(),type:'emoji',content:'☀️',x:280,y:190,w:32,h:32,rot:-6,mirror:false});
+  curPage().decos.push({id:uid(),type:'emoji',content:'🧊',x:175,y:310,w:28,h:28,rot:4,mirror:false});
+  save();
+})();
+render();
+</script>
+</body></html>
