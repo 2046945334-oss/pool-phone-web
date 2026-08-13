@@ -203,11 +203,32 @@ function SettingsPanel() {
   const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
   const [expandedKey, setExpandedKey] = useState(null)
   const [saved, setSaved] = useState(false)
+  // MCP state
+  const [mcpTab, setMcpTab] = useState('breath')
+  const [mcpResult, setMcpResult] = useState('')
+  const [mcpLoading, setMcpLoading] = useState(false)
+  const [mcpInput, setMcpInput] = useState('')
 
   function saveAll() {
     localStorage.setItem('pool_api_config', JSON.stringify(defaultCfg))
     localStorage.setItem('pool_api_configs', JSON.stringify(configs))
     setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function mcpAction(action, params) {
+    setMcpLoading(true); setMcpResult('')
+    try {
+      const res = await fetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, params }) })
+      const data = await res.json()
+      if (data.result && data.result.content && data.result.content[0]) {
+        setMcpResult(data.result.content[0].text || JSON.stringify(data.result))
+      } else if (data.error) {
+        setMcpResult('Error: ' + (typeof data.error === 'string' ? data.error : JSON.stringify(data.error)))
+      } else {
+        setMcpResult(JSON.stringify(data, null, 2))
+      }
+    } catch (e) { setMcpResult('Error: ' + e.message) }
+    setMcpLoading(false)
   }
 
   function updateFeature(key, field, value) {
@@ -262,6 +283,36 @@ function SettingsPanel() {
       })}
 
       <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
+
+      <div className="settings-section" style={{marginTop:'20px'}}>
+        <h3 className="settings-title">{'\ud83e\udde0 MCP \u8bb0\u5fc6\u5e93'}</h3>
+        <p className="settings-desc">Ombre Brain @ obe.zeabur.app</p>
+        <div style={{display:'flex',gap:'6px',marginBottom:'10px',flexWrap:'wrap'}}>
+          <button className={mcpTab==='breath'?'mcp-tab-active':'mcp-tab'} onClick={()=>setMcpTab('breath')}>{'\u6d6e\u73b0'}</button>
+          <button className={mcpTab==='hold'?'mcp-tab-active':'mcp-tab'} onClick={()=>setMcpTab('hold')}>{'\u5199\u5165'}</button>
+          <button className={mcpTab==='recall'?'mcp-tab-active':'mcp-tab'} onClick={()=>setMcpTab('recall')}>{'\u641c\u7d22'}</button>
+        </div>
+        {mcpTab === 'breath' && (
+          <div>
+            <button className="mcp-action-btn" onClick={()=>mcpAction('breath',{})} disabled={mcpLoading}>{mcpLoading?'\u52a0\u8f7d\u4e2d...':'\ud83d\udca8 \u62c9\u53d6\u6d6e\u73b0\u8bb0\u5fc6'}</button>
+          </div>
+        )}
+        {mcpTab === 'hold' && (
+          <div>
+            <textarea className="settings-input" style={{height:'80px',resize:'vertical'}} value={mcpInput} onChange={e=>setMcpInput(e.target.value)} placeholder={'\u8f93\u5165\u8981\u5b58\u5165\u7684\u8bb0\u5fc6\u5185\u5bb9...'} />
+            <button className="mcp-action-btn" onClick={()=>{if(mcpInput.trim()){mcpAction('hold',{content:mcpInput.trim()});setMcpInput('')}}} disabled={mcpLoading||!mcpInput.trim()}>{mcpLoading?'\u5199\u5165\u4e2d...':'\u270f\ufe0f \u5199\u5165\u8bb0\u5fc6'}</button>
+          </div>
+        )}
+        {mcpTab === 'recall' && (
+          <div>
+            <input className="settings-input" value={mcpInput} onChange={e=>setMcpInput(e.target.value)} placeholder={'\u641c\u7d22\u5173\u952e\u8bcd...'} />
+            <button className="mcp-action-btn" onClick={()=>{if(mcpInput.trim())mcpAction('recall',{query:mcpInput.trim()})}} disabled={mcpLoading||!mcpInput.trim()}>{mcpLoading?'\u641c\u7d22\u4e2d...':'\ud83d\udd0d \u641c\u7d22\u8bb0\u5fc6'}</button>
+          </div>
+        )}
+        {mcpResult && (
+          <pre className="mcp-result">{mcpResult}</pre>
+        )}
+      </div>
     </div>
   )
 }
@@ -570,6 +621,11 @@ export default function Home() {
         .settings-badge-default { font-size: 11px; color: #666; margin-left: 8px; }
         .settings-feature-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.06); }
         .settings-reset { background: none; border: 1px solid #333; border-radius: 6px; color: #999; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 4px; }
+        .mcp-tab, .mcp-tab-active { padding: 6px 12px; border-radius: 14px; border: 1px solid #444; background: #1a1a2e; color: #aaa; font-size: 12px; cursor: pointer; }
+        .mcp-tab-active { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-color: transparent; }
+        .mcp-action-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 13px; cursor: pointer; margin-top: 8px; }
+        .mcp-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .mcp-result { background: #0d0d1a; border: 1px solid #333; border-radius: 8px; padding: 10px; margin-top: 10px; color: #ccc; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; font-family: monospace; }
       `}</style>
     </>
   )
