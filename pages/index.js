@@ -6,54 +6,131 @@ function ChatView() {
   useEffect(() => { try { localStorage.setItem('pool_chat_history', JSON.stringify(messages)) } catch {} }, [messages])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [menuIdx, setMenuIdx] = useState(-1)
+  const [editIdx, setEditIdx] = useState(-1)
+  const [editText, setEditText] = useState('')
   const bottomRef = useRef(null)
+  const timerRef = useRef(null)
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  async function sendMessage() {
-    if (!input.trim() || loading) return
-    const userMsg = { role: 'user', content: input.trim() }
-    const newMessages = [...messages, userMsg]
-    setMessages(newMessages)
-    setInput('')
+  async function sendMessage(overrideMessages) {
+    const msgToSend = overrideMessages || messages
+    const userText = overrideMessages ? null : input.trim()
+    if (!overrideMessages && !userText) return
+    const newMessages = overrideMessages || [...messages, { role: 'user', content: userText }]
+    if (!overrideMessages) { setMessages(newMessages); setInput('') }
     setLoading(true)
+    const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+    if (!cfg.apiBase || !cfg.apiKey) {
+      setMessages([...newMessages, { role: 'assistant', content: '\u8bf7\u5148\u5728\u7cfb\u7edfApp\u4e2d\u914d\u7f6eAPI' }])
+      setLoading(false); return
+    }
     try {
-      const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
-      if (!cfg.apiBase || !cfg.apiKey) {
-        setMessages([...newMessages, { role: 'assistant', content: '请先在系统App中配置API' }])
-        setLoading(false)
-        return
-      }
       const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages.slice(-20), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
       })
       const data = await res.json()
-      if (data.reply) {
-        setMessages([...newMessages, { role: 'assistant', content: data.reply }])
-      } else {
-        setMessages([...newMessages, { role: 'assistant', content: '\u26a0\ufe0f ' + (data.error || '\u51fa\u9519\u4e86') }])
-      }
-    } catch (err) {
-      setMessages([...newMessages, { role: 'assistant', content: '\u26a0\ufe0f \u7f51\u7edc\u9519\u8bef' }])
-    } finally { setLoading(false) }
+      setMessages([...newMessages, { role: 'assistant', content: data.reply || data.error || '\u65e0\u54cd\u5e94' }])
+    } catch (e) {
+      setMessages([...newMessages, { role: 'assistant', content: '\u51fa\u9519: ' + e.message }])
+    }
+    setLoading(false)
   }
+
+  function handleLongPress(i) { setMenuIdx(i) }
+  function handleTouchStart(i) { timerRef.current = setTimeout(() => handleLongPress(i), 500) }
+  function handleTouchEnd() { clearTimeout(timerRef.current) }
+
+  function copyMsg(i) { navigator.clipboard?.writeText(messages[i].content); setMenuIdx(-1) }
+  function deleteMsg(i) { setMessages(messages.filter((_, idx) => idx !== i)); setMenuIdx(-1) }
+  function rollbackTo(i) { setMessages(messages.slice(0, i + 1)); setMenuIdx(-1) }
+  function startEdit(i) { setEditIdx(i); setEditText(messages[i].content); setMenuIdx(-1) }
+  function confirmEdit() {
+    if (editIdx < 0) return
+    const updated = [...messages.slice(0, editIdx), { role: messages[editIdx].role, content: editText }]
+    setMessages(updated); setEditIdx(-1); setEditText('')
+    if (messages[editIdx].role === 'user') sendMessage(updated)
+  }
+
+  async function insertSummary() {
+    setMenuIdx(-1)
+    const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+    if (!cfg.apiBase || !cfg.apiKey) return
+    const summaryPrompt = [{ role: 'system', content: '\u8bf7\u7528\u4e2d\u6587\u5bf9\u4ee5\u4e0b\u5bf9\u8bdd\u8fdb\u884c\u7b80\u6d01\u7684\u603b\u7ed3\uff0c\u4fdd\u7559\u5173\u952e\u4fe1\u606f\u548c\u4e0a\u4e0b\u6587\uff0c100\u5b57\u4ee5\u5185\u3002' }, ...messages.slice(0, menuIdx + 1)]
+    setLoading(true)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: summaryPrompt, apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
+      })
+      const data = await res.json()
+      if (data.reply) {
+        const summaryMsg = { role: 'system', content: '[\u4e0a\u6587\u603b\u7ed3] ' + data.reply }
+        setMessages([summaryMsg, ...messages.slice(menuIdx + 1)])
+      }
+    } catch {}
+    setLoading(false)
+  }
+
+  async function extractMemory() {
+    setMenuIdx(-1)
+    const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+    if (!cfg.apiBase || !cfg.apiKey) return
+    const memPrompt = [{ role: 'system', content: '\u4ece\u4ee5\u4e0b\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u503c\u5f97\u8bb0\u4f4f\u7684\u5173\u952e\u4fe1\u606f\uff08\u7528\u6237\u504f\u597d\u3001\u91cd\u8981\u4e8b\u5b9e\u3001\u51b3\u5b9a\u7b49\uff09\uff0c\u7528\u7b80\u77ed\u7684\u5217\u8868\u5f62\u5f0f\u8f93\u51fa\u3002' }, ...messages]
+    setLoading(true)
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: memPrompt, apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
+      })
+      const data = await res.json()
+      if (data.reply) {
+        const memories = JSON.parse(localStorage.getItem('pool_memories') || '[]')
+        memories.push({ time: new Date().toLocaleString(), content: data.reply })
+        localStorage.setItem('pool_memories', JSON.stringify(memories))
+        setMessages([...messages, { role: 'system', content: '[\u8bb0\u5fc6\u5df2\u63d0\u53d6] ' + data.reply }])
+      }
+    } catch {}
+    setLoading(false)
+  }
+
+  function clearChat() { setMessages([]); setMenuIdx(-1) }
 
   return (
     <div className="chat-view">
       <div className="chat-header">
         <div className="chat-avatar">{'\u6c60'}</div>
-        <div className="chat-header-info">
-          <div className="chat-name">{'\u6c60'}</div>
-          <div className="chat-status">{loading ? '\u6b63\u5728\u8f93\u5165...' : '\u5728\u7ebf'}</div>
+        <div className="chat-header-info"><div className="chat-name">{'\u6c60'}</div><div className="chat-status">{loading ? '\u601d\u8003\u4e2d...' : '\u5728\u7ebf'}</div></div>
+        <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
+          <button onClick={extractMemory} style={{background:'none',border:'none',color:'#9a8a99',fontSize:'18px',cursor:'pointer'}} title={'\u63d0\u53d6\u8bb0\u5fc6'}>{'\ud83e\udde0'}</button>
+          <button onClick={clearChat} style={{background:'none',border:'none',color:'#9a8a99',fontSize:'18px',cursor:'pointer'}} title={'\u6e05\u7a7a\u5bf9\u8bdd'}>{'\ud83d\uddd1'}</button>
         </div>
       </div>
-      <div className="chat-messages">
-        {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929 \ud83d\udcac'}</div>}
+      <div className="chat-messages" onClick={() => setMenuIdx(-1)}>
+        {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
         {messages.map((msg, i) => (
-          <div key={i} className={`msg-row ${msg.role}`}>
+          <div key={i} className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
             {msg.role === 'assistant' && <div className="msg-avatar">{'\u6c60'}</div>}
-            <div className={`msg-bubble ${msg.role}`}>{msg.content}</div>
+            {msg.role === 'system' ? (
+              <div className="msg-system">{msg.content}</div>
+            ) : editIdx === i ? (
+              <div className="msg-edit-wrap">
+                <textarea className="msg-edit-input" value={editText} onChange={e => setEditText(e.target.value)} />
+                <div className="msg-edit-btns"><button onClick={confirmEdit}>{'\u2713'}</button><button onClick={() => setEditIdx(-1)}>{'\u2717'}</button></div>
+              </div>
+            ) : (
+              <div className={`msg-bubble ${msg.role}`}>{msg.content}</div>
+            )}
+            {menuIdx === i && msg.role !== 'system' && (
+              <div className="msg-menu">
+                <button onClick={() => copyMsg(i)}>{'\ud83d\udccb \u590d\u5236'}</button>
+                <button onClick={() => startEdit(i)}>{'\u270f\ufe0f \u7f16\u8f91'}</button>
+                <button onClick={() => rollbackTo(i)}>{'\u23ea \u56de\u6eda\u5230\u6b64'}</button>
+                <button onClick={insertSummary}>{'\ud83d\udcdd \u63d2\u5165\u603b\u7ed3'}</button>
+                <button onClick={() => deleteMsg(i)}>{'\ud83d\uddd1 \u5220\u9664'}</button>
+              </div>
+            )}
           </div>
         ))}
         <div ref={bottomRef} />
@@ -61,13 +138,12 @@ function ChatView() {
       <div className="chat-input-area">
         <input className="chat-input" value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-          placeholder={'\u8bf4\u70b9\u4ec0\u4e48...'} disabled={loading} />
-        <button className="chat-send" onClick={sendMessage} disabled={!input.trim() || loading}>{'\u2191'}</button>
+          placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
+        <button className="chat-send" onClick={() => sendMessage()} disabled={loading || !input.trim()}>{'\u27a4'}</button>
       </div>
     </div>
   )
 }
-
 function LockScreen({ onUnlock }) {
   const [touchStart, setTouchStart] = useState(null)
   const [now, setNow] = useState(new Date())
@@ -415,6 +491,17 @@ export default function Home() {
         .settings-input:focus { border-color: #e8a0bf; }
         .settings-save { width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg, #e8a0bf, #c77dba); color: #fff; font-size: 15px; font-weight: 600; margin-top: 8px; cursor: pointer; }
         .settings-desc { font-size: 13px; color: #666; }
+      
+        .msg-row { position: relative; }
+        .msg-menu { position: absolute; top: 100%; left: 10px; z-index: 100; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 4px 0; box-shadow: 0 4px 16px rgba(0,0,0,.6); min-width: 130px; }
+        .msg-row.user .msg-menu { left: auto; right: 10px; }
+        .msg-menu button { display: block; width: 100%; padding: 9px 14px; background: none; border: none; color: #e0e0e0; font-size: 13px; text-align: left; cursor: pointer; }
+        .msg-menu button:active { background: rgba(232,160,191,.15); }
+        .msg-system { font-size: 12px; color: #9a8a99; background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 12px; margin: 4px auto; max-width: 85%; text-align: center; border: 1px dashed #333; }
+        .msg-edit-wrap { max-width: 72%; }
+        .msg-edit-input { width: 100%; min-height: 60px; background: #1a1a1a; border: 1px solid #e8a0bf; border-radius: 12px; padding: 8px 12px; color: #e0e0e0; font-size: 14px; resize: none; outline: none; }
+        .msg-edit-btns { display: flex; gap: 8px; margin-top: 4px; }
+        .msg-edit-btns button { background: #222; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; padding: 4px 12px; cursor: pointer; font-size: 14px; }
       `}</style>
     </>
   )
