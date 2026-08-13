@@ -43,6 +43,8 @@ function ChatView({ theme }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const EMOJI_LIST = ['😊','😂','🥺','😭','❤️','🔥','👍','😘','🤗','😏','🙄','😴','🎉','💕','😤','🥰','😳','👀','✨','🌸','💔','🫶','😈','🤭','💋','🙈','😮','💀','🫡','🤔']
   const [editIdx, setEditIdx] = useState(-1)
   const [editText, setEditText] = useState('')
   const bottomRef = useRef(null)
@@ -116,19 +118,37 @@ function ChatView({ theme }) {
     setMenuIdx(-1)
     const cfg = getApiConfig('summary')
     if (!cfg.apiBase || !cfg.apiKey) return
-    const summaryPrompt = [{ role: 'system', content: '\u8bf7\u7528\u4e2d\u6587\u5bf9\u4ee5\u4e0b\u5bf9\u8bdd\u8fdb\u884c\u7b80\u6d01\u7684\u603b\u7ed3\uff0c\u4fdd\u7559\u5173\u952e\u4fe1\u606f\u548c\u4e0a\u4e0b\u6587\uff0c100\u5b57\u4ee5\u5185\u3002' }, ...messages.slice(0, menuIdx + 1)]
+    // 蒸馏方案：前面的旧对话送去压缩，保留最近15轮原文
+    const cutIdx = Math.max(0, messages.length - 15)
+    const oldMessages = messages.slice(0, cutIdx)
+    const recentMessages = messages.slice(cutIdx)
+    if (oldMessages.length < 3) { alert('\u5bf9\u8bdd\u592a\u77ed\uff0c\u65e0\u9700\u538b\u7f29'); return }
+    const distillPrompt = [{
+      role: 'system',
+      content: `你是对话压缩专家。请将以下对话历史蒸馏为结构化摘要，使用以下XML格式输出，总长度控制在800字以内：
+
+<context_summary>
+  <user_profile>用户画像：称呼、性格偏好、互动语气、语言习惯与默契</user_profile>
+  <relationship_dynamic>关系背景：AI扮演角色的自然状态、专属称呼、双方建立的相处氛围</relationship_dynamic>
+  <key_decisions_and_facts>关键事实：双方确认过的结论、重要事件、约定的事情、核心背景</key_decisions_and_facts>
+  <active_topics_and_todos>活动焦点：被压缩那一刻正在聊的具体话题、悬而未决的事项</active_topics_and_todos>
+</context_summary>
+
+请只输出XML块，不要输出其他内容。`
+    }, ...oldMessages]
     setLoading(true)
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: summaryPrompt, apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
+        body: JSON.stringify({ messages: distillPrompt, apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
       })
       const data = await res.json()
       if (data.reply) {
-        const summaryMsg = { role: 'system', content: '[\u4e0a\u6587\u603b\u7ed3] ' + data.reply }
-        setMessages([summaryMsg, ...messages.slice(menuIdx + 1)])
+        const summaryMsg = { role: 'system', content: data.reply }
+        setMessages([summaryMsg, ...recentMessages])
+        alert(`\u2705 \u538b\u7f29\u5b8c\u6210\uff01\u4ece ${messages.length} \u6761\u51cf\u5c11\u5230 ${recentMessages.length + 1} \u6761`)
       }
-    } catch {}
+    } catch(e) { alert('\u538b\u7f29\u5931\u8d25: ' + e.message) }
     setLoading(false)
   }
 
@@ -209,12 +229,16 @@ function ChatView({ theme }) {
             e.target.value = ''
           }} />
         </label>
+        <button className="chat-plus-btn" onClick={() => setShowEmoji(!showEmoji)} style={{fontSize:'16px'}}>{'\ud83d\ude0a'}</button>
         <input className="chat-input" style={theme?.inputBg?{background:theme.inputBg}:{}} value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
         <button className="chat-send" onClick={() => addUserMsg()} disabled={loading || !input.trim()}>{'\u27a4'}</button>
         <button className="chat-trigger" onClick={triggerAI} disabled={loading}>{loading ? '...' : '\u2728'}</button>
       </div>
+      {showEmoji && <div className="emoji-panel">
+        {EMOJI_LIST.map(e => <span key={e} className="emoji-item" onClick={() => { setInput(input + e); setShowEmoji(false) }}>{e}</span>)}
+      </div>}
     </div>
   )
 }
@@ -859,6 +883,9 @@ export default function Home() {
         .msg-bubble.assistant { background: #1f1f1f; color: #e0e0e0; border-bottom-left-radius: 4px; }
         .chat-input-area { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid #1a1a1a; background: #111; flex-shrink: 0; }
         .chat-plus-btn { width: 34px; height: 34px; border-radius: 50%; background: #2a2a3e; color: #e0e0e0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; flex-shrink: 0; border: 1px solid #3a3a4e; }
+        .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: #1a1a2e; border-top: 1px solid #2a2a3e; }
+        .emoji-item { font-size: 22px; cursor: pointer; padding: 4px; border-radius: 6px; }
+        .emoji-item:hover { background: #2a2a3e; }
         .fetch-models-btn { padding: 6px 10px; background: #c77dba; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
         .chat-input { flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px; padding: 9px 14px; color: #e0e0e0; font-size: 14px; outline: none; font-family: inherit; }
         .chat-input:focus { border-color: #e8a0bf; }
