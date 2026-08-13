@@ -86,9 +86,45 @@ function LockScreen({ onUnlock }) {
   )
 }
 
+function SettingsPanel() {
+  const [cfg, setCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
+  const [saved, setSaved] = useState(false)
+
+  function saveCfg() {
+    localStorage.setItem('pool_api_config', JSON.stringify(cfg))
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="settings-panel">
+      <div className="settings-section">
+        <h3 className="settings-title">{'⚙️ AI API 配置'}</h3>
+        <div className="settings-item">
+          <label>API Base URL</label>
+          <input value={cfg.apiBase||''} onChange={e=>setCfg({...cfg,apiBase:e.target.value})} placeholder="https://api.example.com" className="settings-input"/>
+        </div>
+        <div className="settings-item">
+          <label>API Key</label>
+          <input type="password" value={cfg.apiKey||''} onChange={e=>setCfg({...cfg,apiKey:e.target.value})} placeholder="sk-..." className="settings-input"/>
+        </div>
+        <div className="settings-item">
+          <label>{'模型 (Model)'}</label>
+          <input value={cfg.model||''} onChange={e=>setCfg({...cfg,model:e.target.value})} placeholder="gpt-4o-mini" className="settings-input"/>
+        </div>
+        <button className="settings-save" onClick={saveCfg}>{saved ? '✓ 已保存' : '保存配置'}</button>
+      </div>
+      <div className="settings-section">
+        <h3 className="settings-title">{'📊 数据'}</h3>
+        <p className="settings-desc">{'游戏数据存储在浏览器localStorage中'}</p>
+      </div>
+    </div>
+  )
+}
+
 function AppContent({ appId, onBack }) {
   const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', system:'__settings__' }
   const htmlFile = appFiles[appId]
 
   return (
@@ -359,6 +395,16 @@ export default function Home() {
       
         .app-iframe { width: 100%; flex: 1; border: none; background: #fff; }
         .app-page { display: flex; flex-direction: column; height: 100%; }
+      
+        .settings-panel { padding: 16px; overflow-y: auto; flex: 1; }
+        .settings-section { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06); }
+        .settings-title { font-size: 15px; color: #e8a0bf; margin-bottom: 12px; }
+        .settings-item { margin-bottom: 12px; }
+        .settings-item label { display: block; font-size: 12px; color: #9a8a99; margin-bottom: 4px; }
+        .settings-input { width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; outline: none; }
+        .settings-input:focus { border-color: #e8a0bf; }
+        .settings-save { width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg, #e8a0bf, #c77dba); color: #fff; font-size: 15px; font-weight: 600; margin-top: 8px; cursor: pointer; }
+        .settings-desc { font-size: 13px; color: #666; }
       `}</style>
     </>
   )
