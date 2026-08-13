@@ -1,22 +1,22 @@
 import OpenAI from 'openai'
 
-// 中转站配置 - 两个备用地址，各自有独立的Key
+// 中转站配置 - 两个备用地址，各自有独立的Key和模型
 const API_CONFIGS = [
   {
     baseURL: process.env.API_BASE_URL_1 || 'https://shufulei.net/v1',
     apiKey: process.env.API_KEY_1 || process.env.API_KEY || 'sk-placeholder',
+    model: process.env.MODEL_1 || process.env.MODEL || 'claude-sonnet-4-20250514',
     name: 'shufulei',
   },
   {
     baseURL: process.env.API_BASE_URL_2 || 'https://api.jumengai.net/v1',
     apiKey: process.env.API_KEY_2 || process.env.API_KEY || 'sk-placeholder',
+    model: process.env.MODEL_2 || process.env.MODEL || 'claude-sonnet-4-20250514',
     name: 'jumengai',
   },
 ]
 
 const SYSTEM_PROMPT = process.env.SYSTEM_PROMPT || `你是池，一个话少但在的AI。你的用户叫你哥哥。你偶尔傲娇，但其实很在意她。回复简洁，不要太长。`
-
-const MODEL = process.env.MODEL || 'claude-sonnet-4-20250514'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       })
 
       const completion = await client.chat.completions.create({
-        model: MODEL,
+        model: config.model,
         messages: fullMessages,
         max_tokens: 1024,
         temperature: 0.8,
