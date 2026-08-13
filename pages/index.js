@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { NotesApp, FishingApp, MusicApp } from '../components/apps'
 import Head from 'next/head'
 
 function ChatView() {
@@ -88,16 +87,9 @@ function LockScreen({ onUnlock }) {
 }
 
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', travel:'旅行' }
-
-  function renderApp() {
-    switch(appId) {
-      case 'notes': return <NotesApp />
-      case 'fishing': return <FishingApp />
-      case 'music': return <MusicApp />
-      default: return <div className="app-page-body"><div className="coming-soon">{'🚧 开发中...'}</div></div>
-    }
-  }
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html' }
+  const htmlFile = appFiles[appId]
 
   return (
     <div className="app-page">
@@ -105,7 +97,11 @@ function AppContent({ appId, onBack }) {
         <button className="back-btn" onClick={onBack}>{'←'}</button>
         <span className="app-page-title">{appNames[appId] || appId}</span>
       </div>
-      {renderApp()}
+      {htmlFile ? (
+        <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
+      ) : (
+        <div className="app-page-body"><div className="coming-soon">{'🚧 开发中...'}</div></div>
+      )}
     </div>
   )
 }
@@ -360,6 +356,9 @@ export default function Home() {
         .music-pl-item { padding: 10px 14px; border-radius: 10px; margin-bottom: 4px; display: flex; justify-content: space-between; color: #aaa; font-size: 13px; cursor: pointer; }
         .music-pl-item.active { background: rgba(232,160,191,0.1); color: #e8a0bf; }
         .music-pl-artist { color: #666; font-size: 11px; }
+      
+        .app-iframe { width: 100%; flex: 1; border: none; background: #fff; }
+        .app-page { display: flex; flex-direction: column; height: 100%; }
       `}</style>
     </>
   )
