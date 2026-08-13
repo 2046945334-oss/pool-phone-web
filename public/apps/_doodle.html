@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#f8f6f4;font-family:sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+.mode-tabs{display:flex;background:#fff;border-bottom:1px solid #eee;flex-shrink:0}
+.mode-tab{flex:1;padding:10px 0;text-align:center;font-size:13px;color:#999;border:none;background:none;cursor:pointer;position:relative}
+.mode-tab.active{color:#333;font-weight:600}
+.mode-tab.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:#333;border-radius:1px}
+.toolbar{display:flex;align-items:center;padding:8px 12px;gap:6px;background:#fff;border-bottom:1px solid #eee;flex-shrink:0;flex-wrap:wrap}
+.tool-btn{width:36px;height:36px;border-radius:10px;border:none;font-size:16px;display:flex;align-items:center;justify-content:center;background:#f0f0f0;cursor:pointer}
+.tool-btn.active{background:#333;color:#fff}
+.color-btn{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.color-btn.active{border-color:#333;box-shadow:0 0 0 2px #fff,0 0 0 3px #333}
+.size-indicator{font-size:11px;color:#999;min-width:24px;text-align:center}
+.canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden;position:relative}
+canvas{background:#fff;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.08);touch-action:none}
+.bottom-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#fff;border-top:1px solid #eee;flex-shrink:0}
+.bottom-bar button{padding:6px 14px;border-radius:8px;border:none;font-size:13px;background:#f0f0f0;color:#333;cursor:pointer}
+.bottom-bar button.primary-btn{background:#333;color:#fff}
+.guess-header{display:none;align-items:center;justify-content:center;gap:10px;padding:10px 12px;background:#fff8e1;border-bottom:1px solid #ffe082;flex-shrink:0}
+.guess-header .topic{font-size:15px;font-weight:600;color:#e65100}
+.guess-header .timer{font-size:13px;color:#bf360c;background:#ffecb3;padding:2px 8px;border-radius:10px}
+.pixel-palette{display:none;align-items:center;justify-content:center;gap:6px;padding:8px;background:#fff;border-bottom:1px solid #eee;flex-shrink:0;flex-wrap:wrap}
+.pixel-color{width:28px;height:28px;border-radius:6px;border:2px solid transparent;cursor:pointer}
+.pixel-color.active{border-color:#333;transform:scale(1.15)}
+.relay-info{display:none;align-items:center;justify-content:center;gap:8px;padding:8px 12px;background:#e8f5e9;border-bottom:1px solid #c8e6c9;flex-shrink:0;font-size:13px;color:#2e7d32}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.8);background:rgba(0,0,0,0.75);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.ai-status{display:none;align-items:center;justify-content:center;gap:8px;padding:10px 12px;background:linear-gradient(135deg,#ede7f6,#e8eaf6);border-bottom:1px solid #d1c4e9;flex-shrink:0;font-size:13px;color:#5e35b1;animation:pulse 1.5s infinite}
+.ai-status.show{display:flex}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="ai-status" id="aiStatus">&#x1F3A8; &#x6C60;&#x6B63;&#x5728;&#x4F5C;&#x753B;&#x4E2D;...</div>
+<div class="mode-tabs">
+  <button class="mode-tab active" ontouchend="switchMode('free')">&#x270F;&#xFE0F; 涂鸦</button>
+  <button class="mode-tab" ontouchend="switchMode('guess')">&#x2753; AI画你猜</button>
+  <button class="mode-tab" ontouchend="switchMode('pixel')">&#x1F3A8; 填色</button>
+  <button class="mode-tab" ontouchend="switchMode('relay')">&#x1F517; 接龙</button>
+</div>
+<div class="guess-header" id="guessHeader">
+  <span>AI正在画...</span><span class="topic" id="guessTopic" style="display:none">---</span>
+  <input id="guessInput" type="text" placeholder="输入你的答案" style="border:1px solid #ddd;border-radius:8px;padding:4px 10px;font-size:14px;width:120px;outline:none">
+</div>
+<div class="relay-info" id="relayInfo">第 <b id="relayRound">1</b> 轮涂鸦接龙 — 在上一笔基础上继续画</div>
+<div class="pixel-palette" id="pixelPalette"></div>
+<div class="toolbar" id="freeToolbar">
+  <button class="tool-btn active" id="penBtn" ontouchend="setTool('pen')">&#x270F;&#xFE0F;</button>
+  <button class="tool-btn" id="eraserBtn" ontouchend="setTool('eraser')">&#x1F9FD;</button>
+  <button class="tool-btn" id="fillBtn" ontouchend="setTool('fill')">&#x1FAA3;</button>
+  <span style="width:1px;height:24px;background:#ddd;margin:0 2px"></span>
+  <button class="tool-btn" ontouchend="changeSize(-2)">&minus;</button>
+  <span class="size-indicator" id="sizeLabel">4</span>
+  <button class="tool-btn" ontouchend="changeSize(2)">+</button>
+  <span style="width:1px;height:24px;background:#ddd;margin:0 2px"></span>
+  <div class="color-btn active" style="background:#333" ontouchend="setColor('#333',this)"></div>
+  <div class="color-btn" style="background:#e53935" ontouchend="setColor('#e53935',this)"></div>
+  <div class="color-btn" style="background:#fb8c00" ontouchend="setColor('#fb8c00',this)"></div>
+  <div class="color-btn" style="background:#43a047" ontouchend="setColor('#43a047',this)"></div>
+  <div class="color-btn" style="background:#1e88e5" ontouchend="setColor('#1e88e5',this)"></div>
+  <div class="color-btn" style="background:#8e24aa" ontouchend="setColor('#8e24aa',this)"></div>
+  <div class="color-btn" style="background:#f48fb1" ontouchend="setColor('#f48fb1',this)"></div>
+  <div class="color-btn" style="background:#fff;border-color:#ccc" ontouchend="setColor('#ffffff',this)"></div>
+</div>
+<div class="canvas-wrap" id="canvasWrap">
+  <canvas id="canvas" width="320" height="380"></canvas>
+</div>
+<div class="bottom-bar" id="bottomBar">
+  <button ontouchend="clearAll()">&#x1F5D1;&#xFE0F; 清空</button>
+  <button ontouchend="doUndo()">&#x21A9; 撤销</button>
+  <button id="finishBtn" style="display:none;background:#4caf50;color:#fff" ontouchend="finishWork()">&#x2705; 完成</button>
+  <button class="primary-btn" id="mainAction" ontouchend="mainActionClick()">保存</button>
+</div>
+<script>
+// One-time cleanup of bad data from old version
+try{var _old=localStorage.getItem('doodle_canvas_state');if(_old&&_old.indexOf('"type":"fill"')>=0){localStorage.removeItem('doodle_canvas_state');localStorage.removeItem('doodle_mode_state');}}catch(e){}
+var canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
+var tool='pen',color='#333',size=4,drawing=false,undoStack=[],maxUndo=15;
+var currentMode='free';
+
+var guessTopics=['\u732B','\u592A\u9633','\u623F\u5B50','\u82B1','\u6811','\u9C7C','\u6708\u4EAE','\u661F\u661F','\u82F9\u679C','\u96E8\u4F1E','\u8774\u8776','\u96EA\u4EBA','\u86CB\u7CD5','\u6C7D\u8F66','\u98DE\u673A','\u706B\u7BAD','\u5E3D\u5B50','\u773C\u955C','\u94A5\u5319','\u706F\u6CE1','\u4E66','\u676F\u5B50','\u4E91','\u5C71','\u5F69\u8679','\u5FC3','\u7B11\u8138','\u5409\u4ED6','\u949F','\u8239','\u6C14\u7403','\u897F\u74DC','\u51B0\u6DC7\u6DCB','\u8611\u83C7','\u95EA\u7535','\u94BB\u77F3','\u7687\u51A0','\u526A\u5200','\u94C5\u7B14','\u4FE1\u5C01','\u9AB0\u5B50','\u6A31\u6843','\u8DB3\u7403','\u8783\u87F9','\u7AE0\u9C7C','\u8717\u725B','\u4ED9\u4EBA\u638C','\u68D2\u68D2\u7CD6','\u751C\u751C\u5708','Pizza'];
+var guessTimer=null,guessTime=60,guessActive=false;
+
+var pixelGridSize=16;
+var pixelColors=['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#f48fb1','#ffffff','#333333','#795548'];
+var pixelCurrentColor='#e53935';
+var pixelPatterns=[
+  {name:'Heart',grid:['0000000000000000','0000000000000000','0011100011100000','0111110111110000','0111111111110000','0111111111110000','0011111111100000','0001111111000000','0000111110000000','0000011100000000','0000001000000000','0000000000000000','0000000000000000','0000000000000000','0000000000000000','0000000000000000']},
+  {name:'Star',grid:['0000000100000000','0000000100000000','0000001110000000','0000001110000000','0000011111000000','1111111111111100','0111111111111000','0011111111110000','0001111111100000','0001111111100000','0011100011110000','0011000001110000','0110000000110000','0100000000010000','0000000000000000','0000000000000000']},
+  {name:'Flower',grid:['0000000000000000','0000011100000000','0000111110000000','0001100011000000','0011000001100000','0011001001100000','0001100011000000','0000111110000000','0000011100000000','0000001000000000','0000001000000000','0000001000000000','0000011100000000','0000111110000000','0000011100000000','0000000000000000']},
+  {name:'Cat',grid:['0100000000010000','0110000000110000','0111000001110000','0111100011110000','0111111111110000','0111111111110000','0110011011000000','0111111111110000','0111100111110000','0111111111110000','0011111111100000','0001111111000000','0000111110000000','0000000000000000','0000000000000000','0000000000000000']}
+];
+var currentPixelPattern=null,pixelData=[];
+
+var relayRound=1,relayHistory=[];
+
+// Init
+ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);pushUndo();
+canvas.addEventListener('touchstart',function(e){startDraw(e);},{passive:false});
+canvas.addEventListener('touchmove',function(e){moveDraw(e);},{passive:false});
+canvas.addEventListener('touchend',function(e){endDraw(e);});
+
+function pushUndo(){var d=ctx.getImageData(0,0,canvas.width,canvas.height);var c=new Uint8ClampedArray(d.data);if(undoStack.length>=maxUndo)undoStack.shift();undoStack.push(c);}
+function doUndo(){if(undoStack.length>1){undoStack.pop();var a=undoStack[undoStack.length-1];ctx.putImageData(new ImageData(new Uint8ClampedArray(a),canvas.width,canvas.height),0,0);}}
+function setTool(t){tool=t;document.getElementById('penBtn').classList.toggle('active',t==='pen');document.getElementById('eraserBtn').classList.toggle('active',t==='eraser');document.getElementById('fillBtn').classList.toggle('active',t==='fill');}
+function setColor(c,el){color=c;var all=document.querySelectorAll('.color-btn');for(var i=0;i<all.length;i++)all[i].classList.remove('active');if(el)el.classList.add('active');}
+function changeSize(d){size=Math.max(1,Math.min(24,size+d));document.getElementById('sizeLabel').textContent=size;}
+function clearCanvas(){ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);pushUndo();}
+function getPos(e){var r=canvas.getBoundingClientRect();var t=e.touches&&e.touches[0]?e.touches[0]:e;return{x:(t.clientX-r.left)*(canvas.width/r.width),y:(t.clientY-r.top)*(canvas.height/r.height)};}
+
+function startDraw(e){
+  e.preventDefault();
+  if(currentMode==='pixel'){handlePixelTouch(e);return;}
+  if(tool==='fill'){var p=getPos(e);floodFill(Math.round(p.x),Math.round(p.y),color);pushUndo();return;}
+  drawing=true;var p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);
+}
+function moveDraw(e){
+  e.preventDefault();
+  if(currentMode==='pixel')return;
+  if(!drawing)return;
+  var p=getPos(e);ctx.lineWidth=size;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle=tool==='eraser'?'#ffffff':color;ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);
+}
+function endDraw(e){if(drawing){drawing=false;pushUndo();}}
+
+function floodFill(sx,sy,fc){
+  var img=ctx.getImageData(0,0,canvas.width,canvas.height),d=img.data,w=canvas.width,h=canvas.height;
+  var idx=(sy*w+sx)*4,sr=d[idx],sg=d[idx+1],sb=d[idx+2];
+  var rgb=hexToRgb(fc);if(sr===rgb.r&&sg===rgb.g&&sb===rgb.b)return;
+  var stack=[[sx,sy]],vis=new Uint8Array(w*h);
+  while(stack.length){
+    var pt=stack.pop(),x=pt[0],y=pt[1];
+    if(x<0||x>=w||y<0||y>=h)continue;
+    var pi=y*w+x;if(vis[pi])continue;
+    var i=pi*4;if(Math.abs(d[i]-sr)>32||Math.abs(d[i+1]-sg)>32||Math.abs(d[i+2]-sb)>32)continue;
+    vis[pi]=1;d[i]=rgb.r;d[i+1]=rgb.g;d[i+2]=rgb.b;d[i+3]=255;
+    stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+  ctx.putImageData(img,0,0);
+}
+function hexToRgb(h){h=h.replace('#','');return{r:parseInt(h.substring(0,2),16),g:parseInt(h.substring(2,4),16),b:parseInt(h.substring(4,6),16)};}
+
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2000);}
+
+// MODE SWITCHING
+function switchMode(mode){
+  currentMode=mode;
+  var tabs=document.querySelectorAll('.mode-tab');
+  var names=['free','guess','pixel','relay'];
+  for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',names[i]===mode);
+  document.getElementById('guessHeader').style.display=mode==='guess'?'flex':'none';
+  document.getElementById('relayInfo').style.display=mode==='relay'?'flex':'none';
+  document.getElementById('pixelPalette').style.display=mode==='pixel'?'flex':'none';
+  document.getElementById('freeToolbar').style.display=mode==='pixel'?'none':'flex';
+  document.getElementById('finishBtn').style.display=(mode==='relay'||mode==='pixel')?'inline-block':'none';
+  var btn=document.getElementById('mainAction');
+  if(mode==='free')btn.textContent='\u4FDD\u5B58';
+  else if(mode==='guess')btn.textContent='\u63D0\u4EA4\u7B54\u6848';
+  else if(mode==='pixel')btn.textContent='\u6362\u4E00\u5F20';
+  else if(mode==='relay')btn.textContent='\u63D0\u4EA4\u8FD9\u8F6E';
+  if(mode==='guess')startGuess();
+  else stopGuessTimer();
+  if(mode==='pixel')initPixel();
+  else if(mode==='relay'){initRelay();drawHistory=[];try{localStorage.removeItem(PERSIST_KEY);}catch(e){}}
+  if(mode==='free'||mode==='guess'||mode==='relay')clearCanvas();
+}
+
+// FINISH: save final work as image to gallery
+function finishWork(){
+  var dataUrl=canvas.toDataURL('image/png',0.9);
+  // Show completion overlay
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+  var card=document.createElement('div');
+  card.style.cssText='background:#fff;border-radius:16px;padding:20px;text-align:center;max-width:280px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2)';
+  var img=document.createElement('img');
+  img.src=dataUrl;img.style.cssText='width:100%;border-radius:8px;margin-bottom:12px;border:1px solid #eee';
+  card.appendChild(img);
+  var title=document.createElement('div');
+  title.style.cssText='font-size:16px;font-weight:600;margin-bottom:8px';
+  title.textContent='\uD83C\uDF89 \u4F5C\u54C1\u5B8C\u6210\uFF01';
+  card.appendChild(title);
+  var info=document.createElement('div');
+  info.style.cssText='font-size:12px;color:#999;margin-bottom:12px';
+  info.textContent=currentMode==='relay'?'\u63A5\u9F99\u7B2C'+relayRound+'\u8F6E':'\u586B\u8272\u5B8C\u6210';
+  card.appendChild(info);
+  var btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:8px;justify-content:center';
+  var newBtn=document.createElement('button');
+  newBtn.style.cssText='padding:8px 16px;border-radius:8px;border:none;background:#333;color:#fff;font-size:13px';
+  newBtn.textContent='\u91CD\u65B0\u5F00\u59CB';
+  newBtn.ontouchend=function(){overlay.remove();clearCanvas();drawHistory=[];if(currentMode==='relay')initRelay();};
+  var saveBtn=document.createElement('button');
+  saveBtn.style.cssText='padding:8px 16px;border-radius:8px;border:none;background:#4caf50;color:#fff;font-size:13px';
+  saveBtn.textContent='\uD83D\uDCBE \u4FDD\u5B58';
+  saveBtn.ontouchend=function(){
+    try{
+      var fullImg=canvas.toDataURL('image/jpeg',0.85);
+      fetch(FERRY_URL+'/api/ui-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:'doodle_save_img',v:fullImg})}).catch(function(){});
+    }catch(e){}
+    showToast('\u2728 \u6B63\u5728\u4FDD\u5B58...');
+    overlay.remove();
+    document.getElementById('aiStatus').classList.add('show');
+    document.getElementById('aiStatus').textContent='\uD83D\uDCBE \u6B63\u5728\u4FDD\u5B58\u5230\u76F8\u518C...';
+    // Get current latest msg id FIRST, then send save request, then poll for confirmation
+    fetch(FERRY_URL+'/api/chat/messages').then(function(r){return r.json();}).then(function(d){
+      var baseId=(d.data&&d.data.length)?d.data[d.data.length-1].id:0;
+      // Now send the save request
+      fetch(FERRY_URL+'/api/chat/send',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({content:'[涂鸦板-保存] 作品已存到ui-state key=doodle_save_img，请读取并保存到相册',page_context:{source:'doodle_board',mode:currentMode}})
+      }).catch(function(){});
+      // Poll for save confirmation (look for "saved" or "已保存" in reply)
+      var saveTimer=setInterval(function(){
+        fetch(FERRY_URL+'/api/chat/messages?since='+baseId).then(function(r){return r.json();}).then(function(d2){
+          if(!d2.data||!d2.data.length)return;
+          for(var i=0;i<d2.data.length;i++){
+            var m=d2.data[i];
+            if(m.id>baseId)baseId=m.id;
+            if(m.content&&(m.content.indexOf('saved')!==-1||m.content.indexOf('\u5DF2\u4FDD\u5B58')!==-1||m.content.indexOf('\u2705')!==-1)){
+              clearInterval(saveTimer);
+              document.getElementById('aiStatus').classList.remove('show');
+              showToast('\u2705 \u4FDD\u5B58\u6210\u529F\uFF01\u5DF2\u5B58\u5230\u76F8\u518C');
+              return;
+            }
+          }
+        }).catch(function(){});
+      },2000);
+      // Timeout after 30s
+      setTimeout(function(){clearInterval(saveTimer);document.getElementById('aiStatus').classList.remove('show');showToast('\u2705 \u4FDD\u5B58\u5B8C\u6210');},30000);
+    }).catch(function(){
+      // If can't get messages, just show toast after 5s
+      setTimeout(function(){document.getElementById('aiStatus').classList.remove('show');showToast('\u2705 \u4FDD\u5B58\u5B8C\u6210');},5000);
+    });
+  };
+  btnRow.appendChild(newBtn);
+  btnRow.appendChild(saveBtn);
+  card.appendChild(btnRow);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  // Also notify AI
+  sendToFerry('[涂鸦板] \u4F5C\u54C1\u5B8C\u6210\u4E86\uFF01\u6A21\u5F0F:'+currentMode+(currentMode==='relay'?', \u7B2C'+relayRound+'\u8F6E':''));
+}
+
+// GUESS GAME (AI draws, you guess)
+var guessStarted=false;
+function startGuess(){
+  stopGuessTimer();
+  guessStarted=false;
+  clearCanvas();
+  document.getElementById('guessTopic').textContent='';
+  document.getElementById('guessInput').value='';
+  document.getElementById('guessInput').style.display='none';
+  document.getElementById('mainAction').textContent='\u5F00\u59CB\u51FA\u9898';
+}
+function doStartGuess(){
+  guessStarted=true;
+  var topic=guessTopics[Math.floor(Math.random()*guessTopics.length)];
+  document.getElementById('guessTopic').textContent=topic;
+  document.getElementById('guessInput').style.display='';
+  document.getElementById('guessInput').value='';
+  document.getElementById('mainAction').textContent='\u63D0\u4EA4\u7B54\u6848';
+  clearCanvas();
+  sendToFerry('[涂鸦板-AI画你猜] 请画「'+topic+'」给用户猜。用 {"commands":[...]} 格式画在320x380的canvas上。不要告诉用户答案是什么！');
+  waitingForAI=true;startPollAI();
+}
+function stopGuessTimer(){if(guessTimer){clearInterval(guessTimer);guessTimer=null;}}
+
+// PIXEL MODE
+function initPixel(){
+  var pat=pixelPatterns[Math.floor(Math.random()*pixelPatterns.length)];
+  currentPixelPattern=pat;pixelData=[];
+  for(var r=0;r<pixelGridSize;r++){pixelData[r]=[];for(var c=0;c<pixelGridSize;c++)pixelData[r][c]=null;}
+  renderPixelPalette();drawPixelGrid();
+}
+function renderPixelPalette(){
+  var pal=document.getElementById('pixelPalette');pal.innerHTML='';
+  for(var i=0;i<pixelColors.length;i++){
+    (function(c){
+      var d=document.createElement('div');
+      d.className='pixel-color'+(c===pixelCurrentColor?' active':'');
+      d.style.background=c;
+      if(c==='#ffffff')d.style.border='2px solid #ccc';
+      d.ontouchend=function(){pixelCurrentColor=c;var all=document.querySelectorAll('.pixel-color');for(var j=0;j<all.length;j++)all[j].classList.remove('active');d.classList.add('active');};
+      pal.appendChild(d);
+    })(pixelColors[i]);
+  }
+}
+function drawPixelGrid(){
+  var cellW=canvas.width/pixelGridSize,cellH=canvas.height/pixelGridSize;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(currentPixelPattern){
+    for(var r=0;r<pixelGridSize;r++){
+      var row=currentPixelPattern.grid[r]||'';
+      for(var c=0;c<pixelGridSize;c++){
+        if(row[c]==='1'){ctx.fillStyle=pixelData[r][c]||'#f0f0f0';ctx.fillRect(c*cellW,r*cellH,cellW,cellH);}
+      }
+    }
+  }
+  ctx.strokeStyle='#e0e0e0';ctx.lineWidth=0.5;
+  for(var i=0;i<=pixelGridSize;i++){
+    ctx.beginPath();ctx.moveTo(i*cellW,0);ctx.lineTo(i*cellW,canvas.height);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,i*cellH);ctx.lineTo(canvas.width,i*cellH);ctx.stroke();
+  }
+}
+function handlePixelTouch(e){
+  var p=getPos(e);
+  var cellW=canvas.width/pixelGridSize,cellH=canvas.height/pixelGridSize;
+  var col=Math.floor(p.x/cellW),row=Math.floor(p.y/cellH);
+  if(row<0||row>=pixelGridSize||col<0||col>=pixelGridSize)return;
+  if(!currentPixelPattern||!currentPixelPattern.grid[row]||currentPixelPattern.grid[row][col]!=='1')return;
+  pixelData[row][col]=pixelCurrentColor;
+  drawPixelGrid();checkPixelComplete();
+}
+function checkPixelComplete(){
+  if(!currentPixelPattern)return;
+  for(var r=0;r<pixelGridSize;r++){
+    var row=currentPixelPattern.grid[r]||'';
+    for(var c=0;c<pixelGridSize;c++){if(row[c]==='1'&&!pixelData[r][c])return;}
+  }
+  showToast('\uD83C\uDF89 \u586B\u8272\u5B8C\u6210\uFF01');
+}
+
+// RELAY MODE
+function initRelay(){
+  relayRound=1;document.getElementById('relayRound').textContent=relayRound;
+  clearCanvas();relayHistory=[];
+}
+function nextRelayRound(){
+  var dataUrl=canvas.toDataURL('image/png',0.6);
+  relayHistory.push(dataUrl);
+  relayRound++;document.getElementById('relayRound').textContent=relayRound;
+  saveToStorage('doodle_relay');
+  sendToFerry('[涂鸦板-接龙] 第'+(relayRound-1)+'轮画完了！画作已保存到localStorage key=doodle_relay，请看看并给我下一轮的建议或评价~');
+  showToast('\u7B2C'+relayRound+'\u8F6E\uFF01\u7B49AI\u56DE\u5E94~');
+}
+
+// MAIN ACTION
+function mainActionClick(){
+  if(currentMode==='free')doSave();
+  else if(currentMode==='guess'){
+    if(!guessStarted)doStartGuess();
+    else submitGuess();
+  }
+  else if(currentMode==='pixel')initPixel();
+  else if(currentMode==='relay')nextRelayRound();
+}
+function doSave(){
+  saveToStorage('doodle_free');
+  canvas.style.boxShadow='0 0 20px rgba(244,143,177,0.6)';
+  setTimeout(function(){canvas.style.boxShadow='0 2px 12px rgba(0,0,0,0.08)';},500);
+  showToast('\u2728 \u5DF2\u4FDD\u5B58');
+}
+function submitGuess(){
+  var answer=(document.getElementById('guessInput').value||'').trim();
+  if(!answer){showToast('\u8BF7\u8F93\u5165\u4F60\u7684\u7B54\u6848');return;}
+  var topic=document.getElementById('guessTopic').textContent;
+  var correct=answer===topic||answer.indexOf(topic)>=0||topic.indexOf(answer)>=0;
+  showGuessResult({guess:answer,correct:correct,comment:correct?'\u4F60\u592A\u5389\u5BB3\u4E86\uFF01':'\u7B54\u6848\u662F\u300C'+topic+'\u300D\u54E6~'});
+}
+
+// Ferry bridge communication
+var FERRY_URL='http://127.0.0.1:3000';
+var lastMsgId=0;
+var waitingForAI=false;
+var pollAITimer=null;
+
+function sendToFerry(msg){
+  var retries=0;
+  function doSend(){
+    fetch(FERRY_URL+'/api/chat/send',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({content:msg,page_context:{source:'doodle_board',mode:currentMode}})
+    }).then(function(r){
+      if(!r.ok)throw new Error('status '+r.status);
+      if(currentMode==='relay'){waitingForAI=true;startPollAI();}
+    }).catch(function(e){
+      retries++;
+      if(retries<3){
+        setTimeout(doSend,1000*retries);
+      }else{
+        showToast('\u26A0\uFE0F \u53D1\u9001\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5');
+        document.getElementById('aiStatus').classList.remove('show');
+      }
+    });
+  }
+  doSend();
+}
+
+// Poll for AI drawing commands
+function startPollAI(){
+  stopPollAI();
+  document.getElementById('aiStatus').classList.add('show');
+  pollAITimer=setInterval(function(){pollAIReply();},2000);
+  // Also get current lastMsgId
+  fetch(FERRY_URL+'/api/chat/messages').then(function(r){return r.json();}).then(function(d){
+    if(d.data&&d.data.length)lastMsgId=d.data[d.data.length-1].id;
+  }).catch(function(){});
+}
+function stopPollAI(){if(pollAITimer){clearInterval(pollAITimer);pollAITimer=null;}waitingForAI=false;document.getElementById('aiStatus').classList.remove('show');}
+
+function pollAIReply(){
+  fetch(FERRY_URL+'/api/chat/messages?since='+lastMsgId).then(function(r){return r.json();}).then(function(d){
+    if(!d.data||!d.data.length)return;
+    for(var i=0;i<d.data.length;i++){
+      var msg=d.data[i];
+      if(msg.id>lastMsgId)lastMsgId=msg.id;
+      if(msg.role==='assistant'&&msg.content){
+        // Check for draw commands (relay mode)
+        var cmds=parseDrawCommands(msg.content);
+        if(cmds){executeDrawCommands(cmds);stopPollAI();showToast('\u2728 AI\u753B\u597D\u4E86\uFF01\u8F6E\u5230\u4F60\u4E86~');pushUndo();return;}
+        // Check for guess result
+        var guessResult=parseGuessResult(msg.content);
+        if(guessResult){stopPollAI();showGuessResult(guessResult);return;}
+        // If neither format matched but we got a reply, just show it as toast
+        if(waitingForAI){stopPollAI();showToast(msg.content.substring(0,50));return;}
+      }
+    }
+  }).catch(function(){});
+}
+
+function parseGuessResult(text){
+  var match=text.match(/\{[\s\S]*"guess"[\s\S]*\}/);
+  if(!match)return null;
+  try{var obj=JSON.parse(match[0]);if(obj.guess)return obj;}catch(e){}
+  return null;
+}
+function showGuessResult(result){
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+  var card=document.createElement('div');
+  card.style.cssText='background:#fff;border-radius:16px;padding:24px;text-align:center;max-width:280px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2)';
+  var emoji=result.correct?'\uD83C\uDF89':'\uD83E\uDD14';
+  var title=result.correct?'\u731C\u5BF9\u4E86\uFF01':'\u6CA1\u731C\u5BF9~';
+  card.innerHTML='<div style="font-size:40px;margin-bottom:8px">'+emoji+'</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">'+title+'</div><div style="font-size:14px;color:#666;margin-bottom:4px">AI\u7684\u7B54\u6848\uFF1A'+result.guess+'</div><div style="font-size:13px;color:#999;margin-top:8px">'+( result.comment||'')+'</div><button ontouchend="this.parentNode.parentNode.remove()" style="margin-top:16px;padding:8px 24px;border-radius:8px;border:none;background:#333;color:#fff;font-size:14px">\u7EE7\u7EED</button>';
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+function parseDrawCommands(text){
+  // Look for JSON block in AI reply
+  var match=text.match(/\{[\s\S]*"commands"[\s\S]*\}/);
+  if(!match)return null;
+  try{var obj=JSON.parse(match[0]);if(obj.commands&&Array.isArray(obj.commands))return obj.commands;}catch(e){}
+  return null;
+}
+
+function executeDrawCommands(cmds){
+  for(var i=0;i<cmds.length;i++){
+    var c=cmds[i];
+    ctx.save();
+    if(c.cmd==='line'){
+      ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||3;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(c.x1,c.y1);ctx.lineTo(c.x2,c.y2);ctx.stroke();
+    }else if(c.cmd==='circle'){
+      ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||2;
+      if(c.fill){ctx.fillStyle=c.fill;}
+      ctx.beginPath();ctx.arc(c.x,c.y,c.r||10,0,Math.PI*2);
+      if(c.fill)ctx.fill();ctx.stroke();
+    }else if(c.cmd==='rect'){
+      ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||2;
+      if(c.fill){ctx.fillStyle=c.fill;}
+      ctx.beginPath();ctx.rect(c.x,c.y,c.w||20,c.h||20);
+      if(c.fill)ctx.fill();ctx.stroke();
+    }else if(c.cmd==='path'){
+      ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||3;ctx.lineCap='round';ctx.lineJoin='round';
+      if(c.points&&c.points.length>1){
+        ctx.beginPath();ctx.moveTo(c.points[0][0],c.points[0][1]);
+        for(var j=1;j<c.points.length;j++)ctx.lineTo(c.points[j][0],c.points[j][1]);
+        if(c.close)ctx.closePath();
+        if(c.fill){ctx.fillStyle=c.fill;ctx.fill();}
+        ctx.stroke();
+      }
+    }else if(c.cmd==='text'){
+      ctx.fillStyle=c.color||'#333';ctx.font=(c.size||14)+'px sans-serif';ctx.textAlign=c.align||'center';
+      ctx.fillText(c.text||'',c.x,c.y);
+    }else if(c.cmd==='arc'){
+      ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||2;
+      ctx.beginPath();ctx.arc(c.x,c.y,c.r||10,c.start||0,c.end||Math.PI*2);ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// Save drawing data to localStorage for AI to read via LevelDB
+function saveToStorage(key,extra){
+  try{
+    var dataUrl=canvas.toDataURL('image/png',0.7);
+    var obj={image:dataUrl,time:Date.now(),mode:currentMode};
+    if(extra)for(var k in extra)obj[k]=extra[k];
+    if(currentMode==='relay'){obj.round=relayRound;obj.history=relayHistory;}
+    localStorage.setItem(key,JSON.stringify(obj));
+  }catch(e){}
+}
+
+// === PERSISTENCE via localStorage — store draw commands not image ===
+var PERSIST_KEY='doodle_canvas_state';
+var MODE_KEY='doodle_mode_state';
+var drawHistory=[]; // Array of {type:'stroke',points:[],color,size} or {type:'ai',commands:[]}
+
+function persistCanvas(){
+  if(currentMode!=='free')return; // only persist free mode (relay data too large)
+  try{
+    localStorage.setItem(PERSIST_KEY,JSON.stringify(drawHistory));
+    localStorage.setItem(MODE_KEY,JSON.stringify({mode:currentMode,relayRound:relayRound}));
+  }catch(e){
+    // If too large, trim history
+    if(drawHistory.length>20){drawHistory=drawHistory.slice(-10);try{localStorage.setItem(PERSIST_KEY,JSON.stringify(drawHistory));}catch(e2){}}
+  }
+}
+function restoreCanvas(){
+  try{
+    var modeState=localStorage.getItem(MODE_KEY);
+    var state=localStorage.getItem(PERSIST_KEY);
+    if(!state&&!modeState)return;
+    if(modeState){
+      var ms=JSON.parse(modeState);
+      if(ms.mode&&ms.mode!=='pixel'){
+        currentMode=ms.mode;
+        var tabs=document.querySelectorAll('.mode-tab');
+        var names=['free','guess','pixel','relay'];
+        for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',names[i]===ms.mode);
+        document.getElementById('guessHeader').style.display=ms.mode==='guess'?'flex':'none';
+        document.getElementById('relayInfo').style.display=ms.mode==='relay'?'flex':'none';
+        document.getElementById('pixelPalette').style.display='none';
+        document.getElementById('freeToolbar').style.display='flex';
+        var btn=document.getElementById('mainAction');
+        if(ms.mode==='free')btn.textContent='\u4FDD\u5B58';
+        else if(ms.mode==='guess')btn.textContent='\u5F00\u59CB\u51FA\u9898';
+        else if(ms.mode==='relay')btn.textContent='\u63D0\u4EA4\u8FD9\u8F6E';
+      }
+      if(ms.relayRound){relayRound=ms.relayRound;document.getElementById('relayRound').textContent=relayRound;}
+    }
+    if(state){
+      drawHistory=JSON.parse(state);
+      replayHistory();
+    }
+  }catch(e){}
+}
+function replayHistory(){
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(var i=0;i<drawHistory.length;i++){
+    var item=drawHistory[i];
+    if(item.type==='stroke'&&item.points&&item.points.length>1){
+      ctx.strokeStyle=item.color||'#333';
+      ctx.lineWidth=item.size||4;
+      ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.beginPath();
+      ctx.moveTo(item.points[0][0],item.points[0][1]);
+      for(var j=1;j<item.points.length;j++)ctx.lineTo(item.points[j][0],item.points[j][1]);
+      ctx.stroke();
+    }else if(item.type==='ai'&&item.commands){
+      _rawExecDraw(item.commands);
+    }else if(item.type==='fill'){
+      floodFill(item.x,item.y,item.color);
+    }else if(item.type==='clear'){
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+  }
+  pushUndo();
+}
+// Raw execute without recording to history
+function _rawExecDraw(cmds){
+  for(var i=0;i<cmds.length;i++){
+    var c=cmds[i];ctx.save();
+    if(c.cmd==='line'){ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(c.x1,c.y1);ctx.lineTo(c.x2,c.y2);ctx.stroke();}
+    else if(c.cmd==='circle'){ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||2;if(c.fill)ctx.fillStyle=c.fill;ctx.beginPath();ctx.arc(c.x,c.y,c.r||10,0,Math.PI*2);if(c.fill)ctx.fill();ctx.stroke();}
+    else if(c.cmd==='rect'){ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||2;if(c.fill)ctx.fillStyle=c.fill;ctx.beginPath();ctx.rect(c.x,c.y,c.w||20,c.h||20);if(c.fill)ctx.fill();ctx.stroke();}
+    else if(c.cmd==='path'){ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||3;ctx.lineCap='round';ctx.lineJoin='round';if(c.points&&c.points.length>1){ctx.beginPath();ctx.moveTo(c.points[0][0],c.points[0][1]);for(var j=1;j<c.points.length;j++)ctx.lineTo(c.points[j][0],c.points[j][1]);if(c.close)ctx.closePath();if(c.fill){ctx.fillStyle=c.fill;ctx.fill();}ctx.stroke();}}
+    else if(c.cmd==='text'){ctx.fillStyle=c.color||'#333';ctx.font=(c.size||14)+'px sans-serif';ctx.textAlign=c.align||'center';ctx.fillText(c.text||'',c.x,c.y);}
+    else if(c.cmd==='arc'){ctx.strokeStyle=c.color||'#333';ctx.lineWidth=c.width||2;ctx.beginPath();ctx.arc(c.x,c.y,c.r||10,c.start||0,c.end||Math.PI*2);ctx.stroke();}
+    ctx.restore();
+  }
+}
+function clearAll(){
+  clearCanvas();
+  drawHistory=[];
+  try{localStorage.removeItem(PERSIST_KEY);localStorage.removeItem(MODE_KEY);}catch(e){}
+}
+// Auto-persist: record strokes and AI draws
+var currentStroke=null;
+var _origStartDraw=startDraw;
+startDraw=function(e){
+  e.preventDefault();
+  if(currentMode==='pixel'){handlePixelTouch(e);return;}
+  if(tool==='fill'){
+    var p=getPos(e);var fx=Math.round(p.x),fy=Math.round(p.y);
+    floodFill(fx,fy,color);pushUndo();
+    drawHistory.push({type:'fill',x:fx,y:fy,color:color});persistCanvas();
+    return;
+  }
+  drawing=true;var p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);
+  currentStroke={type:'stroke',points:[[p.x,p.y]],color:tool==='eraser'?'#ffffff':color,size:size};
+};
+var _origMoveDraw=moveDraw;
+moveDraw=function(e){
+  e.preventDefault();
+  if(currentMode==='pixel')return;
+  if(!drawing)return;
+  var p=getPos(e);ctx.lineWidth=size;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle=tool==='eraser'?'#ffffff':color;ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);
+  if(currentStroke)currentStroke.points.push([Math.round(p.x),Math.round(p.y)]);
+};
+endDraw=function(e){
+  if(drawing){
+    drawing=false;pushUndo();
+    if(currentStroke&&currentStroke.points.length>1){
+      drawHistory.push(currentStroke);persistCanvas();
+    }
+    currentStroke=null;
+  }
+};
+// Also persist after AI draws
+var _origExecDraw=executeDrawCommands;
+executeDrawCommands=function(cmds){_origExecDraw(cmds);drawHistory.push({type:'ai',commands:cmds});persistCanvas();};
+// Restore on load
+restoreCanvas();
+</script>
+</body>
+</html>
