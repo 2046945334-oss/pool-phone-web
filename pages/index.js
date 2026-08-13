@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 
+function getApiConfig(feature) {
+  const def = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+  const all = JSON.parse(localStorage.getItem('pool_api_configs') || '{}')
+  const fc = all[feature] || {}
+  return { apiBase: fc.apiBase || def.apiBase || '', apiKey: fc.apiKey || def.apiKey || '', model: fc.model || def.model || '' }
+}
 function ChatView() {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { localStorage.setItem('pool_chat_history', JSON.stringify(messages)) } catch {} }, [messages])
@@ -55,7 +61,7 @@ function ChatView() {
 
   async function insertSummary() {
     setMenuIdx(-1)
-    const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+    const cfg = getApiConfig('summary')
     if (!cfg.apiBase || !cfg.apiKey) return
     const summaryPrompt = [{ role: 'system', content: '\u8bf7\u7528\u4e2d\u6587\u5bf9\u4ee5\u4e0b\u5bf9\u8bdd\u8fdb\u884c\u7b80\u6d01\u7684\u603b\u7ed3\uff0c\u4fdd\u7559\u5173\u952e\u4fe1\u606f\u548c\u4e0a\u4e0b\u6587\uff0c100\u5b57\u4ee5\u5185\u3002' }, ...messages.slice(0, menuIdx + 1)]
     setLoading(true)
@@ -75,7 +81,7 @@ function ChatView() {
 
   async function extractMemory() {
     setMenuIdx(-1)
-    const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+    const cfg = getApiConfig('memory')
     if (!cfg.apiBase || !cfg.apiKey) return
     const memPrompt = [{ role: 'system', content: '\u4ece\u4ee5\u4e0b\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u503c\u5f97\u8bb0\u4f4f\u7684\u5173\u952e\u4fe1\u606f\uff08\u7528\u6237\u504f\u597d\u3001\u91cd\u8981\u4e8b\u5b9e\u3001\u51b3\u5b9a\u7b49\uff09\uff0c\u7528\u7b80\u77ed\u7684\u5217\u8868\u5f62\u5f0f\u8f93\u51fa\u3002' }, ...messages]
     setLoading(true)
@@ -170,41 +176,77 @@ function LockScreen({ onUnlock }) {
 }
 
 function SettingsPanel() {
-  const [cfg, setCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
+  const FEATURES = [
+    { key: 'chat', label: '\u5bf9\u8bdd\u529f\u80fd', desc: '\u4e3b\u8981\u7684AI\u5bf9\u8bdd' },
+    { key: 'summary', label: '\u4e0a\u4e0b\u6587\u603b\u7ed3', desc: '\u538b\u7f29\u4e0a\u4e0b\u6587\uff0c\u751f\u6210\u6458\u8981' },
+    { key: 'memory', label: '\u8bb0\u5fc6\u63d0\u53d6', desc: '\u4ece\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u5173\u952e\u4fe1\u606f' },
+  ]
+  const [configs, setConfigs] = useState(() => JSON.parse(localStorage.getItem('pool_api_configs') || '{}'))
+  const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
+  const [expandedKey, setExpandedKey] = useState(null)
   const [saved, setSaved] = useState(false)
 
-  function saveCfg() {
-    localStorage.setItem('pool_api_config', JSON.stringify(cfg))
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  function saveAll() {
+    localStorage.setItem('pool_api_config', JSON.stringify(defaultCfg))
+    localStorage.setItem('pool_api_configs', JSON.stringify(configs))
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  function updateFeature(key, field, value) {
+    setConfigs({ ...configs, [key]: { ...(configs[key] || {}), [field]: value } })
+  }
+
+  function getEffective(key) {
+    const fc = configs[key] || {}
+    return { apiBase: fc.apiBase || defaultCfg.apiBase || '', apiKey: fc.apiKey || defaultCfg.apiKey || '', model: fc.model || defaultCfg.model || '' }
   }
 
   return (
     <div className="settings-panel">
       <div className="settings-section">
-        <h3 className="settings-title">{'⚙️ AI API 配置'}</h3>
-        <div className="settings-item">
-          <label>API Base URL</label>
-          <input value={cfg.apiBase||''} onChange={e=>setCfg({...cfg,apiBase:e.target.value})} placeholder="https://api.example.com" className="settings-input"/>
-        </div>
-        <div className="settings-item">
-          <label>API Key</label>
-          <input type="password" value={cfg.apiKey||''} onChange={e=>setCfg({...cfg,apiKey:e.target.value})} placeholder="sk-..." className="settings-input"/>
-        </div>
-        <div className="settings-item">
-          <label>{'模型 (Model)'}</label>
-          <input value={cfg.model||''} onChange={e=>setCfg({...cfg,model:e.target.value})} placeholder="gpt-4o-mini" className="settings-input"/>
-        </div>
-        <button className="settings-save" onClick={saveCfg}>{saved ? '✓ 已保存' : '保存配置'}</button>
+        <h3 className="settings-title">{'\u2699\ufe0f \u9ed8\u8ba4API\u914d\u7f6e'}</h3>
+        <p className="settings-desc">{'\u672a\u5355\u72ec\u914d\u7f6e\u7684\u529f\u80fd\u4f1a\u7528\u8fd9\u4e2a'}</p>
+        <div className="settings-item"><label>API Base URL</label>
+          <input value={defaultCfg.apiBase||''} onChange={e=>setDefaultCfg({...defaultCfg,apiBase:e.target.value})} placeholder="https://api.example.com" className="settings-input"/></div>
+        <div className="settings-item"><label>API Key</label>
+          <input type="password" value={defaultCfg.apiKey||''} onChange={e=>setDefaultCfg({...defaultCfg,apiKey:e.target.value})} placeholder="sk-..." className="settings-input"/></div>
+        <div className="settings-item"><label>{'\u6a21\u578b'}</label>
+          <input value={defaultCfg.model||''} onChange={e=>setDefaultCfg({...defaultCfg,model:e.target.value})} placeholder="gpt-4o-mini" className="settings-input"/></div>
       </div>
-      <div className="settings-section">
-        <h3 className="settings-title">{'📊 数据'}</h3>
-        <p className="settings-desc">{'游戏数据存储在浏览器localStorage中'}</p>
-      </div>
+
+      {FEATURES.map(f => {
+        const fc = configs[f.key] || {}
+        const eff = getEffective(f.key)
+        const isExpanded = expandedKey === f.key
+        const hasCustom = fc.apiBase || fc.apiKey || fc.model
+        return (
+          <div key={f.key} className="settings-section">
+            <div className="settings-feature-header" onClick={() => setExpandedKey(isExpanded ? null : f.key)}>
+              <div><strong>{f.label}</strong><br/><span className="settings-desc">{f.desc}</span>
+                {hasCustom && <span className="settings-badge">{'\u2022 \u5df2\u5355\u72ec\u914d\u7f6e'}</span>}
+                {!hasCustom && <span className="settings-badge-default">{'\u2192 \u7528\u9ed8\u8ba4'}</span>}
+              </div>
+              <span className="settings-arrow">{isExpanded ? '\u25b2' : '\u25bc'}</span>
+            </div>
+            {isExpanded && (
+              <div className="settings-feature-body">
+                <div className="settings-item"><label>API Base URL {!fc.apiBase && '(\u7ee7\u627f\u9ed8\u8ba4)'}</label>
+                  <input value={fc.apiBase||''} onChange={e=>updateFeature(f.key,'apiBase',e.target.value)} placeholder={defaultCfg.apiBase||'https://...'} className="settings-input"/></div>
+                <div className="settings-item"><label>API Key {!fc.apiKey && '(\u7ee7\u627f\u9ed8\u8ba4)'}</label>
+                  <input type="password" value={fc.apiKey||''} onChange={e=>updateFeature(f.key,'apiKey',e.target.value)} placeholder={fc.apiKey?'':'(\u7ee7\u627f\u9ed8\u8ba4)'} className="settings-input"/></div>
+                <div className="settings-item"><label>{'\u6a21\u578b'} {!fc.model && '(\u7ee7\u627f\u9ed8\u8ba4)'}</label>
+                  <input value={fc.model||''} onChange={e=>updateFeature(f.key,'model',e.target.value)} placeholder={defaultCfg.model||'gpt-4o-mini'} className="settings-input"/></div>
+                {hasCustom && <button className="settings-reset" onClick={() => { const c = {...configs}; delete c[f.key]; setConfigs(c) }}>{'\u91cd\u7f6e\u4e3a\u9ed8\u8ba4'}</button>}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
     </div>
   )
 }
-
 function AppContent({ appId, onBack }) {
   const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行' }
   const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', system:'__settings__' }
@@ -502,6 +544,14 @@ export default function Home() {
         .msg-edit-input { width: 100%; min-height: 60px; background: #1a1a1a; border: 1px solid #e8a0bf; border-radius: 12px; padding: 8px 12px; color: #e0e0e0; font-size: 14px; resize: none; outline: none; }
         .msg-edit-btns { display: flex; gap: 8px; margin-top: 4px; }
         .msg-edit-btns button { background: #222; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; padding: 4px 12px; cursor: pointer; font-size: 14px; }
+      
+        .settings-feature-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 4px 0; }
+        .settings-feature-header strong { font-size: 14px; color: #e0e0e0; }
+        .settings-arrow { color: #666; font-size: 12px; }
+        .settings-badge { font-size: 11px; color: #e8a0bf; margin-left: 8px; }
+        .settings-badge-default { font-size: 11px; color: #666; margin-left: 8px; }
+        .settings-feature-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.06); }
+        .settings-reset { background: none; border: 1px solid #333; border-radius: 6px; color: #999; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 4px; }
       `}</style>
     </>
   )
