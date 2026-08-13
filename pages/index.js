@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NotesApp, FishingApp, MusicApp } from './apps'
+import { NotesApp, FishingApp, MusicApp } from '../components/apps'
 import Head from 'next/head'
 
 function ChatView() {
