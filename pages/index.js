@@ -139,7 +139,9 @@ function AppContent({ appId, onBack }) {
         <button className="back-btn" onClick={onBack}>{'←'}</button>
         <span className="app-page-title">{appNames[appId] || appId}</span>
       </div>
-      {htmlFile ? (
+      {htmlFile === '__settings__' ? (
+        <SettingsPanel />
+      ) : htmlFile ? (
         <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
       ) : (
         <div className="app-page-body"><div className="coming-soon">{'🚧 开发中...'}</div></div>
