@@ -257,7 +257,8 @@ export default function Home() {
             <span className="status-icons">{'\ud83d\udcf6 \ud83d\udd0b'}</span>
           </div>
           <div className="phone-screen">
-            {activeTab === 'phone' ? renderPhoneContent() : <ChatView />}
+            <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%'}}>{renderPhoneContent()}</div>
+            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView /></div>
           </div>
           <div className="bottom-nav">
             <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
