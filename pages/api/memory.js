@@ -22,6 +22,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'Authorization': `Bearer ${OMBRE_TOKEN}`,
       },
       body: JSON.stringify(rpcBody),
