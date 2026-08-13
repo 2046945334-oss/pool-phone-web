@@ -138,7 +138,7 @@ function ChatView({ theme }) {
 
   return (
     <div className="chat-view">
-      <div className="chat-header">
+      <div className="chat-header" style={theme?.systemBg?{background:theme.systemBg}:{}}>
         <div className="chat-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>
         <div className="chat-header-info"><div className="chat-name">{'\u6c60'}</div><div className="chat-status">{loading ? '\u601d\u8003\u4e2d...' : '\u5728\u7ebf'}</div></div>
         <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
@@ -151,6 +151,7 @@ function ChatView({ theme }) {
         {messages.map((msg, i) => (
           <div key={i} className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
             {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
+            {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
             {msg.role === 'system' ? (
               <div className="msg-system">{msg.content}</div>
             ) : editIdx === i ? (
@@ -161,7 +162,6 @@ function ChatView({ theme }) {
             ) : (
               <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>{msg.content}</div>
             )}
-            {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
             {menuIdx === i && msg.role !== 'system' && (
               <div className="msg-menu">
                 <button onClick={() => copyMsg(i)}>{'\ud83d\udccb \u590d\u5236'}</button>
@@ -175,8 +175,8 @@ function ChatView({ theme }) {
         ))}
         <div ref={bottomRef} />
       </div>
-      <div className="chat-input-area">
-        <input className="chat-input" value={input} onChange={e => setInput(e.target.value)}
+      <div className="chat-input-area" style={theme?.systemBg?{background:theme.systemBg}:{}}>
+        <input className="chat-input" style={theme?.inputBg?{background:theme.inputBg}:{}} value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
         <button className="chat-send" onClick={() => addUserMsg()} disabled={loading || !input.trim()}>{'\u27a4'}</button>
@@ -366,6 +366,21 @@ function ThemePanel() {
           <label>{'\u5b57\u4f53\u8272(AI)'}</label>
           <input type="color" value={theme.textAI||'#e0e0e0'} onChange={e=>setTheme(t=>({...t,textAI:e.target.value}))} />
           <span>{theme.textAI||'#e0e0e0'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u7cfb\u7edf\u680f\u80cc\u666f'}</label>
+          <input type="color" value={theme.systemBg||'#111111'} onChange={e=>setTheme(t=>({...t,systemBg:e.target.value}))} />
+          <span>{theme.systemBg||'#111111'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u8f93\u5165\u6846\u80cc\u666f'}</label>
+          <input type="color" value={theme.inputBg||'#1a1a1a'} onChange={e=>setTheme(t=>({...t,inputBg:e.target.value}))} />
+          <span>{theme.inputBg||'#1a1a1a'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u97f3\u4e50\u5361\u5b57\u8272'}</label>
+          <input type="color" value={theme.musicTextColor||'#e0e0e0'} onChange={e=>setTheme(t=>({...t,musicTextColor:e.target.value}))} />
+          <span>{theme.musicTextColor||'#e0e0e0'}</span>
         </div>
       </div>
 
@@ -581,9 +596,9 @@ function HomeScreen({ onOpenApp, theme }) {
 <div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?(theme.musicCardBg.startsWith('data:')||theme.musicCardBg.startsWith('http')?{backgroundImage:`url(${theme.musicCardBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.musicCardBg}):{}}>
 
           <div className="music-icon">{'\u266a'}</div>
-          <div className="music-info">
-            <div className="music-title">{'\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
-            <div className="music-status">{'\u6b63\u5728\u64ad\u653e'}</div>
+          <div className="music-info" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>
+            <div className="music-title" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>{'\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
+            <div className="music-status" style={theme?.musicTextColor?{color:theme.musicTextColor,opacity:0.7}:{}}>{'\u6b63\u5728\u64ad\u653e'}</div>
           </div>
         </div>
         <div className="couple-card" onClick={() => onOpenApp('couple')}>
@@ -656,7 +671,7 @@ export default function Home() {
             <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%'}}>{renderPhoneContent()}</div>
             <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
           </div>
-          <div className="bottom-nav">
+          <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
             <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
               <span className="nav-icon">{'\ud83d\udcf1'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
