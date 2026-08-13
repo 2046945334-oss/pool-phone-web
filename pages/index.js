@@ -209,6 +209,87 @@ function LockScreen({ onUnlock }) {
   )
 }
 
+function ThemePanel() {
+  const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
+  const [saved, setSaved] = useState(false)
+  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel']
+  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u5360\u535c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c'}
+
+  function save() {
+    localStorage.setItem('pool_theme', JSON.stringify(theme))
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+    window.dispatchEvent(new Event('theme-changed'))
+  }
+
+  function handleImageUpload(key, e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => { setTheme({...theme, [key]: reader.result}) }
+    reader.readAsDataURL(file)
+  }
+
+  function handleUrlInput(key, url) { setTheme({...theme, [key]: url}) }
+
+  return (
+    <div className="settings-panel">
+      <div className="settings-section">
+        <h3 className="settings-title">{'\ud83c\udfa8 \u58c1\u7eb8'}</h3>
+        <div className="theme-item">
+          <label>{'\u4e3b\u5c4f\u58c1\u7eb8'}</label>
+          <input className="settings-input" value={theme.wallpaper||''} onChange={e=>handleUrlInput('wallpaper',e.target.value)} placeholder={'\u8d34\u5165\u56fe\u7247URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20\u56fe\u7247'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('wallpaper',e)} hidden /></label>
+          {theme.wallpaper && <img src={theme.wallpaper} className="theme-preview" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\u9501\u5c4f\u58c1\u7eb8'}</label>
+          <input className="settings-input" value={theme.lockWallpaper||''} onChange={e=>handleUrlInput('lockWallpaper',e.target.value)} placeholder={'\u8d34\u5165\u56fe\u7247URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('lockWallpaper',e)} hidden /></label>
+          {theme.lockWallpaper && <img src={theme.lockWallpaper} className="theme-preview" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\u804a\u5929\u80cc\u666f'}</label>
+          <input className="settings-input" value={theme.chatBg||''} onChange={e=>handleUrlInput('chatBg',e.target.value)} placeholder={'\u8d34\u5165\u56fe\u7247URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('chatBg',e)} hidden /></label>
+          {theme.chatBg && <img src={theme.chatBg} className="theme-preview" />}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'\ud83c\udf08 \u4e3b\u9898\u8272'}</h3>
+        <div className="theme-color-row">
+          <label>{'\u5f3a\u8c03\u8272'}</label>
+          <input type="color" value={theme.accentColor||'#e8a0bf'} onChange={e=>setTheme({...theme,accentColor:e.target.value})} />
+          <span>{theme.accentColor||'#e8a0bf'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u6c14\u6ce1\u8272(\u6211)'}</label>
+          <input type="color" value={theme.bubbleUser||'#e8a0bf'} onChange={e=>setTheme({...theme,bubbleUser:e.target.value})} />
+          <span>{theme.bubbleUser||'#e8a0bf'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u6c14\u6ce1\u8272(AI)'}</label>
+          <input type="color" value={theme.bubbleAI||'#2a2a3e'} onChange={e=>setTheme({...theme,bubbleAI:e.target.value})} />
+          <span>{theme.bubbleAI||'#2a2a3e'}</span>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'\ud83d\uddbc\ufe0f App\u56fe\u6807'}</h3>
+        <p className="settings-desc">{'\u6bcf\u4e2aApp\u53ef\u5355\u72ec\u6362\u56fe\u6807\uff08\u652f\u6301URL\u6216\u4e0a\u4f20\uff09'}</p>
+        {APP_LIST.map(id => (
+          <div key={id} className="theme-icon-row">
+            <span className="theme-icon-name">{APP_NAMES[id]}</span>
+            <input className="settings-input theme-icon-input" value={(theme.icons||{})[id]||''} onChange={e=>setTheme({...theme,icons:{...(theme.icons||{}),[id]:e.target.value}})} placeholder={'URL...'} />
+            <label className="theme-upload-sm">{'\ud83d\udcf7'}<input type="file" accept="image/*" onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>setTheme({...theme,icons:{...(theme.icons||{}),[id]:r.result}});r.readAsDataURL(f)}} hidden /></label>
+          </div>
+        ))}
+      </div>
+
+      <button className="settings-save" onClick={save}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u4e3b\u9898'}</button>
+    </div>
+  )
+}
 function SettingsPanel() {
   const FEATURES = [
     { key: 'chat', label: '\u5bf9\u8bdd\u529f\u80fd', desc: '\u4e3b\u8981\u7684AI\u5bf9\u8bdd' },
@@ -334,7 +415,7 @@ function SettingsPanel() {
 }
 function AppContent({ appId, onBack }) {
   const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', system:'__settings__' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', system:'__settings__', theme:'__theme__' }
   const htmlFile = appFiles[appId]
 
   return (
@@ -345,6 +426,8 @@ function AppContent({ appId, onBack }) {
       </div>
       {htmlFile === '__settings__' ? (
         <SettingsPanel />
+      ) : htmlFile === '__theme__' ? (
+        <ThemePanel />
       ) : htmlFile ? (
         <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
       ) : (
@@ -645,6 +728,18 @@ export default function Home() {
         .chat-trigger { width: 44px; height: 44px; border-radius: 50%; border: none; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 18px; cursor: pointer; flex-shrink: 0; }
         .chat-trigger:disabled { opacity: 0.5; }
         .settings-panel { padding-bottom: 40px; }
+        .theme-item { margin-bottom: 12px; }
+        .theme-item label { display: block; color: #ccc; font-size: 13px; margin-bottom: 4px; }
+        .theme-upload-btn { display: inline-block; padding: 6px 12px; background: #2a2a3e; border: 1px solid #444; border-radius: 8px; color: #aaa; font-size: 12px; cursor: pointer; margin-top: 6px; }
+        .theme-preview { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 1px solid #333; }
+        .theme-color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .theme-color-row label { color: #ccc; font-size: 13px; flex: 1; }
+        .theme-color-row input[type="color"] { width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer; background: none; }
+        .theme-color-row span { color: #888; font-size: 11px; font-family: monospace; }
+        .theme-icon-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .theme-icon-name { color: #ccc; font-size: 12px; width: 60px; flex-shrink: 0; }
+        .theme-icon-input { flex: 1; font-size: 11px !important; }
+        .theme-upload-sm { padding: 4px 8px; background: #2a2a3e; border: 1px solid #444; border-radius: 6px; color: #aaa; font-size: 12px; cursor: pointer; }
       `}</style>
     </>
   )
