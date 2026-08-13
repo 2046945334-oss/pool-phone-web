@@ -265,36 +265,39 @@ function ThemePanel() {
   }
 
   const [showPresets, setShowPresets] = useState(false)
+  const [presetNames, setPresetNames] = useState([])
+  useEffect(() => { if (showPresets) { loadFromBackend('pool_theme_presets').then(p => setPresetNames(Object.keys(p||{}))) } }, [showPresets])
 
   function savePreset() {
     const name = prompt('\u7ed9\u8fd9\u4e2a\u4e3b\u9898\u8d77\u4e2a\u540d\u5b57:')
     if (!name) return
-    try {
-      const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
-      // 预设不存图标数据（太大），只存颜色和壁纸URL
-      const lite = {...theme}
-      delete lite.icons
+    const lite = {...theme}
+    delete lite.icons
+    // 只存后端，不走localStorage
+    loadFromBackend('pool_theme_presets').then(old => {
+      const presets = old || {}
       presets[name] = lite
-      localStorage.setItem('pool_theme_presets', JSON.stringify(presets))
-      syncToBackend('pool_theme_presets', presets)
-      setShowPresets(false)
-      alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
-    } catch(e) {
-      alert('\u4fdd\u5b58\u9884\u8bbe\u5931\u8d25: ' + e.message)
-    }
+      syncToBackend('pool_theme_presets', presets).then(() => {
+        setShowPresets(false)
+        alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
+      })
+    })
   }
 
   function loadPreset(name) {
-    const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
-    if (presets[name]) { setTheme(presets[name]); setShowPresets(false) }
+    loadFromBackend('pool_theme_presets').then(presets => {
+      if (presets && presets[name]) { setTheme(presets[name]); setShowPresets(false) }
+    })
   }
 
   function deletePreset(name) {
-    const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
-    delete presets[name]
-    localStorage.setItem('pool_theme_presets', JSON.stringify(presets))
-    setShowPresets(false)
-    setTimeout(() => setShowPresets(true), 50)
+    loadFromBackend('pool_theme_presets').then(presets => {
+      if (!presets) return
+      delete presets[name]
+      syncToBackend('pool_theme_presets', presets)
+      setShowPresets(false)
+      setTimeout(() => setShowPresets(true), 50)
+    })
   }
 
   function handleImageUpload(key, e) {
@@ -469,19 +472,15 @@ function ThemePanel() {
         <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={savePreset}>{'\ud83d\udcbe \u5b58\u4e3a\u9884\u8bbe'}</button>
         <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={() => setShowPresets(!showPresets)}>{'\ud83d\udcc2 \u52a0\u8f7d\u9884\u8bbe'}</button>
       </div>
-      {showPresets && (() => {
-        const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
-        const names = Object.keys(presets)
-        return (<div style={{marginTop:'8px',background:'#1a1a2e',borderRadius:'8px',padding:'8px'}}>
-          {names.length === 0 ? <div style={{color:'#888',fontSize:'12px',textAlign:'center'}}>{'\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'}</div> :
-          names.map(n => (
+      {showPresets && (<div style={{marginTop:'8px',background:'#1a1a2e',borderRadius:'8px',padding:'8px'}}>
+          {presetNames.length === 0 ? <div style={{color:'#888',fontSize:'12px',textAlign:'center'}}>{'\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'}</div> :
+          presetNames.map(n => (
             <div key={n} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px',borderBottom:'1px solid #2a2a3e'}}>
               <span style={{color:'#e0e0e0',fontSize:'13px',cursor:'pointer',flex:1}} onClick={() => loadPreset(n)}>{n}</span>
               <button style={{background:'#c44',color:'#fff',border:'none',borderRadius:'4px',padding:'2px 8px',fontSize:'11px',cursor:'pointer'}} onClick={() => deletePreset(n)}>{'\u5220'}</button>
             </div>
           ))}
-        </div>)
-      })()}
+        </div>)}
     </div>
   )
 }
@@ -493,6 +492,7 @@ function SettingsPanel() {
   ]
   const [configs, setConfigs] = useState(() => JSON.parse(localStorage.getItem('pool_api_configs') || '{}'))
   const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
+  const [modelList, setModelList] = useState([])
   const [expandedKey, setExpandedKey] = useState(null)
   const [saved, setSaved] = useState(false)
   // MCP state
@@ -549,13 +549,14 @@ function SettingsPanel() {
               try{
                 const r=await fetch('/api/models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiBase:defaultCfg.apiBase,apiKey:defaultCfg.apiKey})})
                 const d=await r.json()
-                if(d.models&&d.models.length){
-                  const pick=prompt('\u53ef\u7528\u6a21\u578b:\n'+d.models.slice(0,30).join('\n')+'\n\n\u8f93\u5165\u6a21\u578b\u540d:',d.models[0])
-                  if(pick)setDefaultCfg({...defaultCfg,model:pick})
-                }else{alert('\u672a\u627e\u5230\u6a21\u578b')}
+                if(d.models&&d.models.length){setModelList(d.models)}else{alert('\u672a\u627e\u5230\u6a21\u578b')}
               }catch(e){alert('\u62c9\u53d6\u5931\u8d25: '+e.message)}
             }}>{'\u62c9\u53d6'}</button>
-          </div></div>
+          </div>
+          {modelList.length>0 && <div style={{maxHeight:'150px',overflow:'auto',background:'#1a1a2e',borderRadius:'6px',marginTop:'6px'}}>
+            {modelList.map(m=><div key={m} style={{padding:'6px 10px',color:'#e0e0e0',fontSize:'12px',cursor:'pointer',borderBottom:'1px solid #2a2a3e'}} onClick={()=>{setDefaultCfg({...defaultCfg,model:m});setModelList([])}}>{m}</div>)}
+          </div>}
+        </div>
       </div>
 
       {FEATURES.map(f => {
