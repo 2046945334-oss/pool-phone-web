@@ -1,6 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 
+async function callMemory(action, params) {
+  try {
+    const res = await fetch('/api/memory', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, params })
+    })
+    return await res.json()
+  } catch { return null }
+}
+
 function getApiConfig(feature) {
   const def = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
   const all = JSON.parse(localStorage.getItem('pool_api_configs') || '{}')
@@ -18,6 +28,8 @@ function ChatView() {
   const bottomRef = useRef(null)
   const timerRef = useRef(null)
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  const [memoryContext, setMemoryContext] = useState('')
+  useEffect(() => { callMemory('breath', {}).then(r => { if (r && r.result && r.result.content && r.result.content[0]) setMemoryContext(r.result.content[0].text || '') }) }, [])
 
   async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
@@ -34,10 +46,16 @@ function ChatView() {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages.slice(-20), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
+        body: JSON.stringify({ messages: [...(memoryContext ? [{role:'system',content:'[Memory]\\n'+memoryContext}] : []), ...newMessages.slice(-20)], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
       })
       const data = await res.json()
-      setMessages([...newMessages, { role: 'assistant', content: data.reply || data.error || '\u65e0\u54cd\u5e94' }])
+      const reply = data.reply || data.error || '\u65e0\u54cd\u5e94'
+      setMessages([...newMessages, { role: 'assistant', content: reply }])
+      // Auto-save to Ombre Brain memory
+      if (data.reply) {
+        const lastUser = newMessages[newMessages.length - 1]?.content || ''
+        callMemory('hold', { content: lastUser + '\n---\n' + reply })
+      }
     } catch (e) {
       setMessages([...newMessages, { role: 'assistant', content: '\u51fa\u9519: ' + e.message }])
     }
