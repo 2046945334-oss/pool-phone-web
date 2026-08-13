@@ -238,6 +238,16 @@ function ChatView({ theme }) {
       </div>
       {showEmoji && <div className="emoji-panel">
         {EMOJI_LIST.map(e => <span key={e} className="emoji-item" onClick={() => { setInput(input + e); setShowEmoji(false) }}>{e}</span>)}
+        <label className="emoji-item" style={{fontSize:'16px',border:'1px dashed #555',borderRadius:'6px',display:'flex',alignItems:'center',justifyContent:'center',width:'30px',height:'30px'}}>
+          {'+'}
+          <input type="file" accept="image/*" hidden onChange={e => {
+            const file = e.target.files[0]; if (!file) return
+            const reader = new FileReader()
+            reader.onload = () => { setMessages(m => [...m, {role:'user',content:`[img]${reader.result}[/img]`}]); setShowEmoji(false) }
+            reader.readAsDataURL(file)
+            e.target.value = ''
+          }} />
+        </label>
       </div>}
     </div>
   )
@@ -297,12 +307,12 @@ function ThemePanel() {
     if (!name) return
     const lite = {...theme}
     delete lite.icons
-    // 只存后端，不走localStorage
     loadFromBackend('pool_theme_presets').then(old => {
       const presets = old || {}
       presets[name] = lite
       syncToBackend('pool_theme_presets', presets).then(() => {
-        setShowPresets(false)
+        setPresetNames(Object.keys(presets))
+        setShowPresets(true)
         alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
       })
     })
@@ -513,6 +523,7 @@ function SettingsPanel() {
     { key: 'chat', label: '\u5bf9\u8bdd\u529f\u80fd', desc: '\u4e3b\u8981\u7684AI\u5bf9\u8bdd' },
     { key: 'summary', label: '\u4e0a\u4e0b\u6587\u603b\u7ed3', desc: '\u538b\u7f29\u4e0a\u4e0b\u6587\uff0c\u751f\u6210\u6458\u8981' },
     { key: 'memory', label: '\u8bb0\u5fc6\u63d0\u53d6', desc: '\u4ece\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u5173\u952e\u4fe1\u606f' },
+    { key: 'tts', label: '\u8bed\u97f3\u751f\u6210 (TTS)', desc: 'AI\u56de\u590d\u8f6c\u8bed\u97f3\uff08\u53ef\u914d\u7f6eMiniMax\u7b49\uff09' },
   ]
   const [configs, setConfigs] = useState(() => JSON.parse(localStorage.getItem('pool_api_configs') || '{}'))
   const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
@@ -604,7 +615,22 @@ function SettingsPanel() {
                 <div className="settings-item"><label>API Key {!fc.apiKey && '(\u7ee7\u627f\u9ed8\u8ba4)'}</label>
                   <input type="password" value={fc.apiKey||''} onChange={e=>updateFeature(f.key,'apiKey',e.target.value)} placeholder={fc.apiKey?'':'(\u7ee7\u627f\u9ed8\u8ba4)'} className="settings-input"/></div>
                 <div className="settings-item"><label>{'\u6a21\u578b'} {!fc.model && '(\u7ee7\u627f\u9ed8\u8ba4)'}</label>
-                  <input value={fc.model||''} onChange={e=>updateFeature(f.key,'model',e.target.value)} placeholder={defaultCfg.model||'gpt-4o-mini'} className="settings-input"/></div>
+                  <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                    <input value={fc.model||''} onChange={e=>updateFeature(f.key,'model',e.target.value)} placeholder={defaultCfg.model||'gpt-4o-mini'} className="settings-input" style={{flex:1}}/>
+                    <button className="fetch-models-btn" onClick={async()=>{
+                      const eff=getEffective(f.key)
+                      if(!eff.apiBase||!eff.apiKey){alert('\u8bf7\u5148\u914d\u7f6eAPI');return}
+                      try{
+                        const r=await fetch('/api/models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiBase:eff.apiBase,apiKey:eff.apiKey})})
+                        const d=await r.json()
+                        if(d.models&&d.models.length){setModelList(d.models)}else{alert('\u672a\u627e\u5230')}
+                      }catch(e){alert(e.message)}
+                    }}>{'\u62c9\u53d6'}</button>
+                  </div>
+                  {modelList.length>0 && <div style={{maxHeight:'120px',overflow:'auto',background:'#1a1a2e',borderRadius:'6px',marginTop:'4px'}}>
+                    {modelList.map(m=><div key={m} style={{padding:'5px 8px',color:'#e0e0e0',fontSize:'11px',cursor:'pointer',borderBottom:'1px solid #2a2a3e'}} onClick={()=>{updateFeature(f.key,'model',m);setModelList([])}}>{m}</div>)}
+                  </div>}
+                </div>
                 {hasCustom && <button className="settings-reset" onClick={() => { const c = {...configs}; delete c[f.key]; setConfigs(c) }}>{'\u91cd\u7f6e\u4e3a\u9ed8\u8ba4'}</button>}
               </div>
             )}
@@ -881,15 +907,15 @@ export default function Home() {
         .msg-bubble { max-width: 72%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
         .msg-bubble.user { background: #c77dba; color: #fff; border-bottom-right-radius: 4px; }
         .msg-bubble.assistant { background: #1f1f1f; color: #e0e0e0; border-bottom-left-radius: 4px; }
-        .chat-input-area { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid #1a1a1a; background: #111; flex-shrink: 0; }
-        .chat-plus-btn { width: 34px; height: 34px; border-radius: 50%; background: #2a2a3e; color: #e0e0e0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; flex-shrink: 0; border: 1px solid #3a3a4e; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid #1a1a1a; background: #111; flex-shrink: 0; }
+        .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #2a2a3e; color: #e0e0e0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; border: 1px solid #3a3a4e; }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: #1a1a2e; border-top: 1px solid #2a2a3e; }
         .emoji-item { font-size: 22px; cursor: pointer; padding: 4px; border-radius: 6px; }
         .emoji-item:hover { background: #2a2a3e; }
         .fetch-models-btn { padding: 6px 10px; background: #c77dba; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
         .chat-input { flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px; padding: 9px 14px; color: #e0e0e0; font-size: 14px; outline: none; font-family: inherit; }
         .chat-input:focus { border-color: #e8a0bf; }
-        .chat-send { width: 34px; height: 34px; border-radius: 50%; background: #c77dba; color: #fff; border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .chat-send { width: 30px; height: 30px; border-radius: 50%; background: #c77dba; color: #fff; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .chat-send:disabled { opacity: 0.4; }
       
         .app-full { width: 100%; height: 100%; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
