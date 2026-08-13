@@ -36,7 +36,8 @@ function ChatView() {
     const userText = overrideMessages ? null : input.trim()
     if (!overrideMessages && !userText) return
     const newMessages = overrideMessages || [...messages, { role: 'user', content: userText }]
-    if (!overrideMessages) { setMessages(newMessages); setInput('') }
+    if (!overrideMessages) { setMessages(newMessages); setInput(''); return }
+    // Only trigger AI when explicitly called with overrideMessages
     setLoading(true)
     const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
     if (!cfg.apiBase || !cfg.apiKey) {
@@ -50,8 +51,14 @@ function ChatView() {
       })
       const data = await res.json()
       const reply = data.reply || data.error || '\u65e0\u54cd\u5e94'
-      setMessages([...newMessages, { role: 'assistant', content: reply }])
-      // Auto-save to Ombre Brain memory
+      // Split reply into sentences and show one by one
+      const sentences = reply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
+      let current = [...newMessages]
+      for (let i = 0; i < sentences.length; i++) {
+        current = [...current, { role: 'assistant', content: sentences[i].trim() }]
+        setMessages([...current])
+        if (i < sentences.length - 1) await new Promise(r => setTimeout(r, 600))
+      }
       if (data.reply) {
         const lastUser = newMessages[newMessages.length - 1]?.content || ''
         callMemory('hold', { content: lastUser + '\n---\n' + reply })
@@ -60,6 +67,14 @@ function ChatView() {
       setMessages([...newMessages, { role: 'assistant', content: '\u51fa\u9519: ' + e.message }])
     }
     setLoading(false)
+  }
+
+  function triggerAI() { sendMessage(messages) }
+  function addUserMsg() {
+    const t = input.trim()
+    if (!t) return
+    setMessages([...messages, { role: 'user', content: t }])
+    setInput('')
   }
 
   function handleLongPress(i) { setMenuIdx(i) }
@@ -161,9 +176,10 @@ function ChatView() {
       </div>
       <div className="chat-input-area">
         <input className="chat-input" value={input} onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
-        <button className="chat-send" onClick={() => sendMessage()} disabled={loading || !input.trim()}>{'\u27a4'}</button>
+        <button className="chat-send" onClick={() => addUserMsg()} disabled={loading || !input.trim()}>{'\u27a4'}</button>
+        <button className="chat-trigger" onClick={triggerAI} disabled={loading}>{loading ? '...' : '\u2728'}</button>
       </div>
     </div>
   )
@@ -626,6 +642,9 @@ export default function Home() {
         .mcp-action-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 13px; cursor: pointer; margin-top: 8px; }
         .mcp-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .mcp-result { background: #0d0d1a; border: 1px solid #333; border-radius: 8px; padding: 10px; margin-top: 10px; color: #ccc; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; font-family: monospace; }
+        .chat-trigger { width: 44px; height: 44px; border-radius: 50%; border: none; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+        .chat-trigger:disabled { opacity: 0.5; }
+        .settings-panel { padding-bottom: 40px; }
       `}</style>
     </>
   )
