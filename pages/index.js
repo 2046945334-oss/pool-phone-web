@@ -139,7 +139,7 @@ function ChatView({ theme }) {
   return (
     <div className="chat-view">
       <div className="chat-header">
-        <div className="chat-avatar">{'\u6c60'}</div>
+        <div className="chat-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>
         <div className="chat-header-info"><div className="chat-name">{'\u6c60'}</div><div className="chat-status">{loading ? '\u601d\u8003\u4e2d...' : '\u5728\u7ebf'}</div></div>
         <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
           <button onClick={extractMemory} style={{background:'none',border:'none',color:'#9a8a99',fontSize:'18px',cursor:'pointer'}} title={'\u63d0\u53d6\u8bb0\u5fc6'}>{'\ud83e\udde0'}</button>
@@ -219,9 +219,33 @@ function ThemePanel() {
   const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u5360\u535c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c'}
 
   function save() {
-    localStorage.setItem('pool_theme', JSON.stringify(theme))
-    setSaved(true); setTimeout(() => setSaved(false), 2000)
-    window.dispatchEvent(new Event('theme-changed'))
+    try {
+      localStorage.setItem('pool_theme', JSON.stringify(theme))
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+      window.dispatchEvent(new Event('theme-changed'))
+    } catch(e) {
+      if (e.name === 'QuotaExceededError') {
+        alert('\u5b58\u50a8\u7a7a\u95f4\u4e0d\u8db3\uff01\u8bf7\u51cf\u5c11\u56fe\u7247\u6570\u91cf\u6216\u4f7f\u7528URL\u4ee3\u66ff\u4e0a\u4f20')
+      } else { alert('\u4fdd\u5b58\u5931\u8d25: ' + e.message) }
+    }
+  }
+
+  function savePreset() {
+    const name = prompt('\u7ed9\u8fd9\u4e2a\u4e3b\u9898\u8d77\u4e2a\u540d\u5b57:')
+    if (!name) return
+    const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
+    presets[name] = {...theme}
+    localStorage.setItem('pool_theme_presets', JSON.stringify(presets))
+    alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
+  }
+
+  function loadPreset() {
+    const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
+    const names = Object.keys(presets)
+    if (names.length === 0) { alert('\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'); return }
+    const name = prompt('\u8f93\u5165\u9884\u8bbe\u540d\u79f0:\n' + names.join(', '))
+    if (!name || !presets[name]) return
+    setTheme(presets[name])
   }
 
   function handleImageUpload(key, e) {
@@ -242,7 +266,16 @@ function ThemePanel() {
     const file = e.target.files[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => { setNested(group, key, reader.result) }
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const c = document.createElement('canvas')
+        c.width = 64; c.height = 64
+        c.getContext('2d').drawImage(img, 0, 0, 64, 64)
+        setNested(group, key, c.toDataURL('image/jpeg', 0.6))
+      }
+      img.src = reader.result
+    }
     reader.readAsDataURL(file)
   }
 
@@ -301,9 +334,9 @@ function ThemePanel() {
           {theme.coupleBg && <img src={theme.coupleBg} className="theme-preview" />}
         </div>
         <div className="theme-item">
-          <label>{'\u97f3\u4e50\u5361\u7247\u80cc\u666f\u8272'}</label>
-          <input type="color" value={theme.musicCardBg||'#1a1520'} onChange={e=>handleUrlInput('musicCardBg',e.target.value)} />
-          <span style={{color:'#888',fontSize:11,marginLeft:6}}>{theme.musicCardBg||'#1a1520'}</span>
+          <label>{'\u97f3\u4e50\u5361\u7247\u80cc\u666f'}</label>
+          <input className="settings-input" value={theme.musicCardBg||''} onChange={e=>handleUrlInput('musicCardBg',e.target.value)} placeholder={'\u989c\u8272\u4ee3\u7801\u6216\u56fe\u7247URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('musicCardBg',e)} hidden /></label>
         </div>
       </div>
 
@@ -349,6 +382,10 @@ function ThemePanel() {
       </div>
 
       <button className="settings-save" onClick={save}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u4e3b\u9898'}</button>
+      <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
+        <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={savePreset}>{'\ud83d\udcbe \u5b58\u4e3a\u9884\u8bbe'}</button>
+        <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={loadPreset}>{'\ud83d\udcc2 \u52a0\u8f7d\u9884\u8bbe'}</button>
+      </div>
     </div>
   )
 }
@@ -541,7 +578,8 @@ function HomeScreen({ onOpenApp, theme }) {
     <div className="home-screen" style={theme?.wallpaper ? {backgroundImage:`url(${theme.wallpaper})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}>
       <div className="home-top">
         <div className="home-banner"><img src={theme?.bannerImg || '/header_bg.jpg'} alt="" className="banner-img" /></div>
-        <div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?{background:theme.musicCardBg}:{}}>
+<div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?(theme.musicCardBg.startsWith('data:')||theme.musicCardBg.startsWith('http')?{backgroundImage:`url(${theme.musicCardBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.musicCardBg}):{}}>
+
           <div className="music-icon">{'\u266a'}</div>
           <div className="music-info">
             <div className="music-title">{'\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
@@ -654,8 +692,8 @@ export default function Home() {
 
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(180deg, #1a1520 0%, #12101a 100%); overflow: hidden; }
         .home-top { flex-shrink: 0; padding: 0 12px; overflow-y: auto; max-height: 52%; }
-        .home-banner { margin: 10px 0 8px; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
-        .banner-img { width: 100%; height: auto; display: block; }
+        .home-banner { margin: 10px 0 8px; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.4); max-height: 120px; }
+        .banner-img { width: 100%; height: 100%; display: block; object-fit: cover; }
         .music-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 8px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; }
         .music-card:active { background: rgba(255,255,255,0.1); }
         .music-icon { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #e8a0bf, #c77dba); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
@@ -703,7 +741,7 @@ export default function Home() {
         .chat-messages { flex: 1; overflow-y: auto; padding: 14px 14px 8px; }
         .chat-empty { text-align: center; color: #4b5563; margin-top: 40%; font-size: 14px; }
         .msg-row { display: flex; align-items: flex-end; margin-bottom: 10px; gap: 8px; }
-        .msg-row.user { justify-content: flex-end; }
+        .msg-row.user { flex-direction: row-reverse; }
         .msg-row.assistant { justify-content: flex-start; }
         .msg-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #e8a0bf, #c77dba); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; flex-shrink: 0; }
         .msg-bubble { max-width: 72%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
@@ -815,7 +853,6 @@ export default function Home() {
         .theme-preview-sm { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-top: 6px; border: 2px solid #444; }
         .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .user-avatar { background: #c77dba; }
-        .msg-row.user { flex-direction: row-reverse; }
       `}</style>
     </>
   )
