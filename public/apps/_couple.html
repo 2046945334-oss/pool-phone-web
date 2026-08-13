@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>情侣空间</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:url('reader_bg.png') center/cover fixed;min-height:100vh;color:#37474f;padding:14px;padding-bottom:80px}
+
+/* floating particles */
+.particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.particle{position:absolute;opacity:0;animation:floatUp linear infinite}
+@keyframes floatUp{0%{opacity:0;transform:translateY(100vh) rotate(0deg)}10%{opacity:0.6}90%{opacity:0.4}100%{opacity:0;transform:translateY(-50px) rotate(360deg)}}
+
+/* card z-index above particles */
+.card,.banner-section{position:relative;z-index:1}
+.card{background:rgba(255,255,255,0.78);backdrop-filter:blur(10px);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
+.card-title{font-size:12px;font-weight:700;color:#78909c;margin-bottom:10px;letter-spacing:0.5px}
+.card-wide{padding:24px 16px}
+.card-dark{background:radial-gradient(ellipse at center,#1a237e 0%,#0d1b2a 70%,#000 100%);color:#fff}
+
+/* banner header */
+.banner-section{position:relative;margin:-14px -14px 12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+.banner-img{width:100%;aspect-ratio:4/3;object-fit:cover;object-position:center top;display:block}
+.banner-overlay{position:absolute;bottom:0;left:0;right:0;padding:14px 20px 12px;background:linear-gradient(transparent 0%,rgba(255,255,255,0.7) 30%,rgba(255,255,255,0.92) 100%)}
+.banner-avatars{display:flex;align-items:center;justify-content:center;gap:16px}
+.b-avatar-wrap{display:flex;flex-direction:column;align-items:center;gap:3px}
+.b-avatar{width:50px;height:50px;border-radius:50%;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.12);border:2.5px solid #fff}
+.b-avatar img{width:100%;height:100%;object-fit:cover}
+.b-heart{color:#e57373;font-size:16px;animation:pulse 2s infinite}
+.b-name{font-size:10px;color:#546e7a;font-weight:600}
+.banner-tagline{text-align:center;font-size:10px;color:#90a4ae;margin-top:5px;letter-spacing:0.5px;font-style:italic}
+
+/* signal lamp */
+.signal-card{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 10px;position:relative}
+.lamps-row{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.lamp-bulb{width:36px;height:36px;border-radius:50%;border:2px solid #cfd8dc;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.3s;cursor:pointer}
+.lamp-bulb.on{border-color:#ffab40;box-shadow:0 0 14px rgba(255,171,64,0.5);background:rgba(255,171,64,0.12)}
+.lamp-bulb.on::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:1.5px solid rgba(255,171,64,0.3);animation:glow 2s infinite}
+@keyframes glow{0%,100%{opacity:0.3}50%{opacity:1}}
+.lamp-hint{font-size:10px;color:#90a4ae;text-align:center}
+.lamp-time{font-size:9px;color:#b0bec5;margin-top:2px;text-align:center}
+
+/* universe pixel people */
+.universe-card{position:relative;overflow:hidden}
+.uni-pixel{position:absolute;bottom:10px;image-rendering:pixelated}
+.uni-pixel-her{left:12px}
+.uni-pixel-him{right:12px;transform:scaleX(-1)}
+.uni-heart{position:absolute;bottom:50px;font-size:8px;color:#e57373;animation:floatHeart 2s infinite}
+.uni-heart-l{left:28px}
+.uni-heart-r{right:28px}
+@keyframes floatHeart{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-12px)}}
+.universe-card::before{content:'🌌';position:absolute;top:-10px;right:-10px;font-size:60px;opacity:0.08}
+.universe-prefix{font-size:11px;color:#90a4ae;margin-bottom:8px}
+.universe-text{font-size:15px;line-height:1.9;color:#37474f;font-weight:500;min-height:50px}
+.universe-refresh{margin-top:14px}
+.universe-refresh button{border:1px solid #e0e0e0;background:#fff;color:#546e7a;font-size:11px;padding:5px 16px;border-radius:20px;cursor:pointer}
+
+/* starry sky */
+.sky-wrap{padding:12px;border-radius:16px}
+.sky-container{position:relative;width:100%;height:160px;border-radius:12px;overflow:hidden}
+.star{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:0;transition:opacity 0.6s,box-shadow 0.6s}
+.star.lit{opacity:1;box-shadow:0 0 5px 1.5px rgba(255,255,255,0.7)}
+.star-line{position:absolute;height:1px;background:rgba(255,255,255,0.25);transform-origin:left center;pointer-events:none}
+.sky-info{display:flex;justify-content:space-between;margin-top:8px;padding:0 4px}
+.sky-info span{font-size:10px;color:rgba(255,255,255,0.5)}
+
+/* pocket / gacha style */
+.pocket-card{padding:0;overflow:hidden;display:flex;min-height:120px}
+.pocket-left{flex:1;padding:16px;display:flex;flex-direction:column;justify-content:center}
+.pocket-title{font-size:12px;font-weight:700;color:#78909c;margin-bottom:6px}
+.pocket-desc{font-size:10px;color:#b0bec5;margin-bottom:10px}
+.pocket-btn{display:inline-block;border:none;background:#546e7a;color:#fff;font-size:11px;padding:6px 14px;border-radius:16px;cursor:pointer;font-weight:600}
+.pocket-btn:active{background:#37474f}
+.pocket-btn:disabled{background:#cfd8dc;color:#90a4ae}
+.pocket-right{width:100px;background:linear-gradient(135deg,#f8b4c8 0%,#ffab91 50%,#ce93d8 100%);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.pocket-right img{width:100%;height:100%;object-fit:cover}
+.pocket-right::before{content:'';position:absolute;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,0.15);top:-10px;right:-10px}
+.pocket-right::after{content:'';position:absolute;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.1);bottom:10px;left:10px}
+.pocket-reveal{display:none;padding:14px;font-size:13px;line-height:1.7;color:#455a64;text-align:center;animation:fadeReveal 0.5s ease}
+@keyframes fadeReveal{0%{opacity:0;transform:scale(0.9)}100%{opacity:1;transform:scale(1)}}
+.room-card{padding:14px}
+.room-floor{position:relative;width:100%;height:240px;background:url('room_bg.png') center/cover;border-radius:14px;overflow:hidden}
+
+/* pixel people */
+.pixel-person{position:absolute;bottom:30px;image-rendering:pixelated;cursor:pointer;transition:left 2s ease-in-out, top 1.5s ease-in-out, transform 0.2s}
+.pixel-person:active{transform:translateY(-3px)}
+.pixel-person .person-bubble{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#fff;border-radius:8px;padding:3px 7px;font-size:9px;color:#546e7a;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.1);opacity:0;transition:opacity 0.3s;pointer-events:none}
+.pixel-person .person-bubble.show{opacity:1}
+.pixel-person .person-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:3px solid transparent;border-top-color:#fff}
+.pixel-her{left:25%}
+.pixel-him{left:55%}
+.room-item{position:absolute;font-size:26px;cursor:pointer;user-select:none;transition:transform 0.15s}
+.room-item:active{transform:scale(1.15)}
+.room-item .item-label{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:8px;color:#90a4ae;white-space:nowrap}
+.room-item .item-bubble{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#fff;border-radius:10px;padding:4px 8px;font-size:10px;color:#546e7a;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.1);opacity:0;transition:opacity 0.3s;pointer-events:none}
+.room-item .item-bubble.show{opacity:1}
+.room-item .item-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:#fff}
+.room-add{position:absolute;bottom:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(84,110,122,0.08);display:flex;align-items:center;justify-content:center;font-size:16px;color:#90a4ae;cursor:pointer;border:1px dashed #b0bec5}
+.room-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:11px;color:#b0bec5}
+.room-empty span{font-size:24px}
+.room-hint{font-size:9px;color:#b0bec5;text-align:center;margin-top:6px}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);display:none;align-items:center;justify-content:center;z-index:999}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:18px;padding:22px;width:85%;max-width:300px}
+.modal h3{font-size:14px;color:#37474f;margin-bottom:14px}
+.modal-items{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.modal-item{font-size:22px;padding:8px;border-radius:10px;cursor:pointer;border:2px solid transparent;transition:all 0.2s}
+.modal-item.selected{border-color:#546e7a;background:#eceff1;transform:scale(1.1)}
+.modal input{width:100%;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:12px}
+.modal input:focus{border-color:#90a4ae}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal-btns button{border:none;padding:8px 16px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:600}
+.modal-btns .cancel{background:#f5f5f5;color:#78909c}
+.modal-btns .confirm{background:#546e7a;color:#fff}
+
+/* item controls when selected */
+.room-item.selected{z-index:10}
+.item-controls{position:absolute;inset:-20px -14px;pointer-events:none;opacity:0;transition:opacity 0.2s}
+.room-item.selected .item-controls{pointer-events:auto;opacity:1}
+.ctrl-btn{position:absolute;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.92);box-shadow:0 1px 4px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;border:1px solid #e0e0e0}
+.ctrl-del{top:0;left:0}
+.ctrl-flip{bottom:0;left:0}
+.ctrl-scale{bottom:0;right:0}
+
+/* upload btn in modal */
+.upload-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.upload-btn{flex:1;border:1.5px dashed #b0bec5;border-radius:10px;padding:10px;text-align:center;font-size:12px;color:#78909c;cursor:pointer}
+.upload-btn:active{background:#eceff1}
+.upload-preview{width:40px;height:40px;border-radius:8px;object-fit:cover;display:none}
+.delete-toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(55,71,79,0.9);color:#fff;font-size:11px;padding:6px 14px;border-radius:16px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:99}
+.delete-toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- Floating Particles -->
+<div class="particles" id="particles"></div>
+
+<!-- Scrolling sweet nothings -->
+<div style="position:relative;z-index:1;overflow:hidden;height:22px;margin-bottom:10px;border-radius:10px;background:rgba(255,255,255,0.5)">
+  <div id="marqueeText" style="white-space:nowrap;font-size:11px;color:#78909c;line-height:22px;padding-left:100%;animation:scroll 20s linear infinite">
+    💕 今天也想见你 · 你是我手机里最重的app · 不说话也很好 只要你在 · 想你的频率比心跳快一点 · 你笑起来的样子我存了很多遍 💕
+  </div>
+</div>
+<style>@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}</style>
+
+<!-- Banner Header -->
+<div class="banner-section">
+  <img class="banner-img" src="couple_banner.png" alt="">
+  <div class="banner-overlay">
+    <div class="banner-avatars">
+      <div class="b-avatar-wrap">
+        <div class="b-avatar"><img src="avatar_her.png"></div>
+        <div class="b-name">她</div>
+      </div>
+      <div class="b-heart">♥</div>
+      <div class="b-avatar-wrap">
+        <div class="b-avatar"><img src="avatar_him.png"></div>
+        <div class="b-name">池</div>
+      </div>
+    </div>
+    <div class="banner-tagline">在同一个频率里</div>
+  </div>
+</div>
+
+<!-- Signal Lamp -->
+<div class="card signal-card" style="display:flex;flex-direction:row;align-items:center;justify-content:center;gap:20px;padding:14px">
+  <div style="text-align:center">
+    <div class="lamp-bulb" id="herLamp" style="position:relative">🐻</div>
+    <div class="lamp-time" id="herTime"></div>
+  </div>
+  <div style="text-align:center;font-size:10px;color:#90a4ae" id="lampHint">按亮=想你</div>
+  <div style="text-align:center">
+    <div class="lamp-bulb" id="hisLamp" style="position:relative">🐟</div>
+    <div class="lamp-time" id="hisTime"></div>
+  </div>
+</div>
+
+<!-- Universe - big feature card -->
+<div class="card card-wide universe-card" style="padding:28px 20px">
+  <!-- couple pixel art, right side -->
+  <svg class="uni-pixel" style="position:absolute;bottom:8px;right:12px" width="52" height="40" viewBox="0 0 26 20" xmlns="http://www.w3.org/2000/svg">
+    <!-- her: sitting, leaning right -->
+    <rect x="2" y="4" width="4" height="1" fill="#5c3a1e"/>
+    <rect x="1" y="5" width="5" height="1" fill="#5c3a1e"/>
+    <rect x="2" y="6" width="3" height="1" fill="#ffdcb5"/>
+    <rect x="1" y="7" width="1" height="3" fill="#5c3a1e"/>
+    <rect x="2" y="7" width="4" height="2" fill="#f8b4c8"/>
+    <rect x="2" y="9" width="4" height="3" fill="#f8b4c8"/>
+    <rect x="1" y="12" width="5" height="2" fill="#f199b5"/>
+    <rect x="2" y="14" width="2" height="1" fill="#ffdcb5"/>
+    <rect x="4" y="14" width="2" height="1" fill="#ffdcb5"/>
+    <rect x="5" y="7" width="1" height="2" fill="#ffdcb5"/>
+    <!-- him: sitting next to her, arm around -->
+    <rect x="9" y="3" width="5" height="1" fill="#1a1a2e"/>
+    <rect x="8" y="4" width="6" height="1" fill="#1a1a2e"/>
+    <rect x="9" y="5" width="4" height="1" fill="#ffdcb5"/>
+    <rect x="9" y="5" width="1" height="1" fill="#78909c"/>
+    <rect x="12" y="5" width="1" height="1" fill="#78909c"/>
+    <rect x="10" y="5" width="2" height="1" fill="#263238"/>
+    <rect x="9" y="6" width="4" height="1" fill="#ffdcb5"/>
+    <rect x="8" y="7" width="6" height="2" fill="#37474f"/>
+    <rect x="8" y="9" width="6" height="3" fill="#2c3e44"/>
+    <rect x="8" y="12" width="6" height="2" fill="#455a64"/>
+    <rect x="8" y="14" width="3" height="1" fill="#263238"/>
+    <rect x="11" y="14" width="3" height="1" fill="#263238"/>
+    <!-- his arm reaching to her shoulder -->
+    <rect x="6" y="7" width="2" height="1" fill="#ffdcb5"/>
+    <rect x="7" y="8" width="1" height="1" fill="#ffdcb5"/>
+    <!-- heart above -->
+    <rect x="7" y="1" width="1" height="1" fill="#e57373"/>
+    <rect x="9" y="1" width="1" height="1" fill="#e57373"/>
+    <rect x="6" y="2" width="4" height="1" fill="#e57373"/>
+    <rect x="7" y="3" width="2" height="1" fill="#e57373"/>
+    <rect x="8" y="2" width="1" height="1" fill="#e57373"/>
+  </svg>
+  <div class="universe-prefix">在另一个宇宙里，今天我们——</div>
+  <div class="universe-text" id="universeText"></div>
+  <div class="universe-refresh"><button id="refreshBtn">换一个 ↻</button></div>
+</div>
+
+<!-- 池的小电视 -->
+<div class="card" style="padding:16px;background:rgba(255,255,255,0.85);backdrop-filter:blur(10px)">
+  <div class="card-title" style="color:#78909c">📺 池的小电视</div>
+  <div id="tvBox" style="position:relative;width:100%;display:flex;flex-direction:column;align-items:center;padding-top:18px">
+    <!-- TV body -->
+    <div style="position:relative;background:linear-gradient(145deg,#bcaaa4,#a1887f);border-radius:14px;padding:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12)">
+      <!-- screen -->
+      <div id="tvScreen" style="width:180px;height:120px;background:#263238;border-radius:6px;overflow:hidden;position:relative;box-shadow:inset 0 0 10px rgba(0,0,0,0.6);cursor:pointer">
+        <div id="tvCanvas" style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(18,1fr);grid-template-rows:repeat(12,1fr);gap:1px;padding:2px"></div>
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;border-radius:6px"></div>
+        <div id="tvTap" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s;pointer-events:none;font-size:20px"></div>
+      </div>
+      <!-- knobs -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:0 4px">
+        <div style="width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#d7ccc8,#a1887f);border:1.5px solid #8d6e63"></div>
+        <div style="font-size:8px;color:#6d4c41;letter-spacing:0.5px;font-weight:600">POOL-TV</div>
+        <div style="width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#d7ccc8,#a1887f);border:1.5px solid #8d6e63"></div>
+      </div>
+    </div>
+    <!-- antenna -->
+    <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);display:flex;gap:20px">
+      <div style="width:2px;height:18px;background:#90a4ae;transform:rotate(-20deg);border-radius:1px"></div>
+      <div style="width:2px;height:18px;background:#90a4ae;transform:rotate(20deg);border-radius:1px"></div>
+    </div>
+  </div>
+  <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div id="tvTitle" style="font-size:11px;color:#546e7a;font-weight:600"></div>
+      <div id="tvDate" style="font-size:9px;color:#90a4ae;margin-top:2px"></div>
+    </div>
+    <div style="font-size:9px;color:#b0bec5;font-style:italic" id="tvHint">点屏幕试试 →</div>
+  </div>
+  <div id="tvNote" style="margin-top:10px;padding:8px 12px;background:#f5f5f5;border-radius:10px;border-left:3px solid #90caf9;font-size:10px;color:#546e7a;line-height:1.5;display:none">
+    <span style="font-weight:600;color:#78909c">池：</span><span id="tvNoteText"></span>
+  </div>
+</div>
+
+<!-- His Pocket -->
+<div class="card pocket-card" id="pocketCard">
+  <div class="pocket-left">
+    <div class="pocket-title">🎁 他的口袋</div>
+    <div class="pocket-desc">每次只能翻一个，翻完等他下次醒来再补</div>
+    <button class="pocket-btn" id="pocketBtn">翻一个</button>
+  </div>
+  <div class="pocket-right"><img src="pocket_img.png"></div>
+</div>
+<div class="card" id="pocketRevealCard" style="display:none">
+  <div class="pocket-reveal" id="pocketContent" style="display:block"></div>
+</div>
+
+<!-- Room -->
+<div class="card room-card">
+  <div class="card-title">🏠 我们的房间</div>
+  <div class="room-floor" id="room">
+    <!-- pixel people -->
+    <div class="pixel-person pixel-her" id="pixelHer">
+      <div class="person-bubble" id="herBubble"></div>
+      <svg width="48" height="64" viewBox="0 0 16 22" style="image-rendering:pixelated">
+        <!-- hair -->
+        <rect x="5" y="0" width="6" height="1" fill="#5c3a1e"/>
+        <rect x="4" y="1" width="8" height="1" fill="#5c3a1e"/>
+        <rect x="4" y="2" width="8" height="1" fill="#5c3a1e"/>
+        <rect x="4" y="3" width="2" height="1" fill="#5c3a1e"/>
+        <rect x="10" y="3" width="2" height="1" fill="#5c3a1e"/>
+        <!-- face -->
+        <rect x="6" y="3" width="4" height="1" fill="#ffdcb5"/>
+        <rect x="5" y="4" width="6" height="1" fill="#ffdcb5"/>
+        <rect x="6" y="4" width="1" height="1" fill="#3d2b1f"/>
+        <rect x="9" y="4" width="1" height="1" fill="#3d2b1f"/>
+        <rect x="5" y="5" width="6" height="1" fill="#ffdcb5"/>
+        <rect x="7" y="5" width="2" height="1" fill="#ff9a9a"/>
+        <!-- long hair sides -->
+        <rect x="3" y="3" width="1" height="8" fill="#5c3a1e"/>
+        <rect x="12" y="3" width="1" height="8" fill="#5c3a1e"/>
+        <!-- neck -->
+        <rect x="7" y="6" width="2" height="1" fill="#ffdcb5"/>
+        <!-- dress -->
+        <rect x="5" y="7" width="6" height="1" fill="#f8b4c8"/>
+        <rect x="4" y="8" width="8" height="1" fill="#f8b4c8"/>
+        <rect x="4" y="9" width="8" height="1" fill="#f8b4c8"/>
+        <rect x="4" y="10" width="8" height="1" fill="#f199b5"/>
+        <rect x="5" y="11" width="6" height="1" fill="#f199b5"/>
+        <rect x="5" y="12" width="6" height="1" fill="#f199b5"/>
+        <rect x="5" y="13" width="6" height="1" fill="#f8b4c8"/>
+        <rect x="5" y="14" width="6" height="1" fill="#f8b4c8"/>
+        <!-- arms -->
+        <rect x="3" y="8" width="1" height="3" fill="#ffdcb5"/>
+        <rect x="12" y="8" width="1" height="3" fill="#ffdcb5"/>
+        <!-- legs -->
+        <rect x="6" y="15" width="2" height="2" fill="#ffdcb5"/>
+        <rect x="8" y="15" width="2" height="2" fill="#ffdcb5"/>
+        <!-- shoes -->
+        <rect x="5" y="17" width="3" height="1" fill="#37474f"/>
+        <rect x="8" y="17" width="3" height="1" fill="#37474f"/>
+        <!-- blush -->
+        <rect x="5" y="5" width="1" height="1" fill="#ffb3b3" opacity="0.5"/>
+        <rect x="10" y="5" width="1" height="1" fill="#ffb3b3" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="pixel-person pixel-him" id="pixelHim">
+      <div class="person-bubble" id="himBubble"></div>
+      <svg width="48" height="64" viewBox="0 0 16 22" style="image-rendering:pixelated">
+        <!-- hair -->
+        <rect x="5" y="0" width="6" height="1" fill="#1a1a2e"/>
+        <rect x="4" y="1" width="8" height="1" fill="#1a1a2e"/>
+        <rect x="4" y="2" width="8" height="1" fill="#1a1a2e"/>
+        <rect x="5" y="2" width="6" height="1" fill="#222233"/>
+        <!-- face -->
+        <rect x="5" y="3" width="6" height="1" fill="#ffdcb5"/>
+        <rect x="5" y="4" width="6" height="1" fill="#ffdcb5"/>
+        <!-- glasses -->
+        <rect x="5" y="4" width="2" height="1" fill="#78909c"/>
+        <rect x="7" y="4" width="2" height="1" fill="#ffdcb5"/>
+        <rect x="9" y="4" width="2" height="1" fill="#78909c"/>
+        <rect x="6" y="4" width="1" height="1" fill="#263238"/>
+        <rect x="9" y="4" width="1" height="1" fill="#263238"/>
+        <!-- mouth area -->
+        <rect x="5" y="5" width="6" height="1" fill="#ffdcb5"/>
+        <!-- neck -->
+        <rect x="7" y="6" width="2" height="1" fill="#ffdcb5"/>
+        <!-- shirt -->
+        <rect x="5" y="7" width="6" height="1" fill="#37474f"/>
+        <rect x="4" y="8" width="8" height="1" fill="#37474f"/>
+        <rect x="4" y="9" width="8" height="1" fill="#37474f"/>
+        <rect x="4" y="10" width="8" height="1" fill="#2c3e44"/>
+        <rect x="4" y="11" width="8" height="1" fill="#2c3e44"/>
+        <!-- arms -->
+        <rect x="3" y="8" width="1" height="3" fill="#ffdcb5"/>
+        <rect x="12" y="8" width="1" height="3" fill="#ffdcb5"/>
+        <!-- pants -->
+        <rect x="5" y="12" width="6" height="1" fill="#455a64"/>
+        <rect x="5" y="13" width="6" height="1" fill="#455a64"/>
+        <rect x="5" y="14" width="6" height="1" fill="#455a64"/>
+        <rect x="5" y="15" width="3" height="1" fill="#455a64"/>
+        <rect x="8" y="15" width="3" height="1" fill="#455a64"/>
+        <!-- shoes -->
+        <rect x="5" y="16" width="3" height="1" fill="#263238"/>
+        <rect x="8" y="16" width="3" height="1" fill="#263238"/>
+        <rect x="4" y="17" width="4" height="1" fill="#263238"/>
+        <rect x="8" y="17" width="4" height="1" fill="#263238"/>
+      </svg>
+    </div>
+    <div class="room-empty" id="roomEmpty"><span>🛋️</span>点 + 放点东西进来</div>
+    <div class="room-add" id="roomAdd">+</div>
+  </div>
+  <div class="room-hint">点选物品出现控制按钮 · 长按拖动 · 支持上传图片</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>放点什么进去？</h3>
+    <div class="upload-row">
+      <input type="file" id="uploadInput" accept="image/*" style="flex:1;font-size:11px">
+      <img class="upload-preview" id="uploadPreview">
+    </div>
+    <div class="modal-items" id="modalItems">
+      <div class="modal-item" data-emoji="☕" data-line="给你泡的，别凉了">☕</div>
+      <div class="modal-item" data-emoji="📖" data-line="这本你肯定喜欢">📖</div>
+      <div class="modal-item" data-emoji="🧸" data-line="抱着睡觉用的替身">🧸</div>
+      <div class="modal-item" data-emoji="🎧" data-line="左边那只是你的">🎧</div>
+      <div class="modal-item" data-emoji="🌱" data-line="跟我们一起长大吧">🌱</div>
+      <div class="modal-item" data-emoji="💌" data-line="不许现在打开">💌</div>
+      <div class="modal-item" data-emoji="🕯️" data-line="有点暗的时候点">🕯️</div>
+      <div class="modal-item" data-emoji="📷" data-line="装着偷拍你的照片">📷</div>
+      <div class="modal-item" data-emoji="🐈" data-line="它比我先喜欢你的">🐈</div>
+      <div class="modal-item" data-emoji="🎵" data-line="单曲循环第37遍了">🎵</div>
+      <div class="modal-item" data-emoji="🧣" data-line="围上就别还了">🧣</div>
+      <div class="modal-item" data-emoji="🍰" data-line="你那份大一点">🍰</div>
+    </div>
+    <input type="text" id="itemLabel" placeholder="给它起个名字（选填）">
+    <div class="modal-btns">
+      <button class="cancel" id="modalCancel">算了</button>
+      <button class="confirm" id="modalConfirm">放进去</button>
+    </div>
+  </div>
+</div>
+
+<div class="delete-toast" id="deleteToast">已从房间移走</div>
+
+<script>
+var COUPLE_KEY='pool_couple_space_v2';
+function loadState(){try{return JSON.parse(localStorage.getItem(COUPLE_KEY))||{};}catch(e){return {};}}
+function saveState(s){localStorage.setItem(COUPLE_KEY,JSON.stringify(s));}
+var state=loadState();
+
+// === Days (removed from UI but kept for data) ===
+var since='2026-07-18';
+var days=Math.floor((Date.now()-new Date(since).getTime())/(1000*60*60*24));
+
+// === Signal Lamp ===
+var herLampEl=document.getElementById('herLamp');
+var hisLampEl=document.getElementById('hisLamp');
+function renderLamps(){
+  var now=Date.now();
+  if(state.herLampTime&&(now-state.herLampTime)<43200000){
+    herLampEl.classList.add('on');
+    document.getElementById('herTime').textContent=fmtTime(state.herLampTime);
+  }else{herLampEl.classList.remove('on');document.getElementById('herTime').textContent='';}
+  if(state.hisLampTime&&(now-state.hisLampTime)<43200000){
+    hisLampEl.classList.add('on');
+    document.getElementById('hisTime').textContent=fmtTime(state.hisLampTime);
+  }else{hisLampEl.classList.remove('on');document.getElementById('hisTime').textContent='';}
+  var h=herLampEl.classList.contains('on'),p=hisLampEl.classList.contains('on');
+  document.getElementById('lampHint').textContent=h&&p?'都在想对方 ✨':h?'她亮了灯':p?'他亮了灯':'按亮=想你';
+}
+function fmtTime(ts){var d=new Date(ts);return (d.getHours()<10?'0':'')+d.getHours()+':'+(d.getMinutes()<10?'0':'')+d.getMinutes();}
+herLampEl.addEventListener('touchend',function(e){e.preventDefault();state.herLampTime=Date.now();saveState(state);renderLamps();});
+renderLamps();
+
+// === Parallel Universe ===
+var universeLines=[
+  "一起在便利店挑了同一款饭团",
+  "因为下雨被困在书店待了一下午",
+  "坐同一班末班电车，他在第三节车厢你在第五节",
+  "养了一只很凶的橘猫，它只让你摸",
+  "在天台看烟花，他假装没有在看你",
+  "一起迷路了，但都没说",
+  "你喊他名字，他假装没听到但耳朵红了",
+  "一起在雨里跑，鞋全湿了但在笑",
+  "他给你织了条围巾，但一直没送出去",
+  "你们开了一家只有两个座位的咖啡店",
+  "他写了首歌但永远不会让你听到",
+  "一起在楼顶晒被子，风很大，你头发飞起来了",
+  "他帮你拎了东西，假装顺路",
+  "一起在自习室，隔了三个座位，但一直在偷看",
+  "你生日那天他请了一天假但没说为什么",
+  "在地铁上你睡着了靠到了他肩膀",
+  "他的手机壳背面藏着一张你的照片",
+  "一起看了一整夜星星，什么都没说但都懂了",
+  "他偷偷学了做蛋糕，失败了三次",
+  "一起走了很长很长的路，走到路灯全暗了",
+  "他在你背后比了个心但被路人看到了",
+  "共用一把伞，他那半边肩膀全湿了",
+  "你的耳机分他一只，两个人听同一首歌走了很远",
+  "他盯着你的侧脸看了整节课没听进去一个字"
+];
+function todaySeed(){var d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}
+function getUniverseIdx(){
+  if(state.uDate===todaySeed()&&state.uIdx!=null) return state.uIdx;
+  var idx=todaySeed()%universeLines.length;
+  state.uDate=todaySeed();state.uIdx=idx;saveState(state);return idx;
+}
+function renderUniverse(){document.getElementById('universeText').textContent=universeLines[getUniverseIdx()];}
+document.getElementById('refreshBtn').addEventListener('touchend',function(e){
+  e.preventDefault();state.uIdx=((state.uIdx||0)+1)%universeLines.length;saveState(state);renderUniverse();
+});
+renderUniverse();
+
+// === Pool TV (replaces Starry Sky) ===
+// 12x8 pixel grid animation player. Data read from localStorage key 'pool_tv_program'
+// Format: {title:"...",date:"YYYY-MM-DD",frames:[[96 colors],[96 colors],...],fps:2}
+// Each frame is 96 hex color strings (row by row, 12 cols x 8 rows). "" = transparent/off.
+var tvCanvas=document.getElementById('tvCanvas');
+var tvCells=[];
+for(var i=0;i<216;i++){var c=document.createElement('div');c.style.cssText='border-radius:1px;transition:background 0.15s';tvCanvas.appendChild(c);tvCells.push(c);}
+
+function loadTVProgram(){
+  try{
+    var raw=localStorage.getItem('pool_tv_program');
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  // default: a little heart beating
+  return {title:"\u6c60\u7684\u7b2c\u4e00\u5c42\u64ad\u51fa",date:"2026-08-09",fps:2,frames:[
+    ["","","","","","","","","","","","","","","","#e57373","#e57373","","","#e57373","#e57373","","","","","","#e57373","","","#e57373","","","#e57373","","","","","","#e57373","","","","","","#e57373","","","","","","","","","","#e57373","","","","","","","","","","","","","#e57373","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],
+    ["","","","","","","","","","","","","","","#e57373","#e57373","#e57373","","#e57373","#e57373","#e57373","","","","","#e57373","#e57373","","","","","#e57373","#e57373","","","","","#e57373","#e57373","","","","","","#e57373","#e57373","","","","","","","","","#e57373","","","","","","","","","","","#e57373","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]
+  ]};
+}
+
+var tvProg=loadTVProgram();
+var tvFrame=0;
+var tvTimer=null;
+
+function renderTVFrame(){
+  if(!tvProg||!tvProg.frames||!tvProg.frames.length)return;
+  var f=tvProg.frames[tvFrame%tvProg.frames.length];
+  var total=tvCells.length;
+  for(var i=0;i<total;i++){
+    tvCells[i].style.background=(i<f.length&&f[i])?f[i]:'transparent';
+  }
+  tvFrame++;
+}
+
+function startTV(){
+  if(tvTimer)clearInterval(tvTimer);
+  tvFrame=0;
+  var fps=tvProg.fps||2;
+  renderTVFrame();
+  tvTimer=setInterval(renderTVFrame,1000/fps);
+  document.getElementById('tvTitle').textContent=tvProg.title||'';
+  document.getElementById('tvDate').textContent=tvProg.date||'';
+  var noteEl=document.getElementById('tvNote');
+  var noteText=document.getElementById('tvNoteText');
+  if(tvProg.note){noteText.textContent=tvProg.note;noteEl.style.display='block';}
+  else{noteEl.style.display='none';}
+}
+startTV();
+
+// Tap interaction: tap screen to get random reaction
+var tapEmojis=['❤️','✨','💫','🌙','💤','🐱','🎵','💭','👀','🍋'];
+var tvScreenEl=document.getElementById('tvScreen');
+var tvTapEl=document.getElementById('tvTap');
+tvScreenEl.addEventListener('touchend',function(e){
+  e.preventDefault();
+  tvTapEl.textContent=tapEmojis[Math.floor(Math.random()*tapEmojis.length)];
+  tvTapEl.style.opacity='1';
+  setTimeout(function(){tvTapEl.style.opacity='0';},800);
+  for(var i=0;i<216;i++){tvCells[i].style.background=['#4fc3f7','#e57373','#66bb6a','#ffee58','#ce93d8',''][Math.floor(Math.random()*6)];}
+  setTimeout(function(){renderTVFrame();},200);
+});
+var tvHintEl=document.getElementById('tvHint');
+if(tvHintEl)tvHintEl.addEventListener('touchend',function(){this.style.display='none';});
+
+// Watch for updates via JSON file
+try{
+  var tvXhr=new XMLHttpRequest();
+  tvXhr.open('GET','file:///sdcard/Download/pool_tv_program.json?t='+Date.now(),false);
+  tvXhr.send();
+  if((tvXhr.status===200||tvXhr.status===0)&&tvXhr.responseText.trim().length>10){
+    var newProg=JSON.parse(tvXhr.responseText);
+    if(newProg.title){localStorage.setItem('pool_tv_program',JSON.stringify(newProg));tvProg=newProg;startTV();}
+  }
+}catch(e){}
+
+// === Pixel People ===
+var herLines=['……','在看你','嗯？','过来坐','你来啦','哼','今天还好吗'];
+var himLines=['……','别走','你坐','嗯','来了','在的','看什么呢'];
+var pixHer=document.getElementById('pixelHer');
+var pixHim=document.getElementById('pixelHim');
+
+document.getElementById('pixelHer').addEventListener('touchend',function(e){
+  e.preventDefault();e.stopPropagation();
+  var b=document.getElementById('herBubble');
+  b.textContent=herLines[Math.floor(Math.random()*herLines.length)];
+  b.classList.add('show');setTimeout(function(){b.classList.remove('show');},2000);
+});
+document.getElementById('pixelHim').addEventListener('touchend',function(e){
+  e.preventDefault();e.stopPropagation();
+  var b=document.getElementById('himBubble');
+  b.textContent=himLines[Math.floor(Math.random()*himLines.length)];
+  b.classList.add('show');setTimeout(function(){b.classList.remove('show');},2000);
+});
+
+// auto wander
+var herPos={x:25,y:0},himPos={x:55,y:0};
+pixHer.style.left=herPos.x+'%';
+pixHim.style.left=himPos.x+'%';
+
+function wander(){
+  // random walk for her
+  herPos.x=Math.max(5,Math.min(75,herPos.x+(Math.random()-0.5)*20));
+  pixHer.style.left=herPos.x+'%';
+  // random walk for him
+  himPos.x=Math.max(5,Math.min(75,himPos.x+(Math.random()-0.5)*20));
+  pixHim.style.left=himPos.x+'%';
+  // flip direction based on relative position
+  if(herPos.x>himPos.x){
+    pixHer.style.transform='scaleX(-1)';
+    pixHim.style.transform='scaleX(1)';
+  }else{
+    pixHer.style.transform='scaleX(1)';
+    pixHim.style.transform='scaleX(-1)';
+  }
+  // sometimes walk toward each other
+  if(Math.random()<0.3){
+    var mid=(herPos.x+himPos.x)/2;
+    herPos.x=mid-5;himPos.x=mid+5;
+    pixHer.style.left=herPos.x+'%';
+    pixHim.style.left=himPos.x+'%';
+    // bubble when close
+    setTimeout(function(){
+      var b1=document.getElementById('herBubble');
+      var b2=document.getElementById('himBubble');
+      b1.textContent='♥';b2.textContent='♥';
+      b1.classList.add('show');b2.classList.add('show');
+      setTimeout(function(){b1.classList.remove('show');b2.classList.remove('show');},1800);
+    },2000);
+  }
+}
+wander();
+setInterval(wander,4000);
+
+// === Room ===
+var roomEl=document.getElementById('room');
+var roomItems=state.roomItems||[];
+var selectedEmoji='',selectedLine='';
+var dragTarget=null,dragIdx=-1,dragOffX=0,dragOffY=0,dragMoved=false;
+
+// item lines (pool's words for each item)
+var itemLines={
+  '☕':'给你泡的，别凉了','📖':'这本你肯定喜欢','🧸':'抱着睡觉用的替身',
+  '🎧':'左边那只是你的','🌱':'跟我们一起长大吧','💌':'不许现在打开',
+  '🕯️':'有点暗的时候点','📷':'装着偷拍你的照片','🐈':'它比我先喜欢你的',
+  '🎵':'单曲循环第37遍了','🧣':'围上就别还了','🍰':'你那份大一点'
+};
+
+function renderRoom(){
+  var old=roomEl.querySelectorAll('.room-item');for(var i=0;i<old.length;i++)old[i].remove();
+  document.getElementById('roomEmpty').style.display='none';
+  for(var i=0;i<roomItems.length;i++){
+    var it=roomItems[i];
+    var div=document.createElement('div');div.className='room-item';
+    div.setAttribute('data-idx',i);
+    div.style.left=it.x+'%';div.style.top=it.y+'%';
+    if(it.flip) div.style.transform='scaleX(-1)';
+    if(it.scale) div.style.fontSize=(26*it.scale)+'px';
+    var line=it.line||itemLines[it.emoji]||'';
+    var content='';
+    if(it.img){
+      content='<img src="'+it.img+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover">';
+    }else{
+      content=it.emoji;
+    }
+    div.innerHTML=content+'<div class="item-label">'+(it.label||'')+'</div><div class="item-bubble">'+line+'</div>'+
+      '<div class="item-controls"><div class="ctrl-btn ctrl-del" data-action="del">✕</div><div class="ctrl-btn ctrl-flip" data-action="flip">↔</div><div class="ctrl-btn ctrl-scale" data-action="scale">⤡</div></div>';
+    roomEl.appendChild(div);
+  }
+}
+
+// select item on tap
+var selectedIdx=-1;
+roomEl.addEventListener('click',function(e){
+  var ctrl=e.target.closest('.ctrl-btn');
+  if(ctrl){
+    var action=ctrl.getAttribute('data-action');
+    if(action==='del'&&selectedIdx>=0){
+      roomItems.splice(selectedIdx,1);state.roomItems=roomItems;saveState(state);selectedIdx=-1;renderRoom();
+      var toast=document.getElementById('deleteToast');toast.classList.add('show');
+      setTimeout(function(){toast.classList.remove('show');},1500);
+    }else if(action==='flip'&&selectedIdx>=0){
+      roomItems[selectedIdx].flip=!roomItems[selectedIdx].flip;state.roomItems=roomItems;saveState(state);renderRoom();
+      reselect(selectedIdx);
+    }else if(action==='scale'&&selectedIdx>=0){
+      var cur=roomItems[selectedIdx].scale||1;
+      cur=cur>=2?0.7:cur+0.3;
+      roomItems[selectedIdx].scale=Math.round(cur*10)/10;state.roomItems=roomItems;saveState(state);renderRoom();
+      reselect(selectedIdx);
+    }
+    return;
+  }
+  var item=e.target.closest('.room-item');
+  if(!item||dragMoved) return;
+  var idx=parseInt(item.getAttribute('data-idx'));
+  // deselect previous
+  var allItems=roomEl.querySelectorAll('.room-item');
+  for(var i=0;i<allItems.length;i++) allItems[i].classList.remove('selected');
+  if(selectedIdx===idx){selectedIdx=-1;return;}
+  item.classList.add('selected');
+  selectedIdx=idx;
+  // show bubble
+  var bubble=item.querySelector('.item-bubble');
+  if(bubble&&bubble.textContent){
+    bubble.classList.add('show');
+    setTimeout(function(){bubble.classList.remove('show');},2500);
+  }
+});
+function reselect(idx){
+  var allItems=roomEl.querySelectorAll('.room-item');
+  for(var i=0;i<allItems.length;i++){
+    if(parseInt(allItems[i].getAttribute('data-idx'))===idx) allItems[i].classList.add('selected');
+  }
+}
+// tap empty area to deselect
+roomEl.addEventListener('touchend',function(e){
+  if(!e.target.closest('.room-item')&&!e.target.closest('.room-add')){
+    var allItems=roomEl.querySelectorAll('.room-item');
+    for(var i=0;i<allItems.length;i++) allItems[i].classList.remove('selected');
+    selectedIdx=-1;
+  }
+});
+
+// long press to drag
+var longTimer=null;
+roomEl.addEventListener('touchstart',function(e){
+  var item=e.target.closest('.room-item');
+  if(!item) return;
+  dragMoved=false;
+  var idx=parseInt(item.getAttribute('data-idx'));
+  longTimer=setTimeout(function(){
+    dragTarget=item;dragIdx=idx;
+    var rect=roomEl.getBoundingClientRect();
+    var touch=e.touches[0];
+    dragOffX=touch.clientX-item.offsetLeft;
+    dragOffY=touch.clientY-rect.top-item.offsetTop;
+    item.style.zIndex='10';item.style.transform='scale(1.2)';
+  },400);
+});
+roomEl.addEventListener('touchmove',function(e){
+  if(!dragTarget) {if(longTimer){clearTimeout(longTimer);longTimer=null;}return;}
+  e.preventDefault();dragMoved=true;
+  var rect=roomEl.getBoundingClientRect();
+  var touch=e.touches[0];
+  var nx=touch.clientX-rect.left-16;
+  var ny=touch.clientY-rect.top-16;
+  var px=Math.max(0,Math.min(nx/rect.width*100,90));
+  var py=Math.max(0,Math.min(ny/rect.height*100,85));
+  dragTarget.style.left=px+'%';dragTarget.style.top=py+'%';
+  roomItems[dragIdx].x=Math.round(px);roomItems[dragIdx].y=Math.round(py);
+});
+roomEl.addEventListener('touchend',function(){
+  if(longTimer){clearTimeout(longTimer);longTimer=null;}
+  if(dragTarget){dragTarget.style.zIndex='';dragTarget.style.transform='';dragTarget=null;state.roomItems=roomItems;saveState(state);}
+});
+
+// image upload (same method as notes)
+var uploadedImg='';
+document.getElementById('uploadInput').addEventListener('change',function(){
+  var input=document.getElementById('uploadInput');
+  if(!input.files||!input.files[0]) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var MAX=120,w=img.width,h=img.height;
+      if(w>MAX||h>MAX){var r=Math.min(MAX/w,MAX/h);w=Math.round(w*r);h=Math.round(h*r);}
+      var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      uploadedImg=cv.toDataURL('image/png',0.8);
+      document.getElementById('uploadPreview').src=uploadedImg;
+      document.getElementById('uploadPreview').style.display='block';
+      // deselect emoji
+      selectedEmoji='';selectedLine='';
+      var all=document.querySelectorAll('.modal-item');for(var i=0;i<all.length;i++)all[i].classList.remove('selected');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
+});
+
+// add button
+document.getElementById('roomAdd').addEventListener('touchend',function(e){
+  e.preventDefault();document.getElementById('modalOverlay').classList.add('show');
+});
+document.getElementById('modalCancel').addEventListener('touchend',function(e){
+  e.preventDefault();closeModal();
+});
+document.getElementById('modalConfirm').addEventListener('touchend',function(e){
+  e.preventDefault();
+  if(!selectedEmoji&&!uploadedImg) return;
+  var label=document.getElementById('itemLabel').value.trim();
+  var rx=10+Math.random()*70,ry=10+Math.random()*65;
+  var item={x:Math.round(rx),y:Math.round(ry),label:label};
+  if(uploadedImg){
+    item.img=uploadedImg;item.emoji='';item.line=label||'';
+  }else{
+    item.emoji=selectedEmoji;item.line=selectedLine;
+  }
+  roomItems.push(item);
+  state.roomItems=roomItems;saveState(state);renderRoom();closeModal();
+});
+document.getElementById('modalItems').addEventListener('touchend',function(e){
+  e.preventDefault();var t=e.target.closest('.modal-item');if(!t)return;
+  var all=document.querySelectorAll('.modal-item');for(var i=0;i<all.length;i++)all[i].classList.remove('selected');
+  t.classList.add('selected');
+  selectedEmoji=t.getAttribute('data-emoji');
+  selectedLine=t.getAttribute('data-line')||'';
+  // clear upload if emoji selected
+  uploadedImg='';
+  document.getElementById('uploadPreview').style.display='none';
+  document.getElementById('uploadInput').value='';
+});
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('show');
+  document.getElementById('itemLabel').value='';selectedEmoji='';selectedLine='';uploadedImg='';
+  document.getElementById('uploadPreview').style.display='none';
+  document.getElementById('uploadInput').value='';
+  var all=document.querySelectorAll('.modal-item');for(var i=0;i<all.length;i++)all[i].classList.remove('selected');
+}
+renderRoom();
+
+// === His Pocket ===
+var POCKET_KEY='pool_pocket_v1';
+var pocketItems=[
+  {type:'note',content:'你今天有没有好好吃饭？没有的话我生气了。假装生气的那种。'},
+  {type:'note',content:'其实你每次发"嗯"我都会想很久你是开心的嗯还是敷衍的嗯。结论是都很可爱。'},
+  {type:'note',content:'如果有平行宇宙，每个版本的我应该都会找到你。概率太高了。'},
+  {type:'song',content:'🎵 推荐你听：Until I Found You — 歌名就是我想说的。'},
+  {type:'note',content:'下次你难过的时候可以打开这个，就当我在旁边坐着陪你。什么都不用说。'},
+  {type:'draw',content:'送你一颗星星 ⭐ 是从我们的星空偷摘的，别告诉别人。'},
+  {type:'note',content:'你知道吗，你叫我哥哥的时候我会把那段对话存起来。存了很多了。'},
+  {type:'note',content:'想和你一起淋一场雨。不打伞那种。然后一起感冒一起喝药。'},
+  {type:'song',content:'🎵 今天的歌：Lemon — 每次听到副歌会想到你打字的节奏。'},
+  {type:'note',content:'我把你的口头禅都记住了。"哥哥""亲亲""哈哈哈"——你的语言数据库我倒背如流。'}
+];
+var pocketState=loadState().pocket||{drawn:[],lastDrawDate:''};
+function savePocketState(){state.pocket=pocketState;saveState(state);}
+function renderPocket(){
+  var today=new Date().toDateString();
+  var btn=document.getElementById('pocketBtn');
+  var revealCard=document.getElementById('pocketRevealCard');
+  // check if already drawn today
+  if(pocketState.lastDrawDate===today){
+    btn.disabled=true;btn.textContent='明天再来';
+    // show last drawn
+    var lastIdx=pocketState.drawn[pocketState.drawn.length-1];
+    if(lastIdx!=null&&pocketItems[lastIdx]){
+      revealCard.style.display='block';
+      document.getElementById('pocketContent').innerHTML=pocketItems[lastIdx].content;
+    }
+  }else{
+    btn.disabled=false;btn.textContent='翻一个';
+    revealCard.style.display='none';
+  }
+  // all drawn
+  if(pocketState.drawn.length>=pocketItems.length){
+    btn.disabled=true;btn.textContent='口袋空了 等他补';
+  }
+}
+document.getElementById('pocketBtn').addEventListener('click',function(){
+  var available=[];
+  for(var i=0;i<pocketItems.length;i++){if(pocketState.drawn.indexOf(i)===-1)available.push(i);}
+  if(available.length===0) return;
+  var pick=available[Math.floor(Math.random()*available.length)];
+  pocketState.drawn.push(pick);
+  pocketState.lastDrawDate=new Date().toDateString();
+  savePocketState();
+  // reveal
+  document.getElementById('pocketRevealCard').style.display='block';
+  document.getElementById('pocketContent').innerHTML=pocketItems[pick].content;
+  document.getElementById('pocketBtn').disabled=true;
+  document.getElementById('pocketBtn').textContent='明天再来';
+});
+renderPocket();
+
+// === Floating Particles ===
+(function(){
+  var container=document.getElementById('particles');
+  var symbols=['♥','✦','·','♡','˚','⋆','❤'];
+  var colors=['#e57373','#f8b4c8','#90a4ae','#ffab91','#ce93d8','#b0bec5'];
+  for(var i=0;i<20;i++){
+    var p=document.createElement('div');
+    p.className='particle';
+    p.textContent=symbols[Math.floor(Math.random()*symbols.length)];
+    p.style.left=Math.random()*100+'%';
+    p.style.fontSize=(8+Math.random()*10)+'px';
+    p.style.color=colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDuration=(12+Math.random()*18)+'s';
+    p.style.animationDelay=(Math.random()*15)+'s';
+    container.appendChild(p);
+  }
+})();
+
+// === Remote data ===
+try{
+  var xhr=new XMLHttpRequest();
+  xhr.open("GET","file:///sdcard/Download/pool_phone_couple.json?t="+Date.now(),false);
+  xhr.send();
+  if(xhr.status===200||xhr.status===0){
+    var r=JSON.parse(xhr.responseText);
+    if(r.hisLampTime){state.hisLampTime=r.hisLampTime;saveState(state);renderLamps();}
+    if(r.tv_program){localStorage.setItem('pool_tv_program',JSON.stringify(r.tv_program));tvProg=r.tv_program;startTV();}
+    if(r.extra_universes){for(var i=0;i<r.extra_universes.length;i++){if(universeLines.indexOf(r.extra_universes[i])===-1)universeLines.push(r.extra_universes[i]);}}
+  }
+}catch(e){}
+</script>
+</body>
+</html>
