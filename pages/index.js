@@ -153,7 +153,7 @@ function ChatView({ theme }) {
             {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
             {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
             {msg.role === 'system' ? (
-              <div className="msg-system">{msg.content}</div>
+              <div className="msg-system" style={theme?.systemMsgBg||theme?.systemMsgText||theme?.systemMsgBorder?{background:theme.systemMsgBg||undefined,color:theme.systemMsgText||undefined,borderColor:theme.systemMsgBorder||undefined}:{}}>{msg.content}</div>
             ) : editIdx === i ? (
               <div className="msg-edit-wrap">
                 <textarea className="msg-edit-input" value={editText} onChange={e => setEditText(e.target.value)} />
@@ -230,6 +230,8 @@ function ThemePanel() {
     }
   }
 
+  const [showPresets, setShowPresets] = useState(false)
+
   function savePreset() {
     const name = prompt('\u7ed9\u8fd9\u4e2a\u4e3b\u9898\u8d77\u4e2a\u540d\u5b57:')
     if (!name) return
@@ -239,13 +241,17 @@ function ThemePanel() {
     alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
   }
 
-  function loadPreset() {
+  function loadPreset(name) {
     const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
-    const names = Object.keys(presets)
-    if (names.length === 0) { alert('\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'); return }
-    const name = prompt('\u8f93\u5165\u9884\u8bbe\u540d\u79f0:\n' + names.join(', '))
-    if (!name || !presets[name]) return
-    setTheme(presets[name])
+    if (presets[name]) { setTheme(presets[name]); setShowPresets(false) }
+  }
+
+  function deletePreset(name) {
+    const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
+    delete presets[name]
+    localStorage.setItem('pool_theme_presets', JSON.stringify(presets))
+    setShowPresets(false)
+    setTimeout(() => setShowPresets(true), 50)
   }
 
   function handleImageUpload(key, e) {
@@ -385,6 +391,25 @@ function ThemePanel() {
       </div>
 
       <div className="settings-section">
+        <h3 className="settings-title">{'\ud83d\udcac \u7893\u7893\u5ff5/\u7cfb\u7edf\u6d88\u606f'}</h3>
+        <div className="theme-color-row">
+          <label>{'\u80cc\u666f\u8272'}</label>
+          <input type="color" value={theme.systemMsgBg||'#1a1a2e'} onChange={e=>setTheme(t=>({...t,systemMsgBg:e.target.value}))} />
+          <span>{theme.systemMsgBg||'#1a1a2e'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u5b57\u4f53\u8272'}</label>
+          <input type="color" value={theme.systemMsgText||'#9a8a99'} onChange={e=>setTheme(t=>({...t,systemMsgText:e.target.value}))} />
+          <span>{theme.systemMsgText||'#9a8a99'}</span>
+        </div>
+        <div className="theme-color-row">
+          <label>{'\u8fb9\u6846\u8272'}</label>
+          <input type="color" value={theme.systemMsgBorder||'#333333'} onChange={e=>setTheme(t=>({...t,systemMsgBorder:e.target.value}))} />
+          <span>{theme.systemMsgBorder||'#333333'}</span>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <h3 className="settings-title">{'\ud83d\uddbc\ufe0f App\u56fe\u6807'}</h3>
         <p className="settings-desc">{'\u6bcf\u4e2aApp\u53ef\u5355\u72ec\u6362\u56fe\u6807\uff08\u652f\u6301URL\u6216\u4e0a\u4f20\uff09'}</p>
         {APP_LIST.map(id => (
@@ -399,8 +424,21 @@ function ThemePanel() {
       <button className="settings-save" onClick={save}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u4e3b\u9898'}</button>
       <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
         <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={savePreset}>{'\ud83d\udcbe \u5b58\u4e3a\u9884\u8bbe'}</button>
-        <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={loadPreset}>{'\ud83d\udcc2 \u52a0\u8f7d\u9884\u8bbe'}</button>
+        <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={() => setShowPresets(!showPresets)}>{'\ud83d\udcc2 \u52a0\u8f7d\u9884\u8bbe'}</button>
       </div>
+      {showPresets && (() => {
+        const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
+        const names = Object.keys(presets)
+        return (<div style={{marginTop:'8px',background:'#1a1a2e',borderRadius:'8px',padding:'8px'}}>
+          {names.length === 0 ? <div style={{color:'#888',fontSize:'12px',textAlign:'center'}}>{'\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'}</div> :
+          names.map(n => (
+            <div key={n} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px',borderBottom:'1px solid #2a2a3e'}}>
+              <span style={{color:'#e0e0e0',fontSize:'13px',cursor:'pointer',flex:1}} onClick={() => loadPreset(n)}>{n}</span>
+              <button style={{background:'#c44',color:'#fff',border:'none',borderRadius:'4px',padding:'2px 8px',fontSize:'11px',cursor:'pointer'}} onClick={() => deletePreset(n)}>{'\u5220'}</button>
+            </div>
+          ))}
+        </div>)
+      })()}
     </div>
   )
 }
