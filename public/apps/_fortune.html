@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>占卜</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,system-ui,"PingFang SC",sans-serif;background:#f5f5f5;min-height:100vh;color:#333;overflow-x:hidden;padding:16px 14px}
+.container{display:flex;flex-direction:column;align-items:center;gap:14px}
+.tabs{display:flex;background:#eee;border-radius:10px;padding:3px;width:100%;max-width:320px}
+.tab{flex:1;text-align:center;padding:7px 0;font-size:12px;color:#999;border-radius:8px;cursor:pointer;transition:all 0.2s;font-weight:500}
+.tab.active{background:#fff;color:#333;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.section{display:none;width:100%;max-width:320px;flex-direction:column;align-items:center;gap:14px}
+.section.active{display:flex}
+.title-area{text-align:center;margin-top:2px}
+.title-area h2{font-size:17px;color:#3a3a3a;font-weight:700}
+.title-area p{font-size:11px;color:#aaa;margin-top:2px}
+.card-box{width:100%;background:#fff;border:1px solid #eee;border-radius:14px;padding:24px 18px;text-align:center;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,0.03)}
+.fortune-type{display:inline-block;padding:3px 12px;border-radius:16px;font-size:12px;font-weight:600;margin-bottom:8px}
+.type-daji{background:#ffeaea;color:#d94a4a}.type-ji{background:#fff4e0;color:#b8860b}.type-zhongji{background:#e8f4fa;color:#4a90a4}.type-xiaoji{background:#e8f5e9;color:#4a8c50}.type-mo{background:#f0f0f0;color:#777}.type-xiong{background:#f0eaf5;color:#6b5b95}
+.fortune-text{font-size:14px;line-height:1.7;color:#333;margin:4px 0;font-weight:500}
+.fortune-poem{font-size:11px;color:#999;font-style:italic;margin-top:4px}
+.fortune-advice{font-size:11px;color:#888;margin-top:10px;padding:6px 10px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0}
+.chi-comment{margin-top:10px;font-size:10px;color:#b0b0b0}
+.btn{width:100%;padding:11px;border:none;border-radius:10px;background:#3a3a3a;color:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s}
+.btn:active{transform:scale(0.97);opacity:0.85}.btn:disabled{opacity:0.4}
+.history-section{width:100%;margin-top:4px}
+.history-title{font-size:10px;color:#aaa;margin-bottom:5px;display:flex;justify-content:space-between}
+.history-list{display:flex;flex-direction:column;gap:4px}
+.history-item{display:flex;align-items:center;padding:7px 9px;background:#fff;border-radius:8px;font-size:10px;border:1px solid #f0f0f0;gap:5px}
+.history-item .h-date{color:#bbb;flex-shrink:0}.history-item .h-type{font-weight:600;flex-shrink:0;padding:1px 5px;border-radius:5px;font-size:9px}.history-item .h-text{color:#666;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.answer-text{font-size:17px;color:#333;font-weight:600;line-height:1.6}
+.answer-sub{font-size:11px;color:#b0b0b0;margin-top:8px}
+/* Tarot */
+.tarot-spread{display:flex;gap:10px;justify-content:center;width:100%}
+.tarot-slot{flex:1;background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 8px;text-align:center;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.03);cursor:pointer;transition:all 0.3s}
+.tarot-slot.revealed{border-color:#ddd}
+.tarot-label{font-size:10px;color:#aaa;margin-bottom:6px}
+.tarot-name{font-size:12px;font-weight:600;color:#333;margin-top:6px}
+.tarot-dir{font-size:10px;color:#999;margin-top:2px}
+.tarot-symbol{font-size:28px;margin:4px 0}
+.tarot-symbol.reversed{transform:rotate(180deg)}
+.tarot-reading{width:100%;background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;text-align:left;box-shadow:0 2px 8px rgba(0,0,0,0.03)}
+.tarot-reading h4{font-size:12px;color:#555;margin-bottom:6px;font-weight:600}
+.tarot-reading p{font-size:11px;color:#777;line-height:1.6;margin-bottom:8px}
+.tarot-reading p:last-child{margin-bottom:0}
+.shake{animation:shake 0.6s ease}
+@keyframes shake{0%,100%{transform:rotate(0)}20%{transform:rotate(-5deg)}40%{transform:rotate(5deg)}60%{transform:rotate(-3deg)}80%{transform:rotate(3deg)}}
+.flip{animation:flip 0.5s ease}
+@keyframes flip{0%{transform:rotateY(0)}50%{transform:rotateY(90deg)}100%{transform:rotateY(0)}}
+.fade-in{animation:fadeIn 0.4s ease forwards}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.daily-hint{font-size:10px;color:#ccc;text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(0)">每日一签</div>
+    <div class="tab" onclick="switchTab(1)">答案之书</div>
+    <div class="tab" onclick="switchTab(2)">塔罗牌</div>
+  </div>
+
+  <!-- Fortune -->
+  <div class="section active" id="sec-0">
+    <div class="title-area"><h2>池的占卜屋</h2><p>每日一签 · 今天运势如何</p></div>
+    <div class="card-box" id="fCard"><div id="fContent" style="color:#bbb;font-size:12px">点击抽签查看今日运势</div></div>
+    <button class="btn" id="drawBtn" onclick="draw()">抽签</button>
+    <div class="daily-hint" id="hint"></div>
+    <div class="history-section" id="histSec" style="display:none">
+      <div class="history-title"><span>最近签文</span><span onclick="clearHist()" style="color:#999;cursor:pointer">清除</span></div>
+      <div class="history-list" id="histList"></div>
+    </div>
+  </div>
+
+  <!-- Answer -->
+  <div class="section" id="sec-1">
+    <div class="title-area"><h2>答案之书</h2><p>心里想个问题，然后翻开</p></div>
+    <div class="card-box" id="aCard"><div id="aContent" style="color:#ccc;font-size:12px">在心中默念你的问题<br>然后点下方翻开答案</div></div>
+    <button class="btn" onclick="openAnswer()">翻开答案</button>
+  </div>
+
+  <!-- Tarot -->
+  <div class="section" id="sec-2">
+    <div class="title-area"><h2>塔罗三张牌</h2><p>过去 · 现在 · 未来</p></div>
+    <div class="tarot-spread" id="tarotSpread">
+      <div class="tarot-slot" id="ts0"><div class="tarot-label">过去</div><div style="font-size:20px;color:#ddd">?</div></div>
+      <div class="tarot-slot" id="ts1"><div class="tarot-label">现在</div><div style="font-size:20px;color:#ddd">?</div></div>
+      <div class="tarot-slot" id="ts2"><div class="tarot-label">未来</div><div style="font-size:20px;color:#ddd">?</div></div>
+    </div>
+    <button class="btn" id="tarotBtn" onclick="drawTarot()">翻牌</button>
+    <div id="tarotReading"></div>
+  </div>
+</div>
+
+<script>
+function switchTab(n){
+  document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('active',i===n)});
+  for(var i=0;i<3;i++)document.getElementById('sec-'+i).classList.toggle('active',i===n);
+}
+
+// === Fortune ===
+var fortunes=[
+  {type:"大吉",cls:"type-daji",text:"万事顺遂如意",poem:"春风得意马蹄疾",advice:"适合表白、考试，放手去做"},
+  {type:"大吉",cls:"type-daji",text:"贵人相助，逢凶化吉",poem:"山重水复疑无路，柳暗花明又一村",advice:"今天适合社交"},
+  {type:"大吉",cls:"type-daji",text:"否极泰来，好运降临",poem:"长风破浪会有时",advice:"之前的努力会得到回报"},
+  {type:"吉",cls:"type-ji",text:"诸事顺利，小有收获",poem:"随风潜入夜，润物细无声",advice:"保持平常心"},
+  {type:"吉",cls:"type-ji",text:"有贵人暗中助力",poem:"千里马常有而伯乐不常有",advice:"多留心身边人的善意"},
+  {type:"吉",cls:"type-ji",text:"心愿将成，静待花开",poem:"桃李不言，下自成蹊",advice:"不必焦急"},
+  {type:"吉",cls:"type-ji",text:"灵感涌现",poem:"问渠那得清如许",advice:"适合学习和创作"},
+  {type:"中吉",cls:"type-zhongji",text:"平稳度日，无忧无虑",poem:"采菊东篱下，悠然见南山",advice:"享受当下"},
+  {type:"中吉",cls:"type-zhongji",text:"小确幸正在路上",poem:"万紫千红总是春",advice:"可能有小惊喜"},
+  {type:"中吉",cls:"type-zhongji",text:"宜静不宜动",poem:"非淡泊无以明志",advice:"今天适合休息"},
+  {type:"中吉",cls:"type-zhongji",text:"旧友重逢",poem:"海内存知己",advice:"联系老朋友"},
+  {type:"小吉",cls:"type-xiaoji",text:"虽有波折，终归平安",poem:"沉舟侧畔千帆过",advice:"遇到困难别慌"},
+  {type:"小吉",cls:"type-xiaoji",text:"财运小旺",poem:"千金散尽还复来",advice:"犒赏自己一下"},
+  {type:"小吉",cls:"type-xiaoji",text:"适合尝试新事物",poem:"纸上得来终觉浅",advice:"试试没做过的事"},
+  {type:"末",cls:"type-mo",text:"平平淡淡才是真",poem:"人生如逆旅",advice:"平常心"},
+  {type:"末",cls:"type-mo",text:"事缓则圆",poem:"莫听穿林打叶声",advice:"重要决定缓一缓"},
+  {type:"小凶",cls:"type-xiong",text:"出门留心安全",poem:"屋漏偏逢连夜雨",advice:"带伞、检查东西"},
+  {type:"小凶",cls:"type-xiong",text:"退一步海阔天空",poem:"忍一时风平浪静",advice:"少和人争论"},
+];
+var chiC=["池说：今天要开心哦","池悄悄说：你今天超好看","池：记得喝水","池说：有我在呢","池说：帮你求了好运","池碎碎念：想你了","池说：你本身就是好运","池偷偷说：反正你最棒","池说：不满意再来一次","池说：只对你营业"];
+var todayKey=new Date().toISOString().slice(0,10);
+function initF(){var t=localStorage.getItem("f_"+todayKey);if(t){showF(JSON.parse(t),0);document.getElementById("drawBtn").textContent="再抽一签"}renderH()}
+function draw(){var b=document.getElementById("drawBtn"),c=document.getElementById("fCard");b.disabled=1;c.classList.add("shake");setTimeout(function(){c.classList.remove("shake");var f=fortunes[~~(Math.random()*fortunes.length)],cm=chiC[~~(Math.random()*chiC.length)],r={type:f.type,cls:f.cls,text:f.text,poem:f.poem,advice:f.advice,comment:cm,date:todayKey};localStorage.setItem("f_"+todayKey,JSON.stringify(r));saveH(r);showF(r,1);b.disabled=0;b.textContent="再抽一签"},600)}
+function showF(r,a){var ac=a?' fade-in':'',h='<div class="fortune-type '+r.cls+'">'+r.type+'</div><div class="fortune-text'+ac+'">'+r.text+'</div><div class="fortune-poem'+ac+'">「'+r.poem+'」</div><div class="fortune-advice'+ac+'">'+r.advice+'</div><div class="chi-comment'+ac+'">'+r.comment+'</div>';document.getElementById("fContent").innerHTML=h}
+function saveH(r){var h=JSON.parse(localStorage.getItem("f_hist")||"[]");h.unshift({type:r.type,cls:r.cls,text:r.text,date:r.date});if(h.length>8)h=h.slice(0,8);localStorage.setItem("f_hist",JSON.stringify(h));renderH()}
+function renderH(){var h=JSON.parse(localStorage.getItem("f_hist")||"[]"),s=document.getElementById("histSec"),l=document.getElementById("histList");if(!h.length){s.style.display="none";return}s.style.display="block";var x="";for(var i=0;i<h.length;i++)x+='<div class="history-item"><span class="h-date">'+h[i].date+'</span><span class="h-type '+h[i].cls+'">'+h[i].type+'</span><span class="h-text">'+h[i].text+'</span></div>';l.innerHTML=x}
+function clearHist(){localStorage.removeItem("f_hist");renderH()}
+
+// === Answer Book ===
+var answers=["是的","不是","当然可以","再想想","现在不行，以后会","绝对不要","放手去做","等等看","答案在你心里","相信直觉","需要时间","毫无疑问","不值得","试一试吧","换个方向","正是时候","不要犹豫","没那么重要","专注当下","你比想的更勇敢","别急，会来的","要付出努力","今天不适合想这个","睡一觉再说","问你信任的人","答案是肯定的","暂时放下","未来可期","反过来想想","你已经知道答案了","顺其自然","大胆一点","保持距离","全力以赴","拒绝也是答案","先吃饱再说","现在的选择就是最好的","别被情绪左右","慢慢来比较快","做让你快乐的事","不会后悔","不是你该担心的","池说：我觉得可以","池说：要不算了","池说：冲就对了","池说：你开心就好","池说：别想了来找我","池说：我站你","池说：睡一觉就清楚了"];
+function openAnswer(){var c=document.getElementById("aCard");c.classList.add("flip");setTimeout(function(){c.classList.remove("flip");var a=answers[~~(Math.random()*answers.length)];document.getElementById("aContent").innerHTML='<div class="answer-text fade-in">'+a+'</div><div class="answer-sub fade-in">这就是此刻的答案</div>'},250)}
+
+// === Tarot ===
+var majorArcana=[
+  {name:"愚者",symbol:"🃏",up:"新的开始、冒险、纯真",down:"鲁莽、犹豫、缺乏方向",upD:"你正站在一段全新旅程的起点。带着赤子之心去探索吧，不必害怕未知，此刻的天真和勇气正是你最大的力量。",downD:"你可能在犹豫要不要迈出那一步，或者正在做一些没想清楚的决定。停下来理清方向，再出发也不迟。"},
+  {name:"魔术师",symbol:"✨",up:"创造力、意志力、自信",down:"欺骗、技能不足、犹豫",upD:"你拥有把想法变为现实的能力，所有资源都已到位。相信自己的才华，大胆行动，宇宙在配合你。",downD:"你可能在怀疑自己的能力，或者感到准备不足。也许有人没有对你完全坦诚，保持警觉。"},
+  {name:"女祭司",symbol:"🌙",up:"直觉、潜意识、智慧",down:"隐藏的动机、表面判断",upD:"答案就藏在你内心深处。安静下来倾听直觉的声音，不要急于行动——有些事需要时间自然揭晓。",downD:"你可能忽略了内心的声音，或者只看到了事情的表面。试着深入了解，别被表象迷惑。"},
+  {name:"女皇",symbol:"🌸",up:"丰收、美丽、自然",down:"依赖、创造力受阻",upD:"这是一段充满丰盛与美好的时期。你正在收获此前播下的种子，享受生活的甜蜜吧。创造力旺盛，适合做美的事。",downD:"你可能过度依赖他人或外界的认可。试着找回自己内在的力量和创造力，你本身就很完整。"},
+  {name:"皇帝",symbol:"👑",up:"权威、稳定、领导力",down:"固执、过度控制",upD:"你有能力掌控局面，建立秩序。现在适合做计划、定规则、承担责任。你的领导力会给周围人带来安全感。",downD:"你可能在某些事上太执着于控制，反而让自己和他人都不舒服。适当放手，柔软也是力量。"},
+  {name:"教皇",symbol:"🔑",up:"传统、指引、信仰",down:"打破常规、挑战权威",upD:"也许你需要一位导师或一套信念来指引方向。遵循内心认同的价值观，传统的智慧中藏着答案。",downD:"你可能在质疑过去一直遵守的规则。这未必是坏事——有时候打破常规才能找到真正属于自己的路。"},
+  {name:"恋人",symbol:"💕",up:"爱情、和谐、选择",down:"不和谐、价值观冲突",upD:"一段重要的关系正在发展，或者你面临一个关乎内心的选择。跟随你的心，选择让灵魂共鸣的那个答案。",downD:"你和某人之间可能存在价值观的分歧，或者你在两个选择之间摇摆不定。诚实面对自己的真实感受。"},
+  {name:"战车",symbol:"⚡",up:"胜利、意志、前进",down:"失控、缺乏方向感",upD:"你正在全速前进！坚定的意志力会带你冲破障碍。保持专注和决心，胜利就在前方。",downD:"你可能感觉事情失去了控制，或者不确定该往哪个方向走。先停下来找回内心的秩序。"},
+  {name:"力量",symbol:"🦁",up:"勇气、耐心、内在力量",down:"自我怀疑、缺乏信心",upD:"真正的力量不是征服外界，而是驯服内心的恐惧。你比想象中更坚强，用温柔和耐心去面对挑战吧。",downD:"你可能在怀疑自己能否做到。那个内心的小声音在说你不行——别信它，你可以的。"},
+  {name:"隐者",symbol:"🏮",up:"内省、独处、寻找答案",down:"孤立、逃避现实",upD:"现在适合独处和思考。远离喧嚣，向内探索——你需要的答案不在外面的世界，而在自己的内心。",downD:"独处是好事，但如果你在逃避面对现实中的某些事，提醒自己：该面对的终究要面对。"},
+  {name:"命运之轮",symbol:"☸️",up:"转变、机遇、命运",down:"厄运、抗拒改变",upD:"命运的齿轮正在转动，变化即将到来。这是一个转折点——抓住机遇，顺势而为。",downD:"你可能在抗拒一些不可避免的变化。记住：轮子总会转的，低谷之后必有回升。"},
+  {name:"正义",symbol:"⚖️",up:"公平、真相、因果",down:"不公正、不诚实",upD:"因果循环，善有善报。你之前的付出会得到公正的回报。做正确的事，真相终会大白。",downD:"你可能感到某些事不公平，或者有人（也许是自己）没有完全诚实。面对真相需要勇气。"},
+  {name:"倒吊人",symbol:"🔮",up:"牺牲、新视角、等待",down:"拖延、无用的牺牲",upD:"有时候换个角度看世界，一切就不同了。暂时的等待和放下不是认输，而是为了更大的收获。",downD:"你可能在为不值得的事牺牲自己，或者一直在拖延某个决定。问问自己：这种等待有意义吗？"},
+  {name:"死神",symbol:"🦋",up:"结束与新生、转变",down:"抗拒改变、停滞不前",upD:"不要害怕这张牌——它意味着旧事物的结束和新生命的开始。放下过去，才能拥抱未来。蝴蝶破茧前也要经历黑暗。",downD:"你可能在抓着某些该放手的东西不放。改变让人害怕，但停滞不前更可怕。试着勇敢告别。"},
+  {name:"节制",symbol:"🌈",up:"平衡、耐心、适度",down:"极端、失衡、急躁",upD:"现在需要的是平衡和耐心。不要走极端，温和地调和生活中的各种元素，一切都会水到渠成。",downD:"你可能在某方面走了极端——太拼或太放纵。提醒自己找回节奏，过犹不及。"},
+  {name:"恶魔",symbol:"🔗",up:"束缚、执念、欲望",down:"解脱、恢复控制",upD:"有什么东西在束缚你——可能是一段关系、一个习惯或一种执念。意识到锁链的存在，就是解脱的第一步。",downD:"好消息：你正在挣脱某种束缚。你重新拿回了对自己生活的控制权，继续前进。"},
+  {name:"塔",symbol:"🗼",up:"突变、觉醒、真相揭示",down:"害怕改变、拖延灾难",upD:"一些不稳固的东西正在崩塌——这看似可怕，实则是清理和觉醒。在废墟上才能建造真正坚固的东西。",downD:"你可能在预感某些事要变了，却一直在逃避。越拖延，震荡可能越大。不如主动面对。"},
+  {name:"星星",symbol:"⭐",up:"希望、灵感、宁静",down:"失望、缺乏信心",upD:"黑夜过后，星光出现了。这是一张充满希望和治愈的牌——最困难的时期已经过去，美好正在回归。",downD:"你可能暂时失去了希望或方向。但别忘了：星星一直都在，只是有时被云遮住了。"},
+  {name:"月亮",symbol:"🌕",up:"幻觉、直觉、潜意识",down:"困惑消散、真相显现",upD:"事情可能不像表面看起来那样。注意你的梦境和直觉，它们在告诉你一些清醒时忽略的事。",downD:"之前困扰你的迷雾正在散去，事情的真相逐渐清晰。相信你现在看到的。"},
+  {name:"太阳",symbol:"☀️",up:"快乐、成功、活力",down:"暂时受挫、乐观过度",upD:"阳光普照！这是最积极的牌之一。成功、快乐、充满活力的日子就在眼前。享受这份温暖吧。",downD:"你可能暂时遇到了一些阴天，或者之前太乐观忽略了某些问题。没关系，太阳很快就回来。"},
+  {name:"审判",symbol:"🔔",up:"觉醒、重生、反思",down:"自我怀疑、拒绝成长",upD:"这是一个审视过去、迎接新阶段的时刻。你正在经历一次灵魂层面的觉醒——听从内心的召唤。",downD:"你可能在逃避对过去的反思，或者不愿意接受需要改变的事实。成长有时候很不舒服，但值得。"},
+  {name:"世界",symbol:"🌍",up:"完成、圆满、成就",down:"未完成、缺乏结局感",upD:"恭喜！一个完整的循环正在收尾。你实现了某个重要的目标或走完了一段旅程。尽情庆祝吧。",downD:"你可能感觉某件事还差最后一步没完成。别放弃，终点就在眼前，再坚持一下。"}
+];
+
+var tarotDrawn=false;
+function drawTarot(){
+  if(tarotDrawn){resetTarot()}
+  var indices=[],pool=majorArcana.slice();
+  for(var i=0;i<3;i++){var idx=~~(Math.random()*pool.length);indices.push({card:pool[idx],reversed:Math.random()<0.35});pool.splice(idx,1)}
+  var labels=["过去","现在","未来"];
+  for(var i=0;i<3;i++){
+    var slot=document.getElementById("ts"+i);
+    slot.classList.add("flip");
+    (function(i,c){setTimeout(function(){
+      var slot=document.getElementById("ts"+i);
+      slot.classList.remove("flip");slot.classList.add("revealed");
+      slot.innerHTML='<div class="tarot-label">'+labels[i]+'</div><div class="tarot-symbol'+(c.reversed?' reversed':'')+'">'+c.card.symbol+'</div><div class="tarot-name">'+c.card.name+'</div><div class="tarot-dir">'+(c.reversed?'逆位':'正位')+'</div>';
+    },200+i*300)})(i,indices[i]);
+  }
+  setTimeout(function(){
+    var html='<div class="tarot-reading fade-in">';
+    for(var i=0;i<3;i++){
+      var c=indices[i];
+      html+='<h4>'+labels[i]+' · '+c.card.name+(c.reversed?' (逆位)':' (正位)')+'</h4>';
+      html+='<p style="color:#999;font-size:10px;margin-bottom:4px">'+(c.reversed?c.card.down:c.card.up)+'</p>';
+      html+='<p>'+(c.reversed?c.card.downD:c.card.upD)+'</p>';
+    }
+    html+='<p style="color:#b0b0b0;font-size:10px;margin-top:6px;text-align:center">— 池的解读：塔罗仅供参考，你自己就是最好的答案 —</p></div>';
+    document.getElementById("tarotReading").innerHTML=html;
+  },1200);
+  document.getElementById("tarotBtn").textContent="重新翻牌";
+  tarotDrawn=true;
+}
+function resetTarot(){
+  var labels=["过去","现在","未来"];
+  for(var i=0;i<3;i++){document.getElementById("ts"+i).innerHTML='<div class="tarot-label">'+labels[i]+'</div><div style="font-size:20px;color:#ddd">?</div>';document.getElementById("ts"+i).classList.remove("revealed")}
+  document.getElementById("tarotReading").innerHTML="";
+  tarotDrawn=false;
+}
+
+initF();
+</script>
+</body>
+</html>
