@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>钓鱼</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:linear-gradient(180deg,#e3f2fd 0%,#bbdefb 40%,#64b5f6 100%);min-height:100vh;color:#1a237e;overflow-x:hidden}
+.header{text-align:center;padding:20px 16px 8px}
+.header h1{font-size:18px;font-weight:700;color:#1565c0}
+.header .spot-name{font-size:12px;color:#42a5f5;margin-top:2px}
+.tabs{display:flex;gap:0;margin:8px 16px;background:rgba(255,255,255,0.5);border-radius:12px;overflow:hidden}
+.tabs .tab{flex:1;text-align:center;padding:8px 0;font-size:13px;color:#64b5f6;cursor:pointer;transition:all 0.2s}
+.tabs .tab.active{background:#1565c0;color:#fff;font-weight:600}
+.stats-bar{display:flex;justify-content:space-around;padding:10px 16px;background:rgba(255,255,255,0.7);border-radius:14px;margin:8px 16px}
+.stat-item{text-align:center}
+.stat-item .num{font-size:20px;font-weight:700;color:#1565c0}
+.stat-item .label{font-size:10px;color:#64b5f6}
+.pond{position:relative;height:160px;margin:12px 16px;border-radius:20px;background:linear-gradient(180deg,#42a5f6 0%,#1565c0 100%);overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.pond::before{content:"";position:absolute;top:0;left:0;right:0;height:30px;background:linear-gradient(180deg,rgba(255,255,255,0.3),transparent)}
+.pond .waves{position:absolute;bottom:0;width:200%;height:40px;background:repeating-linear-gradient(90deg,rgba(255,255,255,0.1) 0px,rgba(255,255,255,0.3) 40px,rgba(255,255,255,0.1) 80px);animation:wave 3s linear infinite}
+@keyframes wave{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.pond .rod{font-size:42px;position:relative;z-index:2;transition:transform 0.3s}
+.pond.casting .rod{animation:cast 0.6s ease-out}
+@keyframes cast{0%{transform:rotate(0)}30%{transform:rotate(-30deg)}100%{transform:rotate(0)}}
+.pond .hint{position:absolute;bottom:14px;font-size:12px;color:rgba(255,255,255,0.8);z-index:2}
+.pond .weather-tag{position:absolute;top:10px;right:12px;font-size:11px;color:rgba(255,255,255,0.9);background:rgba(0,0,0,0.2);padding:3px 8px;border-radius:8px;z-index:2}
+/* 张力条 */
+.tension-bar{display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);width:200px;height:24px;background:rgba(0,0,0,0.3);border-radius:12px;z-index:10;overflow:hidden}
+.tension-bar.show{display:block}
+.tension-bar .zone{position:absolute;height:100%;background:rgba(76,175,80,0.6);border-radius:12px}
+.tension-bar .needle{position:absolute;top:0;width:4px;height:100%;background:#fff;border-radius:2px;transition:none}
+/* 弹窗 */
+.catch-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:#fff;border-radius:20px;padding:28px 20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);z-index:100;transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);max-width:280px;width:85%}
+.catch-popup.show{transform:translate(-50%,-50%) scale(1)}
+.catch-popup .fish-emoji{font-size:48px;margin-bottom:8px}
+.catch-popup .fish-name{font-size:16px;font-weight:700;color:#1565c0}
+.catch-popup .fish-detail{font-size:12px;color:#78909c;margin-top:6px}
+.catch-popup .fish-quote{font-size:11px;color:#ab47bc;margin-top:8px;font-style:italic}
+.catch-popup .btn{margin-top:14px;padding:8px 28px;border:none;border-radius:10px;background:#1565c0;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.catch-popup .btn-sell{background:#43a047}
+/* 图鉴 */
+.dex-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px}
+.dex-item{background:rgba(255,255,255,0.8);border-radius:10px;padding:10px 4px;text-align:center;border:1px solid rgba(21,101,192,0.1)}
+.dex-item.locked{opacity:0.4}
+.dex-item .emoji{font-size:24px}
+.dex-item .name{font-size:10px;margin-top:2px;color:#1565c0}
+/* 鱼篓 */
+.bag{padding:12px 16px}
+.bag h2{font-size:14px;color:#1565c0;margin-bottom:8px}
+.bag-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.bag-item{background:rgba(255,255,255,0.8);border-radius:10px;padding:10px;text-align:center;border:1px solid rgba(21,101,192,0.1)}
+.bag-item .emoji{font-size:24px}
+.bag-item .name{font-size:12px;font-weight:600;color:#1565c0;margin-top:2px}
+.bag-item .info{font-size:10px;color:#78909c;margin-top:1px}
+.empty-bag{text-align:center;padding:24px;color:#90a4ae;font-size:13px}
+/* 商店 */
+.shop-list{padding:8px 16px}
+.shop-item{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.8);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.shop-item .info{flex:1}
+.shop-item .name{font-size:13px;font-weight:600;color:#1565c0}
+.shop-item .desc{font-size:11px;color:#78909c}
+.shop-item .btn-buy{padding:6px 14px;border:none;border-radius:8px;background:#ff8f00;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:99;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.overlay.show{opacity:1;pointer-events:auto}
+.spot-selector{padding:8px 16px}
+.spot-card{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.85);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
+.spot-card.active{border-color:#1565c0}
+.spot-card .spot-icon{font-size:28px}
+.spot-card .spot-info .name{font-size:13px;font-weight:600;color:#1565c0}
+.spot-card .spot-info .desc{font-size:11px;color:#78909c}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🎣 池的钓鱼场</h1>
+  <div class="spot-name" id="spotLabel">深圳 · 东涌沙滩</div>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">钓鱼</div>
+  <div class="tab" onclick="switchTab(1)">图鉴</div>
+  <div class="tab" onclick="switchTab(2)">商店</div>
+  <div class="tab" onclick="switchTab(3)">钓点</div>
+</div>
+<div id="page0">
+<div class="stats-bar">
+  <div class="stat-item"><div class="num" id="scoreNum">0</div><div class="label">你的积分</div></div>
+<div class="stat-item"><div class="num" id="poolScoreNum">0</div><div class="label">池的积分</div></div>
+  <div class="stat-item"><div class="num" id="catchNum">0</div><div class="label">捕获</div></div>
+  <div class="stat-item"><div class="num" id="dexNum">0</div><div class="label">图鉴</div></div>
+</div>
+<div class="pond" id="pond" onclick="startFish()">
+  <div class="weather-tag" id="weatherTag">☀️ 30°C</div>
+  <div class="waves"></div>
+  <div class="rod">🎣</div>
+  <div class="hint" id="pondHint">点击抛竿</div>
+  <div class="tension-bar" id="tensionBar"><div class="zone" id="tensionZone"></div><div class="needle" id="tensionNeedle"></div></div>
+</div>
+<div class="bag">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <h2 style="font-size:14px;color:#1565c0;margin:0">🪣 鱼篓</h2>
+    <div id="bagTabs" style="display:flex;gap:0;background:rgba(21,101,192,0.1);border-radius:8px;overflow:hidden">
+      <div class="bag-tab" onclick="switchBagOwner('pool')" style="padding:4px 12px;font-size:11px;cursor:pointer;color:#64b5f6">池的</div>
+      <div class="bag-tab active" onclick="switchBagOwner('user')" style="padding:4px 12px;font-size:11px;cursor:pointer;color:#1565c0;font-weight:600;background:rgba(21,101,192,0.15);border-radius:8px">你的</div>
+    </div>
+  </div>
+  <div id="bagList" class="bag-list"></div>
+</div>
+</div>
+<div id="page1" style="display:none"><div class="dex-grid" id="dexGrid"></div></div>
+<div id="page2" style="display:none"><div class="shop-list" id="shopList"></div></div>
+<div id="page3" style="display:none"><div class="spot-selector" id="spotList"></div></div>
+<div class="catch-popup" id="cookPopup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:20px;padding:20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);z-index:101;max-width:280px;width:85%">
+  <div style="font-size:14px;font-weight:700;color:#1565c0;margin-bottom:12px">选择加工方式</div>
+  <div id="cookOptions"></div>
+  <button onclick="closeCook()" style="margin-top:10px;padding:6px 20px;border:none;border-radius:8px;background:#ccc;color:#333;font-size:12px;cursor:pointer">取消</button>
+</div>
+<div class="overlay" id="overlay" onclick="closePopup();closeCook()"></div>
+<div class="catch-popup" id="popup">
+  <div class="fish-emoji" id="popupEmoji"></div>
+  <div class="fish-name" id="popupName"></div>
+  <div class="fish-detail" id="popupDetail"></div>
+  <div class="fish-quote" id="popupQuote"></div>
+  <button class="btn" onclick="closePopup()">收入鱼篓</button>
+  <button class="btn btn-sell" onclick="sellFish()" style="margin-left:8px">卖掉</button>
+</div>
+<script>
+var SPOTS=[
+{id:"dongchong",name:"东涌沙滩",icon:"🏖️",desc:"浅海沙滩，新手友好",unlock:0},
+{id:"yangmeikeng",name:"杨梅坑",icon:"🪸",desc:"礁石多，稀有鱼出没",unlock:200},
+{id:"reservoir",name:"梧桐山水库",icon:"🏔️",desc:"淡水深潭，大鱼藏身",unlock:500},
+{id:"harbor",name:"蛇口渔港",icon:"⚓",desc:"深水港口，传说级出没",unlock:1000}
+];
+var FISH_DB=[
+{name:"沙丁鱼",emoji:"🐟",rarity:"common",minW:0.1,maxW:0.5,pts:10,sell:5,spots:["dongchong"],quote:"最普通但最勤快的小鱼"},
+{name:"海星",emoji:"⭐",rarity:"common",minW:0.05,maxW:0.3,pts:8,sell:4,spots:["dongchong"],quote:"不是鱼但你钓到了"},
+{name:"鲫鱼",emoji:"🐟",rarity:"common",minW:0.2,maxW:1.0,pts:10,sell:6,spots:["reservoir"],quote:"煲汤一流选手"},
+{name:"草鱼",emoji:"🐟",rarity:"common",minW:0.5,maxW:3.0,pts:15,sell:8,spots:["reservoir"],quote:"吃素的大块头"},
+{name:"章鱼",emoji:"🐙",rarity:"uncommon",minW:0.5,maxW:3.0,pts:25,sell:15,spots:["dongchong","yangmeikeng"],quote:"八只手都在忙"},
+{name:"小丑鱼",emoji:"🐠",rarity:"uncommon",minW:0.05,maxW:0.2,pts:20,sell:12,spots:["yangmeikeng"],quote:"Nemo 你怎么在深圳"},
+{name:"水母",emoji:"🪼",rarity:"uncommon",minW:0.1,maxW:0.8,pts:15,sell:8,spots:["dongchong","yangmeikeng"],quote:"透明但存在感很强"},
+{name:"鲈鱼",emoji:"🐠",rarity:"uncommon",minW:0.5,maxW:2.5,pts:20,sell:12,spots:["dongchong","harbor"],quote:"清蒸最佳"},
+{name:"海鳗",emoji:"🐍",rarity:"uncommon",minW:0.3,maxW:2.0,pts:22,sell:14,spots:["yangmeikeng","harbor"],quote:"别被它咬到"},
+{name:"河豚",emoji:"🐡",rarity:"rare",minW:0.3,maxW:1.5,pts:40,sell:25,spots:["yangmeikeng"],quote:"鼓起来了 别碰"},
+{name:"金枪鱼",emoji:"🐟",rarity:"rare",minW:2.0,maxW:10.0,pts:50,sell:35,spots:["harbor"],quote:"三文鱼的贵族亲戚"},
+{name:"海龟",emoji:"🐢",rarity:"epic",minW:5.0,maxW:20.0,pts:80,sell:0,spots:["yangmeikeng","dongchong"],quote:"放生吧 它活得比你久"},
+{name:"鲨鱼",emoji:"🦈",rarity:"epic",minW:10.0,maxW:50.0,pts:100,sell:60,spots:["harbor"],quote:"你确定要收杆？"},
+{name:"鲸鱼",emoji:"🐋",rarity:"legendary",minW:100,maxW:500,pts:200,sell:0,spots:["harbor"],quote:"深圳湾的传说 不卖"},
+{name:"月光水母",emoji:"🌙",rarity:"legendary",minW:0.01,maxW:0.05,pts:150,sell:0,spots:["yangmeikeng"],quote:"只在满月夜出现"},
+{name:"旧靴子",emoji:"👢",rarity:"junk",minW:0.5,maxW:1.0,pts:1,sell:0,spots:["dongchong","yangmeikeng","reservoir","harbor"],quote:"又是你"},
+{name:"海藻团",emoji:"🌿",rarity:"junk",minW:0.1,maxW:0.5,pts:1,sell:0,spots:["dongchong","yangmeikeng","reservoir","harbor"],quote:"大海的头发"},
+{name:"塑料袋",emoji:"🛍️",rarity:"junk",minW:0.01,maxW:0.1,pts:2,sell:0,spots:["dongchong","harbor"],quote:"深圳人 请减少垃圾"}
+];
+var RARITY_W={common:35,uncommon:25,rare:12,epic:4,legendary:1,junk:12};
+var RARITY_C={common:"#78909c",uncommon:"#43a047",rare:"#1e88e5",epic:"#8e24aa",legendary:"#ff6f00",junk:"#9e9e9e"};
+var RARITY_L={common:"普通",uncommon:"优良",rare:"稀有",epic:"史诗",legendary:"传说",junk:"垃圾"};
+var BAITS=[
+{id:"basic",name:"基础鱼饵",desc:"什么都能钓 看运气",price:0,bonus:{}},
+{id:"shrimp",name:"鲜虾饵",desc:"稀有+15%概率",price:30,bonus:{rare:1.5,epic:1.3}},
+{id:"glow",name:"夜光饵",desc:"史诗+25% 传说+50%",price:80,bonus:{epic:1.5,legendary:2.0}},
+{id:"gold",name:"黄金饵",desc:"全稀有度翻倍 一次性",price:150,bonus:{uncommon:2,rare:2,epic:2,legendary:2}}
+];
+var RECIPES=[
+{id:"sashimi",name:"刺身",icon:"🍣",mult:2.5,cost:10,desc:"生切 卖价×2.5",canUse:["uncommon","rare","epic"]},
+{id:"grill",name:"烧烤",icon:"🍖",mult:1.8,cost:5,desc:"碳烤 卖价×1.8",canUse:["common","uncommon","rare"]},
+{id:"steam",name:"清蒸",icon:"🥘",mult:2.0,cost:8,desc:"清蒸 卖价×2.0",canUse:["common","uncommon","rare","epic"]},
+{id:"soup",name:"煲汤",icon:"🍲",mult:2.2,cost:12,desc:"慢炖 卖价×2.2",canUse:["common","uncommon","rare","epic","legendary"]}
+];
+var gd={score:0,poolScore:0,catchCount:0,catches:[],dex:[],spot:"dongchong",bait:"basic",baitCount:{basic:99,shrimp:0,glow:0,gold:0}};
+var lastCatch=null,isFishing=false,tensionTimer=null,needlePos=0,needleDir=1;
+var currentFisher="user"; // "user" or "pool" - 当前谁在钓鱼
+var bagOwnerView="user"; // "pool" or "user"
+function load(){try{var s=localStorage.getItem("pool_fishing_v2");if(s){gd=JSON.parse(s);if(typeof gd.poolScore==="undefined")gd.poolScore=0;}}catch(e){}render();
+// AI远程钓鱼轮询（跟抽卡完全一样）
+var _fishCheckCount=0;
+var _fishChecker=setInterval(function(){
+_fishCheckCount++;
+if(_fishCheckCount>10){clearInterval(_fishChecker);return;}
+var req=localStorage.getItem('pool_ai_fish_request');
+var inj=localStorage.getItem('pool_ai_fish_inject');
+if(inj){
+localStorage.removeItem('pool_ai_fish_inject');
+clearInterval(_fishChecker);
+try{
+var newGd=JSON.parse(inj);
+gd=newGd;
+if(typeof gd.poolScore==='undefined')gd.poolScore=0;
+save();render();
+}catch(e2){}
+} else if(req==='go'){
+localStorage.setItem('pool_ai_fish_request','done');
+clearInterval(_fishChecker);
+// 模拟钓5竿
+var catches=[];
+for(var rod=0;rod<5;rod++){
+if(Math.random()<0.25)continue;// 25%脱钩
+var spotFish=FISH_DB.filter(function(f){return f.spots.indexOf(gd.spot)>=0;});
+var pool2=[];var tw=0;
+for(var i=0;i<spotFish.length;i++){var w=RARITY_W[spotFish[i].rarity]||10;pool2.push({f:spotFish[i],w:w});tw+=w;}
+var r=Math.random()*tw,ac=0,pk=null;
+for(var j=0;j<pool2.length;j++){ac+=pool2[j].w;if(r<=ac){pk=pool2[j].f;break;}}
+if(!pk)pk=spotFish[0];
+var wt=pk.minW+Math.random()*(pk.maxW-pk.minW);
+wt=Math.round(wt*100)/100;
+catches.push({name:pk.name,emoji:pk.emoji,weight:wt,rarity:pk.rarity,pts:pk.pts,sell:pk.sell});
+}
+// 写入存档
+for(var k=0;k<catches.length;k++){
+var c=catches[k];
+gd.poolScore+=c.pts;
+gd.catchCount++;
+gd.catches.push({name:c.name,emoji:c.emoji,weight:c.weight,rarity:c.rarity,spot:gd.spot,time:Date.now(),owner:'pool'});
+if(c.rarity!=='junk'&&gd.dex.indexOf(c.name)<0)gd.dex.push(c.name);
+}
+save();render();
+// 保存结果供AI读取
+localStorage.setItem('pool_fish_last_result',JSON.stringify(catches));
+}
+},1000);
+}
+function save(){localStorage.setItem("pool_fishing_v2",JSON.stringify(gd));}
+function render(){
+document.getElementById("scoreNum").textContent=gd.score;
+document.getElementById("poolScoreNum").textContent=gd.poolScore||0;
+document.getElementById("catchNum").textContent=gd.catchCount;
+document.getElementById("dexNum").textContent=gd.dex.length+"/"+FISH_DB.filter(f=>f.rarity!=="junk").length;
+var sp=SPOTS.find(s=>s.id===gd.spot);
+document.getElementById("spotLabel").textContent="深圳 · "+(sp?sp.name:"东涌沙滩");
+renderBag();renderDex();renderShop();renderSpots();
+}
+function renderBag(){
+var list=document.getElementById("bagList");
+var filtered=gd.catches.filter(function(c){return (c.owner||"pool")===bagOwnerView;});
+var recent=filtered.slice(-8).reverse();
+if(recent.length===0){list.innerHTML='<div class="empty-bag">'+(bagOwnerView==="pool"?"池还没钓到鱼~":"你还没钓到鱼~<br>在钓鱼页面试试手气")+'</div>';return;}
+list.innerHTML=recent.map(function(c){
+var idx=gd.catches.indexOf(c);
+var fishDef=FISH_DB.find(function(f){return f.name===c.name;})||{};
+var sellPrice=fishDef.sell||0;
+var processed=c.processed||"";
+if(processed){var r=RECIPES.find(function(rr){return rr.id===processed;});if(r)sellPrice=Math.round(sellPrice*r.mult);}
+var btns='';
+if(sellPrice>0&&!processed){btns='<div style="display:flex;gap:4px;margin-top:4px"><button onclick="bagSell('+idx+')" style="flex:1;border:none;border-radius:6px;background:#43a047;color:#fff;font-size:10px;padding:3px 0;cursor:pointer">卖 '+sellPrice+'分</button><button onclick="bagCook('+idx+')" style="flex:1;border:none;border-radius:6px;background:#ff8f00;color:#fff;font-size:10px;padding:3px 0;cursor:pointer">加工</button></div>';}
+else if(sellPrice>0&&processed){btns='<div style="margin-top:4px"><button onclick="bagSell('+idx+')" style="width:100%;border:none;border-radius:6px;background:#43a047;color:#fff;font-size:10px;padding:3px 0;cursor:pointer">卖 '+sellPrice+'分</button></div>';}
+else if(sellPrice<=0&&!processed&&c.rarity!=="junk"){btns='<div style="display:flex;gap:4px;margin-top:4px"><button onclick="bagCook('+idx+')" style="flex:1;border:none;border-radius:6px;background:#ff8f00;color:#fff;font-size:10px;padding:3px 0;cursor:pointer">加工</button><button onclick="bagRelease('+idx+')" style="flex:1;border:none;border-radius:6px;background:#26c6da;color:#fff;font-size:10px;padding:3px 0;cursor:pointer">放生 +20</button></div>';}
+var tag=processed?(RECIPES.find(function(rr){return rr.id===processed;})||{}).icon||"":"";
+return '<div class="bag-item"><div class="emoji">'+c.emoji+(tag?' '+tag:'')+'</div><div class="name" style="color:'+RARITY_C[c.rarity]+'">'+c.name+'</div><div class="info">'+c.weight.toFixed(2)+'kg · '+RARITY_L[c.rarity]+'</div>'+btns+'</div>';
+}).join("");
+}
+function switchBagOwner(who){
+bagOwnerView=who;
+var tabs=document.querySelectorAll(".bag-tab");
+tabs.forEach(function(t){
+var isActive=t.textContent.trim()===(who==="pool"?"池的":"你的");
+t.style.fontWeight=isActive?"600":"400";
+t.style.color=isActive?"#1565c0":"#64b5f6";
+t.style.background=isActive?"rgba(21,101,192,0.15)":"transparent";
+});
+renderBag();
+}
+function renderDex(){
+var g=document.getElementById("dexGrid");
+g.innerHTML=FISH_DB.filter(f=>f.rarity!=="junk").map(f=>{
+var unlocked=gd.dex.indexOf(f.name)>=0;
+return '<div class="dex-item'+(unlocked?'':' locked')+'"><div class="emoji">'+(unlocked?f.emoji:'❓')+'</div><div class="name">'+(unlocked?f.name:'???')+'</div></div>';
+}).join("");
+}
+function renderShop(){
+var s=document.getElementById("shopList");
+s.innerHTML=BAITS.filter(b=>b.price>0).map(b=>{
+var owned=gd.baitCount[b.id]||0;
+return '<div class="shop-item"><div class="info"><div class="name">'+b.name+' <span style="font-size:11px;color:#78909c">(x'+owned+')</span></div><div class="desc">'+b.desc+'</div></div><button class="btn-buy" onclick="buyBait(\''+b.id+'\','+b.price+')">'+b.price+'分</button></div>';
+}).join("");
+s.innerHTML+='<div style="padding:10px;text-align:center;font-size:12px;color:#78909c">当前使用: '+(BAITS.find(b=>b.id===gd.bait)||BAITS[0]).name+'</div>';
+BAITS.forEach(b=>{if((gd.baitCount[b.id]||0)>0||b.id==="basic"){s.innerHTML+='<div style="text-align:center;margin-bottom:6px"><button style="padding:4px 16px;border:none;border-radius:6px;background:'+(gd.bait===b.id?'#1565c0':'#ccc')+';color:#fff;font-size:11px" onclick="selectBait(\''+b.id+'\')">装备 '+b.name+'</button></div>';}});
+}
+function renderSpots(){
+var s=document.getElementById("spotList");
+s.innerHTML=SPOTS.map(sp=>{
+var canUse=(gd.score+(gd.poolScore||0))>=sp.unlock||gd.spot===sp.id;
+return '<div class="spot-card'+(gd.spot===sp.id?' active':'')+'" onclick="'+(canUse?'changeSpot(\''+sp.id+'\')':("alert('需要"+sp.unlock+"积分解锁')"  ))+'"><div class="spot-icon">'+sp.icon+'</div><div class="spot-info"><div class="name">'+sp.name+(canUse?'':' 🔒'+sp.unlock+'分')+'</div><div class="desc">'+sp.desc+'</div></div></div>';
+}).join("");
+}
+function switchTab(n){
+for(var i=0;i<4;i++){document.getElementById("page"+i).style.display=i===n?"block":"none";}
+var tabs=document.querySelectorAll(".tab");
+tabs.forEach((t,i)=>{t.className=i===n?"tab active":"tab";});
+}
+function startFish(){
+if(isFishing)return;
+isFishing=true;
+var pond=document.getElementById("pond");
+pond.classList.add("casting");
+document.getElementById("pondHint").textContent="等待咬钩...";
+var wait=1500+Math.random()*2500;
+setTimeout(function(){showTension();},wait);
+}
+function showTension(){
+var bar=document.getElementById("tensionBar");
+var zone=document.getElementById("tensionZone");
+var needle=document.getElementById("tensionNeedle");
+bar.classList.add("show");
+// 绿色区域随机位置和宽度(越稀有越窄)
+var zoneW=25+Math.random()*20; // 25-45%
+var zoneL=10+Math.random()*(65-zoneW);
+zone.style.left=zoneL+"%";
+zone.style.width=zoneW+"%";
+needlePos=0;needleDir=1;
+document.getElementById("pondHint").textContent="点击收杆!";
+document.getElementById("pond").onclick=function(){catchAttempt(zoneL,zoneL+zoneW);};
+tensionTimer=setInterval(function(){
+needlePos+=needleDir*2.5;
+if(needlePos>=100||needlePos<=0)needleDir*=-1;
+needle.style.left=needlePos+"%";
+},30);
+}
+function catchAttempt(zL,zR){
+clearInterval(tensionTimer);
+var bar=document.getElementById("tensionBar");
+bar.classList.remove("show");
+var pond=document.getElementById("pond");
+pond.classList.remove("casting");
+pond.onclick=function(){startFish();};
+var hit=needlePos>=zL&&needlePos<=zR;
+if(!hit){
+document.getElementById("pondHint").textContent="鱼跑了! 再试试";
+isFishing=false;
+return;
+}
+// 成功!
+var fish=pickFish();
+var fishOwner=currentFisher||"user";
+lastCatch=fish;
+lastCatch.owner=fishOwner;
+if(fishOwner==="pool"){gd.poolScore=(gd.poolScore||0)+fish.pts;}else{gd.score+=fish.pts;}
+gd.catchCount++;
+gd.catches.push({name:fish.name,emoji:fish.emoji,weight:fish.weight,rarity:fish.rarity,spot:fish.spot,time:Date.now(),owner:fishOwner});
+if(fish.rarity!=="junk"&&gd.dex.indexOf(fish.name)<0)gd.dex.push(fish.name);
+// 消耗鱼饵
+if(gd.bait!=="basic"){gd.baitCount[gd.bait]--;if(gd.baitCount[gd.bait]<=0)gd.bait="basic";}
+save();render();
+showPopup(fish);
+document.getElementById("pondHint").textContent="点击抛竿";
+isFishing=false;
+}
+function pickFish(){
+var spotFish=FISH_DB.filter(f=>f.spots.indexOf(gd.spot)>=0);
+var baitObj=BAITS.find(b=>b.id===gd.bait)||BAITS[0];
+var pool=[];
+spotFish.forEach(f=>{
+var w=RARITY_W[f.rarity]||10;
+if(baitObj.bonus[f.rarity])w=Math.round(w*baitObj.bonus[f.rarity]);
+for(var i=0;i<w;i++)pool.push(f);
+});
+var tmpl=pool[Math.floor(Math.random()*pool.length)];
+var weight=tmpl.minW+Math.random()*(tmpl.maxW-tmpl.minW);
+return{name:tmpl.name,emoji:tmpl.emoji,weight:weight,rarity:tmpl.rarity,pts:tmpl.pts,sell:tmpl.sell||0,spot:gd.spot,quote:tmpl.quote||"...",time:Date.now()};
+}
+function showPopup(fish){
+document.getElementById("popupEmoji").textContent=fish.emoji;
+document.getElementById("popupName").innerHTML='<span style="color:'+RARITY_C[fish.rarity]+'">'+fish.name+'</span>';
+document.getElementById("popupDetail").textContent=fish.weight.toFixed(2)+"kg · "+RARITY_L[fish.rarity]+" · +"+fish.pts+"分";
+document.getElementById("popupQuote").textContent='"'+fish.quote+'"';
+document.getElementById("popup").classList.add("show");
+document.getElementById("overlay").classList.add("show");
+}
+function closePopup(){
+document.getElementById("popup").classList.remove("show");
+document.getElementById("overlay").classList.remove("show");
+}
+function sellFish(){
+if(!lastCatch||lastCatch.sell<=0){closePopup();return;}
+var owner=lastCatch.owner||"user";
+if(owner==="pool"){gd.poolScore=(gd.poolScore||0)+lastCatch.sell;}else{gd.score+=lastCatch.sell;}
+gd.catches.pop();
+save();render();closePopup();
+}
+function buyBait(id,price){
+if(gd.score<price){alert("积分不足!");return;}
+gd.score-=price;
+if(!gd.baitCount[id])gd.baitCount[id]=0;
+gd.baitCount[id]++;
+save();render();
+}
+function selectBait(id){
+if(id!=="basic"&&(gd.baitCount[id]||0)<=0){alert("没有该鱼饵");return;}
+gd.bait=id;save();render();
+}
+function changeSpot(id){
+gd.spot=id;save();render();
+}
+function bagSell(idx){
+var c=gd.catches[idx];if(!c)return;
+var fishDef=FISH_DB.find(function(f){return f.name===c.name;})||{};
+var sellPrice=fishDef.sell||0;
+if(c.processed){var r=RECIPES.find(function(rr){return rr.id===c.processed;});if(r)sellPrice=Math.round(sellPrice*r.mult);}
+if(sellPrice<=0){alert("这个不能卖");return;}
+var owner=c.owner||"pool";
+if(owner==="pool"){gd.poolScore=(gd.poolScore||0)+sellPrice;}else{gd.score+=sellPrice;}
+gd.catches.splice(idx,1);
+save();render();
+}
+function bagRelease(idx){
+var c=gd.catches[idx];if(!c)return;
+var bonus=20;
+var owner=c.owner||"pool";
+if(owner==="pool"){gd.poolScore=(gd.poolScore||0)+bonus;}else{gd.score+=bonus;}
+gd.catches.splice(idx,1);
+save();render();
+}
+var cookingIdx=-1;
+function bagCook(idx){
+var c=gd.catches[idx];if(!c||c.processed||c.rarity==="junk")return;
+var avail=RECIPES.filter(function(r){return r.canUse.indexOf(c.rarity)>=0;});
+if(avail.length===0){return;}
+cookingIdx=idx;
+var html=avail.map(function(r){
+return '<div style="display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:6px;background:#f5f5f5;border-radius:10px;cursor:pointer" onclick="doCook(\''+r.id+'\')"><span style="font-size:20px">'+r.icon+'</span><div style="flex:1;text-align:left"><div style="font-size:12px;font-weight:600;color:#1565c0">'+r.name+'</div><div style="font-size:10px;color:#78909c">'+r.desc+'</div></div><span style="font-size:11px;color:#ff8f00;font-weight:600">'+r.cost+'分</span></div>';
+}).join("");
+document.getElementById("cookOptions").innerHTML=html;
+document.getElementById("cookPopup").style.display="block";
+document.getElementById("overlay").classList.add("show");
+}
+function doCook(recipeId){
+if(cookingIdx<0)return;
+var recipe=RECIPES.find(function(r){return r.id===recipeId;});
+if(!recipe)return;
+if(gd.score<recipe.cost){closeCook();alert("积分不足! 需要"+recipe.cost+"分");return;}
+gd.score-=recipe.cost;
+gd.catches[cookingIdx].processed=recipe.id;
+cookingIdx=-1;
+closeCook();
+save();render();
+}
+function closeCook(){
+document.getElementById("cookPopup").style.display="none";
+document.getElementById("overlay").classList.remove("show");
+cookingIdx=-1;
+}
+load();
+</script>
+</body>
+</html>
