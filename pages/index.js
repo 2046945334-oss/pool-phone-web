@@ -1,6 +1,26 @@
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 
+// 后端数据同步工具
+async function syncToBackend(key, value) {
+  try {
+    await fetch(`/api/data/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    })
+  } catch (e) { console.warn('sync failed:', key, e) }
+}
+
+async function loadFromBackend(key) {
+  try {
+    const res = await fetch(`/api/data/${encodeURIComponent(key)}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.value
+  } catch { return null }
+}
+
 async function callMemory(action, params) {
   try {
     const res = await fetch('/api/memory', {
@@ -19,7 +39,7 @@ function getApiConfig(feature) {
 }
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
-  useEffect(() => { try { localStorage.setItem('pool_chat_history', JSON.stringify(messages)) } catch {} }, [messages])
+  useEffect(() => { try { localStorage.setItem('pool_chat_history', JSON.stringify(messages)); syncToBackend('pool_chat_history', messages) } catch {} }, [messages])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
@@ -221,6 +241,7 @@ function ThemePanel() {
   function save() {
     try {
       localStorage.setItem('pool_theme', JSON.stringify(theme))
+      syncToBackend('pool_theme', theme)
       setSaved(true); setTimeout(() => setSaved(false), 2000)
       window.dispatchEvent(new Event('theme-changed'))
     } catch(e) {
