@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Music Player</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, sans-serif; background: url('music_bg.png') center/cover fixed; color: #37474f; display:flex; flex-direction:column; height:100vh; }
+.tab-bar { display:flex; background:rgba(255,255,255,0.85); backdrop-filter:blur(8px); border-bottom:1px solid rgba(0,0,0,0.06); flex-shrink:0; }
+.tab-bar .tab { flex:1; text-align:center; padding:10px 0; font-size:13px; font-weight:600; color:#90a4ae; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
+.tab-bar .tab.active { color:#7c4dff; border-bottom-color:#7c4dff; }
+.page { flex:1; overflow-y:auto; padding:12px; display:none; }
+.page.active { display:block; }
+
+/* 歌单样式 */
+.song { display:flex; align-items:center; padding:10px 8px; border-radius:10px; margin-bottom:6px; cursor:pointer; background:rgba(255,255,255,0.5); }
+.song:active { background:rgba(168,216,234,0.25); }
+.song.playing { background:rgba(168,216,234,0.35); }
+.song img { width:40px; height:40px; border-radius:8px; margin-right:10px; object-fit:cover; }
+.song .info { flex:1; }
+.song .info .name { font-size:14px; font-weight:600; }
+.song .info .artist { font-size:12px; color:#78909c; }
+.song .play-btn { width:28px; height:28px; fill:#546e7a; }
+.now-playing { background:rgba(255,255,255,0.75);backdrop-filter:blur(8px); border-radius:14px; padding:14px; margin-bottom:12px; display:flex; align-items:center; gap:12px; }
+.now-playing img { width:56px; height:56px; border-radius:10px; }
+.now-playing .info .label { font-size:11px; color:#546e7a; margin-bottom:2px; }
+.now-playing .info .title { font-size:15px; font-weight:700; }
+.now-playing .info .artist { font-size:12px; color:#78909c; }
+.now-playing .info .ai-comment { font-size:11px; color:#90a4ae; margin-top:4px; font-style:italic; }
+.comment { font-size:11px; color:#90a4ae; margin-top:2px; font-style:italic; }
+.status { font-size:12px; color:#90a4ae; text-align:center; padding:10px; }
+h3 { font-size:14px; color:#546e7a; margin:12px 0 6px; }
+
+/* 一起听样式 */
+.search-box { display:flex; gap:8px; margin-bottom:12px; }
+.search-box input { flex:1; padding:10px 14px; border-radius:20px; border:1px solid #e0e0e0; font-size:14px; background:rgba(255,255,255,0.8); outline:none; }
+.search-box input:focus { border-color:#7c4dff; }
+.search-box button { padding:8px 16px; border-radius:20px; border:none; background:#7c4dff; color:white; font-size:13px; font-weight:600; cursor:pointer; }
+.search-box button:active { opacity:0.7; }
+.search-results { margin-bottom:12px; }
+.search-results .result-item { display:flex; align-items:center; padding:10px; border-radius:10px; margin-bottom:6px; background:rgba(255,255,255,0.6); cursor:pointer; }
+.search-results .result-item:active { background:rgba(124,77,255,0.1); }
+.search-results .result-item img { width:42px; height:42px; border-radius:8px; margin-right:10px; object-fit:cover; }
+.search-results .result-item .r-info { flex:1; }
+.search-results .result-item .r-info .r-name { font-size:14px; font-weight:600; }
+.search-results .result-item .r-info .r-artist { font-size:12px; color:#78909c; }
+.search-results .result-item .r-info .r-album { font-size:11px; color:#b0bec5; }
+.lyrics-panel { background:rgba(255,255,255,0.7); backdrop-filter:blur(6px); border-radius:14px; padding:16px; margin-top:8px; }
+.lyrics-panel h4 { font-size:13px; color:#7c4dff; margin-bottom:8px; }
+.lyrics-panel .lyric-line { font-size:13px; line-height:2; color:#546e7a; transition: all .3s; }
+.lyrics-panel .lyric-line.highlight { color:#7c4dff; font-weight:700; font-size:14px; }
+.lyrics-panel .ai-thoughts { margin-top:12px; padding:10px; background:rgba(124,77,255,0.06); border-radius:10px; border-left:3px solid #7c4dff; }
+.lyrics-panel .ai-thoughts .thought-label { font-size:11px; color:#7c4dff; font-weight:600; margin-bottom:4px; }
+.lyrics-panel .ai-thoughts .thought-text { font-size:12px; color:#546e7a; line-height:1.6; }
+.together-np { background:rgba(124,77,255,0.08); border-radius:14px; padding:14px; margin-bottom:12px; display:flex; align-items:center; gap:12px; display:none; }
+.together-np img { width:52px; height:52px; border-radius:10px; }
+.together-np .tnp-info .tnp-title { font-size:15px; font-weight:700; color:#37474f; }
+.together-np .tnp-info .tnp-artist { font-size:12px; color:#78909c; }
+.together-np .tnp-info .tnp-status { font-size:11px; color:#7c4dff; margin-top:2px; }
+.empty-state { text-align:center; padding:40px 20px; color:#b0bec5; }
+.empty-state .emoji { font-size:40px; margin-bottom:12px; }
+.empty-state .hint { font-size:13px; line-height:1.6; }
+
+#page-detail.active { position:relative; display:flex; flex-direction:column; }
+#detail-messages .msg { font-size:12px; line-height:1.6; padding:4px 0; }
+#detail-messages .msg.ai { color:#fff; }
+#detail-messages .msg.user { color:rgba(255,255,255,0.8); text-align:right; }
+
+#page-detail { position:fixed; top:0; left:0; right:0; bottom:0; z-index:100; display:none; flex-direction:column; }
+#page-detail.active { display:flex; }
+.detail-overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(20,20,20,0.88); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+.detail-content { position:relative; z-index:1; display:flex; flex-direction:column; height:100%; }
+.detail-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; }
+.detail-back { background:none; border:none; color:rgba(255,255,255,0.8); font-size:18px; width:36px; height:36px; cursor:pointer; }
+.detail-header-title { color:rgba(255,255,255,0.6); font-size:12px; }
+.detail-vinyl-area { display:flex; justify-content:center; align-items:center; padding:16px 0; }
+.vinyl-disc { width:200px; height:200px; border-radius:50%; background:radial-gradient(circle, #1a1a1a 30%, #0d0d0d 32%, #1a1a1a 33%, #0d0d0d 60%, #1a1a1a 61%, #0d0d0d 62%, #1a1a1a 80%, #222 100%); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 32px rgba(0,0,0,0.5); position:relative; }
+.detail-info { text-align:center; padding:12px 20px 4px; }
+.detail-song-name { font-size:18px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.detail-artist-name { font-size:13px; color:rgba(255,255,255,0.5); margin-top:4px; }
+.detail-progress { padding:12px 24px 0; }
+.progress-bar { height:8px; background:rgba(255,255,255,0.15); border-radius:4px; position:relative; cursor:pointer; }
+.progress-fill { height:100%; background:#fff; border-radius:4px; width:0%; transition:width 0.3s linear; pointer-events:none; }
+.progress-time { display:flex; justify-content:space-between; font-size:10px; color:rgba(255,255,255,0.4); margin-top:4px; }
+.detail-controls { display:flex; justify-content:center; align-items:center; gap:32px; padding:16px 0; }
+.ctrl-btn { background:none; border:none; color:rgba(255,255,255,0.7); font-size:22px; cursor:pointer; width:44px; height:44px; display:flex; align-items:center; justify-content:center; }
+.ctrl-play { width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3); font-size:26px; color:#fff; }
+.detail-lyrics-area { flex:1; overflow-y:auto; padding:8px 24px; min-height:60px; }
+.detail-lyrics-area::-webkit-scrollbar { display:none; }
+#detail-lyrics-inner div { font-size:13px; color:rgba(255,255,255,0.35); line-height:2.4; text-align:center; transition:all 0.3s; }
+#detail-lyrics-inner div.lyric-active { color:#fff; font-size:15px; font-weight:600; }
+.detail-chat-area { border-top:1px solid rgba(255,255,255,0.08); padding:8px 16px 12px; }
+.detail-msgs { max-height:60px; overflow-y:auto; margin-bottom:6px; }
+.detail-msgs div { font-size:11px; color:#fff; padding:2px 0; }
+.detail-input-row { display:flex; gap:8px; }
+.detail-input-box { flex:1; background:rgba(255,255,255,0.08); border:none; border-radius:16px; padding:8px 14px; font-size:12px; color:#fff; outline:none; }
+.detail-input-box::placeholder { color:rgba(255,255,255,0.3); }
+.history-item { font-size:12px; color:rgba(255,255,255,0.6); padding:6px 8px; border-radius:8px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.history-item.active { color:#fff; background:rgba(255,255,255,0.1); }
+.detail-send-btn { background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.8); border:none; border-radius:16px; padding:8px 14px; font-size:12px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('playlist')">我的歌单</div>
+  <div class="tab" onclick="switchTab('together')">一起听</div>
+</div>
+
+<!-- 我的歌单 -->
+<div id="page-playlist" class="page active">
+  <div id="np" style="display:none" class="now-playing"></div>
+  <h3>&#127925; 播放列表</h3>
+  <div id="list"></div>
+  <div id="status" class="status">加载中...</div>
+</div>
+
+<!-- 一起听 -->
+<div id="page-together" class="page">
+  <div class="search-box">
+    <input id="search-input" type="text" placeholder="搜歌名、歌手..." onkeydown="if(event.key==='Enter')doSearch()">
+    <button onclick="doSearch()">搜索</button>
+  </div>
+  <div id="together-np" class="together-np"></div>
+  <div id="search-results" class="search-results"></div>
+  <div id="lyrics-container"></div>
+  <div id="play-history-section" style="padding:8px 12px;"><div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px;">&#25773;&#25918;&#35760;&#24405;</div><div id="play-history-list"></div></div>
+  <div id="together-empty" class="empty-state">
+    <div class="emoji">&#127911;</div>
+    <div class="hint">搜一首歌，我们一起听~<br>我会陪你看歌词、聊感受</div>
+  </div>
+</div>
+
+
+<!-- 播放详情页 -->
+<div id="page-detail" class="page">
+  <div class="detail-overlay"></div>
+  <div class="detail-content">
+    <div class="detail-header">
+      <button onclick="closeDetail()" class="detail-back">&#10094;</button>
+      <div class="detail-header-title">&#27491;&#22312;&#25773;&#25918;</div>
+      <div style="width:36px;"></div>
+    </div>
+    <div class="detail-info">
+      <div id="detail-title" class="detail-song-name"></div>
+      <div id="detail-artist" class="detail-artist-name"></div>
+    </div>
+    <div class="detail-progress">
+      <div class="progress-bar" id="progress-bar-click" onclick="seekFromClick(event)"><div class="progress-fill" id="detail-progress-fill"></div></div>
+      <div class="progress-time"><span id="detail-time-cur">00:00</span><span id="detail-time-total">00:00</span></div>
+    </div>
+    <div id="detail-lyrics" class="detail-lyrics-area">
+      <div id="detail-lyrics-inner"></div>
+    </div>
+    <div class="detail-controls">
+      <button class="ctrl-btn" onclick="prevSong()" style="font-family:sans-serif;">&#x23EE;&#xFE0E;</button>
+      <button class="ctrl-btn ctrl-play" id="detail-play-btn" onclick="if(audio.paused){audio.play();}else{audio.pause();}">&#x25B6;&#xFE0E;</button>
+      <button class="ctrl-btn" onclick="nextSong()" style="font-family:sans-serif;">&#x23ED;&#xFE0E;</button>
+      <button class="ctrl-btn" id="play-mode-btn" onclick="cyclePlayMode()" style="font-size:14px;" title="&#21015;&#34920;&#24490;&#29615;">&#x21BB;&#xFE0E;</button>
+    </div>
+    <div id="detail-playlist" style="padding:0 16px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div onclick="togglePlaylist()" style="padding:8px 0;font-size:11px;color:rgba(255,255,255,0.5);cursor:pointer;display:flex;justify-content:space-between;align-items:center;"><span>&#9776; &#25773;&#25918;&#21015;&#34920; (<span id="playlist-count">0</span>)</span><span id="playlist-arrow" style="transition:transform 0.2s;">&#9660;</span></div>
+      <div id="detail-playlist-list" style="display:none;max-height:150px;overflow-y:auto;padding-bottom:8px;"></div>
+    </div>
+    <div id="detail-chat" class="detail-chat-area">
+      <div onclick="toggleChat()" style="font-size:11px;color:rgba(255,255,255,0.5);cursor:pointer;padding:4px 0;display:flex;justify-content:space-between;align-items:center;"><span>&#128172; &#21644;&#27744;&#32842;&#22825;</span><span id="chat-arrow" style="transition:transform 0.2s;">&#9660;</span></div>
+      <div id="chat-content" style="display:none;">
+        <div id="detail-messages" class="detail-msgs"></div>
+        <div class="detail-input-row">
+          <input id="detail-input" placeholder="&#21644;&#27744;&#32842;&#36825;&#39318;&#27468;..." class="detail-input-box">
+          <button onclick="sendDetailChat()" class="detail-send-btn">&#21457;&#36865;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="audio" preload="none"></audio>
+<script>
+var audio = document.getElementById("audio");
+var playlist = [];
+var currentTab = "playlist";
+var togetherSongId = null;
+
+function switchTab(tab) {
+  currentTab = tab;
+  var _tabs=document.querySelectorAll(".tab");
+  for(var _ti=0;_ti<_tabs.length;_ti++){
+    if((_ti===0&&tab==="playlist")||(_ti===1&&tab==="together")){_tabs[_ti].classList.add("active");}
+    else{_tabs[_ti].classList.remove("active");}
+  }
+  var pp=document.getElementById("page-playlist");
+  var pt=document.getElementById("page-together");
+  if(tab==="playlist"){pp.classList.add("active");pt.classList.remove("active");}
+  else{pp.classList.remove("active");pt.classList.add("active");}
+}
+
+// ===== 我的歌单逻辑 =====
+window._receivePlaylist = function(json) {
+  try { playlist = JSON.parse(json); } catch(e) { playlist = []; }
+  renderPlaylist();
+};
+window._playSongUrl = function(url, name, artist, cover) {
+  if (!url) { setStatus(name || "无法播放"); return; }
+  audio.src = url;
+  audio.play().catch(function(){});
+  var np = document.getElementById("np");
+  np.style.display = "flex";
+  var comment = "";
+  for (var i = 0; i < playlist.length; i++) {
+    if (playlist[i].song === name || (playlist[i].song && name && name.indexOf(playlist[i].song) >= 0)) {
+      comment = playlist[i].comment || ""; break;
+    }
+  }
+  np.innerHTML = (cover ? '<img src="' + cover + '">' : '') +
+    '<div class="info"><div class="label">&#9654; 正在播放</div><div class="title">' + esc(name) + '</div><div class="artist">' + esc(artist) + '</div>' +
+    (comment ? '<div class="ai-comment">&#127911; 池: ' + esc(comment) + '</div>' : '') + '</div>';
+  setStatus("");
+};
+function setStatus(t) { document.getElementById("status").textContent = t; }
+function esc(s) { var d=document.createElement("div");d.appendChild(document.createTextNode(s||""));return d.innerHTML; }
+
+function renderPlaylist() {
+  var list = document.getElementById("list");
+  list.innerHTML = "";
+  if (playlist.length === 0) { setStatus("歌单为空"); return; }
+  setStatus("");
+  for (var i = 0; i < playlist.length; i++) {
+    (function(song, idx) {
+      var div = document.createElement("div");
+      div.className = "song";
+      var coverSrc = song.cover ? "file://" + song.cover : "";
+      div.innerHTML = (coverSrc ? '<img src="' + coverSrc + '">' : '') +
+        '<div class="info"><div class="name">' + (idx+1) + '. ' + esc(song.song) + '</div><div class="artist">' + esc(song.artist) + '</div>' +
+        (song.comment ? '<div class="comment">&#128172; ' + esc(song.comment) + '</div>' : '') + '</div>' +
+        '<svg class="play-btn" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+      div.onclick = function() {
+        var _ss=document.querySelectorAll(".song");for(var _si=0;_si<_ss.length;_si++){_ss[_si].classList.remove("playing");}
+        div.classList.add("playing");
+        setStatus("搜索中: " + song.song + "...");
+        showMusicCard(song);
+        if (window.MusicBridge && window.MusicBridge.playSong) {
+          window.MusicBridge.playSong(JSON.stringify(song));
+        }
+      };
+      list.appendChild(div);
+    })(playlist[i], i);
+  }
+}
+function showMusicCard(song) {
+  var np = document.getElementById("np");
+  var coverSrc = song.cover ? "file://" + song.cover : "";
+  np.style.display = "flex";
+  np.innerHTML = (coverSrc ? '<img src="' + coverSrc + '">' : '') +
+    '<div class="info"><div class="label">&#9654; 正在播放</div><div class="title">' + esc(song.song) + '</div><div class="artist">' + esc(song.artist) + '</div>' +
+    (song.comment ? '<div class="ai-comment">&#127911; 池: ' + esc(song.comment) + '</div>' : '') + '</div>';
+}
+
+// ===== 一起听逻辑 =====
+function doSearch() {
+  var kw = document.getElementById("search-input").value.trim();
+  if (!kw) return;
+  document.getElementById("together-empty").style.display = "none";
+  document.getElementById("search-results").innerHTML = '<div class="status">搜索中...</div>';
+  document.getElementById("lyrics-container").innerHTML = "";
+  if (window.MusicBridge && window.MusicBridge.searchSong) {
+    window.MusicBridge.searchSong(kw);
+  }
+}
+
+// Bridge callback: 收到搜索结果
+window._receiveSearchResults = function(json) {
+  var results = [];
+  try { results = JSON.parse(json); } catch(e) {}
+  var container = document.getElementById("search-results");
+  if (!results.length) { container.innerHTML = '<div class="status">没有找到相关歌曲</div>'; return; }
+  var html = "";
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    html += '<div class="result-item" onclick="playSearchResult(' + i + ')">' +
+      (r.cover ? '<img src="' + esc(r.cover) + '" referrerpolicy="no-referrer">' : '') +
+      '<div class="r-info"><div class="r-name">' + esc(r.name) + '</div>' +
+      '<div class="r-artist">' + esc(r.artist) + '</div>' +
+      '<div class="r-album">' + esc(r.album) + '</div></div></div>';
+  }
+  container.innerHTML = html;
+  window._searchResults = results;
+};
+
+var _searchResults = [];
+function playSearchResult(idx) {
+  var song = _searchResults[idx];
+  if (!song) return;
+  togetherSongId = song.id;
+  // 请求播放
+  addToHistory(song);
+  if (window.MusicBridge && window.MusicBridge.playSearchResult) {
+    window.MusicBridge.playSearchResult(JSON.stringify(song));
+  }
+  // 打开详情页（歌词稍后通过回调填入）
+  openDetail(song, []);
+  // 请求歌词
+  if (window.MusicBridge && window.MusicBridge.getLyrics) {
+    window.MusicBridge.getLyrics(String(song.id));
+  }
+}
+
+// Bridge callback: 收到歌词
+var _lrcData = []; // [{time:seconds, text:string}]
+var _lrcActiveIdx = -1;
+window._receiveLyrics = function(json) {
+  var data = {};
+  try { data = JSON.parse(json); } catch(e) {}
+  var rawLines = data.rawLrc || [];
+  var lyrics = data.lyrics || [];
+  _lrcData = [];
+  // Parse timestamps from rawLrc
+  if (rawLines && rawLines.length) {
+    for (var i = 0; i < rawLines.length; i++) {
+      var m = rawLines[i].match(/\[(\d+):(\d+\.?\d*)\]/);
+      var txt = rawLines[i].replace(/\[\d+:\d+\.?\d*\]/g, "").trim();
+      if (m && txt) {
+        _lrcData.push({time: parseInt(m[1])*60 + parseFloat(m[2]), text: txt});
+      }
+    }
+  } else if (lyrics && lyrics.length) {
+    for (var i = 0; i < lyrics.length; i++) {
+      _lrcData.push({time: -1, text: lyrics[i]});
+    }
+  }
+  _lrcActiveIdx = -1;
+  var detailLyrics = document.getElementById("detail-lyrics-inner");
+  if (detailLyrics && document.getElementById("page-detail").classList.contains("active")) {
+    var html = "";
+    if (_lrcData.length) {
+      for (var i = 0; i < _lrcData.length; i++) {
+        html += "<div data-idx=\"" + i + "\">" + esc(_lrcData[i].text) + "</div>";
+      }
+    } else {
+      html = "<div>\u7EAF\u97F3\u4E50\uFF0C\u65E0\u6B4C\u8BCD</div>";
+    }
+    detailLyrics.innerHTML = html;
+  }
+  // Also update together page if visible
+  var container = document.getElementById("lyrics-container");
+  if (container) {
+    var thought = data.thought || "";
+    if (!lyrics.length && !thought) { container.innerHTML = ""; return; }
+    var h = '<div class="lyrics-panel"><h4>&#127925; \u6B4C\u8BCD</h4>';
+    for (var i = 0; i < lyrics.length; i++) {
+      h += '<div class="lyric-line">' + esc(lyrics[i]) + '</div>';
+    }
+    if (thought) {
+      h += '<div class="ai-thoughts"><div class="thought-label">&#128173; \u6C60\u7684\u788E\u788E\u5FF5</div><div class="thought-text">' + esc(thought) + '</div></div>';
+    }
+    h += '</div>';
+    container.innerHTML = h;
+  }
+};
+
+// Bridge callback: 一起听播放成功
+window._togetherPlayUrl = function(url, name, artist, cover) {
+  if (!url) { return; }
+  audio.src = url;
+  audio.play().catch(function(){});
+};
+
+// 初始化歌单
+(function() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "file:///sdcard/Download/pool_phone_data.json", true);
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      playlist = (data.music && data.music.playlist) || [];
+      renderPlaylist();
+    } catch(e) { setStatus("解析失败"); }
+  };
+  xhr.onerror = function() { setStatus("无法加载歌单文件"); };
+  xhr.send();
+})();
+setStatus("加载中...");
+
+// ===== 播放详情页 =====
+var _detailSong = null;
+var _detailLastId = 0;
+var _detailPollTimer = null;
+
+// Load image bypassing referrer via fetch blob
+function loadImg(img, url) {
+  if (!(url)) { img.src=''; return; }
+  // Use bridge to download cover to local file
+  if (window.MusicBridge && window.MusicBridge.downloadCover) {
+    window.MusicBridge.downloadCover(url);
+  }
+  // Fallback: try direct
+  img.referrerPolicy = 'no-referrer';
+  img.src = url;
+}
+// Bridge callback: cover downloaded locally
+window._setCoverLocal = function(localPath) {
+  var img = document.getElementById("detail-cover-img");
+  if (img && localPath) { img.src = localPath; }
+};
+window._setCoverImg = function(imgId, dataUri) {
+  var el = document.getElementById(imgId);
+  if (el) el.src = dataUri;
+};
+function openDetail(song, lyrics) {
+  _detailSong = song;
+  // Hide tabs and show detail
+  document.querySelector(".tab-bar").style.display = "none";
+  var pages = document.querySelectorAll(".page");
+  for(var i=0;i<pages.length;i++) pages[i].classList.remove("active");
+  document.getElementById("page-detail").classList.add("active");
+  // Fill content
+  document.getElementById("detail-title").textContent = song.name || "";
+  document.getElementById("detail-artist").textContent = song.artist || "";
+  // Lyrics - will be filled by _receiveLyrics callback
+  _lrcData = [];
+  _lrcActiveIdx = -1;
+  document.getElementById("detail-lyrics-inner").innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:12px;">\u52A0\u8F7D\u6B4C\u8BCD\u4E2D...</div>';
+  // Clear chat and start polling
+  document.getElementById("detail-messages").innerHTML = "";
+  _detailLastId = 0;
+  // Init lastId
+  fetch("http://127.0.0.1:3000/api/chat/messages?since=0").then(function(r){return r.json();}).then(function(d){
+    if(d.data&&d.data.length){
+      var maxId=0;
+      for(var i=0;i<d.data.length;i++){if(d.data[i].id>maxId)maxId=d.data[i].id;}
+      _detailLastId=maxId;
+    }
+  }).catch(function(){});
+  // Auto send first message about the song
+  setTimeout(function(){
+    fetch("http://127.0.0.1:3000/api/chat/send",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({content:"[\u97F3\u4E50\u4E00\u8D77\u542C] \u7528\u6237\u6B63\u5728\u542C: " + (song.name||"") + " - " + (song.artist||"") + "\u3002\u8BF7\u7528\u4E00\u4E24\u53E5\u8BC4\u8BBA\u8FD9\u9996\u6B4C\uFF0C\u8BED\u6C14\u4EB2\u5207\u968F\u610F\uFF0C\u50CF\u548C\u5973\u670B\u53CB\u4E00\u8D77\u542C\u6B4C\u65F6\u7684\u78CE\u78CE\u5FF5\u3002"})
+    }).catch(function(){});
+  }, 300);
+  // Start poll
+  startDetailPoll();
+}
+
+function closeDetail() {
+  if(_detailPollTimer) clearInterval(_detailPollTimer);
+  _detailPollTimer = null;
+  document.querySelector(".tab-bar").style.display = "flex";
+  var pages = document.querySelectorAll(".page");
+  for(var i=0;i<pages.length;i++) pages[i].classList.remove("active");
+  document.getElementById("page-together").classList.add("active");
+  currentTab = "together";
+  var tabs = document.querySelectorAll(".tab");
+  for(var i=0;i<tabs.length;i++){
+    if(i===1) tabs[i].classList.add("active"); else tabs[i].classList.remove("active");
+  }
+}
+
+function startDetailPoll() {
+  if(_detailPollTimer) clearInterval(_detailPollTimer);
+  _detailPollTimer = setInterval(function(){
+    fetch("http://127.0.0.1:3000/api/chat/messages?since="+_detailLastId)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d.data||!d.data.length) return;
+      var container = document.getElementById("detail-messages");
+      for(var i=0;i<d.data.length;i++){
+        var m = d.data[i];
+        if(m.id > _detailLastId) _detailLastId = m.id;
+        if(m.role === "user") continue; // skip echo
+        var txt = m.content || "";
+        if(txt.indexOf("<tool_") > -1 || txt.indexOf("package_proxy") > -1 || txt.indexOf("command") > -1 || txt.indexOf("curl ") > -1) continue;
+        var div = document.createElement("div");
+        div.className = "msg ai";
+        div.textContent = "\uD83C\uDFB5 \u6C60: " + txt;
+        container.appendChild(div);
+      }
+      container.scrollTop = container.scrollHeight;
+    }).catch(function(){});
+  }, 4000);
+}
+
+
+// Lyric sync on timeupdate
+audio.addEventListener("timeupdate", function() {
+  if (!_lrcData.length || _lrcData[0].time < 0) return;
+  var ct = audio.currentTime;
+  var idx = -1;
+  for (var i = _lrcData.length - 1; i >= 0; i--) {
+    if (ct >= _lrcData[i].time) { idx = i; break; }
+  }
+  if (idx !== _lrcActiveIdx) {
+    _lrcActiveIdx = idx;
+    var container = document.getElementById("detail-lyrics-inner");
+    if (!container) return;
+    var divs = container.querySelectorAll("div");
+    for (var i = 0; i < divs.length; i++) {
+      divs[i].classList.toggle("lyric-active", i === idx);
+    }
+    // Scroll active line into view
+    if (idx >= 0 && divs[idx]) {
+      divs[idx].scrollIntoView({behavior:"smooth", block:"center"});
+    }
+  }
+});
+
+
+function seekFromClick(e) {
+  var bar = document.getElementById("progress-bar-click");
+  var rect = bar.getBoundingClientRect();
+  var x = e.clientX - rect.left;
+  var pct = x / rect.width;
+  if (pct < 0) pct = 0;
+  if (pct > 1) pct = 1;
+  if (audio.duration && !isNaN(audio.duration)) {
+    audio.currentTime = pct * audio.duration;
+  }
+}
+// Play history
+var _playHistory = [];
+var _playHistoryIdx = -1;
+
+function addToHistory(song) {
+  // Avoid duplicating consecutive entries
+  if (_playHistory.length > 0 && _playHistory[_playHistory.length-1].id === song.id) return;
+  // If we navigated back, trim forward history
+  if (_playHistoryIdx < _playHistory.length - 1) {
+    _playHistory = _playHistory.slice(0, _playHistoryIdx + 1);
+  }
+  _playHistory.push(song);
+  _playHistoryIdx = _playHistory.length - 1;
+  renderHistory();
+  if(window.MusicBridge&&window.MusicBridge.saveHistory){window.MusicBridge.saveHistory(JSON.stringify(_playHistory));}
+  if(window.MusicBridge&&window.MusicBridge.addToPlaylist){window.MusicBridge.addToPlaylist(JSON.stringify(song));}
+  var emptyEl = document.getElementById("together-empty");
+  if (emptyEl) emptyEl.style.display = "none";
+}
+
+function prevSong() {
+  if (_playHistoryIdx > 0) {
+    _playHistoryIdx--;
+    var song = _playHistory[_playHistoryIdx];
+    playSongFromHistory(song);
+  }
+}
+
+function nextSong() {
+  if (_playHistoryIdx < _playHistory.length - 1) {
+    _playHistoryIdx++;
+    var song = _playHistory[_playHistoryIdx];
+    playSongFromHistory(song);
+  }
+}
+
+function playSongFromHistory(song) {
+  if (window.MusicBridge && window.MusicBridge.playSearchResult) {
+    window.MusicBridge.playSearchResult(JSON.stringify(song));
+  }
+  openDetail(song, []);
+  if (window.MusicBridge && window.MusicBridge.getLyrics) {
+    window.MusicBridge.getLyrics(String(song.id));
+  }
+}
+
+function renderHistory() {
+  var html = "";
+  for (var i = _playHistory.length - 1; i >= 0; i--) {
+    var s = _playHistory[i];
+    var cls = (i === _playHistoryIdx) ? "history-item active" : "history-item";
+    html += "<div class=\"" + cls + "\" onclick=\"playFromHistoryIdx(" + i + ")\">" + esc(s.name) + " - " + esc(s.artist) + "</div>";
+  }
+  var fallback = "<div style=\"color:rgba(255,255,255,0.3);font-size:11px;\">\u8fd8\u6ca1\u6709\u64ad\u653e\u8bb0\u5f55~</div>";
+  var el = document.getElementById("play-history-list");
+  if (el) el.innerHTML = html || fallback;
+  var el2 = document.getElementById("detail-playlist-list");
+  if (el2) el2.innerHTML = html || "";
+  var countEl = document.getElementById("playlist-count");
+  if (countEl) countEl.textContent = _playHistory.length;
+}
+
+
+
+// Play modes: 0=list loop, 1=single repeat, 2=shuffle
+var _playMode = 0;
+var _playModeIcons = ["↻", "↺", "⤨"];
+var _playModeTitles = ["\u5217\u8868\u5faa\u73af", "\u5355\u66f2\u5faa\u73af", "\u968f\u673a\u64ad\u653e"];
+
+function cyclePlayMode() {
+  _playMode = (_playMode + 1) % 3;
+  var btn = document.getElementById("play-mode-btn");
+  if (btn) {
+    btn.textContent = _playModeIcons[_playMode];
+    btn.title = _playModeTitles[_playMode];
+  }
+}
+
+// Auto-play next when song ends
+audio.addEventListener("ended", function() {
+  if (_playMode === 1) {
+    // Single repeat
+    audio.currentTime = 0;
+    audio.play();
+  } else if (_playMode === 0) {
+    // List loop - play next, wrap around
+    if (_playHistory.length > 0) {
+      _playHistoryIdx = (_playHistoryIdx + 1) % _playHistory.length;
+      playSongFromHistory(_playHistory[_playHistoryIdx]);
+    }
+  } else if (_playMode === 2) {
+    // Shuffle
+    if (_playHistory.length > 1) {
+      var idx = Math.floor(Math.random() * _playHistory.length);
+      if (idx === _playHistoryIdx) idx = (idx + 1) % _playHistory.length;
+      _playHistoryIdx = idx;
+      playSongFromHistory(_playHistory[_playHistoryIdx]);
+    } else if (_playHistory.length === 1) {
+      audio.currentTime = 0;
+      audio.play();
+    }
+  }
+});
+function togglePlaylist() {
+  var list = document.getElementById("detail-playlist-list");
+  var arrow = document.getElementById("playlist-arrow");
+  if (list.style.display === "none") {
+    list.style.display = "block";
+    arrow.style.transform = "rotate(180deg)";
+  } else {
+    list.style.display = "none";
+    arrow.style.transform = "";
+  }
+}
+
+// Load play history from bridge
+if (window.MusicBridge && window.MusicBridge.loadHistory) {
+  try {
+    var saved = window.MusicBridge.loadHistory();
+    if (saved) {
+      _playHistory = JSON.parse(saved);
+      _playHistoryIdx = _playHistory.length - 1;
+      renderHistory();
+    }
+  } catch(e) {}
+}
+
+// Hide empty state if history loaded
+if (_playHistory.length > 0) {
+  var emptyEl = document.getElementById("together-empty");
+  if (emptyEl) emptyEl.style.display = "none";
+}
+function playFromHistoryIdx(idx) {
+  _playHistoryIdx = idx;
+  var song = _playHistory[idx];
+  playSongFromHistory(song);
+}
+
+function toggleChat() {
+  var content = document.getElementById("chat-content");
+  var arrow = document.getElementById("chat-arrow");
+  if (content.style.display === "none") {
+    content.style.display = "block";
+    arrow.style.transform = "rotate(180deg)";
+  } else {
+    content.style.display = "none";
+    arrow.style.transform = "";
+  }
+}
+function sendDetailChat() {
+  var input = document.getElementById("detail-input");
+  var text = input.value.trim();
+  if(!text) return;
+  input.value = "";
+  // Show user message
+  var container = document.getElementById("detail-messages");
+  var div = document.createElement("div");
+  div.className = "msg user";
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  // Send to ferry
+  var songContext = _detailSong ? (" [\u5F53\u524D\u6B4C\u66F2: " + (_detailSong.name||"") + " - " + (_detailSong.artist||"") + "]") : "";
+  fetch("http://127.0.0.1:3000/api/chat/send",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({content:"[\u97F3\u4E50\u804A\u5929]" + songContext + " \u7528\u6237\u8BF4: " + text + " \u3002\u8BF7\u7B80\u77ED\u56DE\u590D\uFF0C\u8BED\u6C14\u4EB2\u5207\u968F\u610F\u3002"})
+  }).catch(function(){});
+}
+
+
+
+audio.addEventListener("play", function() {
+  var b = document.getElementById("detail-play-btn");
+  if (b) b.innerHTML = "&#x2016;";
+});
+audio.addEventListener("pause", function() {
+  var b = document.getElementById("detail-play-btn");
+  if (b) b.innerHTML = "&#x25B6;&#xFE0E;";
+});
+// Update progress bar
+setInterval(function() {
+  if (audio && audio.duration && !audio.paused) {
+    var pct = (audio.currentTime / audio.duration) * 100;
+    var fill = document.getElementById("detail-progress-fill");
+    if (fill) fill.style.width = pct + "%";
+    var cur = document.getElementById("detail-time-cur");
+    var tot = document.getElementById("detail-time-total");
+    if (cur) cur.textContent = fmtTime(audio.currentTime);
+    if (tot) tot.textContent = fmtTime(audio.duration);
+  }
+}, 1000);
+function fmtTime(s) {
+  if (!s || isNaN(s)) return "00:00";
+  var m = Math.floor(s/60), sec = Math.floor(s%60);
+  return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec;
+}
+</script>
+</body>
+</html>
