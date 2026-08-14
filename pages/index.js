@@ -78,7 +78,8 @@ function ChatView({ theme }) {
           const parsed = typeof errMsg === 'string' ? JSON.parse(errMsg) : errMsg
           errMsg = parsed?.error?.message || parsed?.message || JSON.stringify(parsed)
         } catch {}
-        setMessages([...newMessages, { role: 'system', content: '\u26a0\ufe0f API\u9519\u8bef: ' + errMsg }])
+        const debugInfo = data.debug ? '\n\ud83d\udd0d ' + JSON.stringify(data.debug) : ''
+        setMessages([...newMessages, { role: 'system', content: '\u26a0\ufe0f API\u9519\u8bef: ' + errMsg + debugInfo }])
         setLoading(false); return
       }
       const reply = data.reply || '\u65e0\u54cd\u5e94'
