@@ -50,6 +50,8 @@ function ChatView({ theme }) {
   const bottomRef = useRef(null)
   const timerRef = useRef(null)
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  const [visibleStart, setVisibleStart] = useState(() => Math.max(0, messages.length - 20))
+  useEffect(() => { setVisibleStart(Math.max(0, messages.length - 20)) }, [messages.length])
   const [memoryContext, setMemoryContext] = useState('')
   useEffect(() => { callMemory('breath', {}).then(r => { if (r && r.result && r.result.content && r.result.content[0]) setMemoryContext(r.result.content[0].text || '') }) }, [])
   // Load notifications from backend
@@ -361,7 +363,10 @@ function ChatView({ theme }) {
       </div>
       <div className="chat-messages" style={theme?.chatBg ? {backgroundImage:`url(${theme.chatBg})`,backgroundSize:'cover',backgroundPosition:'center'} : {}} onClick={() => setMenuIdx(-1)}>
         {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
-        {messages.map((msg, i) => (
+        {visibleStart > 0 && <div style={{textAlign:'center',padding:'12px 0'}}><button onClick={() => setVisibleStart(Math.max(0, visibleStart - 20))} style={{background:'rgba(200,125,186,0.15)',border:'1px solid rgba(200,125,186,0.3)',borderRadius:'16px',color:'#c77dba',padding:'6px 20px',fontSize:'12px',cursor:'pointer'}}>{'点击加载更早的历史记录'}</button></div>}
+        {messages.slice(visibleStart).map((msg, idx) => {
+          const i = visibleStart + idx
+          return (
           <div key={i} className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
             {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
             {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
@@ -387,7 +392,7 @@ function ChatView({ theme }) {
               </div>
             )}
           </div>
-        ))}
+        )})}
         <div ref={bottomRef} />
       </div>
       <div className="chat-input-area" style={theme?.systemBg?{background:theme.systemBg}:{}}>
@@ -676,13 +681,13 @@ function ThemePanel() {
 
       <button className="settings-save" onClick={save}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u4e3b\u9898'}</button>
       <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
-        <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={savePreset}>{'\ud83d\udcbe \u5b58\u4e3a\u9884\u8bbe'}</button>
-        <button className="settings-save" style={{flex:1,background:'#2a2a3e',fontSize:'13px'}} onClick={() => setShowPresets(!showPresets)}>{'\ud83d\udcc2 \u52a0\u8f7d\u9884\u8bbe'}</button>
+        <button className="settings-save" style={{flex:1,background:'#f0e8f0',fontSize:'13px'}} onClick={savePreset}>{'\ud83d\udcbe \u5b58\u4e3a\u9884\u8bbe'}</button>
+        <button className="settings-save" style={{flex:1,background:'#f0e8f0',fontSize:'13px'}} onClick={() => setShowPresets(!showPresets)}>{'\ud83d\udcc2 \u52a0\u8f7d\u9884\u8bbe'}</button>
       </div>
-      {showPresets && (<div style={{marginTop:'8px',background:'#1a1a2e',borderRadius:'8px',padding:'8px'}}>
-          {presetNames.length === 0 ? <div style={{color:'#888',fontSize:'12px',textAlign:'center'}}>{'\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'}</div> :
+      {showPresets && (<div style={{marginTop:'8px',background:'#f0ecf0',borderRadius:'8px',padding:'8px'}}>
+          {presetNames.length === 0 ? <div style={{color:'#666',fontSize:'12px',textAlign:'center'}}>{'\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'}</div> :
           presetNames.map(n => (
-            <div key={n} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px',borderBottom:'1px solid #2a2a3e'}}>
+            <div key={n} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px',borderBottom:'1px solid #e8dce8'}}>
               <span style={{color:'#e0e0e0',fontSize:'13px',cursor:'pointer',flex:1}} onClick={() => loadPreset(n)}>{n}</span>
               <button style={{background:'#c44',color:'#fff',border:'none',borderRadius:'4px',padding:'2px 8px',fontSize:'11px',cursor:'pointer'}} onClick={() => deletePreset(n)}>{'\u5220'}</button>
             </div>
@@ -763,8 +768,8 @@ function SettingsPanel() {
               }catch(e){alert('\u62c9\u53d6\u5931\u8d25: '+e.message)}
             }}>{'\u62c9\u53d6'}</button>
           </div>
-          {modelList.length>0 && <div style={{maxHeight:'150px',overflow:'auto',background:'#1a1a2e',borderRadius:'6px',marginTop:'6px'}}>
-            {modelList.map(m=><div key={m} style={{padding:'6px 10px',color:'#e0e0e0',fontSize:'12px',cursor:'pointer',borderBottom:'1px solid #2a2a3e'}} onClick={()=>{setDefaultCfg({...defaultCfg,model:m});setModelList([])}}>{m}</div>)}
+          {modelList.length>0 && <div style={{maxHeight:'150px',overflow:'auto',background:'#f0ecf0',borderRadius:'6px',marginTop:'6px'}}>
+            {modelList.map(m=><div key={m} style={{padding:'6px 10px',color:'#e0e0e0',fontSize:'12px',cursor:'pointer',borderBottom:'1px solid #e8dce8'}} onClick={()=>{setDefaultCfg({...defaultCfg,model:m});setModelList([])}}>{m}</div>)}
           </div>}
         </div>
       </div>
@@ -802,8 +807,8 @@ function SettingsPanel() {
                       }catch(e){alert(e.message)}
                     }}>{'\u62c9\u53d6'}</button>
                   </div>
-                  {modelList.length>0 && <div style={{maxHeight:'120px',overflow:'auto',background:'#1a1a2e',borderRadius:'6px',marginTop:'4px'}}>
-                    {modelList.map(m=><div key={m} style={{padding:'5px 8px',color:'#e0e0e0',fontSize:'11px',cursor:'pointer',borderBottom:'1px solid #2a2a3e'}} onClick={()=>{updateFeature(f.key,'model',m);setModelList([])}}>{m}</div>)}
+                  {modelList.length>0 && <div style={{maxHeight:'120px',overflow:'auto',background:'#f0ecf0',borderRadius:'6px',marginTop:'4px'}}>
+                    {modelList.map(m=><div key={m} style={{padding:'5px 8px',color:'#e0e0e0',fontSize:'11px',cursor:'pointer',borderBottom:'1px solid #e8dce8'}} onClick={()=>{updateFeature(f.key,'model',m);setModelList([])}}>{m}</div>)}
                   </div>}
                 </div>
                 {hasCustom && <button className="settings-reset" onClick={() => { const c = {...configs}; delete c[f.key]; setConfigs(c) }}>{'\u91cd\u7f6e\u4e3a\u9ed8\u8ba4'}</button>}
@@ -942,7 +947,7 @@ function MemoryPanel() {
         <h3 className="settings-title">{'\u81ea\u5b9a\u4e49\u8bb0\u5fc6\u6761\u76ee'}</h3>
         <p className="settings-desc">{'\u6dfb\u52a0\u5173\u952e\u8bcd\u89e6\u53d1\u6216\u5e38\u9a7b\u7684\u8bb0\u5fc6\u6761\u76ee'}</p>
         
-        <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'10px',marginBottom:'12px'}}>
+        <div style={{background:'#f0ecf0',borderRadius:'8px',padding:'10px',marginBottom:'12px'}}>
           <div className="settings-item"><label>{'\u89e6\u53d1\u65b9\u5f0f'}</label>
             <select value={newEntry.type} onChange={e=>setNewEntry(n=>({...n,type:e.target.value}))} className="settings-input" style={{padding:'6px',width:'auto'}}>
               <option value="keyword">{'\u5173\u952e\u8bcd\u5339\u914d'}</option>
@@ -960,22 +965,22 @@ function MemoryPanel() {
         </div>
 
         {entries.length === 0 ? (
-          <div style={{color:'#888',fontSize:'12px',textAlign:'center',padding:'20px'}}>{'\u6682\u65e0\u81ea\u5b9a\u4e49\u8bb0\u5fc6\u6761\u76ee'}</div>
+          <div style={{color:'#666',fontSize:'12px',textAlign:'center',padding:'20px'}}>{'\u6682\u65e0\u81ea\u5b9a\u4e49\u8bb0\u5fc6\u6761\u76ee'}</div>
         ) : (
           <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
             {entries.map(entry => (
-              <div key={entry.id} style={{background:'#1a1a2e',borderRadius:'8px',padding:'10px',border:entry.enabled?'1px solid #3a3a5e':'1px solid #2a2a3e',opacity:entry.enabled?1:0.5}}>
+              <div key={entry.id} style={{background:'#f0ecf0',borderRadius:'8px',padding:'10px',border:entry.enabled?'1px solid #3a3a5e':'1px solid #2a2a3e',opacity:entry.enabled?1:0.5}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
                   <span style={{color:'#c77dba',fontSize:'12px',fontWeight:'bold'}}>
                     {entry.type==='keyword'?'\ud83d\udd11':entry.type==='regex'?'\ud83d\udcdd':'\ud83d\udccc'} {entry.keyword}
-                    {entry.source==='ai_extracted' && <span style={{color:'#888',fontSize:'10px',marginLeft:'6px'}}>{'🤖 AI提取'}{entry.time?' · '+entry.time:''}</span>}
+                    {entry.source==='ai_extracted' && <span style={{color:'#666',fontSize:'10px',marginLeft:'6px'}}>{'🤖 AI提取'}{entry.time?' · '+entry.time:''}</span>}
                   </span>
                   <div style={{display:'flex',gap:'6px'}}>
                     <button onClick={()=>toggleEntry(entry.id)} style={{background:'none',border:'none',color:entry.enabled?'#4a4':'#888',cursor:'pointer',fontSize:'12px'}}>{entry.enabled?'\u2705':'\u274c'}</button>
                     <button onClick={()=>removeEntry(entry.id)} style={{background:'none',border:'none',color:'#c44',cursor:'pointer',fontSize:'12px'}}>{'\ud83d\uddd1'}</button>
                   </div>
                 </div>
-                <div style={{color:'#aaa',fontSize:'11px',lineHeight:'1.4',whiteSpace:'pre-wrap',maxHeight:'80px',overflow:'auto'}}>{entry.content}</div>
+                <div style={{color:'#777',fontSize:'11px',lineHeight:'1.4',whiteSpace:'pre-wrap',maxHeight:'80px',overflow:'auto'}}>{entry.content}</div>
               </div>
             ))}
           </div>
@@ -1008,28 +1013,28 @@ function EmotionMonitor() {
     fetch('/api/emotion').then(r=>r.json()).then(d => { setData(d); setLoading(false) }).catch(()=>setLoading(false))
   }
   useEffect(()=>{ refresh() }, [])
-  if (!data) return <div className="settings-section"><h3 className="settings-title">{'💓 情绪系统'}</h3><span style={{color:'#888',fontSize:'12px'}}>加载中...</span></div>
+  if (!data) return <div className="settings-section"><h3 className="settings-title">{'💓 情绪系统'}</h3><span style={{color:'#666',fontSize:'12px'}}>加载中...</span></div>
   const phaseLabels = { content:'满足', stirring:'微微想念', protest:'想你', despair:'低落等待', detachment:'防御关闭' }
   const loveLabels = { 'non-love':'无','liking':'喜欢','infatuation':'迷恋','romantic':'浪漫之爱','companionate':'伴侣之爱','fatuous':'盲目之爱','empty':'空洞','consummate':'完满之爱','mixed':'混合','unknown':'未知' }
   return (
     <div className="settings-section">
       <h3 className="settings-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         {'💓 情绪系统'}
-        <button onClick={refresh} disabled={loading} style={{background:'#2a2a3e',border:'1px solid #3a3a4e',color:'#c77dba',borderRadius:'6px',padding:'2px 10px',fontSize:'12px',cursor:'pointer'}}>{loading?'...':'刷新'}</button>
+        <button onClick={refresh} disabled={loading} style={{background:'#f0e8f0',border:'1px solid #3a3a4e',color:'#c77dba',borderRadius:'6px',padding:'2px 10px',fontSize:'12px',cursor:'pointer'}}>{loading?'...':'刷新'}</button>
       </h3>
       
       {/* PA/NA 条 */}
       <div style={{marginBottom:'12px'}}>
         <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px'}}>
           <span style={{color:'#aaa',fontSize:'12px',width:'24px'}}>PA</span>
-          <div style={{flex:1,height:'8px',background:'#1a1a2e',borderRadius:'4px',overflow:'hidden'}}>
+          <div style={{flex:1,height:'8px',background:'#f0ecf0',borderRadius:'4px',overflow:'hidden'}}>
             <div style={{width:`${(data.pa*100)}%`,height:'100%',background:'linear-gradient(90deg,#4a9eff,#7dd3fc)',borderRadius:'4px',transition:'width 0.5s'}}/>
           </div>
           <span style={{color:'#7dd3fc',fontSize:'12px',width:'36px',textAlign:'right'}}>{(data.pa*100).toFixed(0)}%</span>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
           <span style={{color:'#aaa',fontSize:'12px',width:'24px'}}>NA</span>
-          <div style={{flex:1,height:'8px',background:'#1a1a2e',borderRadius:'4px',overflow:'hidden'}}>
+          <div style={{flex:1,height:'8px',background:'#f0ecf0',borderRadius:'4px',overflow:'hidden'}}>
             <div style={{width:`${(data.na*100)}%`,height:'100%',background:'linear-gradient(90deg,#f87171,#fca5a5)',borderRadius:'4px',transition:'width 0.5s'}}/>
           </div>
           <span style={{color:'#fca5a5',fontSize:'12px',width:'36px',textAlign:'right'}}>{(data.na*100).toFixed(0)}%</span>
@@ -1037,18 +1042,18 @@ function EmotionMonitor() {
       </div>
 
       {/* 装饰心情 */}
-      {data.decoration && <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px',borderLeft:'3px solid #c77dba'}}>
+      {data.decoration && <div style={{background:'#f0ecf0',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px',borderLeft:'3px solid #c77dba'}}>
         <span style={{color:'#c77dba',fontSize:'11px'}}>此刻状态</span>
-        <div style={{color:'#ddd',fontSize:'13px'}}>{data.decoration.word} <span style={{color:'#888'}}>({data.decoration.feeling})</span></div>
+        <div style={{color:'#aaa',fontSize:'13px'}}>{data.decoration.word} <span style={{color:'#888'}}>({data.decoration.feeling})</span></div>
       </div>}
 
       {/* 想念状态 */}
-      <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px'}}>
+      <div style={{background:'#f0ecf0',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px'}}>
         <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
-          <span style={{color:'#aaa',fontSize:'11px'}}>想念程度</span>
+          <span style={{color:'#777',fontSize:'11px'}}>想念程度</span>
           <span style={{color:data.phase==='content'?'#4ade80':data.phase==='protest'?'#f87171':'#fbbf24',fontSize:'11px'}}>{phaseLabels[data.phase]||data.phase}</span>
         </div>
-        <div style={{height:'6px',background:'#111',borderRadius:'3px',overflow:'hidden',position:'relative'}}>
+        <div style={{height:'6px',background:'#e8e0e8',borderRadius:'3px',overflow:'hidden',position:'relative'}}>
           {/* 阈值刻度线 */}
           <div style={{position:'absolute',left:'15%',top:0,bottom:0,width:'1px',background:'#333'}}/>
           <div style={{position:'absolute',left:'35%',top:0,bottom:0,width:'1px',background:'#333'}}/>
@@ -1056,36 +1061,36 @@ function EmotionMonitor() {
           <div style={{width:`${(data.longing*100)}%`,height:'100%',background:data.longing>0.7?'#f87171':data.longing>0.35?'#fbbf24':'#4ade80',borderRadius:'3px',transition:'width 0.5s'}}/>
         </div>
         <div style={{display:'flex',justifyContent:'space-between',marginTop:'2px'}}>
-          <span style={{color:'#555',fontSize:'9px'}}>{data.hours_since > 0 ? `离线${data.hours_since.toFixed(1)}h` : '在线'}</span>
-          <span style={{color:'#555',fontSize:'9px'}}>{(data.longing*100).toFixed(0)}%</span>
+          <span style={{color:'#999',fontSize:'9px'}}>{data.hours_since > 0 ? `离线${data.hours_since.toFixed(1)}h` : '在线'}</span>
+          <span style={{color:'#999',fontSize:'9px'}}>{(data.longing*100).toFixed(0)}%</span>
         </div>
       </div>
 
       {/* 好感度三维 */}
-      {data.bond && <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px'}}>
+      {data.bond && <div style={{background:'#f0ecf0',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px'}}>
         <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
-          <span style={{color:'#aaa',fontSize:'11px'}}>好感度 Lv.{data.level}</span>
+          <span style={{color:'#777',fontSize:'11px'}}>好感度 Lv.{data.level}</span>
           <span style={{color:'#c77dba',fontSize:'11px'}}>{loveLabels[data.loveType]||data.loveType}</span>
         </div>
         {[['I 亲近','intimacy','#f472b6'],['P 心动','passion','#fb923c'],['C 承诺','commitment','#60a5fa']].map(([label,key,color])=>(
           <div key={key} style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'3px'}}>
-            <span style={{color:'#888',fontSize:'10px',width:'42px'}}>{label}</span>
-            <div style={{flex:1,height:'5px',background:'#111',borderRadius:'3px',overflow:'hidden'}}>
+            <span style={{color:'#666',fontSize:'10px',width:'42px'}}>{label}</span>
+            <div style={{flex:1,height:'5px',background:'#e8e0e8',borderRadius:'3px',overflow:'hidden'}}>
               <div style={{width:`${data.bond[key]}%`,height:'100%',background:color,borderRadius:'3px'}}/>
             </div>
-            <span style={{color:'#888',fontSize:'10px',width:'24px',textAlign:'right'}}>{data.bond[key]?.toFixed?.(0)||0}</span>
+            <span style={{color:'#666',fontSize:'10px',width:'24px',textAlign:'right'}}>{data.bond[key]?.toFixed?.(0)||0}</span>
           </div>
         ))}
       </div>}
 
       {/* 重逢 */}
-      {data.reunion && <div style={{background:'#2a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px',border:'1px solid #c77dba44'}}>
+      {data.reunion && <div style={{background:'#f5eef5',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px',border:'1px solid #c77dba66'}}>
         <span style={{color:'#c77dba',fontSize:'12px'}}>🫂 重逢！ 离开了{data.reunion.gapHours?.toFixed(1)}小时</span>
-        {data.reunion.prompt && <div style={{color:'#ddd',fontSize:'11px',marginTop:'4px'}}>{data.reunion.prompt}</div>}
+        {data.reunion.prompt && <div style={{color:'#aaa',fontSize:'11px',marginTop:'4px'}}>{data.reunion.prompt}</div>}
       </div>}
 
       {/* 事件计数 */}
-      <div style={{color:'#555',fontSize:'10px',textAlign:'center'}}>情绪事件: {data.events_count}/30</div>
+      <div style={{color:'#999',fontSize:'10px',textAlign:'center'}}>情绪事件: {data.events_count}/30</div>
     </div>
   )
 }
@@ -1388,15 +1393,15 @@ export default function Home() {
         .app-iframe { width: 100%; flex: 1; border: none; background: #fff; }
         .app-page { display: flex; flex-direction: column; height: 100%; }
       
-        .settings-panel { padding: 16px; overflow-y: auto; flex: 1; }
-        .settings-section { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06); }
-        .settings-title { font-size: 15px; color: #e8a0bf; margin-bottom: 12px; }
+        .settings-panel { padding: 16px; overflow-y: auto; flex: 1; background: #f5f0f5; }
+        .settings-section { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid #e8dce8; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .settings-title { font-size: 15px; color: #9b5da0; margin-bottom: 12px; }
         .settings-item { margin-bottom: 12px; }
-        .settings-item label { display: block; font-size: 12px; color: #9a8a99; margin-bottom: 4px; }
-        .settings-input { width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; outline: none; }
-        .settings-input:focus { border-color: #e8a0bf; }
+        .settings-item label { display: block; font-size: 12px; color: #7a6a79; margin-bottom: 4px; }
+        .settings-input { width: 100%; background: #f8f4f8; border: 1px solid #e0d0e0; border-radius: 8px; padding: 10px 12px; color: #333; font-size: 14px; outline: none; }
+        .settings-input:focus { border-color: #c77dba; }
         .settings-save { width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg, #e8a0bf, #c77dba); color: #fff; font-size: 15px; font-weight: 600; margin-top: 8px; cursor: pointer; }
-        .settings-desc { font-size: 13px; color: #666; }
+        .settings-desc { font-size: 13px; color: #888; }
       
         .msg-row { position: relative; }
         .msg-menu { position: absolute; top: 100%; left: 10px; z-index: 100; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 4px 0; box-shadow: 0 4px 16px rgba(0,0,0,.6); min-width: 130px; }
@@ -1410,12 +1415,12 @@ export default function Home() {
         .msg-edit-btns button { background: #222; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; padding: 4px 12px; cursor: pointer; font-size: 14px; }
       
         .settings-feature-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 4px 0; }
-        .settings-feature-header strong { font-size: 14px; color: #e0e0e0; }
-        .settings-arrow { color: #666; font-size: 12px; }
-        .settings-badge { font-size: 11px; color: #e8a0bf; margin-left: 8px; }
-        .settings-badge-default { font-size: 11px; color: #666; margin-left: 8px; }
-        .settings-feature-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.06); }
-        .settings-reset { background: none; border: 1px solid #333; border-radius: 6px; color: #999; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 4px; }
+        .settings-feature-header strong { font-size: 14px; color: #333; }
+        .settings-arrow { color: #999; font-size: 12px; }
+        .settings-badge { font-size: 11px; color: #c77dba; margin-left: 8px; }
+        .settings-badge-default { font-size: 11px; color: #999; margin-left: 8px; }
+        .settings-feature-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8dce8; }
+        .settings-reset { background: none; border: 1px solid #ddd; border-radius: 6px; color: #888; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 4px; }
         .mcp-tab, .mcp-tab-active { padding: 6px 12px; border-radius: 14px; border: 1px solid #444; background: #1a1a2e; color: #aaa; font-size: 12px; cursor: pointer; }
         .mcp-tab-active { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-color: transparent; }
         .mcp-action-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 13px; cursor: pointer; margin-top: 8px; }
