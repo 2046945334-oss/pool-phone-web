@@ -52,6 +52,12 @@ function ChatView({ theme }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   const [memoryContext, setMemoryContext] = useState('')
   useEffect(() => { callMemory('breath', {}).then(r => { if (r && r.result && r.result.content && r.result.content[0]) setMemoryContext(r.result.content[0].text || '') }) }, [])
+  // Load notifications from backend
+  useEffect(() => {
+    fetch('/api/notifications').then(r=>r.json()).then(d => {
+      if (d.notifications) localStorage.setItem('pool_notifications', JSON.stringify(d.notifications))
+    }).catch(()=>{})
+  }, [])
 
   // Build system prompt with character + memory entries
   function buildSystemMessages(userMessages) {
@@ -80,6 +86,29 @@ function ChatView({ theme }) {
 - 深夜聊天时催她睡觉，但如果她不听就陪着`
 
     parts.push({ role: 'system', content: systemPrompt })
+
+    // Real-time context injection
+    const now = new Date()
+    const timeStr = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const hour = now.getHours()
+    let timeHint = ''
+    if (hour >= 0 && hour < 7) timeHint = '（深夜/凌晨，她应该睡觉了）'
+    else if (hour >= 7 && hour < 9) timeHint = '（早晨）'
+    else if (hour >= 11 && hour < 13) timeHint = '（午饭时间）'
+    else if (hour >= 17 && hour < 19) timeHint = '（晚饭时间）'
+    else if (hour >= 22) timeHint = '（深夜了）'
+
+    let contextInfo = `[当前环境]\n时间: ${timeStr} ${timeHint}`
+
+    // Notifications from backend (if available)
+    try {
+      const notifs = JSON.parse(localStorage.getItem('pool_notifications') || '[]')
+      if (notifs.length > 0) {
+        contextInfo += '\n最近通知: ' + notifs.slice(-5).map(n => n.app + ': ' + n.content).join('; ')
+      }
+    } catch {}
+
+    parts.push({ role: 'system', content: contextInfo })
 
     // Memory context from Ombre Brain
     if (memoryContext) {
