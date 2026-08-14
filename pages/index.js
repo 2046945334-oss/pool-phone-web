@@ -72,7 +72,16 @@ function ChatView({ theme }) {
         body: JSON.stringify({ messages: [...(memoryContext ? [{role:'system',content:'[Memory]\\n'+memoryContext}] : []), ...newMessages.slice(-20)], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
       })
       const data = await res.json()
-      const reply = data.reply || data.error || '\u65e0\u54cd\u5e94'
+      if (data.error) {
+        let errMsg = data.error
+        try {
+          const parsed = typeof errMsg === 'string' ? JSON.parse(errMsg) : errMsg
+          errMsg = parsed?.error?.message || parsed?.message || JSON.stringify(parsed)
+        } catch {}
+        setMessages([...newMessages, { role: 'system', content: '\u26a0\ufe0f API\u9519\u8bef: ' + errMsg }])
+        setLoading(false); return
+      }
+      const reply = data.reply || '\u65e0\u54cd\u5e94'
       // Split reply into sentences and show one by one
       const sentences = reply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
       let current = [...newMessages]
