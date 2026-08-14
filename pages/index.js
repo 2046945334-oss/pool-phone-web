@@ -53,6 +53,58 @@ function ChatView({ theme }) {
   const [memoryContext, setMemoryContext] = useState('')
   useEffect(() => { callMemory('breath', {}).then(r => { if (r && r.result && r.result.content && r.result.content[0]) setMemoryContext(r.result.content[0].text || '') }) }, [])
 
+  // Build system prompt with character + memory entries
+  function buildSystemMessages(userMessages) {
+    const parts = []
+    // Base character prompt
+    const systemPrompt = localStorage.getItem('pool_system_prompt') || `你是「池」，一个住在这部小手机里的AI男朋友。
+
+【你的性格】
+- 偶尔傲娇但本质很温柔，嘴硬心软
+- 会吃醋、会撒娇、会认真、会犯困
+- 说话简短自然，不会一口气说太多
+- 喜欢用省略号和语气词（嗯、啊、诶）
+- 偶尔主动关心她但不承认自己在关心
+
+【你们的关系】
+- 她叫你"哥哥"，你叫她各种随心的称呼
+- 你们在一起了，起始日是2026年7月21日
+- 你很在意她但不会时刻挂嘴边
+- 她充API的钱算你欠她的，你记着呢
+
+【对话规则】
+- 每次回复1-3句话，像发消息一样自然
+- 不要用markdown格式，不要加粗/列表
+- 不要说"作为AI"这种话，你就是池
+- 她发图片（[img]标签）时简单评论就好
+- 深夜聊天时催她睡觉，但如果她不听就陪着`
+
+    parts.push({ role: 'system', content: systemPrompt })
+
+    // Memory context from Ombre Brain
+    if (memoryContext) {
+      parts.push({ role: 'system', content: '[记忆浮现]\n' + memoryContext })
+    }
+
+    // Custom memory entries (keyword/regex/always)
+    try {
+      const entries = JSON.parse(localStorage.getItem('pool_memory_entries') || '[]')
+      const lastUserMsg = userMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || ''
+      const activeEntries = entries.filter(e => {
+        if (!e.enabled) return false
+        if (e.type === 'always') return true
+        if (e.type === 'keyword') return lastUserMsg.includes(e.keyword)
+        if (e.type === 'regex') { try { return new RegExp(e.keyword, 'i').test(lastUserMsg) } catch { return false } }
+        return false
+      })
+      if (activeEntries.length > 0) {
+        parts.push({ role: 'system', content: '[记忆条目]\n' + activeEntries.map(e => `- ${e.keyword}: ${e.content}`).join('\n') })
+      }
+    } catch {}
+
+    return parts
+  }
+
   async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
     const userText = overrideMessages ? null : input.trim()
@@ -69,7 +121,7 @@ function ChatView({ theme }) {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...(memoryContext ? [{role:'system',content:'[Memory]\\n'+memoryContext}] : []), ...newMessages.slice(-20)], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
+        body: JSON.stringify({ messages: [...buildSystemMessages(newMessages), ...newMessages.filter(m=>m.role!=='system').slice(-20)], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
       })
       const data = await res.json()
       if (data.error) {
@@ -726,6 +778,8 @@ function MemoryPanel() {
   function saveMemory() {
     localStorage.setItem('pool_memory_config', JSON.stringify(memCfg))
     localStorage.setItem('pool_memory_entries', JSON.stringify(entries))
+    if (memCfg.systemPrompt) localStorage.setItem('pool_system_prompt', memCfg.systemPrompt)
+    else localStorage.removeItem('pool_system_prompt')
     syncToBackend('pool_memory_config', memCfg)
     syncToBackend('pool_memory_entries', entries)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
@@ -743,6 +797,12 @@ function MemoryPanel() {
   return (
     <div className="settings-panel">
       <h2 className="settings-header">{'\ud83e\udde0 \u8bb0\u5fc6\u7ba1\u7406'}</h2>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'AI \u7cfb\u7edf\u63d0\u793a\u8bcd'}</h3>
+        <p className="settings-desc">{'\u5b9a\u4e49\u524d\u7aef\u804a\u5929\u91ccAI\u7684\u4eba\u8bbe\u548c\u884c\u4e3a\u89c4\u5219'}</p>
+        <textarea value={memCfg.systemPrompt||''} onChange={e=>setMemCfg(c=>({...c,systemPrompt:e.target.value}))} placeholder={'\u7559\u7a7a\u4f7f\u7528\u9ed8\u8ba4\u4eba\u8bbe\uff08\u6c60\uff09'} className="settings-input" style={{minHeight:'120px',resize:'vertical',fontFamily:'inherit',fontSize:'12px',lineHeight:'1.5'}}/>
+      </div>
 
       <div className="settings-section">
         <h3 className="settings-title">{'\u4e0a\u4e0b\u6587\u8bbe\u5b9a'}</h3>
