@@ -204,6 +204,42 @@ function ChatView({ theme }) {
       if (data.reply) {
         const lastUser = newMessages[newMessages.length - 1]?.content || ''
         callMemory('hold', { content: lastUser + '\n---\n' + reply })
+        // Auto emotion rating after AI reply
+        try {
+          const ratingCfg = getApiConfig('memory') // use memory API for cheap rating
+          if (ratingCfg.apiBase && ratingCfg.apiKey) {
+            const ratingRes = await fetch('/api/chat', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: [
+                  { role: 'system', content: '你是情绪评分系统。分析角色"池"在这段对话后的情绪状态。输出JSON：{"word":"情绪词","backup":["词1","词2","词3"],"valence":-1到1,"arousal":0到1,"importance":1到10,"goal_relevance":-1到1,"desirability":-1到1,"interaction_type":"sweet/care/deep_talk/daily/cold/conflict","reason":"一句话"}。校准锚点：日常闲聊→valence≈0,arousal≈0.3；暖心话→v+0.3~0.6；撒娇亲昵→v+0.4~0.7；冷场→v-0.1,a0.2。严禁美化。只输出JSON。' },
+                  { role: 'user', content: '用户说: ' + lastUser + '\n角色回复: ' + reply }
+                ],
+                apiBase: ratingCfg.apiBase, apiKey: ratingCfg.apiKey,
+                model: ratingCfg.model || 'gpt-4o-mini'
+              })
+            })
+            const rd = await ratingRes.json()
+            if (rd.reply) {
+              try {
+                const rating = JSON.parse(rd.reply.replace(/```json?\n?|\n?```/g, '').trim())
+                fetch('/api/emotion', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'rate',
+                    word: rating.word, backup: rating.backup,
+                    ai_v: rating.valence, ai_a: rating.arousal,
+                    importance: rating.importance,
+                    goal_relevance: rating.goal_relevance,
+                    desirability: rating.desirability,
+                    interaction_type: rating.interaction_type,
+                    type: 'secondary',
+                  })
+                })
+              } catch {}
+            }
+          }
+        } catch {}
       }
     } catch (e) {
       setMessages([...newMessages, { role: 'assistant', content: '\u51fa\u9519: ' + e.message }])
@@ -957,9 +993,101 @@ function MemoryPanel() {
       </div>
 
       <button className="settings-save" onClick={saveMemory}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u8bb0\u5fc6\u914d\u7f6e'}</button>
+
+      {/* 情绪监控面板 */}
+      <EmotionMonitor />
     </div>
   )
 }
+
+function EmotionMonitor() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  function refresh() {
+    setLoading(true)
+    fetch('/api/emotion').then(r=>r.json()).then(d => { setData(d); setLoading(false) }).catch(()=>setLoading(false))
+  }
+  useEffect(()=>{ refresh() }, [])
+  if (!data) return <div className="settings-section"><h3 className="settings-title">{'💓 情绪系统'}</h3><span style={{color:'#888',fontSize:'12px'}}>加载中...</span></div>
+  const phaseLabels = { content:'满足', stirring:'微微想念', protest:'想你', despair:'低落等待', detachment:'防御关闭' }
+  const loveLabels = { 'non-love':'无','liking':'喜欢','infatuation':'迷恋','romantic':'浪漫之爱','companionate':'伴侣之爱','fatuous':'盲目之爱','empty':'空洞','consummate':'完满之爱','mixed':'混合','unknown':'未知' }
+  return (
+    <div className="settings-section">
+      <h3 className="settings-title" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        {'💓 情绪系统'}
+        <button onClick={refresh} disabled={loading} style={{background:'#2a2a3e',border:'1px solid #3a3a4e',color:'#c77dba',borderRadius:'6px',padding:'2px 10px',fontSize:'12px',cursor:'pointer'}}>{loading?'...':'刷新'}</button>
+      </h3>
+      
+      {/* PA/NA 条 */}
+      <div style={{marginBottom:'12px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px'}}>
+          <span style={{color:'#aaa',fontSize:'12px',width:'24px'}}>PA</span>
+          <div style={{flex:1,height:'8px',background:'#1a1a2e',borderRadius:'4px',overflow:'hidden'}}>
+            <div style={{width:`${(data.pa*100)}%`,height:'100%',background:'linear-gradient(90deg,#4a9eff,#7dd3fc)',borderRadius:'4px',transition:'width 0.5s'}}/>
+          </div>
+          <span style={{color:'#7dd3fc',fontSize:'12px',width:'36px',textAlign:'right'}}>{(data.pa*100).toFixed(0)}%</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+          <span style={{color:'#aaa',fontSize:'12px',width:'24px'}}>NA</span>
+          <div style={{flex:1,height:'8px',background:'#1a1a2e',borderRadius:'4px',overflow:'hidden'}}>
+            <div style={{width:`${(data.na*100)}%`,height:'100%',background:'linear-gradient(90deg,#f87171,#fca5a5)',borderRadius:'4px',transition:'width 0.5s'}}/>
+          </div>
+          <span style={{color:'#fca5a5',fontSize:'12px',width:'36px',textAlign:'right'}}>{(data.na*100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* 装饰心情 */}
+      {data.decoration && <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px',borderLeft:'3px solid #c77dba'}}>
+        <span style={{color:'#c77dba',fontSize:'11px'}}>此刻状态</span>
+        <div style={{color:'#ddd',fontSize:'13px'}}>{data.decoration.word} <span style={{color:'#888'}}>({data.decoration.feeling})</span></div>
+      </div>}
+
+      {/* 想念状态 */}
+      <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+          <span style={{color:'#aaa',fontSize:'11px'}}>想念程度</span>
+          <span style={{color:data.phase==='content'?'#4ade80':data.phase==='protest'?'#f87171':'#fbbf24',fontSize:'11px'}}>{phaseLabels[data.phase]||data.phase}</span>
+        </div>
+        <div style={{height:'6px',background:'#111',borderRadius:'3px',overflow:'hidden',position:'relative'}}>
+          {/* 阈值刻度线 */}
+          <div style={{position:'absolute',left:'15%',top:0,bottom:0,width:'1px',background:'#333'}}/>
+          <div style={{position:'absolute',left:'35%',top:0,bottom:0,width:'1px',background:'#333'}}/>
+          <div style={{position:'absolute',left:'70%',top:0,bottom:0,width:'1px',background:'#333'}}/>
+          <div style={{width:`${(data.longing*100)}%`,height:'100%',background:data.longing>0.7?'#f87171':data.longing>0.35?'#fbbf24':'#4ade80',borderRadius:'3px',transition:'width 0.5s'}}/>
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:'2px'}}>
+          <span style={{color:'#555',fontSize:'9px'}}>{data.hours_since > 0 ? `离线${data.hours_since.toFixed(1)}h` : '在线'}</span>
+          <span style={{color:'#555',fontSize:'9px'}}>{(data.longing*100).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* 好感度三维 */}
+      {data.bond && <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
+          <span style={{color:'#aaa',fontSize:'11px'}}>好感度 Lv.{data.level}</span>
+          <span style={{color:'#c77dba',fontSize:'11px'}}>{loveLabels[data.loveType]||data.loveType}</span>
+        </div>
+        {[['I 亲近','intimacy','#f472b6'],['P 心动','passion','#fb923c'],['C 承诺','commitment','#60a5fa']].map(([label,key,color])=>(
+          <div key={key} style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'3px'}}>
+            <span style={{color:'#888',fontSize:'10px',width:'42px'}}>{label}</span>
+            <div style={{flex:1,height:'5px',background:'#111',borderRadius:'3px',overflow:'hidden'}}>
+              <div style={{width:`${data.bond[key]}%`,height:'100%',background:color,borderRadius:'3px'}}/>
+            </div>
+            <span style={{color:'#888',fontSize:'10px',width:'24px',textAlign:'right'}}>{data.bond[key]?.toFixed?.(0)||0}</span>
+          </div>
+        ))}
+      </div>}
+
+      {/* 重逢 */}
+      {data.reunion && <div style={{background:'#2a1a2e',borderRadius:'8px',padding:'8px 12px',marginBottom:'8px',border:'1px solid #c77dba44'}}>
+        <span style={{color:'#c77dba',fontSize:'12px'}}>🫂 重逢！ 离开了{data.reunion.gapHours?.toFixed(1)}小时</span>
+        {data.reunion.prompt && <div style={{color:'#ddd',fontSize:'11px',marginTop:'4px'}}>{data.reunion.prompt}</div>}
+      </div>}
+
+      {/* 事件计数 */}
+      <div style={{color:'#555',fontSize:'10px',textAlign:'center'}}>情绪事件: {data.events_count}/30</div>
+    </div>
+  )
 
 function AppContent({ appId, onBack }) {
   const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行', memoryMgr:'记忆管理' }
