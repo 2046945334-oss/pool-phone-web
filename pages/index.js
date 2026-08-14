@@ -549,10 +549,13 @@ function ThemePanel() {
 
   const [showPresets, setShowPresets] = useState(false)
   const [presetNames, setPresetNames] = useState([])
+  const [presetInput, setPresetInput] = useState('')
+  const [showPresetSave, setShowPresetSave] = useState(false)
   useEffect(() => { if (showPresets) { try { const p = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}'); setPresetNames(Object.keys(p)) } catch {} } }, [showPresets])
 
   function savePreset() {
-    const name = prompt('\u7ed9\u8fd9\u4e2a\u4e3b\u9898\u8d77\u4e2a\u540d\u5b57:')
+    if (!showPresetSave) { setShowPresetSave(true); return }
+    const name = presetInput.trim()
     if (!name) return
     const lite = {...theme}
     delete lite.icons
@@ -564,7 +567,8 @@ function ThemePanel() {
       syncToBackend('pool_theme_presets', existing)
       setPresetNames(Object.keys(existing))
       setShowPresets(true)
-      alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
+      setShowPresetSave(false)
+      setPresetInput('')
     } catch (e) {
       alert('\u4fdd\u5b58\u5931\u8d25: ' + e.message)
     }
@@ -759,11 +763,15 @@ function ThemePanel() {
         <button className="settings-save" style={{flex:1,background:'#f0e8f0',fontSize:'13px'}} onClick={savePreset}>{'\ud83d\udcbe \u5b58\u4e3a\u9884\u8bbe'}</button>
         <button className="settings-save" style={{flex:1,background:'#f0e8f0',fontSize:'13px'}} onClick={() => setShowPresets(!showPresets)}>{'\ud83d\udcc2 \u52a0\u8f7d\u9884\u8bbe'}</button>
       </div>
+      {showPresetSave && <div style={{marginTop:'8px',display:'flex',gap:'8px'}}>
+        <input className="settings-input" value={presetInput} onChange={e => setPresetInput(e.target.value)} placeholder={'给这个主题起个名字...'} style={{flex:1}} />
+        <button onClick={() => setShowPresetSave(false)} style={{background:'none',border:'1px solid #ddd',borderRadius:'8px',color:'#999',padding:'8px 12px',cursor:'pointer'}}>{'取消'}</button>
+      </div>}
       {showPresets && (<div style={{marginTop:'8px',background:'#f0ecf0',borderRadius:'8px',padding:'8px'}}>
           {presetNames.length === 0 ? <div style={{color:'#666',fontSize:'12px',textAlign:'center'}}>{'\u6ca1\u6709\u4fdd\u5b58\u7684\u9884\u8bbe'}</div> :
           presetNames.map(n => (
             <div key={n} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 8px',borderBottom:'1px solid #e8dce8'}}>
-              <span style={{color:'#e0e0e0',fontSize:'13px',cursor:'pointer',flex:1}} onClick={() => loadPreset(n)}>{n}</span>
+              <span style={{color:'#333',fontSize:'13px',cursor:'pointer',flex:1}} onClick={() => loadPreset(n)}>{n}</span>
               <button style={{background:'#c44',color:'#fff',border:'none',borderRadius:'4px',padding:'2px 8px',fontSize:'11px',cursor:'pointer'}} onClick={() => deletePreset(n)}>{'\u5220'}</button>
             </div>
           ))}
@@ -1412,9 +1420,9 @@ export default function Home() {
         .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(200,125,186,0.15); color: #c77dba; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; border: 1px solid rgba(200,125,186,0.3); }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: rgba(255,240,248,0.95); border-top: 1px solid rgba(200,125,186,0.2); }
         .emoji-item { font-size: 22px; cursor: pointer; padding: 4px; border-radius: 6px; }
-        .emoji-item:hover { background: #2a2a3e; }
+        .emoji-item:hover { background: rgba(200,125,186,0.15); }
         .fetch-models-btn { padding: 6px 10px; background: #c77dba; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-        .chat-input { flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px; padding: 9px 14px; color: #e0e0e0; font-size: 14px; outline: none; font-family: inherit; }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.8); border: 1px solid rgba(200,125,186,0.25); border-radius: 20px; padding: 9px 14px; color: #333; font-size: 14px; outline: none; font-family: inherit; }
         .chat-input:focus { border-color: #e8a0bf; }
         .chat-send { width: 30px; height: 30px; border-radius: 50%; background: #c77dba; color: #fff; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .chat-send:disabled { opacity: 0.4; }
@@ -1514,10 +1522,10 @@ export default function Home() {
         .theme-color-row input[type="color"] { width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer; background: none; }
         .theme-color-row span { color: #888; font-size: 11px; font-family: monospace; }
         .theme-icon-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-        .theme-icon-name { color: #ccc; font-size: 12px; width: 60px; flex-shrink: 0; }
+        .theme-icon-name { color: #666; font-size: 12px; width: 60px; flex-shrink: 0; }
         .theme-icon-input { flex: 1; font-size: 11px !important; }
-        .theme-upload-sm { padding: 4px 8px; background: #2a2a3e; border: 1px solid #444; border-radius: 6px; color: #aaa; font-size: 12px; cursor: pointer; }
-        .theme-preview-sm { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-top: 6px; border: 2px solid #444; }
+        .theme-upload-sm { padding: 4px 8px; background: #f0e8f0; border: 1px solid #d8c8d8; border-radius: 6px; color: #999; font-size: 12px; cursor: pointer; }
+        .theme-preview-sm { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-top: 6px; border: 2px solid #d8c8d8; }
         .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .user-avatar { background: #c77dba; }
       `}</style>
