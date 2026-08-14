@@ -246,7 +246,20 @@ function ChatView({ theme }) {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...buildSystemMessages(newMessages), ...newMessages.filter(m=>m.role!=='system').slice(-20)], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
+        body: JSON.stringify({ messages: [...buildSystemMessages(newMessages), ...newMessages.filter(m=>m.role!=='system').slice(-20).map(m => {
+          if (m.content && m.content.includes('[img]')) {
+            // Convert [img]...[/img] to vision multimodal format
+            const parts = m.content.split(/\[img\](.*?)\[\/img\]/g)
+            const content = []
+            for (let k = 0; k < parts.length; k++) {
+              if (k % 2 === 0) { if (parts[k].trim()) content.push({ type: 'text', text: parts[k].trim() }) }
+              else { content.push({ type: 'image_url', image_url: { url: parts[k].startsWith('data:') ? parts[k] : parts[k].startsWith('/') ? (typeof window !== 'undefined' ? window.location.origin : '') + parts[k] : parts[k] } }) }
+            }
+            if (content.length === 0) content.push({ type: 'text', text: '(图片)' })
+            return { ...m, content }
+          }
+          return m
+        })], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
       })
       const data = await res.json()
       if (data.error) {
@@ -469,11 +482,17 @@ function ChatView({ theme }) {
       </div>
       <div className="chat-input-area" style={theme?.systemBg?{background:theme.systemBg}:{}}>
         <label className="chat-plus-btn">{'+'}
-          <input type="file" accept="image/*" hidden onChange={e => {
+          <input type="file" accept="image/*" hidden onChange={async e => {
             const file = e.target.files[0]; if (!file) return
             const reader = new FileReader()
-            reader.onload = () => {
-              setMessages(m => [...m, {role:'user',content:`[img]${reader.result}[/img]`}])
+            reader.onload = async () => {
+              let imgUrl = reader.result
+              try {
+                const up = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: reader.result }) })
+                const d = await up.json()
+                if (d.url) imgUrl = d.url
+              } catch {}
+              setMessages(m => [...m, {role:'user',content:`[img]${imgUrl}[/img]`}])
             }
             reader.readAsDataURL(file)
             e.target.value = ''
