@@ -1,225 +1,310 @@
 <!DOCTYPE html>
-<html><head>
+<html>
+<head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>阅读</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Reader</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, sans-serif; background: #faf8f5; height: 100vh; display: flex; flex-direction: column; }
-.header { padding: 16px; background: #fff; border-bottom: 1px solid #f0ebe3; display: flex; justify-content: space-between; align-items: center; }
-.header h2 { font-size: 17px; color: #5a4a3a; font-weight: 600; }
-.add-btn { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #d4c5b0; background: none; font-size: 18px; color: #8b7355; cursor: pointer; }
-.tabs { display: flex; padding: 0 16px; background: #fff; gap: 16px; border-bottom: 1px solid #f0ebe3; }
-.tab { padding: 10px 0; font-size: 13px; color: #999; cursor: pointer; border-bottom: 2px solid transparent; }
-.tab.active { color: #8b7355; border-color: #8b7355; }
-.content { flex: 1; overflow-y: auto; padding: 16px; }
-.book-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.book-cover { width: 50px; height: 68px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-.book-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-.book-title { font-size: 14px; font-weight: 500; color: #333; }
-.book-author { font-size: 11px; color: #aaa; margin-top: 3px; }
-.book-progress { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
-.progress-bar { flex: 1; height: 4px; background: #f0ebe3; border-radius: 2px; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, #c9a96e, #8b7355); border-radius: 2px; transition: width 0.3s; }
-.progress-text { font-size: 10px; color: #aaa; white-space: nowrap; }
-.book-actions { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
-.book-actions button { border: none; background: none; font-size: 16px; cursor: pointer; padding: 4px; }
-.quote-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid #c9a96e; }
-.quote-text { font-size: 13px; color: #555; line-height: 1.7; font-style: italic; }
-.quote-source { font-size: 11px; color: #aaa; margin-top: 8px; text-align: right; }
-.empty { text-align: center; color: #ccc; padding: 60px 0; font-size: 13px; }
-
-/* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 10; align-items: center; justify-content: center; }
-.modal-overlay.show { display: flex; }
-.modal { background: #fff; border-radius: 16px; padding: 24px; width: 85%; max-width: 320px; }
-.modal h3 { font-size: 15px; color: #333; margin-bottom: 16px; }
-.modal input, .modal textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #e8e0d5; border-radius: 10px; font-size: 13px; margin-bottom: 10px; outline: none; font-family: inherit; }
-.modal input:focus, .modal textarea:focus { border-color: #c9a96e; }
-.modal textarea { resize: none; height: 80px; }
-.modal-btns { display: flex; gap: 10px; margin-top: 8px; }
-.modal-btns button { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 13px; cursor: pointer; }
-.btn-cancel { background: #f5f0eb; color: #999; }
-.btn-save { background: #8b7355; color: #fff; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,sans-serif; background:url('reader_bg.png') center/cover fixed; color:#333; padding:12px; font-size:15px; }
+.view { display:none; }
+.view.active { display:block; }
+.book-card { background:#fff; border-radius:12px; padding:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.book-title { font-size:16px; font-weight:600; margin-bottom:4px; }
+.book-meta { font-size:12px; color:#888; }
+.together-badge { display:inline-block; background:#fff3e0; color:#e65100; font-size:11px; padding:2px 8px; border-radius:10px; margin-top:4px; }
+.btn { display:inline-block; background:#1976d2; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-size:14px; cursor:pointer; }
+.btn-del { background:#e53935; margin-left:8px; }
+.reader-content { line-height:1.8; padding:8px 4px; font-size:16px; }
+.chapter-nav { display:flex; justify-content:space-between; padding:12px 0; }
+.chapter-nav button { background:#e3f2fd; border:none; padding:8px 14px; border-radius:8px; color:#1565c0; font-size:13px; }
+.note-card { background:#e8f5e9; border-left:3px solid #4caf50; padding:10px 12px; margin-top:12px; border-radius:0 8px 8px 0; }
+.note-card h4 { color:#2e7d32; font-size:13px; margin-bottom:6px; }
+.note-card p { font-size:13px; color:#333; margin-bottom:4px; }
+.import-area { border:2px dashed #ccc; border-radius:12px; padding:30px; text-align:center; margin:16px 0; }
+.back-btn { background:none; border:none; font-size:20px; padding:8px; cursor:pointer; }
+.toolbar { display:flex; align-items:center; margin-bottom:12px; gap:8px; }
+.toolbar h2 { flex:1; font-size:18px; }
+.debug-box { background:#fff3e0; border:1px solid #ffb74d; border-radius:8px; padding:8px; margin-bottom:10px; font-size:11px; color:#e65100; }
 </style>
-</head><body>
-<div class="header">
-  <h2>📖 书架</h2>
-  <button class="add-btn" onclick="showAddModal()">+</button>
+</head>
+<body>
+<div id="shelfView" class="view active">
+<div class="toolbar"><h2>书架</h2><button class="btn" onclick="showImport()">+ 导入TXT</button></div>
+<div id="bookList"></div>
 </div>
-<div class="tabs">
-  <div class="tab active" onclick="switchTab(0)">在读</div>
-  <div class="tab" onclick="switchTab(1)">摘录</div>
-  <div class="tab" onclick="switchTab(2)">已读完</div>
+<div id="importView" class="view">
+<div class="toolbar"><button class="back-btn" onclick="showShelf()">&larr;</button><h2>导入书籍</h2></div>
+<div class="import-area">
+<p>选择 .txt 文件</p>
+<input type="file" accept=".txt" onchange="handleFile(this)">
 </div>
-<div class="content" id="content"></div>
-
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <h3 id="modalTitle">添加书籍</h3>
-    <input id="inputTitle" placeholder="书名" />
-    <input id="inputAuthor" placeholder="作者（可选）" />
-    <div id="quoteField" style="display:none">
-      <textarea id="inputQuote" placeholder="摘录内容"></textarea>
-    </div>
-    <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeModal()">取消</button>
-      <button class="btn-save" onclick="saveModal()">保存</button>
-    </div>
-  </div>
 </div>
-
+<div id="readerView" class="view">
+<div class="toolbar"><button class="back-btn" onclick="backToShelf()">&larr;</button><h2 id="chapterTitle"></h2></div>
+<div id="chapterContent" class="reader-content"></div>
+<div class="chapter-nav">
+<button onclick="prevChapter()">← 上一章</button>
+<span id="chapterPos"></span>
+<button onclick="nextChapter()">下一章 →</button>
+</div>
+</div>
 <script>
-const STORE = 'pool_reader_data'
-const coverColors = ['#f3e8d8','#e3d5f0','#d5eae3','#f5e1e1','#dde8f5','#f5f0d5','#e8e0d5','#d8f0e8']
-const coverEmojis = ['📕','📗','📘','📙','📓','📒','📔','📖']
+var DATA_KEY = "pool_reader_books";
+var TOGETHER_KEY = "pool_reader_together";
+var books = [];
+var together = "";
+var aiProgress = 0;
+var aiNotes = null;
+var currentBook = null;
+var currentChapter = 0;
 
-function getData() {
-  try { return JSON.parse(localStorage.getItem(STORE)) || { books: [], quotes: [] } }
-  catch { return { books: [], quotes: [] } }
-}
-function saveData(d) { localStorage.setItem(STORE, JSON.stringify(d)) }
-
-let currentTab = 0
-let modalMode = 'book' // 'book' or 'quote'
-
-function switchTab(idx) {
-  currentTab = idx
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i === idx))
-  render()
-}
-
-function showAddModal() {
-  if (currentTab === 1) {
-    modalMode = 'quote'
-    document.getElementById('modalTitle').textContent = '添加摘录'
-    document.getElementById('inputTitle').placeholder = '出处（书名/文章）'
-    document.getElementById('inputAuthor').placeholder = '作者'
-    document.getElementById('quoteField').style.display = 'block'
-  } else {
-    modalMode = 'book'
-    document.getElementById('modalTitle').textContent = '添加书籍'
-    document.getElementById('inputTitle').placeholder = '书名'
-    document.getElementById('inputAuthor').placeholder = '作者（可选）'
-    document.getElementById('quoteField').style.display = 'none'
-  }
-  document.getElementById('inputTitle').value = ''
-  document.getElementById('inputAuthor').value = ''
-  document.getElementById('inputQuote').value = ''
-  document.getElementById('modal').classList.add('show')
+function loadData() {
+    try {
+        var raw = localStorage.getItem(DATA_KEY);
+        if (raw) books = JSON.parse(raw);
+    } catch(e) { books = []; }
+    try {
+        together = localStorage.getItem(TOGETHER_KEY) || "";
+    } catch(e) {}
 }
 
-function closeModal() {
-  document.getElementById('modal').classList.remove('show')
+function saveData() {
+    try {
+        localStorage.setItem(DATA_KEY, JSON.stringify(books));
+        localStorage.setItem(TOGETHER_KEY, together);
+        // Also persist to file via Bridge
+        var payload = { books: books, together: together, ai_progress: aiProgress, ai_notes: aiNotes };
+        if (window._PoolReaderBridge) window._PoolReaderBridge.saveData(JSON.stringify(payload));
+    } catch(e) {}
 }
 
-function saveModal() {
-  const title = document.getElementById('inputTitle').value.trim()
-  if (!title) return
-  const author = document.getElementById('inputAuthor').value.trim()
-  const data = getData()
-  
-  if (modalMode === 'quote') {
-    const quote = document.getElementById('inputQuote').value.trim()
-    if (!quote) return
-    data.quotes.unshift({ text: quote, source: title + (author ? ' · ' + author : ''), date: new Date().toLocaleDateString('zh-CN') })
-  } else {
-    const colorIdx = data.books.length % coverColors.length
-    data.books.push({
-      id: Date.now().toString(),
-      title, author,
-      progress: 0,
-      done: false,
-      color: coverColors[colorIdx],
-      emoji: coverEmojis[colorIdx],
-      addedAt: new Date().toLocaleDateString('zh-CN')
-    })
-  }
-  saveData(data)
-  closeModal()
-  render()
+function _receiveData(jsonStr) {
+    try {
+        var d = JSON.parse(jsonStr);
+        if (d.together !== undefined) {
+            together = d.together;
+            localStorage.setItem(TOGETHER_KEY, together);
+        }
+        if (d.ai_progress !== undefined) aiProgress = d.ai_progress;
+        if (d.ai_notes) aiNotes = d.ai_notes;
+        if (d.books && Array.isArray(d.books) && d.books.length > 0) {
+            books = d.books;
+            localStorage.setItem(DATA_KEY, JSON.stringify(books));
+        }
+        renderShelf();
+    } catch(e) {}
 }
 
-function updateProgress(id, delta) {
-  const data = getData()
-  const book = data.books.find(b => b.id === id)
-  if (!book) return
-  book.progress = Math.max(0, Math.min(100, book.progress + delta))
-  if (book.progress >= 100) book.done = true
-  saveData(data)
-  render()
-}
-
-function removeBook(id) {
-  const data = getData()
-  data.books = data.books.filter(b => b.id !== id)
-  saveData(data)
-  render()
-}
-
-function render() {
-  const data = getData()
-  const el = document.getElementById('content')
-  
-  if (currentTab === 0) {
-    const reading = data.books.filter(b => !b.done)
-    if (!reading.length) {
-      el.innerHTML = '<div class="empty">还没有在读的书<br>点右上角 + 添加一本吧</div>'
-      return
+function loadMetaFromFile() {
+    // Try to load metadata via XHR from local file
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "file:///sdcard/Download/pool_phone_reader_meta.json", false);
+        xhr.send();
+        if (xhr.status === 0 || xhr.status === 200) {
+            var d = JSON.parse(xhr.responseText);
+            if (d.together) together = d.together;
+            if (d.ai_progress !== undefined) aiProgress = d.ai_progress;
+            if (d.ai_notes) aiNotes = d.ai_notes;
+        }
+    } catch(e) {
+        // XHR failed, try Bridge return value
+        try {
+            if (window._PoolReaderBridge) {
+                var str = window._PoolReaderBridge.loadData();
+                if (str && str !== "{}" && str.length < 5000) {
+                    _receiveData(str);
+                }
+            }
+        } catch(e2) {}
     }
-    el.innerHTML = reading.map(b => `
-      <div class="book-card">
-        <div class="book-cover" style="background:${b.color}">${b.emoji}</div>
-        <div class="book-info">
-          <div class="book-title">${b.title}</div>
-          ${b.author ? `<div class="book-author">${b.author}</div>` : ''}
-          <div class="book-progress">
-            <div class="progress-bar"><div class="progress-fill" style="width:${b.progress}%"></div></div>
-            <span class="progress-text">${b.progress}%</span>
-          </div>
-        </div>
-        <div class="book-actions">
-          <button onclick="updateProgress('${b.id}', 10)" title="读了一些">📖</button>
-          <button onclick="removeBook('${b.id}')" title="移除">🗑️</button>
-        </div>
-      </div>
-    `).join('')
-  } else if (currentTab === 1) {
-    if (!data.quotes.length) {
-      el.innerHTML = '<div class="empty">还没有摘录<br>记下触动你的句子吧</div>'
-      return
-    }
-    el.innerHTML = data.quotes.map(q => `
-      <div class="quote-card">
-        <div class="quote-text">"${q.text}"</div>
-        <div class="quote-source">— ${q.source}${q.date ? ' · ' + q.date : ''}</div>
-      </div>
-    `).join('')
-  } else {
-    const done = data.books.filter(b => b.done)
-    if (!done.length) {
-      el.innerHTML = '<div class="empty">还没有读完的书<br>继续加油 💪</div>'
-      return
-    }
-    el.innerHTML = done.map(b => `
-      <div class="book-card">
-        <div class="book-cover" style="background:${b.color}">${b.emoji}</div>
-        <div class="book-info">
-          <div class="book-title">${b.title}</div>
-          ${b.author ? `<div class="book-author">${b.author}</div>` : ''}
-          <div class="book-progress">
-            <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
-            <span class="progress-text">✓ 已读完</span>
-          </div>
-        </div>
-        <div class="book-actions">
-          <button onclick="removeBook('${b.id}')" title="移除">🗑️</button>
-        </div>
-      </div>
-    `).join('')
-  }
 }
 
-render()
+function showView(id) {
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+}
+function showShelf() { showView('shelfView'); renderShelf(); }
+function showImport() { showView('importView'); }
+
+function renderShelf() {
+    var el = document.getElementById('bookList');
+    var html = '';
+    // Debug info
+    html += '<div class="debug-box">\uD83D\uDD27 v3 | together=' + together + ' | aiP=' + aiProgress + ' | notes=' + (aiNotes ? aiNotes.length : 0) + '</div>';
+    if (books.length === 0) {
+        html += '<p style="color:#999;text-align:center;padding:40px">\u8FD8\u6CA1\u6709\u4E66\uFF0C\u70B9\u53F3\u4E0A\u89D2\u5BFC\u5165</p>';
+        el.innerHTML = html;
+        return;
+    }
+    for (var i = 0; i < books.length; i++) {
+        var b = books[i];
+        var total = b.chapters ? b.chapters.length : 0;
+        var pos = (b.lastChapter || 0) + 1;
+        html += '<div class="book-card" onclick="openBook(' + i + ')">';
+        html += '<div class="book-title">' + escHtml(b.title) + '</div>';
+        html += '<div class="book-meta">' + total + '\u7AE0 \u00B7 \u8BFB\u5230\u7B2C' + pos + '\u7AE0</div>';
+        // Together badge
+        if (together && b.id === together) {
+            var badgeText = '\uD83D\uDC40 \u6C60\u5728\u770B';
+            if (aiProgress > 0) badgeText += '\uFF08\u8BFB\u5230\u7B2C' + (aiProgress + 1) + '\u7AE0\uFF09';
+            html += '<div class="together-badge">' + badgeText + '</div>';
+        }
+        html += '<button class="btn btn-del" onclick="event.stopPropagation();delBook(' + i + ')" style="float:right;margin-top:-30px">\u5220</button>';
+        html += '</div>';
+    }
+    html += '<div style="height:20px"></div>';
+    el.innerHTML = html;
+}
+
+function renderReader() {
+    if (!currentBook) return;
+    var ch = currentBook.chapters[currentChapter];
+    document.getElementById('chapterTitle').textContent = ch.title || ('\u7B2C' + (currentChapter+1) + '\u7AE0');
+    var contentHtml = '<p>' + escHtml(ch.content).replace(/\n/g, '</p><p>') + '</p>';
+    // Show AI notes for this chapter
+    if (aiNotes && together && currentBook.id === together) {
+        var chapterNotes = [];
+        for (var i = 0; i < aiNotes.length; i++) {
+            if (aiNotes[i].chapter === currentChapter) chapterNotes.push(aiNotes[i]);
+        }
+        if (chapterNotes.length > 0) {
+            contentHtml += '<div class="note-card"><h4>\uD83D\uDCDD \u6C60\u7684\u6279\u6CE8</h4>';
+            for (var j = 0; j < chapterNotes.length; j++) {
+                contentHtml += '<p>' + escHtml(chapterNotes[j].text) + '</p>';
+            }
+            contentHtml += '</div>';
+        }
+    }
+    document.getElementById('chapterContent').innerHTML = contentHtml;
+    document.getElementById('chapterPos').textContent = (currentChapter+1) + '/' + currentBook.chapters.length;
+}
+
+function openBook(idx) {
+    currentBook = books[idx];
+    currentChapter = currentBook.lastChapter || 0;
+    showView('readerView');
+    renderReader();
+}
+function backToShelf() {
+    if (currentBook) {
+        currentBook.lastChapter = currentChapter;
+        saveData();
+    }
+    currentBook = null;
+    showShelf();
+}
+function prevChapter() {
+    if (currentChapter > 0) { currentChapter--; renderReader(); window.scrollTo(0,0); }
+}
+function nextChapter() {
+    if (currentBook && currentChapter < currentBook.chapters.length - 1) { currentChapter++; renderReader(); window.scrollTo(0,0); }
+}
+
+function handleFile(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var text = e.target.result;
+        // Check if garbled (GBK detection)
+        if (text.indexOf('\ufffd') > -1 || /[\x00-\x08]/.test(text.substring(0,200))) {
+            // retry as GBK
+            var reader2 = new FileReader();
+            reader2.onload = function(e2) { importText(file.name, e2.target.result); };
+            reader2.readAsText(file, 'GBK');
+        } else {
+            importText(file.name, text);
+        }
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+
+function importText(filename, text) {
+    var title = filename.replace(/\.txt$/i, '');
+    var chapters = splitChapters(text);
+    var id = Math.random().toString(36).substr(2, 8);
+    books.push({ id: id, title: title, chapters: chapters, lastChapter: 0 });
+    saveData();
+    showShelf();
+}
+
+function splitChapters(text) {
+    var lines = text.split(/\r?\n/);
+    // Pattern 1: standard chapter headers (limit title length to 30)
+    var p1 = /^\s*\u7B2C[\u4E00\u4E8C\u4E09\u56DB\u4E94\u516D\u4E03\u516B\u4E5D\u5341\u767E\u5343\u4E07\u96F6\d]{1,10}[\u7AE0\u8282\u56DE\u5377\u96C6\u7BC7]/;
+    var p2 = /^\s*Chapter\s+\d+/i;
+    var p3 = /^\s*\d{1,4}[\s\.\u3001\uff0e]/;
+    var detected = [];
+    var threshold1 = 3, threshold3 = 5;
+    var c1=0, c2=0, c3=0;
+    for (var i = 0; i < lines.length; i++) {
+        var l = lines[i];
+        if (p1.test(l) && l.trim().length <= 30) c1++;
+        if (p2.test(l)) c2++;
+        if (p3.test(l) && l.trim().length <= 20) c3++;
+    }
+    var usePattern = null;
+    if (c1 >= threshold1) usePattern = function(l){ return p1.test(l) && l.trim().length <= 30; };
+    else if (c2 >= 3) usePattern = function(l){ return p2.test(l); };
+    else if (c3 >= threshold3) usePattern = function(l){ return p3.test(l) && l.trim().length <= 20; };
+    if (usePattern) {
+        var chapters = [];
+        var curTitle = '', curLines = [];
+        for (var i = 0; i < lines.length; i++) {
+            if (usePattern(lines[i])) {
+                if (curTitle || curLines.length > 0) {
+                    chapters.push({ title: curTitle, content: curLines.join('\n') });
+                }
+                curTitle = lines[i].trim();
+                curLines = [];
+            } else {
+                curLines.push(lines[i]);
+            }
+        }
+        if (curTitle || curLines.length > 0) chapters.push({ title: curTitle, content: curLines.join('\n') });
+        if (chapters.length >= 3) return chapters;
+    }
+    // Fallback: split by ~2000 chars
+    var chapters = [];
+    var chunk = '';
+    var idx = 0;
+    for (var i = 0; i < lines.length; i++) {
+        chunk += lines[i] + '\n';
+        if (chunk.length >= 2000) {
+            chapters.push({ title: '\u7B2C' + (++idx) + '\u7AE0', content: chunk });
+            chunk = '';
+        }
+    }
+    if (chunk) chapters.push({ title: '\u7B2C' + (++idx) + '\u7AE0', content: chunk });
+    return chapters;
+}
+
+function delBook(idx) {
+    if (confirm('\u5220\u9664\u300A' + books[idx].title + '\u300B\uFF1F')) {
+        books.splice(idx, 1);
+        saveData();
+        renderShelf();
+    }
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function toast(msg) {
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;z-index:999';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 2000);
+}
+
+// === Init ===
+loadData();
+loadMetaFromFile();
+renderShelf();
 </script>
-</body></html>
+</body>
+</html>
