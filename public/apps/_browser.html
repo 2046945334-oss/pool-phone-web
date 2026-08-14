@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>浏览器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #f8f5fa; height: 100vh; display: flex; flex-direction: column; }
+.search-bar { display: flex; align-items: center; gap: 8px; padding: 12px; background: #fff; border-bottom: 1px solid #eee; }
+.search-input { flex: 1; padding: 10px 14px; border-radius: 20px; border: 1.5px solid #e0d6e8; font-size: 14px; outline: none; background: #faf8fc; }
+.search-input:focus { border-color: #b38fd9; }
+.search-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: #9b6fbf; color: #fff; font-size: 16px; cursor: pointer; }
+.quick-links { padding: 20px 16px; }
+.quick-title { font-size: 13px; color: #999; margin-bottom: 12px; }
+.links-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.link-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
+.link-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.link-name { font-size: 11px; color: #666; }
+.history-section { flex: 1; padding: 16px; overflow-y: auto; }
+.history-title { font-size: 13px; color: #999; margin-bottom: 8px; display: flex; justify-content: space-between; }
+.history-clear { color: #b38fd9; cursor: pointer; font-size: 12px; }
+.history-list { display: flex; flex-direction: column; gap: 6px; }
+.history-item { padding: 10px 12px; background: #fff; border-radius: 10px; font-size: 13px; color: #333; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.history-item .time { font-size: 11px; color: #aaa; }
+.empty-hint { text-align: center; color: #ccc; padding: 40px 0; font-size: 13px; }
+</style>
+</head><body>
+<div class="search-bar">
+  <input class="search-input" id="searchInput" placeholder="搜索或输入网址..." />
+  <button class="search-btn" onclick="doSearch()">→</button>
+</div>
+
+<div class="quick-links">
+  <div class="quick-title">快捷访问</div>
+  <div class="links-grid">
+    <div class="link-item" onclick="go('https://www.baidu.com')">
+      <div class="link-icon">🔍</div>
+      <span class="link-name">百度</span>
+    </div>
+    <div class="link-item" onclick="go('https://www.bilibili.com')">
+      <div class="link-icon">📺</div>
+      <span class="link-name">B站</span>
+    </div>
+    <div class="link-item" onclick="go('https://www.zhihu.com')">
+      <div class="link-icon">💡</div>
+      <span class="link-name">知乎</span>
+    </div>
+    <div class="link-item" onclick="go('https://www.douban.com')">
+      <div class="link-icon">📗</div>
+      <span class="link-name">豆瓣</span>
+    </div>
+    <div class="link-item" onclick="go('https://music.163.com')">
+      <div class="link-icon">🎵</div>
+      <span class="link-name">网易云</span>
+    </div>
+    <div class="link-item" onclick="go('https://www.github.com')">
+      <div class="link-icon">🐙</div>
+      <span class="link-name">GitHub</span>
+    </div>
+    <div class="link-item" onclick="go('https://www.taobao.com')">
+      <div class="link-icon">🛒</div>
+      <span class="link-name">淘宝</span>
+    </div>
+    <div class="link-item" onclick="go('https://translate.google.com')">
+      <div class="link-icon">🌐</div>
+      <span class="link-name">翻译</span>
+    </div>
+  </div>
+</div>
+
+<div class="history-section">
+  <div class="history-title">
+    <span>最近搜索</span>
+    <span class="history-clear" onclick="clearHistory()">清空</span>
+  </div>
+  <div class="history-list" id="historyList">
+    <div class="empty-hint">暂无搜索记录</div>
+  </div>
+</div>
+
+<script>
+const STORE_KEY = 'pool_browser_history'
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || [] } catch { return [] }
+}
+
+function saveHistory(list) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(list.slice(0, 20)))
+}
+
+function renderHistory() {
+  const list = getHistory()
+  const el = document.getElementById('historyList')
+  if (!list.length) { el.innerHTML = '<div class="empty-hint">暂无搜索记录</div>'; return }
+  el.innerHTML = list.map(h => `
+    <div class="history-item" onclick="doSearchText('${h.query.replace(/'/g,"\\'")}')">
+      <span>${h.query}</span>
+      <span class="time">${h.time}</span>
+    </div>
+  `).join('')
+}
+
+function doSearch() {
+  const input = document.getElementById('searchInput')
+  const q = input.value.trim()
+  if (!q) return
+  doSearchText(q)
+}
+
+function doSearchText(q) {
+  // Save to history
+  const list = getHistory()
+  list.unshift({ query: q, time: new Date().toLocaleString('zh-CN', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) })
+  // Dedupe
+  const seen = new Set()
+  const deduped = list.filter(h => { if (seen.has(h.query)) return false; seen.add(h.query); return true })
+  saveHistory(deduped)
+  
+  // If it looks like a URL, open directly
+  if (/^https?:\/\//i.test(q) || /^[a-z0-9][-a-z0-9]*\.[a-z]{2,}/i.test(q)) {
+    const url = q.startsWith('http') ? q : 'https://' + q
+    window.open(url, '_blank')
+  } else {
+    // Search with Bing
+    window.open('https://www.bing.com/search?q=' + encodeURIComponent(q), '_blank')
+  }
+  renderHistory()
+}
+
+function go(url) {
+  window.open(url, '_blank')
+}
+
+function clearHistory() {
+  localStorage.removeItem(STORE_KEY)
+  renderHistory()
+}
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch()
+})
+
+renderHistory()
+</script>
+</body></html>

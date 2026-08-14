@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>阅读</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #faf8f5; height: 100vh; display: flex; flex-direction: column; }
+.header { padding: 16px; background: #fff; border-bottom: 1px solid #f0ebe3; display: flex; justify-content: space-between; align-items: center; }
+.header h2 { font-size: 17px; color: #5a4a3a; font-weight: 600; }
+.add-btn { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #d4c5b0; background: none; font-size: 18px; color: #8b7355; cursor: pointer; }
+.tabs { display: flex; padding: 0 16px; background: #fff; gap: 16px; border-bottom: 1px solid #f0ebe3; }
+.tab { padding: 10px 0; font-size: 13px; color: #999; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: #8b7355; border-color: #8b7355; }
+.content { flex: 1; overflow-y: auto; padding: 16px; }
+.book-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.book-cover { width: 50px; height: 68px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+.book-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.book-title { font-size: 14px; font-weight: 500; color: #333; }
+.book-author { font-size: 11px; color: #aaa; margin-top: 3px; }
+.book-progress { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.progress-bar { flex: 1; height: 4px; background: #f0ebe3; border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #c9a96e, #8b7355); border-radius: 2px; transition: width 0.3s; }
+.progress-text { font-size: 10px; color: #aaa; white-space: nowrap; }
+.book-actions { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.book-actions button { border: none; background: none; font-size: 16px; cursor: pointer; padding: 4px; }
+.quote-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid #c9a96e; }
+.quote-text { font-size: 13px; color: #555; line-height: 1.7; font-style: italic; }
+.quote-source { font-size: 11px; color: #aaa; margin-top: 8px; text-align: right; }
+.empty { text-align: center; color: #ccc; padding: 60px 0; font-size: 13px; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 10; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 16px; padding: 24px; width: 85%; max-width: 320px; }
+.modal h3 { font-size: 15px; color: #333; margin-bottom: 16px; }
+.modal input, .modal textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #e8e0d5; border-radius: 10px; font-size: 13px; margin-bottom: 10px; outline: none; font-family: inherit; }
+.modal input:focus, .modal textarea:focus { border-color: #c9a96e; }
+.modal textarea { resize: none; height: 80px; }
+.modal-btns { display: flex; gap: 10px; margin-top: 8px; }
+.modal-btns button { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 13px; cursor: pointer; }
+.btn-cancel { background: #f5f0eb; color: #999; }
+.btn-save { background: #8b7355; color: #fff; }
+</style>
+</head><body>
+<div class="header">
+  <h2>📖 书架</h2>
+  <button class="add-btn" onclick="showAddModal()">+</button>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">在读</div>
+  <div class="tab" onclick="switchTab(1)">摘录</div>
+  <div class="tab" onclick="switchTab(2)">已读完</div>
+</div>
+<div class="content" id="content"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">添加书籍</h3>
+    <input id="inputTitle" placeholder="书名" />
+    <input id="inputAuthor" placeholder="作者（可选）" />
+    <div id="quoteField" style="display:none">
+      <textarea id="inputQuote" placeholder="摘录内容"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" onclick="saveModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE = 'pool_reader_data'
+const coverColors = ['#f3e8d8','#e3d5f0','#d5eae3','#f5e1e1','#dde8f5','#f5f0d5','#e8e0d5','#d8f0e8']
+const coverEmojis = ['📕','📗','📘','📙','📓','📒','📔','📖']
+
+function getData() {
+  try { return JSON.parse(localStorage.getItem(STORE)) || { books: [], quotes: [] } }
+  catch { return { books: [], quotes: [] } }
+}
+function saveData(d) { localStorage.setItem(STORE, JSON.stringify(d)) }
+
+let currentTab = 0
+let modalMode = 'book' // 'book' or 'quote'
+
+function switchTab(idx) {
+  currentTab = idx
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i === idx))
+  render()
+}
+
+function showAddModal() {
+  if (currentTab === 1) {
+    modalMode = 'quote'
+    document.getElementById('modalTitle').textContent = '添加摘录'
+    document.getElementById('inputTitle').placeholder = '出处（书名/文章）'
+    document.getElementById('inputAuthor').placeholder = '作者'
+    document.getElementById('quoteField').style.display = 'block'
+  } else {
+    modalMode = 'book'
+    document.getElementById('modalTitle').textContent = '添加书籍'
+    document.getElementById('inputTitle').placeholder = '书名'
+    document.getElementById('inputAuthor').placeholder = '作者（可选）'
+    document.getElementById('quoteField').style.display = 'none'
+  }
+  document.getElementById('inputTitle').value = ''
+  document.getElementById('inputAuthor').value = ''
+  document.getElementById('inputQuote').value = ''
+  document.getElementById('modal').classList.add('show')
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show')
+}
+
+function saveModal() {
+  const title = document.getElementById('inputTitle').value.trim()
+  if (!title) return
+  const author = document.getElementById('inputAuthor').value.trim()
+  const data = getData()
+  
+  if (modalMode === 'quote') {
+    const quote = document.getElementById('inputQuote').value.trim()
+    if (!quote) return
+    data.quotes.unshift({ text: quote, source: title + (author ? ' · ' + author : ''), date: new Date().toLocaleDateString('zh-CN') })
+  } else {
+    const colorIdx = data.books.length % coverColors.length
+    data.books.push({
+      id: Date.now().toString(),
+      title, author,
+      progress: 0,
+      done: false,
+      color: coverColors[colorIdx],
+      emoji: coverEmojis[colorIdx],
+      addedAt: new Date().toLocaleDateString('zh-CN')
+    })
+  }
+  saveData(data)
+  closeModal()
+  render()
+}
+
+function updateProgress(id, delta) {
+  const data = getData()
+  const book = data.books.find(b => b.id === id)
+  if (!book) return
+  book.progress = Math.max(0, Math.min(100, book.progress + delta))
+  if (book.progress >= 100) book.done = true
+  saveData(data)
+  render()
+}
+
+function removeBook(id) {
+  const data = getData()
+  data.books = data.books.filter(b => b.id !== id)
+  saveData(data)
+  render()
+}
+
+function render() {
+  const data = getData()
+  const el = document.getElementById('content')
+  
+  if (currentTab === 0) {
+    const reading = data.books.filter(b => !b.done)
+    if (!reading.length) {
+      el.innerHTML = '<div class="empty">还没有在读的书<br>点右上角 + 添加一本吧</div>'
+      return
+    }
+    el.innerHTML = reading.map(b => `
+      <div class="book-card">
+        <div class="book-cover" style="background:${b.color}">${b.emoji}</div>
+        <div class="book-info">
+          <div class="book-title">${b.title}</div>
+          ${b.author ? `<div class="book-author">${b.author}</div>` : ''}
+          <div class="book-progress">
+            <div class="progress-bar"><div class="progress-fill" style="width:${b.progress}%"></div></div>
+            <span class="progress-text">${b.progress}%</span>
+          </div>
+        </div>
+        <div class="book-actions">
+          <button onclick="updateProgress('${b.id}', 10)" title="读了一些">📖</button>
+          <button onclick="removeBook('${b.id}')" title="移除">🗑️</button>
+        </div>
+      </div>
+    `).join('')
+  } else if (currentTab === 1) {
+    if (!data.quotes.length) {
+      el.innerHTML = '<div class="empty">还没有摘录<br>记下触动你的句子吧</div>'
+      return
+    }
+    el.innerHTML = data.quotes.map(q => `
+      <div class="quote-card">
+        <div class="quote-text">"${q.text}"</div>
+        <div class="quote-source">— ${q.source}${q.date ? ' · ' + q.date : ''}</div>
+      </div>
+    `).join('')
+  } else {
+    const done = data.books.filter(b => b.done)
+    if (!done.length) {
+      el.innerHTML = '<div class="empty">还没有读完的书<br>继续加油 💪</div>'
+      return
+    }
+    el.innerHTML = done.map(b => `
+      <div class="book-card">
+        <div class="book-cover" style="background:${b.color}">${b.emoji}</div>
+        <div class="book-info">
+          <div class="book-title">${b.title}</div>
+          ${b.author ? `<div class="book-author">${b.author}</div>` : ''}
+          <div class="book-progress">
+            <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+            <span class="progress-text">✓ 已读完</span>
+          </div>
+        </div>
+        <div class="book-actions">
+          <button onclick="removeBook('${b.id}')" title="移除">🗑️</button>
+        </div>
+      </div>
+    `).join('')
+  }
+}
+
+render()
+</script>
+</body></html>

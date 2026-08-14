@@ -1263,7 +1263,7 @@ function EmotionMonitor() {
 
 function AppContent({ appId, onBack }) {
   const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行', memoryMgr:'记忆管理' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', browser:'_browser.html', reader:'_reader.html', travel:'_travel.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
   return (
