@@ -1,22 +1,16 @@
 // pages/api/emotion.js - 完整情绪系统API
 import { getDb } from '../../lib/db'
-
-let engine, lexicon, rater, attachment
-try {
-  engine = require('../../lib/emotion/engine')
-  lexicon = require('../../lib/emotion/lexicon')
-  rater = require('../../lib/emotion/rater')
-  attachment = require('../../lib/emotion/attachment')
-} catch(e) {
-  console.error('emotion modules load error:', e.message)
-}
+import { computeMood, computeLonging, getTodayDecoration, buildMoodPrompt, TRAIT } from '../../lib/emotion/engine.js'
+import { LEXICON, lookup } from '../../lib/emotion/lexicon.js'
+import { RATING_PROMPT, shouldRateNow } from '../../lib/emotion/rater.js'
+import { DEFAULT_BOND, getUnlockedFunctions, updateBond, getLoveType, detectReunion, reunionBoost, getLevel } from '../../lib/emotion/attachment.js'
 
 function getState(db) {
   const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_emotion_state')
   if (!row) return {
     pa: 0.35, na: 0.10, events: [],
     lastUserMsg: null, prevLastUserMsg: null,
-    bond: attachment ? { ...attachment.DEFAULT_BOND } : { intimacy: 55, passion: 45, commitment: 35 },
+    bond: { ...DEFAULT_BOND },
     consecutiveDown: 0,
   }
   try { return JSON.parse(row.value) } catch { return { pa: 0.35, na: 0.10, events: [], lastUserMsg: null, prevLastUserMsg: null, bond: { intimacy: 55, passion: 45, commitment: 35 }, consecutiveDown: 0 } }
@@ -31,19 +25,19 @@ export default function handler(req, res) {
 
   if (req.method === 'GET') {
     const state = getState(db)
-    const mood = engine ? engine.computeMood(state.events || [], state) : { pa: state.pa || 0.35, na: state.na || 0.10 }
-    const bond = state.bond || (attachment ? { ...attachment.DEFAULT_BOND } : { intimacy: 55, passion: 45, commitment: 35 })
-    const longing = engine ? engine.computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
-    const decoration = engine ? engine.getTodayDecoration() : null
-    const moodPrompt = engine ? engine.buildMoodPrompt(mood, longing) : ''
-    const reunion = attachment ? attachment.detectReunion(state.lastUserMsg, state.prevLastUserMsg) : null
+    const mood = computeMood(state.events || [], state) : { pa: state.pa || 0.35, na: state.na || 0.10 }
+    const bond = state.bond || ({ ...DEFAULT_BOND })
+    const longing = computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
+    const decoration = getTodayDecoration() : null
+    const moodPrompt = buildMoodPrompt(mood, longing) : ''
+    const reunion = detectReunion(state.lastUserMsg, state.prevLastUserMsg) : null
     let reunionPrompt = null
     if (reunion && reunion.isReunion && longing.phase !== 'content') {
-      reunionPrompt = attachment.reunionBoost(longing.longing, longing.phase).prompt
+      reunionPrompt = reunionBoost(longing.longing, longing.phase).prompt
     }
-    const loveType = attachment ? attachment.getLoveType(bond) : 'unknown'
-    const unlockedFns = attachment ? attachment.getUnlockedFunctions(bond) : {}
-    const level = attachment ? attachment.getLevel(bond) : Math.round((bond.intimacy + bond.passion + bond.commitment) / 3)
+    const loveType = getLoveType(bond) : 'unknown'
+    const unlockedFns = getUnlockedFunctions(bond) : {}
+    const level = getLevel(bond) : Math.round((bond.intimacy + bond.passion + bond.commitment) / 3)
 
     return res.status(200).json({
       pa: mood.pa, na: mood.na,
@@ -57,13 +51,13 @@ export default function handler(req, res) {
   if (req.method === 'POST') {
     const { action } = req.body
     const state = getState(db)
-    if (!state.bond) state.bond = attachment ? { ...attachment.DEFAULT_BOND } : { intimacy: 55, passion: 45, commitment: 35 }
+    if (!state.bond) state.bond = { ...DEFAULT_BOND }
 
     if (action === 'rate') {
       const { word, backup, ai_v, ai_a, importance, type, interaction_type } = req.body
-      let lexEntry = lexicon ? lexicon.lookup(word) : null
+      let lexEntry = lookup(word) : null
       if (!lexEntry && backup) {
-        for (const bw of backup) { lexEntry = lexicon ? lexicon.lookup(bw) : null; if (lexEntry) break }
+        for (const bw of backup) { lexEntry = lookup(bw) : null; if (lexEntry) break }
       }
       let finalV, finalA
       if (lexEntry) {
@@ -74,7 +68,7 @@ export default function handler(req, res) {
       const desir = req.body.desirability || 0
       const event = { word, v: finalV, a: finalA, importance: importance || 5, type: type || 'secondary', ts: Date.now(), source: lexEntry ? lexEntry.source : 'free_form' }
       state.events = [...(state.events || []).slice(-29), event]
-      const mood = engine ? engine.computeMood(state.events, state) : { pa: state.pa, na: state.na }
+      const mood = computeMood(state.events, state) : { pa: state.pa, na: state.na }
       if (Math.abs(goalR) > 0.3) {
         const occ = goalR * desir * 0.1
         if (occ > 0) mood.pa = Math.min(1, mood.pa + occ)
@@ -82,15 +76,15 @@ export default function handler(req, res) {
       }
       if (mood.na > 0.5 && mood.pa < 0.2) {
         state.consecutiveDown = (state.consecutiveDown || 0) + 1
-        if (state.consecutiveDown >= 3 && engine) {
-          mood.pa += (engine.TRAIT.mu_pa - mood.pa) * 0.5
-          mood.na += (engine.TRAIT.mu_na - mood.na) * 0.5
+        if (state.consecutiveDown >= 3) {
+          mood.pa += (TRAIT.mu_pa - mood.pa) * 0.5
+          mood.na += (TRAIT.mu_na - mood.na) * 0.5
           state.consecutiveDown = 0
         }
       } else { state.consecutiveDown = 0 }
       state.pa = mood.pa; state.na = mood.na
-      if (interaction_type && attachment) {
-        state.bond = attachment.updateBond(state.bond, { type: interaction_type, intensity: Math.abs(finalV) + finalA * 0.5 })
+      if (interaction_type) {
+        state.bond = updateBond(state.bond, { type: interaction_type, intensity: Math.abs(finalV) + finalA * 0.5 })
       }
       saveState(db, state)
       return res.status(200).json({ ok: true, event, mood, bond: state.bond, lexMatch: !!lexEntry })
@@ -99,13 +93,13 @@ export default function handler(req, res) {
     if (action === 'user_active') {
       state.prevLastUserMsg = state.lastUserMsg
       state.lastUserMsg = Date.now()
-      if (attachment && state.prevLastUserMsg) {
-        const reunion = attachment.detectReunion(state.lastUserMsg, state.prevLastUserMsg)
-        const bond = state.bond || attachment.DEFAULT_BOND
+      if (state.prevLastUserMsg) {
+        const reunion = detectReunion(state.lastUserMsg, state.prevLastUserMsg)
+        const bond = state.bond || DEFAULT_BOND
         if (reunion && reunion.isReunion) {
-          const longing = engine ? engine.computeLonging(state.prevLastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
+          const longing = computeLonging(state.prevLastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
           if (longing.phase !== 'content') {
-            const rb = attachment.reunionBoost(longing.longing, longing.phase)
+            const rb = reunionBoost(longing.longing, longing.phase)
             state.pa = Math.min(1, (state.pa || 0.35) + rb.pa_boost)
             state.bond.intimacy = Math.min(100, state.bond.intimacy + 0.1)
           }
@@ -116,24 +110,24 @@ export default function handler(req, res) {
     }
 
     if (action === 'snapshot') {
-      const mood = engine ? engine.computeMood(state.events || [], state) : { pa: state.pa, na: state.na }
-      const bond = state.bond || (attachment ? attachment.DEFAULT_BOND : { intimacy: 55, passion: 45, commitment: 35 })
-      const longing = engine ? engine.computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
-      const moodPrompt = engine ? engine.buildMoodPrompt(mood, longing) : ''
+      const mood = computeMood(state.events || [], state) : { pa: state.pa, na: state.na }
+      const bond = state.bond || (DEFAULT_BOND : { intimacy: 55, passion: 45, commitment: 35 })
+      const longing = computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
+      const moodPrompt = buildMoodPrompt(mood, longing) : ''
       let reunionPrompt = null
-      if (attachment && state.prevLastUserMsg) {
-        const reunion = attachment.detectReunion(state.lastUserMsg, state.prevLastUserMsg)
+      if (state.prevLastUserMsg) {
+        const reunion = detectReunion(state.lastUserMsg, state.prevLastUserMsg)
         if (reunion && reunion.isReunion && longing.phase !== 'content') {
-          reunionPrompt = attachment.reunionBoost(longing.longing, longing.phase).prompt
+          reunionPrompt = reunionBoost(longing.longing, longing.phase).prompt
         }
       }
-      return res.status(200).json({ mood, longing, moodPrompt, reunionPrompt, bond, loveType: attachment ? attachment.getLoveType(bond) : 'unknown', level: attachment ? attachment.getLevel(bond) : 45 })
+      return res.status(200).json({ mood, longing, moodPrompt, reunionPrompt, bond, loveType: getLoveType(bond) : 'unknown', level: getLevel(bond) : 45 })
     }
 
     if (action === 'funnel_scan') {
       const { text } = req.body
-      if (!rater || !lexicon) return res.status(200).json({ shouldRate: false })
-      const reason = rater.shouldRateNow(text, lexicon.LEXICON, state.pa || 0.35, state.na || 0.10)
+      if (false) return res.status(200).json({ shouldRate: false })
+      const reason = shouldRateNow(text, LEXICON, state.pa || 0.35, state.na || 0.10)
       return res.status(200).json({ shouldRate: !!reason, reason, type: reason ? 'primary' : null })
     }
 
@@ -157,7 +151,7 @@ export default function handler(req, res) {
     }
 
     if (action === 'get_rating_prompt') {
-      return res.status(200).json({ prompt: rater ? rater.RATING_PROMPT : '' })
+      return res.status(200).json({ prompt: RATING_PROMPT : '' })
     }
 
     return res.status(400).json({ error: 'unknown action' })
