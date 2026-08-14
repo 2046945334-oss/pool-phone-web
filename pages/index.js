@@ -61,7 +61,7 @@ function ChatView({ theme }) {
     if (!overrideMessages) { setMessages(newMessages); setInput(''); return }
     // Only trigger AI when explicitly called with overrideMessages
     setLoading(true)
-    const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+    const cfg = getApiConfig('chat')
     if (!cfg.apiBase || !cfg.apiKey) {
       setMessages([...newMessages, { role: 'assistant', content: '\u8bf7\u5148\u5728\u7cfb\u7edfApp\u4e2d\u914d\u7f6eAPI' }])
       setLoading(false); return
