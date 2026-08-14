@@ -83,8 +83,11 @@ function ChatView({ theme }) {
 
     // Memory context from Ombre Brain
     if (memoryContext) {
-      parts.push({ role: 'system', content: '[记忆浮现]\n' + memoryContext })
+      parts.push({ role: 'system', content: '[长期记忆]\n' + memoryContext })
     }
+
+    // Recall from OB based on latest user message
+    // (async recall happens in sendMessage, stored in memoryContext)
 
     // Custom memory entries (keyword/regex/always)
     try {
@@ -118,6 +121,14 @@ function ChatView({ theme }) {
       setMessages([...newMessages, { role: 'assistant', content: '\u8bf7\u5148\u5728\u7cfb\u7edfApp\u4e2d\u914d\u7f6eAPI' }])
       setLoading(false); return
     }
+    // Recall relevant memories from OB before sending
+    try {
+      const lastUserContent = newMessages.filter(m=>m.role==='user').slice(-1)[0]?.content || ''
+      if (lastUserContent) {
+        const recall = await callMemory('recall', { query: lastUserContent })
+        if (recall?.result?.content?.[0]?.text) setMemoryContext(recall.result.content[0].text)
+      }
+    } catch {}
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -218,7 +229,7 @@ function ChatView({ theme }) {
     setMenuIdx(-1)
     const cfg = getApiConfig('memory')
     if (!cfg.apiBase || !cfg.apiKey) return
-    const memPrompt = [{ role: 'system', content: '\u4ece\u4ee5\u4e0b\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u503c\u5f97\u8bb0\u4f4f\u7684\u5173\u952e\u4fe1\u606f\uff08\u7528\u6237\u504f\u597d\u3001\u91cd\u8981\u4e8b\u5b9e\u3001\u51b3\u5b9a\u7b49\uff09\uff0c\u7528\u7b80\u77ed\u7684\u5217\u8868\u5f62\u5f0f\u8f93\u51fa\u3002' }, ...messages]
+    const memPrompt = [{ role: 'system', content: '从以下对话中提取值得记住的关键信息（用户偏好、重要事实、决定等）。每条记忆用一行输出，格式为"关键词: 内容"。只输出记忆条目，不要其他文字。' }, ...messages.slice(-20)]
     setLoading(true)
     try {
       const res = await fetch('/api/chat', {
@@ -227,12 +238,29 @@ function ChatView({ theme }) {
       })
       const data = await res.json()
       if (data.reply) {
-        const memories = JSON.parse(localStorage.getItem('pool_memories') || '[]')
-        memories.push({ time: new Date().toLocaleString(), content: data.reply })
-        localStorage.setItem('pool_memories', JSON.stringify(memories))
-        setMessages([...messages, { role: 'system', content: '[\u8bb0\u5fc6\u5df2\u63d0\u53d6] ' + data.reply }])
+        // Parse extracted memories into entries
+        const lines = data.reply.split('\n').filter(l => l.trim())
+        const newEntries = lines.map(line => {
+          const colonIdx = line.indexOf(':')
+          const keyword = colonIdx > 0 ? line.slice(0, colonIdx).replace(/^[-*\d.]\s*/, '').trim() : line.trim()
+          const content = colonIdx > 0 ? line.slice(colonIdx + 1).trim() : line.trim()
+          return { keyword, content, type: 'always', id: Date.now() + Math.random(), enabled: true, source: 'ai_extracted', time: new Date().toLocaleString() }
+        })
+
+        // Add to memory entries list
+        const existing = JSON.parse(localStorage.getItem('pool_memory_entries') || '[]')
+        const updated = [...existing, ...newEntries]
+        localStorage.setItem('pool_memory_entries', JSON.stringify(updated))
+        syncToBackend('pool_memory_entries', updated)
+
+        // Also write to Ombre Brain
+        callMemory('hold', { content: data.reply })
+
+        setMessages([...messages, { role: 'system', content: '[记忆已提取] ' + newEntries.length + '条新记忆已保存\n' + data.reply }])
       }
-    } catch {}
+    } catch(e) {
+      setMessages([...messages, { role: 'system', content: '记忆提取失败: ' + e.message }])
+    }
     setLoading(false)
   }
 
@@ -857,6 +885,7 @@ function MemoryPanel() {
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
                   <span style={{color:'#c77dba',fontSize:'12px',fontWeight:'bold'}}>
                     {entry.type==='keyword'?'\ud83d\udd11':entry.type==='regex'?'\ud83d\udcdd':'\ud83d\udccc'} {entry.keyword}
+                    {entry.source==='ai_extracted' && <span style={{color:'#888',fontSize:'10px',marginLeft:'6px'}}>{'🤖 AI提取'}{entry.time?' · '+entry.time:''}</span>}
                   </span>
                   <div style={{display:'flex',gap:'6px'}}>
                     <button onClick={()=>toggleEntry(entry.id)} style={{background:'none',border:'none',color:entry.enabled?'#4a4':'#888',cursor:'pointer',fontSize:'12px'}}>{entry.enabled?'\u2705':'\u274c'}</button>
