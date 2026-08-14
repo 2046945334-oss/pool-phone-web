@@ -622,20 +622,13 @@ function ThemePanel() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = async () => {
-      const img = new Image()
-      img.onload = async () => {
-        const c = document.createElement('canvas')
-        c.width = 64; c.height = 64
-        c.getContext('2d').drawImage(img, 0, 0, 64, 64)
-        const dataUrl = c.toDataURL('image/jpeg', 0.6)
-        try {
-          const res = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: dataUrl }) })
-          const d = await res.json()
-          if (d.url) setNested(group, key, d.url)
-          else setNested(group, key, dataUrl)
-        } catch { setNested(group, key, dataUrl) }
-      }
-      img.src = reader.result
+      // Upload original quality - no compression needed since stored on backend
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: reader.result }) })
+        const d = await res.json()
+        if (d.url) setNested(group, key, d.url)
+        else setNested(group, key, reader.result)
+      } catch { setNested(group, key, reader.result) }
     }
     reader.readAsDataURL(file)
   }
