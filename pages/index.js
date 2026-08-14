@@ -2,38 +2,36 @@ import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 
 // 语音条组件 - AI发送[voice]标记时渲染为可播放语音条
-function VoiceBubble({ text, ttsConfig }) {
+function VoiceBubble({ text }) {
   const [audioUrl, setAudioUrl] = useState(null)
   const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
   const [duration, setDuration] = useState(0)
   const audioRef = useRef(null)
   
   async function loadAudio() {
-    if (audioUrl || loading) return
-    if (!ttsConfig?.enabled || !ttsConfig?.apiKey || !ttsConfig?.groupId) return
+    if (audioUrl || loading || failed) return
     setLoading(true)
     try {
-      const region = ttsConfig.region || 'china'
-      const base = ttsConfig.endpoint || (region === 'global' ? 'https://api.minimaxi.chat' : 'https://api.minimax.chat')
-      const model = ttsConfig.model || 'speech-02-hd'
-      const voice = ttsConfig.voiceId || 'female-tianmei'
-      const res = await fetch(`${base}/v1/t2a_v2?GroupId=${ttsConfig.groupId}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ttsConfig.apiKey}` },
-        body: JSON.stringify({ model, text: text.slice(0, 500), stream: false, voice_setting: { voice_id: voice, speed: 1.0, vol: 1.0, pitch: 0 }, audio_setting: { format: 'mp3', sample_rate: 32000 } })
+      const res = await fetch('/api/tts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.slice(0, 500) })
       })
       const data = await res.json()
-      if (data?.data?.audio) {
-        const url = 'data:audio/mp3;base64,' + data.data.audio
+      if (data?.audio) {
+        const url = 'data:audio/mp3;base64,' + data.audio
         setAudioUrl(url)
-        // estimate duration from text length
         setDuration(Math.max(2, Math.ceil(text.length / 4)))
+      } else {
+        setFailed(true)
       }
-    } catch (e) { console.warn('TTS error:', e) }
+    } catch (e) { console.warn('TTS error:', e); setFailed(true) }
     setLoading(false)
   }
 
   function togglePlay() {
+    if (failed) return
     if (!audioUrl) { loadAudio(); return }
     if (playing) {
       audioRef.current?.pause()
@@ -47,19 +45,16 @@ function VoiceBubble({ text, ttsConfig }) {
     }
   }
 
-  // Auto-load on mount
-  useEffect(() => { loadAudio() }, [])
-
   const barWidths = [3,5,8,12,8,5,3,6,10,7,4,8,11,6,3,5,9,7,4]
   return (
     <div onClick={togglePlay} style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',minWidth:'120px',padding:'4px 0'}}>
-      <span style={{fontSize:'18px'}}>{loading ? '⏳' : playing ? '⏸' : '▶️'}</span>
+      <span style={{fontSize:'18px'}}>{loading ? '⏳' : failed ? '❌' : playing ? '⏸' : '▶️'}</span>
       <div style={{display:'flex',alignItems:'center',gap:'1.5px',height:'24px',flex:1}}>
         {barWidths.map((h,i) => (
           <div key={i} style={{width:'2.5px',height:`${h*2}px`,borderRadius:'1.5px',background:playing?'#c77dba':'rgba(200,125,186,0.5)',transition:'all 0.3s',animation:playing?`voiceWave 0.6s ${i*0.05}s infinite alternate`:undefined}} />
         ))}
       </div>
-      <span style={{fontSize:'11px',color:'#999',minWidth:'20px'}}>{duration}″</span>
+      <span style={{fontSize:'11px',color:'#999',minWidth:'20px'}}>{duration ? `${duration}″` : ''}</span>
     </div>
   )
 }
@@ -449,7 +444,7 @@ function ChatView({ theme }) {
             ) : (
               <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
                 {msg.content.includes('[voice]') ? 
-                  msg.content.split(/\[voice\](.*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part && <span key={j}>{part}</span>) : <VoiceBubble key={j} text={part} ttsConfig={ttsConfig} />) 
+                  msg.content.split(/\[voice\](.*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part && <span key={j}>{part}</span>) : <VoiceBubble key={j} text={part} />) 
                 : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
               </div>
             )}
