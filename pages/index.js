@@ -260,12 +260,17 @@ function ChatView({ theme }) {
       }
       const reply = data.reply || '\u65e0\u54cd\u5e94'
       // Split reply into sentences and show one by one
-      const sentences = reply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
+      // Protect [voice]...[/voice] blocks from being split
+      const voiceBlocks = []
+      const safeReply = reply.replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, (m) => { voiceBlocks.push(m); return `__VOICE_${voiceBlocks.length-1}__` })
+      const sentences = safeReply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
+      // Restore voice blocks
+      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]))
       let current = [...newMessages]
-      for (let i = 0; i < sentences.length; i++) {
-        current = [...current, { role: 'assistant', content: sentences[i].trim() }]
+      for (let i = 0; i < restored.length; i++) {
+        current = [...current, { role: 'assistant', content: restored[i].trim() }]
         setMessages([...current])
-        if (i < sentences.length - 1) await new Promise(r => setTimeout(r, 600))
+        if (i < restored.length - 1) await new Promise(r => setTimeout(r, 600))
       }
       if (data.reply) {
         const lastUser = newMessages[newMessages.length - 1]?.content || ''
@@ -526,8 +531,8 @@ function LockScreen({ onUnlock, theme }) {
 function ThemePanel() {
   const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
   const [saved, setSaved] = useState(false)
-  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel']
-  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u5360\u535c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c'}
+  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel','memoryMgr']
+  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u5360\u535c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406'}
 
   function save() {
     try {
@@ -544,38 +549,42 @@ function ThemePanel() {
 
   const [showPresets, setShowPresets] = useState(false)
   const [presetNames, setPresetNames] = useState([])
-  useEffect(() => { if (showPresets) { loadFromBackend('pool_theme_presets').then(p => setPresetNames(Object.keys(p||{}))) } }, [showPresets])
+  useEffect(() => { if (showPresets) { try { const p = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}'); setPresetNames(Object.keys(p)) } catch {} } }, [showPresets])
 
   function savePreset() {
     const name = prompt('\u7ed9\u8fd9\u4e2a\u4e3b\u9898\u8d77\u4e2a\u540d\u5b57:')
     if (!name) return
     const lite = {...theme}
     delete lite.icons
-    loadFromBackend('pool_theme_presets').then(old => {
-      const presets = old || {}
-      presets[name] = lite
-      syncToBackend('pool_theme_presets', presets).then(() => {
-        setPresetNames(Object.keys(presets))
-        setShowPresets(true)
-        alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
-      })
-    })
+    // Save to both localStorage and backend
+    try {
+      const existing = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
+      existing[name] = lite
+      localStorage.setItem('pool_theme_presets', JSON.stringify(existing))
+      syncToBackend('pool_theme_presets', existing)
+      setPresetNames(Object.keys(existing))
+      setShowPresets(true)
+      alert('\u5df2\u4fdd\u5b58\u9884\u8bbe: ' + name)
+    } catch (e) {
+      alert('\u4fdd\u5b58\u5931\u8d25: ' + e.message)
+    }
   }
 
   function loadPreset(name) {
-    loadFromBackend('pool_theme_presets').then(presets => {
-      if (presets && presets[name]) { setTheme(presets[name]); setShowPresets(false) }
-    })
+    try {
+      const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
+      if (presets[name]) { setTheme(presets[name]); setShowPresets(false) }
+    } catch {}
   }
 
   function deletePreset(name) {
-    loadFromBackend('pool_theme_presets').then(presets => {
-      if (!presets) return
+    try {
+      const presets = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
       delete presets[name]
+      localStorage.setItem('pool_theme_presets', JSON.stringify(presets))
       syncToBackend('pool_theme_presets', presets)
-      setShowPresets(false)
-      setTimeout(() => setShowPresets(true), 50)
-    })
+      setPresetNames(Object.keys(presets))
+    } catch {}
   }
 
   function handleImageUpload(key, e) {
@@ -1399,9 +1408,9 @@ export default function Home() {
         .msg-bubble { max-width: 72%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
         .msg-bubble.user { background: #c77dba; color: #fff; border-bottom-right-radius: 4px; }
         .msg-bubble.assistant { background: #1f1f1f; color: #e0e0e0; border-bottom-left-radius: 4px; }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid #1a1a1a; background: #111; flex-shrink: 0; }
-        .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #2a2a3e; color: #e0e0e0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; border: 1px solid #3a3a4e; }
-        .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: #1a1a2e; border-top: 1px solid #2a2a3e; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid rgba(200,125,186,0.2); background: rgba(255,240,248,0.92); flex-shrink: 0; }
+        .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(200,125,186,0.15); color: #c77dba; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; border: 1px solid rgba(200,125,186,0.3); }
+        .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: rgba(255,240,248,0.95); border-top: 1px solid rgba(200,125,186,0.2); }
         .emoji-item { font-size: 22px; cursor: pointer; padding: 4px; border-radius: 6px; }
         .emoji-item:hover { background: #2a2a3e; }
         .fetch-models-btn { padding: 6px 10px; background: #c77dba; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
