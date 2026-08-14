@@ -397,7 +397,16 @@ function ChatView({ theme }) {
     setMenuIdx(-1)
     const cfg = getApiConfig('memory')
     if (!cfg.apiBase || !cfg.apiKey) return
-    const memPrompt = [{ role: 'system', content: '从以下对话中提取值得记住的关键信息（用户偏好、重要事实、决定等）。每条记忆用一行输出，格式为"关键词: 内容"。只输出记忆条目，不要其他文字。' }, ...messages.slice(-20)]
+const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔细阅读以下对话，尽可能多地提取值得记住的信息。包括但不限于：
+- 用户提到的事件（生日、聚会、旅行等）
+- 用户的喜好和习惯（喜欢吃什么、做什么）
+- 人物关系（朋友、家人等）
+- 情感状态和心情
+- 重要决定或计划
+- 地点、时间等具体细节
+- 任何有趣的或值得回忆的内容
+
+每条记忆独占一行，格式为"关键词: 内容"。尽量多提取，不要遗漏。只输出记忆条目，不要其他文字。` }, ...messages.filter(m => m.role !== 'system').slice(-30)]
     setLoading(true)
     try {
       const res = await fetch('/api/chat', {
