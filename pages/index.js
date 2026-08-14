@@ -678,7 +678,7 @@ function SettingsPanel() {
           <input value={ttsConfig.endpoint||''} onChange={e=>setTtsConfig(c=>({...c,endpoint:e.target.value}))} placeholder="https://your-proxy.com" className="settings-input"/>
         </div>
         <div className="settings-item"><label>{'\u97f3\u8272 ID (Voice ID)'}</label>
-          <input value={ttsConfig.voiceId||''} onChange={e=>setTtsConfig(c=>({...c,voiceId:e.target.value}))} placeholder="\u97f3\u8272\u7f16\u53f7" className="settings-input"/>
+          <input value={ttsConfig.voiceId||''} onChange={e=>setTtsConfig(c=>({...c,voiceId:e.target.value}))} placeholder="音色编号" className="settings-input"/>
         </div>
       </div>
 
@@ -763,7 +763,7 @@ function MemoryPanel() {
           <input value={memCfg.bucketId||''} onChange={e=>setMemCfg(c=>({...c,bucketId:e.target.value}))} placeholder="bucket_xxx" className="settings-input"/>
         </div>
         <div className="settings-item"><label>{'\u7ba1\u7406\u5458\u5bc6\u94a5'}</label>
-          <input type="password" value={memCfg.adminKey||''} onChange={e=>setMemCfg(c=>({...c,adminKey:e.target.value}))} placeholder="\u7528\u4e8e\u5199\u5165/\u5220\u9664\u8bb0\u5fc6" className="settings-input"/>
+          <input type="password" value={memCfg.adminKey||''} onChange={e=>setMemCfg(c=>({...c,adminKey:e.target.value}))} placeholder="用于写入/删除记忆" className="settings-input"/>
         </div>
       </div>
 
@@ -783,7 +783,7 @@ function MemoryPanel() {
             <input value={newEntry.keyword} onChange={e=>setNewEntry(n=>({...n,keyword:e.target.value}))} placeholder={newEntry.type==='always'?'\u6761\u76ee\u540d\u79f0':'\u89e6\u53d1\u8bcd'} className="settings-input"/>
           </div>
           <div className="settings-item"><label>{'\u5185\u5bb9'}</label>
-            <textarea value={newEntry.content} onChange={e=>setNewEntry(n=>({...n,content:e.target.value}))} placeholder="\u8bb0\u5fc6\u5185\u5bb9..." className="settings-input" style={{minHeight:'60px',resize:'vertical',fontFamily:'inherit'}}/>
+            <textarea value={newEntry.content} onChange={e=>setNewEntry(n=>({...n,content:e.target.value}))} placeholder="记忆内容..." className="settings-input" style={{minHeight:'60px',resize:'vertical',fontFamily:'inherit'}}/>
           </div>
           <button className="settings-save" style={{width:'100%',marginTop:'6px'}} onClick={addEntry}>{'\u2795 \u6dfb\u52a0\u6761\u76ee'}</button>
         </div>
@@ -813,7 +813,7 @@ function MemoryPanel() {
       <div className="settings-section">
         <h3 className="settings-title">{'\u9ad8\u7ea7\u8bbe\u5b9a'}</h3>
         <div className="settings-item"><label>{'\u81ea\u5b9a\u4e49\u4e0a\u4e0b\u6587\u6a21\u677f'}</label>
-          <textarea value={memCfg.customTemplate||''} onChange={e=>setMemCfg(c=>({...c,customTemplate:e.target.value}))} placeholder="\u81ea\u5b9a\u4e49\u4e0a\u4e0b\u6587\u538b\u7f29\u6a21\u677f\uff08\u7a7a=\u4f7f\u7528\u9ed8\u8ba4\uff09" className="settings-input" style={{minHeight:'80px',resize:'vertical',fontFamily:'inherit'}}/>
+          <textarea value={memCfg.customTemplate||''} onChange={e=>setMemCfg(c=>({...c,customTemplate:e.target.value}))} placeholder="自定义上下文压缩模板（空=使用默认）" className="settings-input" style={{minHeight:'80px',resize:'vertical',fontFamily:'inherit'}}/>
         </div>
         <div className="settings-item"><label>{'\u81ea\u5b9a\u4e49\u4e0a\u4e0b\u6587\u5b57\u6570'}</label>
           <input type="number" value={memCfg.customContextTokens||1317} onChange={e=>setMemCfg(c=>({...c,customContextTokens:parseInt(e.target.value)||1317}))} className="settings-input" style={{width:'100px'}}/>
