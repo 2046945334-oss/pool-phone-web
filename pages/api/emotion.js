@@ -321,11 +321,6 @@ function buildMoodPrompt(moodState, longingState) {
   return `【当下心情状态】\n${parts.join('\n')}\n（自然融入回答中，不要主动点破这些状态。预设心情是背景色，用户当前这条消息才是前景——前景优先。）`
 }
 
-  getTodayDecoration, DECORATION_POOL,
-  powerLawWeight, computeMood, TRAIT,
-  computeLonging, buildMoodPrompt,
-  almaFilter,
-}
 
 // ========== RATER ==========
 // 情绪评分器 - AI选词 + 词典给坐标
@@ -501,13 +496,8 @@ function getLevel(bond) {
   return Math.round((bond.intimacy + bond.passion + bond.commitment) / 3)
 }
 
-  DEFAULT_BOND, ATTACHMENT_STYLES, CHARACTER_ATTACHMENT,
-  getUnlockedFunctions, updateBond, passionDecay,
-  getLoveType, detectReunion, reunionBoost, getLevel,
-}
 
 // ========== API HANDLER ==========
- from '../../lib/db'
 
 function getState(db) {
   const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_emotion_state')
@@ -529,19 +519,19 @@ export default function handler(req, res) {
 
   if (req.method === 'GET') {
     const state = getState(db)
-    const mood = computeMood(state.events || [], state) : { pa: state.pa || 0.35, na: state.na || 0.10 }
+    const mood = computeMood(state.events || [], state)
     const bond = state.bond || ({ ...DEFAULT_BOND })
-    const longing = computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
-    const decoration = getTodayDecoration() : null
-    const moodPrompt = buildMoodPrompt(mood, longing) : ''
-    const reunion = detectReunion(state.lastUserMsg, state.prevLastUserMsg) : null
+    const longing = computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment)
+    const decoration = getTodayDecoration()
+    const moodPrompt = buildMoodPrompt(mood, longing)
+    const reunion = detectReunion(state.lastUserMsg, state.prevLastUserMsg)
     let reunionPrompt = null
     if (reunion && reunion.isReunion && longing.phase !== 'content') {
       reunionPrompt = reunionBoost(longing.longing, longing.phase).prompt
     }
-    const loveType = getLoveType(bond) : 'unknown'
-    const unlockedFns = getUnlockedFunctions(bond) : {}
-    const level = getLevel(bond) : Math.round((bond.intimacy + bond.passion + bond.commitment) / 3)
+    const loveType = getLoveType(bond)
+    const unlockedFns = getUnlockedFunctions(bond)
+    const level = getLevel(bond)
 
     return res.status(200).json({
       pa: mood.pa, na: mood.na,
@@ -559,9 +549,9 @@ export default function handler(req, res) {
 
     if (action === 'rate') {
       const { word, backup, ai_v, ai_a, importance, type, interaction_type } = req.body
-      let lexEntry = lookup(word) : null
+      let lexEntry = lookup(word)
       if (!lexEntry && backup) {
-        for (const bw of backup) { lexEntry = lookup(bw) : null; if (lexEntry) break }
+        for (const bw of backup) { lexEntry = lookup(bw); if (lexEntry) break }
       }
       let finalV, finalA
       if (lexEntry) {
@@ -572,7 +562,7 @@ export default function handler(req, res) {
       const desir = req.body.desirability || 0
       const event = { word, v: finalV, a: finalA, importance: importance || 5, type: type || 'secondary', ts: Date.now(), source: lexEntry ? lexEntry.source : 'free_form' }
       state.events = [...(state.events || []).slice(-29), event]
-      const mood = computeMood(state.events, state) : { pa: state.pa, na: state.na }
+      const mood = computeMood(state.events, state)
       if (Math.abs(goalR) > 0.3) {
         const occ = goalR * desir * 0.1
         if (occ > 0) mood.pa = Math.min(1, mood.pa + occ)
@@ -601,7 +591,7 @@ export default function handler(req, res) {
         const reunion = detectReunion(state.lastUserMsg, state.prevLastUserMsg)
         const bond = state.bond || DEFAULT_BOND
         if (reunion && reunion.isReunion) {
-          const longing = computeLonging(state.prevLastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
+          const longing = computeLonging(state.prevLastUserMsg, bond.intimacy, bond.passion, bond.commitment)
           if (longing.phase !== 'content') {
             const rb = reunionBoost(longing.longing, longing.phase)
             state.pa = Math.min(1, (state.pa || 0.35) + rb.pa_boost)
@@ -614,10 +604,10 @@ export default function handler(req, res) {
     }
 
     if (action === 'snapshot') {
-      const mood = computeMood(state.events || [], state) : { pa: state.pa, na: state.na }
-      const bond = state.bond || (DEFAULT_BOND : { intimacy: 55, passion: 45, commitment: 35 })
-      const longing = computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment) : { longing: 0, phase: 'content' }
-      const moodPrompt = buildMoodPrompt(mood, longing) : ''
+      const mood = computeMood(state.events || [], state)
+      const bond = state.bond || ({ ...DEFAULT_BOND })
+      const longing = computeLonging(state.lastUserMsg, bond.intimacy, bond.passion, bond.commitment)
+      const moodPrompt = buildMoodPrompt(mood, longing)
       let reunionPrompt = null
       if (state.prevLastUserMsg) {
         const reunion = detectReunion(state.lastUserMsg, state.prevLastUserMsg)
@@ -625,7 +615,7 @@ export default function handler(req, res) {
           reunionPrompt = reunionBoost(longing.longing, longing.phase).prompt
         }
       }
-      return res.status(200).json({ mood, longing, moodPrompt, reunionPrompt, bond, loveType: getLoveType(bond) : 'unknown', level: getLevel(bond) : 45 })
+      return res.status(200).json({ mood, longing, moodPrompt, reunionPrompt, bond, loveType: getLoveType(bond), level: getLevel(bond) })
     }
 
     if (action === 'funnel_scan') {
@@ -655,7 +645,7 @@ export default function handler(req, res) {
     }
 
     if (action === 'get_rating_prompt') {
-      return res.status(200).json({ prompt: RATING_PROMPT : '' })
+      return res.status(200).json({ prompt: RATING_PROMPT })
     }
 
     return res.status(400).json({ error: 'unknown action' })
