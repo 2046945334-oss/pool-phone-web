@@ -21,13 +21,18 @@ function VoiceBubble({ text }) {
       })
       const data = await res.json()
       if (data?.audio) {
-        const url = 'data:audio/mp3;base64,' + data.audio
+        // Convert base64 to Blob URL for better browser compatibility
+        const byteChars = atob(data.audio)
+        const byteArr = new Uint8Array(byteChars.length)
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i)
+        const blob = new Blob([byteArr], { type: 'audio/mp3' })
+        const url = URL.createObjectURL(blob)
         setAudioUrl(url)
         const audio = new Audio(url)
         audioRef.current = audio
         audio.onended = () => setPlaying(false)
         audio.onloadedmetadata = () => { if (audio.duration) setDuration(Math.round(audio.duration)) }
-        audio.play().catch(() => {})
+        audio.play().catch(() => { setFailed(true) })
         setPlaying(true)
       } else { setFailed(true) }
     } catch { setFailed(true) }
