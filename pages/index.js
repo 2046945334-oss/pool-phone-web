@@ -997,6 +997,9 @@ function MemoryPanel() {
 
   function removeEntry(id) { setEntries(e => e.filter(x => x.id !== id)) }
   function toggleEntry(id) { setEntries(e => e.map(x => x.id === id ? {...x, enabled: !x.enabled} : x)) }
+  const [showEntries, setShowEntries] = useState(false)
+  const aiEntries = entries.filter(e => e.source === 'ai_extracted')
+  const manualEntries = entries.filter(e => e.source !== 'ai_extracted')
 
   return (
     <div className="settings-panel">
@@ -1056,8 +1059,8 @@ function MemoryPanel() {
           <div style={{color:'#666',fontSize:'12px',textAlign:'center',padding:'20px'}}>{'\u6682\u65e0\u81ea\u5b9a\u4e49\u8bb0\u5fc6\u6761\u76ee'}</div>
         ) : (
           <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
-            {entries.map(entry => (
-              <div key={entry.id} style={{background:'#f0ecf0',borderRadius:'8px',padding:'10px',border:entry.enabled?'1px solid #3a3a5e':'1px solid #2a2a3e',opacity:entry.enabled?1:0.5}}>
+            {manualEntries.map(entry => (
+              <div key={entry.id} style={{background:'#f0ecf0',borderRadius:'8px',padding:'10px',border:'1px solid #e8dce8',opacity:entry.enabled?1:0.5}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
                   <span style={{color:'#c77dba',fontSize:'12px',fontWeight:'bold'}}>
                     {entry.type==='keyword'?'\ud83d\udd11':entry.type==='regex'?'\ud83d\udcdd':'\ud83d\udccc'} {entry.keyword}
@@ -1071,6 +1074,27 @@ function MemoryPanel() {
                 <div style={{color:'#777',fontSize:'11px',lineHeight:'1.4',whiteSpace:'pre-wrap',maxHeight:'80px',overflow:'auto'}}>{entry.content}</div>
               </div>
             ))}
+            {aiEntries.length > 0 && (
+              <div style={{background:'#f0ecf0',borderRadius:'8px',border:'1px solid #e8dce8',overflow:'hidden',marginTop:'6px'}}>
+                <div onClick={() => setShowEntries(!showEntries)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',cursor:'pointer'}}>
+                  <span style={{color:'#9b5da0',fontSize:'13px',fontWeight:'500'}}>{'🤖 AI提取的记忆 (' + aiEntries.length + '条)'}</span>
+                  <span style={{color:'#999',fontSize:'12px'}}>{showEntries ? '▼' : '▶'}</span>
+                </div>
+                {showEntries && aiEntries.map(entry => (
+                  <div key={entry.id} style={{padding:'8px 12px',borderTop:'1px solid #e8dce8',opacity:entry.enabled?1:0.5}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'2px'}}>
+                      <span style={{color:'#c77dba',fontSize:'11px',fontWeight:'bold'}}>{'📌 ' + entry.keyword}</span>
+                      <div style={{display:'flex',gap:'4px'}}>
+                        <button onClick={()=>toggleEntry(entry.id)} style={{background:'none',border:'none',color:entry.enabled?'#4a4':'#888',cursor:'pointer',fontSize:'11px'}}>{entry.enabled?'✅':'❌'}</button>
+                        <button onClick={()=>removeEntry(entry.id)} style={{background:'none',border:'none',color:'#c44',cursor:'pointer',fontSize:'11px'}}>{'🗑'}</button>
+                      </div>
+                    </div>
+                    <div style={{color:'#777',fontSize:'10px',lineHeight:'1.3'}}>{entry.content}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
         )}
       </div>
