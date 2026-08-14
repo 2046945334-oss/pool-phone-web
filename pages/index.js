@@ -1088,6 +1088,7 @@ function EmotionMonitor() {
       <div style={{color:'#555',fontSize:'10px',textAlign:'center'}}>情绪事件: {data.events_count}/30</div>
     </div>
   )
+}
 
 function AppContent({ appId, onBack }) {
   const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行', memoryMgr:'记忆管理' }
