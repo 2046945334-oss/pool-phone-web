@@ -443,8 +443,8 @@ function ChatView({ theme }) {
               </div>
             ) : (
               <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
-                {msg.content.includes('[voice]') ? 
-                  msg.content.split(/\[voice\](.*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part && <span key={j}>{part}</span>) : <VoiceBubble key={j} text={part} />) 
+{msg.content.includes('[voice]') && msg.content.includes('[/voice]') && /\[voice\].*?\[\/voice\]/s.test(msg.content) ? 
+                  msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{part}</span> : null) : <VoiceBubble key={j} text={part} />) 
                 : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
               </div>
             )}
