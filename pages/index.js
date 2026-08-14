@@ -523,11 +523,11 @@ function SettingsPanel() {
     { key: 'chat', label: '\u5bf9\u8bdd\u529f\u80fd', desc: '\u4e3b\u8981\u7684AI\u5bf9\u8bdd' },
     { key: 'summary', label: '\u4e0a\u4e0b\u6587\u603b\u7ed3', desc: '\u538b\u7f29\u4e0a\u4e0b\u6587\uff0c\u751f\u6210\u6458\u8981' },
     { key: 'memory', label: '\u8bb0\u5fc6\u63d0\u53d6', desc: '\u4ece\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u5173\u952e\u4fe1\u606f' },
-    { key: 'tts', label: '\u8bed\u97f3\u751f\u6210 (TTS)', desc: 'AI\u56de\u590d\u8f6c\u8bed\u97f3\uff08\u53ef\u914d\u7f6eMiniMax\u7b49\uff09' },
   ]
   const [configs, setConfigs] = useState(() => JSON.parse(localStorage.getItem('pool_api_configs') || '{}'))
   const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
   const [modelList, setModelList] = useState([])
+  const [ttsConfig, setTtsConfig] = useState(() => JSON.parse(localStorage.getItem('pool_tts_config') || '{}'))
   const [expandedKey, setExpandedKey] = useState(null)
   const [saved, setSaved] = useState(false)
   // MCP state
@@ -539,6 +539,8 @@ function SettingsPanel() {
   function saveAll() {
     localStorage.setItem('pool_api_config', JSON.stringify(defaultCfg))
     localStorage.setItem('pool_api_configs', JSON.stringify(configs))
+    localStorage.setItem('pool_tts_config', JSON.stringify(ttsConfig))
+    syncToBackend('pool_tts_config', ttsConfig)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
@@ -638,6 +640,38 @@ function SettingsPanel() {
         )
       })}
 
+      <div className="settings-section" style={{marginTop:'20px'}}>
+        <h3 className="settings-title">{'\ud83c\udfb5 \u8bed\u97f3\u751f\u6210'}</h3>
+        <p className="settings-desc">{'\u914d\u7f6eMiniMax\u7b49TTS\u670d\u52a1'}</p>
+        <div className="settings-item"><label>{'\u542f\u7528\u8bed\u97f3\u751f\u6210'}</label>
+          <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+            <input type="checkbox" checked={ttsConfig.enabled||false} onChange={e=>setTtsConfig(c=>({...c,enabled:e.target.checked}))} />
+            <span style={{color:'#aaa',fontSize:'12px'}}>{ttsConfig.enabled?'\u5df2\u542f\u7528':'\u672a\u542f\u7528'}</span>
+          </div>
+        </div>
+        <div className="settings-item"><label>{'Group ID'}</label>
+          <input value={ttsConfig.groupId||''} onChange={e=>setTtsConfig(c=>({...c,groupId:e.target.value}))} placeholder="19903205627689XXXX" className="settings-input"/>
+        </div>
+        <div className="settings-item"><label>{'API Key'}</label>
+          <input type="password" value={ttsConfig.apiKey||''} onChange={e=>setTtsConfig(c=>({...c,apiKey:e.target.value}))} placeholder="API\u5bc6\u94a5" className="settings-input"/>
+        </div>
+        <div className="settings-item"><label>{'\u8bed\u97f3\u6a21\u578b'}</label>
+          <input value={ttsConfig.model||''} onChange={e=>setTtsConfig(c=>({...c,model:e.target.value}))} placeholder="Speech-2.8 HD (\u6700\u65b0)" className="settings-input"/>
+        </div>
+        <div className="settings-item"><label>{'\u670d\u52a1\u533a\u57df'}</label>
+          <select value={ttsConfig.region||'china'} onChange={e=>setTtsConfig(c=>({...c,region:e.target.value}))} className="settings-input" style={{padding:'8px'}}>
+            <option value="china">{'\u4e2d\u56fd\u7248 (China)'}</option>
+            <option value="global">{'\u56fd\u9645\u7248 (Global)'}</option>
+          </select>
+        </div>
+        <div className="settings-item"><label>{'\u81ea\u5b9a\u4e49\u7aef\u70b9'}</label>
+          <input value={ttsConfig.endpoint||''} onChange={e=>setTtsConfig(c=>({...c,endpoint:e.target.value}))} placeholder="https://your-proxy.com" className="settings-input"/>
+        </div>
+        <div className="settings-item"><label>{'\u97f3\u8272 ID (Voice ID)'}</label>
+          <input value={ttsConfig.voiceId||''} onChange={e=>setTtsConfig(c=>({...c,voiceId:e.target.value}))} placeholder="\u97f3\u8272\u7f16\u53f7" className="settings-input"/>
+        </div>
+      </div>
+
       <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
 
       <div className="settings-section" style={{marginTop:'20px'}}>
@@ -672,9 +706,118 @@ function SettingsPanel() {
     </div>
   )
 }
+
+function MemoryPanel() {
+  const [memCfg, setMemCfg] = useState(() => JSON.parse(localStorage.getItem('pool_memory_config') || '{}'))
+  const [entries, setEntries] = useState(() => JSON.parse(localStorage.getItem('pool_memory_entries') || '[]'))
+  const [saved, setSaved] = useState(false)
+  const [newEntry, setNewEntry] = useState({ keyword: '', content: '', type: 'keyword' })
+
+  function saveMemory() {
+    localStorage.setItem('pool_memory_config', JSON.stringify(memCfg))
+    localStorage.setItem('pool_memory_entries', JSON.stringify(entries))
+    syncToBackend('pool_memory_config', memCfg)
+    syncToBackend('pool_memory_entries', entries)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  function addEntry() {
+    if (!newEntry.keyword.trim()) return
+    setEntries(e => [...e, { ...newEntry, id: Date.now(), enabled: true }])
+    setNewEntry({ keyword: '', content: '', type: 'keyword' })
+  }
+
+  function removeEntry(id) { setEntries(e => e.filter(x => x.id !== id)) }
+  function toggleEntry(id) { setEntries(e => e.map(x => x.id === id ? {...x, enabled: !x.enabled} : x)) }
+
+  return (
+    <div className="settings-panel">
+      <h2 className="settings-header">{'\ud83e\udde0 \u8bb0\u5fc6\u7ba1\u7406'}</h2>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'\u4e0a\u4e0b\u6587\u8bbe\u5b9a'}</h3>
+        <div className="settings-item"><label>{'\u4e0a\u4e0b\u6587\u957f\u5ea6'}</label>
+          <input type="number" value={memCfg.contextLength||200} onChange={e=>setMemCfg(c=>({...c,contextLength:parseInt(e.target.value)||200}))} className="settings-input" style={{width:'80px'}}/>
+        </div>
+        <div className="settings-item"><label>{'\u4e0a\u4e0b\u6587\u538b\u7f29\u542f\u7528'}</label>
+          <input type="checkbox" checked={memCfg.compressEnabled!==false} onChange={e=>setMemCfg(c=>({...c,compressEnabled:e.target.checked}))} />
+        </div>
+        <div className="settings-item"><label>{'\u6d6e\u73b0\u5185\u5b58\u4e0a\u9650'}</label>
+          <input type="number" value={memCfg.surfaceLimit||40} onChange={e=>setMemCfg(c=>({...c,surfaceLimit:parseInt(e.target.value)||40}))} className="settings-input" style={{width:'80px'}}/>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'\u8bb0\u5fc6\u5e93\u8fde\u63a5'}</h3>
+        <div className="settings-item"><label>{'\u8bb0\u5fc6Bucket ID'}</label>
+          <input value={memCfg.bucketId||''} onChange={e=>setMemCfg(c=>({...c,bucketId:e.target.value}))} placeholder="bucket_xxx" className="settings-input"/>
+        </div>
+        <div className="settings-item"><label>{'\u7ba1\u7406\u5458\u5bc6\u94a5'}</label>
+          <input type="password" value={memCfg.adminKey||''} onChange={e=>setMemCfg(c=>({...c,adminKey:e.target.value}))} placeholder="\u7528\u4e8e\u5199\u5165/\u5220\u9664\u8bb0\u5fc6" className="settings-input"/>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'\u81ea\u5b9a\u4e49\u8bb0\u5fc6\u6761\u76ee'}</h3>
+        <p className="settings-desc">{'\u6dfb\u52a0\u5173\u952e\u8bcd\u89e6\u53d1\u6216\u5e38\u9a7b\u7684\u8bb0\u5fc6\u6761\u76ee'}</p>
+        
+        <div style={{background:'#1a1a2e',borderRadius:'8px',padding:'10px',marginBottom:'12px'}}>
+          <div className="settings-item"><label>{'\u89e6\u53d1\u65b9\u5f0f'}</label>
+            <select value={newEntry.type} onChange={e=>setNewEntry(n=>({...n,type:e.target.value}))} className="settings-input" style={{padding:'6px',width:'auto'}}>
+              <option value="keyword">{'\u5173\u952e\u8bcd\u5339\u914d'}</option>
+              <option value="regex">{'\u6b63\u5219\u8868\u8fbe\u5f0f'}</option>
+              <option value="always">{'\u5e38\u9a7b\u6fc0\u6d3b'}</option>
+            </select>
+          </div>
+          <div className="settings-item"><label>{'\u5173\u952e\u8bcd/\u89c4\u5219'}</label>
+            <input value={newEntry.keyword} onChange={e=>setNewEntry(n=>({...n,keyword:e.target.value}))} placeholder={newEntry.type==='always'?'\u6761\u76ee\u540d\u79f0':'\u89e6\u53d1\u8bcd'} className="settings-input"/>
+          </div>
+          <div className="settings-item"><label>{'\u5185\u5bb9'}</label>
+            <textarea value={newEntry.content} onChange={e=>setNewEntry(n=>({...n,content:e.target.value}))} placeholder="\u8bb0\u5fc6\u5185\u5bb9..." className="settings-input" style={{minHeight:'60px',resize:'vertical',fontFamily:'inherit'}}/>
+          </div>
+          <button className="settings-save" style={{width:'100%',marginTop:'6px'}} onClick={addEntry}>{'\u2795 \u6dfb\u52a0\u6761\u76ee'}</button>
+        </div>
+
+        {entries.length === 0 ? (
+          <div style={{color:'#888',fontSize:'12px',textAlign:'center',padding:'20px'}}>{'\u6682\u65e0\u81ea\u5b9a\u4e49\u8bb0\u5fc6\u6761\u76ee'}</div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+            {entries.map(entry => (
+              <div key={entry.id} style={{background:'#1a1a2e',borderRadius:'8px',padding:'10px',border:entry.enabled?'1px solid #3a3a5e':'1px solid #2a2a3e',opacity:entry.enabled?1:0.5}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
+                  <span style={{color:'#c77dba',fontSize:'12px',fontWeight:'bold'}}>
+                    {entry.type==='keyword'?'\ud83d\udd11':entry.type==='regex'?'\ud83d\udcdd':'\ud83d\udccc'} {entry.keyword}
+                  </span>
+                  <div style={{display:'flex',gap:'6px'}}>
+                    <button onClick={()=>toggleEntry(entry.id)} style={{background:'none',border:'none',color:entry.enabled?'#4a4':'#888',cursor:'pointer',fontSize:'12px'}}>{entry.enabled?'\u2705':'\u274c'}</button>
+                    <button onClick={()=>removeEntry(entry.id)} style={{background:'none',border:'none',color:'#c44',cursor:'pointer',fontSize:'12px'}}>{'\ud83d\uddd1'}</button>
+                  </div>
+                </div>
+                <div style={{color:'#aaa',fontSize:'11px',lineHeight:'1.4',whiteSpace:'pre-wrap',maxHeight:'80px',overflow:'auto'}}>{entry.content}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'\u9ad8\u7ea7\u8bbe\u5b9a'}</h3>
+        <div className="settings-item"><label>{'\u81ea\u5b9a\u4e49\u4e0a\u4e0b\u6587\u6a21\u677f'}</label>
+          <textarea value={memCfg.customTemplate||''} onChange={e=>setMemCfg(c=>({...c,customTemplate:e.target.value}))} placeholder="\u81ea\u5b9a\u4e49\u4e0a\u4e0b\u6587\u538b\u7f29\u6a21\u677f\uff08\u7a7a=\u4f7f\u7528\u9ed8\u8ba4\uff09" className="settings-input" style={{minHeight:'80px',resize:'vertical',fontFamily:'inherit'}}/>
+        </div>
+        <div className="settings-item"><label>{'\u81ea\u5b9a\u4e49\u4e0a\u4e0b\u6587\u5b57\u6570'}</label>
+          <input type="number" value={memCfg.customContextTokens||1317} onChange={e=>setMemCfg(c=>({...c,customContextTokens:parseInt(e.target.value)||1317}))} className="settings-input" style={{width:'100px'}}/>
+        </div>
+      </div>
+
+      <button className="settings-save" onClick={saveMemory}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u8bb0\u5fc6\u914d\u7f6e'}</button>
+    </div>
+  )
+}
+
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', system:'__settings__', theme:'__theme__' }
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'番茄钟', theme:'美化', travel:'旅行', memoryMgr:'记忆管理' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
   return (
@@ -687,6 +830,8 @@ function AppContent({ appId, onBack }) {
         <div className="app-page-body"><SettingsPanel /></div>
       ) : htmlFile === '__theme__' ? (
         <div className="app-page-body"><ThemePanel /></div>
+      ) : htmlFile === '__memory__' ? (
+        <div className="app-page-body"><MemoryPanel /></div>
       ) : htmlFile ? (
         <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
       ) : (
@@ -715,6 +860,7 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'game', icon: '/icons/game.png', name: '\u665a\u5b89' },
     { id: 'theme', icon: '/icons/theme.png', name: '\u7f8e\u5316' },
     { id: 'travel', icon: '/icons/notifications.png', name: '\u65c5\u884c' },
+    { id: 'memoryMgr', icon: '/icons/system.png', name: '\u8bb0\u5fc6' },
   ]
   const icons = theme?.icons || {}
   const getIcon = (app) => icons[app.id] || app.icon
