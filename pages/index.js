@@ -58,6 +58,13 @@ function ChatView({ theme }) {
       if (d.notifications) localStorage.setItem('pool_notifications', JSON.stringify(d.notifications))
     }).catch(()=>{})
   }, [])
+  const [moodPrompt, setMoodPrompt] = useState('')
+  // Load emotion snapshot on init
+  useEffect(() => {
+    fetch('/api/emotion').then(r=>r.json()).then(d => {
+      if (d.moodPrompt) setMoodPrompt(d.moodPrompt)
+    }).catch(()=>{})
+  }, [])
 
   // Build system prompt with character + memory entries
   function buildSystemMessages(userMessages) {
@@ -110,6 +117,11 @@ function ChatView({ theme }) {
 
     parts.push({ role: 'system', content: contextInfo })
 
+    // Mood/emotion state from emotion engine
+    if (moodPrompt) {
+      parts.push({ role: 'system', content: moodPrompt })
+    }
+
     // Memory context from Ombre Brain
     if (memoryContext) {
       parts.push({ role: 'system', content: '[长期记忆]\n' + memoryContext })
@@ -157,6 +169,12 @@ function ChatView({ theme }) {
         const recall = await callMemory('recall', { query: lastUserContent })
         if (recall?.result?.content?.[0]?.text) setMemoryContext(recall.result.content[0].text)
       }
+    } catch {}
+    // Notify emotion system user is active + refresh mood
+    try {
+      fetch('/api/emotion', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'user_active'}) })
+      const snap = await fetch('/api/emotion').then(r=>r.json())
+      if (snap.moodPrompt) setMoodPrompt(snap.moodPrompt)
     } catch {}
     try {
       const res = await fetch('/api/chat', {
