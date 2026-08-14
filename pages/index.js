@@ -329,6 +329,15 @@ function ChatView({ theme }) {
     } catch (e) {
       setMessages([...newMessages, { role: 'assistant', content: '\u51fa\u9519: ' + e.message }])
     }
+    // Auto extract memories every 10 user messages
+    try {
+      const userMsgCount = messages.filter(m => m.role === 'user').length
+      const lastExtract = parseInt(localStorage.getItem('pool_last_extract_count') || '0')
+      if (userMsgCount - lastExtract >= 10) {
+        localStorage.setItem('pool_last_extract_count', String(userMsgCount))
+        extractMemory(true) // silent auto-extract
+      }
+    } catch {}
     setLoading(false)
   }
 
@@ -393,7 +402,7 @@ function ChatView({ theme }) {
     setLoading(false)
   }
 
-  async function extractMemory() {
+  async function extractMemory(silent = false) {
     setMenuIdx(-1)
     const cfg = getApiConfig('memory')
     if (!cfg.apiBase || !cfg.apiKey) return
@@ -407,7 +416,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
 - 任何有趣的或值得回忆的内容
 
 每条记忆独占一行，格式为"关键词: 内容"。尽量多提取，不要遗漏。只输出记忆条目，不要其他文字。` }, ...messages.filter(m => m.role !== 'system').slice(-30)]
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -433,12 +442,12 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         // Also write to Ombre Brain
         callMemory('hold', { content: data.reply })
 
-        setMessages([...messages, { role: 'system', content: '[记忆已提取] ' + newEntries.length + '条新记忆已保存' }])
+        if (!silent) setMessages([...messages, { role: 'system', content: '[记忆已提取] ' + newEntries.length + '条新记忆已保存' }])
       }
     } catch(e) {
-      setMessages([...messages, { role: 'system', content: '记忆提取失败: ' + e.message }])
+      if (!silent) setMessages([...messages, { role: 'system', content: '记忆提取失败: ' + e.message }])
     }
-    setLoading(false)
+    if (!silent) setLoading(false)
   }
 
   function clearChat() { setMessages([]); setMenuIdx(-1) }
