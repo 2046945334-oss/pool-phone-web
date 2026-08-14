@@ -7,36 +7,37 @@ function VoiceBubble({ text }) {
   const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
-  const [duration, setDuration] = useState(0)
+  const [duration, setDuration] = useState(() => Math.max(2, Math.ceil((text||'').length / 4)))
   const audioRef = useRef(null)
   
-  async function loadAudio() {
-    if (audioUrl || loading || failed) return
+  async function loadAndPlay() {
+    if (loading) return
+    if (audioUrl) { togglePlay(); return }
     setLoading(true)
     try {
       const res = await fetch('/api/tts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.slice(0, 500) })
+        body: JSON.stringify({ text: (text||'').slice(0, 500) })
       })
       const data = await res.json()
       if (data?.audio) {
         const url = 'data:audio/mp3;base64,' + data.audio
         setAudioUrl(url)
-        setDuration(Math.max(2, Math.ceil(text.length / 4)))
-      } else {
-        setFailed(true)
-      }
-    } catch (e) { console.warn('TTS error:', e); setFailed(true) }
+        const audio = new Audio(url)
+        audioRef.current = audio
+        audio.onended = () => setPlaying(false)
+        audio.onloadedmetadata = () => { if (audio.duration) setDuration(Math.round(audio.duration)) }
+        audio.play().catch(() => {})
+        setPlaying(true)
+      } else { setFailed(true) }
+    } catch { setFailed(true) }
     setLoading(false)
   }
 
   function togglePlay() {
-    if (failed) return
-    if (!audioUrl) { loadAudio(); return }
-    if (playing) {
-      audioRef.current?.pause()
-      setPlaying(false)
-    } else {
+    if (!audioUrl) return
+    if (playing) { audioRef.current?.pause(); setPlaying(false) }
+    else {
       const audio = new Audio(audioUrl)
       audioRef.current = audio
       audio.onended = () => setPlaying(false)
@@ -45,16 +46,21 @@ function VoiceBubble({ text }) {
     }
   }
 
-  const barWidths = [3,5,8,12,8,5,3,6,10,7,4,8,11,6,3,5,9,7,4]
+  // If failed, just show the text
+  if (failed) return <span style={{fontStyle:'italic',color:'#999'}}>{text}</span>
+
+  const bars = [3,5,8,12,8,5,3,6,10,7,4,8,11,6,3,5,9,7,4]
   return (
-    <div onClick={togglePlay} style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',minWidth:'120px',padding:'4px 0'}}>
-      <span style={{fontSize:'18px'}}>{loading ? '⏳' : failed ? '❌' : playing ? '⏸' : '▶️'}</span>
-      <div style={{display:'flex',alignItems:'center',gap:'1.5px',height:'24px',flex:1}}>
-        {barWidths.map((h,i) => (
-          <div key={i} style={{width:'2.5px',height:`${h*2}px`,borderRadius:'1.5px',background:playing?'#c77dba':'rgba(200,125,186,0.5)',transition:'all 0.3s',animation:playing?`voiceWave 0.6s ${i*0.05}s infinite alternate`:undefined}} />
+    <div onClick={loadAndPlay} style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',minWidth:'140px',padding:'4px 0',userSelect:'none'}}>
+      <div style={{width:'24px',height:'24px',borderRadius:'50%',background:loading?'rgba(200,125,186,0.3)':playing?'#c77dba':'rgba(200,125,186,0.5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',color:'#fff',flexShrink:0}}>
+        {loading ? <span style={{animation:'spin 1s linear infinite',display:'inline-block'}}>{'◌'}</span> : playing ? '❚❚' : '▶'}
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:'1.5px',height:'20px',flex:1}}>
+        {bars.map((h,i) => (
+          <div key={i} style={{width:'2px',height:`${h*1.5}px`,borderRadius:'1px',background:playing?'#c77dba':'rgba(200,125,186,0.4)',transition:'all 0.3s',animation:playing?`voiceWave 0.6s ${i*0.05}s infinite alternate`:undefined}} />
         ))}
       </div>
-      <span style={{fontSize:'11px',color:'#999',minWidth:'20px'}}>{duration ? `${duration}″` : ''}</span>
+      <span style={{fontSize:'11px',color:'rgba(200,125,186,0.7)',minWidth:'24px'}}>{duration}″</span>
     </div>
   )
 }
@@ -405,7 +411,7 @@ function ChatView({ theme }) {
         // Also write to Ombre Brain
         callMemory('hold', { content: data.reply })
 
-        setMessages([...messages, { role: 'system', content: '[记忆已提取] ' + newEntries.length + '条新记忆已保存\n' + data.reply }])
+        setMessages([...messages, { role: 'system', content: '[记忆已提取] ' + newEntries.length + '条新记忆已保存' }])
       }
     } catch(e) {
       setMessages([...messages, { role: 'system', content: '记忆提取失败: ' + e.message }])
