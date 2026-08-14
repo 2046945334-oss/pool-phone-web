@@ -1,6 +1,69 @@
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 
+// 语音条组件 - AI发送[voice]标记时渲染为可播放语音条
+function VoiceBubble({ text, ttsConfig }) {
+  const [audioUrl, setAudioUrl] = useState(null)
+  const [playing, setPlaying] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef(null)
+  
+  async function loadAudio() {
+    if (audioUrl || loading) return
+    if (!ttsConfig?.enabled || !ttsConfig?.apiKey || !ttsConfig?.groupId) return
+    setLoading(true)
+    try {
+      const region = ttsConfig.region || 'china'
+      const base = ttsConfig.endpoint || (region === 'global' ? 'https://api.minimaxi.chat' : 'https://api.minimax.chat')
+      const model = ttsConfig.model || 'speech-02-hd'
+      const voice = ttsConfig.voiceId || 'female-tianmei'
+      const res = await fetch(`${base}/v1/t2a_v2?GroupId=${ttsConfig.groupId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ttsConfig.apiKey}` },
+        body: JSON.stringify({ model, text: text.slice(0, 500), stream: false, voice_setting: { voice_id: voice, speed: 1.0, vol: 1.0, pitch: 0 }, audio_setting: { format: 'mp3', sample_rate: 32000 } })
+      })
+      const data = await res.json()
+      if (data?.data?.audio) {
+        const url = 'data:audio/mp3;base64,' + data.data.audio
+        setAudioUrl(url)
+        // estimate duration from text length
+        setDuration(Math.max(2, Math.ceil(text.length / 4)))
+      }
+    } catch (e) { console.warn('TTS error:', e) }
+    setLoading(false)
+  }
+
+  function togglePlay() {
+    if (!audioUrl) { loadAudio(); return }
+    if (playing) {
+      audioRef.current?.pause()
+      setPlaying(false)
+    } else {
+      const audio = new Audio(audioUrl)
+      audioRef.current = audio
+      audio.onended = () => setPlaying(false)
+      audio.play().catch(() => {})
+      setPlaying(true)
+    }
+  }
+
+  // Auto-load on mount
+  useEffect(() => { loadAudio() }, [])
+
+  const barWidths = [3,5,8,12,8,5,3,6,10,7,4,8,11,6,3,5,9,7,4]
+  return (
+    <div onClick={togglePlay} style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',minWidth:'120px',padding:'4px 0'}}>
+      <span style={{fontSize:'18px'}}>{loading ? '⏳' : playing ? '⏸' : '▶️'}</span>
+      <div style={{display:'flex',alignItems:'center',gap:'1.5px',height:'24px',flex:1}}>
+        {barWidths.map((h,i) => (
+          <div key={i} style={{width:'2.5px',height:`${h*2}px`,borderRadius:'1.5px',background:playing?'#c77dba':'rgba(200,125,186,0.5)',transition:'all 0.3s',animation:playing?`voiceWave 0.6s ${i*0.05}s infinite alternate`:undefined}} />
+        ))}
+      </div>
+      <span style={{fontSize:'11px',color:'#999',minWidth:'20px'}}>{duration}″</span>
+    </div>
+  )
+}
+
 // 后端数据同步工具
 async function syncToBackend(key, value) {
   try {
@@ -92,7 +155,8 @@ function ChatView({ theme }) {
 - 不要用markdown格式，不要加粗/列表
 - 不要说"作为AI"这种话，你就是池
 - 她发图片（[img]标签）时简单评论就好
-- 深夜聊天时催她睡觉，但如果她不听就陪着`
+- 深夜聊天时催她睡觉，但如果她不听就陪着
+- 你可以发语音消息：用[voice]你想说的话[/voice]标记，会被渲染成语音条播放给她听。想发就发，不用每句都发`
 
     parts.push({ role: 'system', content: systemPrompt })
 
@@ -379,7 +443,9 @@ function ChatView({ theme }) {
               </div>
             ) : (
               <div className={`msg-bubble ${msg.role}`} style={msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
-                {msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
+                {msg.content.includes('[voice]') ? 
+                  msg.content.split(/\[voice\](.*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part && <span key={j}>{part}</span>) : <VoiceBubble key={j} text={part} ttsConfig={ttsConfig} />) 
+                : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
               </div>
             )}
             {menuIdx === i && msg.role !== 'system' && (
@@ -1308,15 +1374,15 @@ export default function Home() {
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
         .dot.active { width: 16px; background: #e8a0bf; }
 
-        .app-page { width: 100%; height: 100%; display: flex; flex-direction: column; background: #0d0d0d; }
-        .app-page-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #1a1a1a; flex-shrink: 0; }
-        .back-btn { background: none; border: none; color: #e8a0bf; font-size: 20px; cursor: pointer; padding: 4px 8px; }
-        .app-page-title { color: #e0e0e0; font-size: 16px; font-weight: 500; }
+        .app-page { width: 100%; height: 100%; display: flex; flex-direction: column; background: #f5f0f5; }
+        .app-page-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e8dce8; flex-shrink: 0; background: #fff; }
+        .back-btn { background: none; border: none; color: #c77dba; font-size: 20px; cursor: pointer; padding: 4px 8px; }
+        .app-page-title { color: #333; font-size: 16px; font-weight: 500; }
         .app-page-body { flex: 1; overflow-y: auto; padding: 20px 16px; }
         .app-content { }
-        .app-content-title { font-size: 18px; color: #e8a0bf; margin-bottom: 16px; text-align: center; }
+        .app-content-title { font-size: 18px; color: #9b5da0; margin-bottom: 16px; text-align: center; }
         .app-content-list { display: flex; flex-direction: column; gap: 10px; }
-        .app-content-item { padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 12px; color: #d0c8cf; font-size: 14px; border: 1px solid rgba(255,255,255,0.06); }
+        .app-content-item { padding: 12px 16px; background: #fff; border-radius: 12px; color: #444; font-size: 14px; border: 1px solid #e8dce8; }
 
         .chat-view { width: 100%; height: 100%; display: flex; flex-direction: column; }
         .chat-header { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #1a1a1a; background: #111; flex-shrink: 0; }
@@ -1377,6 +1443,7 @@ export default function Home() {
         .music-cover { margin-bottom: 20px; }
         .music-disc { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #1a1a2e, #2d2d44); display: flex; align-items: center; justify-content: center; font-size: 40px; animation: spin 4s linear infinite; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes voiceWave { 0% { transform: scaleY(0.4); } 100% { transform: scaleY(1); } }
         .music-now-title { font-size: 18px; color: #f0e6ef; font-weight: 600; margin-bottom: 4px; }
         .music-now-artist { font-size: 13px; color: #9a8a99; margin-bottom: 16px; }
         .music-progress-bar { width: 80%; height: 3px; background: #2a2a2a; border-radius: 2px; margin-bottom: 20px; }
@@ -1421,7 +1488,7 @@ export default function Home() {
         .settings-badge-default { font-size: 11px; color: #999; margin-left: 8px; }
         .settings-feature-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8dce8; }
         .settings-reset { background: none; border: 1px solid #ddd; border-radius: 6px; color: #888; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 4px; }
-        .mcp-tab, .mcp-tab-active { padding: 6px 12px; border-radius: 14px; border: 1px solid #444; background: #1a1a2e; color: #aaa; font-size: 12px; cursor: pointer; }
+        .mcp-tab, .mcp-tab-active { padding: 6px 12px; border-radius: 14px; border: 1px solid #d8c8d8; background: #f0ecf0; color: #777; font-size: 12px; cursor: pointer; }
         .mcp-tab-active { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-color: transparent; }
         .mcp-action-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 13px; cursor: pointer; margin-top: 8px; }
         .mcp-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
