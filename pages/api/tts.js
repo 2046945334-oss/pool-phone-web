@@ -19,8 +19,12 @@ export default async function handler(req, res) {
   }
 
   const region = ttsConfig.region || 'china'
-  const base = ttsConfig.endpoint || (region === 'global' ? 'https://api.minimaxi.chat' : 'https://api.minimax.chat')
-  const model = ttsConfig.model || 'speech-02-hd'
+  const endpoint = ttsConfig.endpoint && ttsConfig.endpoint.startsWith('http') ? ttsConfig.endpoint : null
+  const base = endpoint || (region === 'global' ? 'https://api.minimaxi.chat' : 'https://api.minimax.chat')
+  const rawModel = ttsConfig.model || 'speech-02-hd'
+  // Normalize model name: Speech-2.8HD -> speech-02-hd, etc
+  const MODEL_MAP = {'speech-2.8hd':'speech-02-hd','speech-2.8':'speech-02','speech2.8hd':'speech-02-hd','speech-02-hd':'speech-02-hd','speech-02':'speech-02','speech-01-hd':'speech-01-hd','speech-01':'speech-01'}
+  const model = MODEL_MAP[rawModel.toLowerCase().replace(/\s+/g,'')] || rawModel.toLowerCase().replace(/\s+/g,'-')
   const voice = ttsConfig.voiceId || 'female-tianmei'
 
   try {

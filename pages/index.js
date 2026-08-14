@@ -554,6 +554,10 @@ function ThemePanel() {
     if (!name) return
     const lite = {...theme}
     delete lite.icons
+    // Strip all base64 data URIs to save space
+    for (const k of Object.keys(lite)) {
+      if (typeof lite[k] === 'string' && lite[k].startsWith('data:')) delete lite[k]
+    }
     // Save to both localStorage and backend
     try {
       const existing = JSON.parse(localStorage.getItem('pool_theme_presets') || '{}')
