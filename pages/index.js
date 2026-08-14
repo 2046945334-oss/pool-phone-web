@@ -500,20 +500,26 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
       </div>
       <div className="chat-input-area" style={theme?.systemBg?{background:theme.systemBg}:{}}>
         <label className="chat-plus-btn">{'+'}
-          <input type="file" accept="image/*" hidden onChange={async e => {
+          <input type="file" accept="image/*" hidden onChange={e => {
             const file = e.target.files[0]; if (!file) return
+            e.target.value = ''
             const reader = new FileReader()
-            reader.onload = async () => {
-              let imgUrl = reader.result
-              try {
-                const up = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: reader.result }) })
-                const d = await up.json()
-                if (d.url) imgUrl = d.url
-              } catch {}
-              setMessages(m => [...m, {role:'user',content:`[img]${imgUrl}[/img]`}])
+            reader.onload = () => {
+              const base64 = reader.result
+              // First show image immediately
+              setMessages(m => [...m, {role:'user',content:`[img]${base64}[/img]`}])
+              // Then try to upload to backend and replace with URL
+              fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: base64 }) })
+                .then(r => r.json())
+                .then(d => {
+                  if (d.url) {
+                    setMessages(prev => prev.map(msg =>
+                      msg.content === `[img]${base64}[/img]` ? {...msg, content: `[img]${d.url}[/img]`} : msg
+                    ))
+                  }
+                }).catch(() => {})
             }
             reader.readAsDataURL(file)
-            e.target.value = ''
           }} />
         </label>
         <button className="chat-plus-btn" onClick={() => setShowEmoji(!showEmoji)} style={{fontSize:'16px'}}>{'\ud83d\ude0a'}</button>
