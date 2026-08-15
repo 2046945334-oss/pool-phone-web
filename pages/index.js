@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 import { pullAllFromBackend, pushAllToBackend } from '../lib/appSync'
+import BrowserApp from '../components/apps/BrowserApp'
+import FortuneApp from '../components/apps/FortuneApp'
+import FishingApp from '../components/apps/FishingApp'
+import ReaderApp from '../components/apps/ReaderApp'
+import DraftsApp from '../components/apps/DraftsApp'
 
 // 工具调用日志组件 - 可折叠显示
 function ToolLogBubble({ logs }) {
@@ -1364,11 +1369,19 @@ function AppContent({ appId, onBack }) {
 
 // 预挂载所有iframe的容器组件 — 所有HTML app只加载一次，切换时仅显示/隐藏
 function PreloadedApps({ currentApp, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', travel:'旅行' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html' }
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行' }
+  const appFiles = { notes:'_notes.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', doodle:'_doodle.html', travel:'_travel.html' }
   const [loaded, setLoaded] = useState({})
 
-  // 标记已访问过的app（只有访问过的才真正加载iframe）
+  // 页面加载时预加载所有iframe（后台不可见）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoaded(Object.keys(appFiles).reduce((acc, k) => ({ ...acc, [k]: true }), {}))
+    }, 1000) // 延迟1秒开始预加载，不阻塞首屏
+    return () => clearTimeout(timer)
+  }, [])
+
+  // 确保当前app立刻加载
   useEffect(() => {
     if (currentApp && appFiles[currentApp] && !loaded[currentApp]) {
       setLoaded(prev => ({ ...prev, [currentApp]: true }))
@@ -1533,12 +1546,43 @@ export default function Home() {
 
   function renderPhoneContent() {
     if (locked) return <LockScreen onUnlock={() => setLocked(false)} theme={theme} />
-    // React组件类app仍用旧方式
+    // React组件类app
     if (currentApp === 'system') return <AppContent appId="system" onBack={handleBack} />
     if (currentApp === 'theme') return <AppContent appId="theme" onBack={handleBack} />
     if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
-    // iframe类app用预加载容器（显示/隐藏切换，不重新加载）
-    if (currentApp) return <PreloadedApps currentApp={currentApp} onBack={handleBack} />
+    // 已React化的app
+    if (currentApp === 'browser') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">浏览</span></div>
+        <div className="app-page-body"><BrowserApp /></div>
+      </div>
+    )
+    if (currentApp === 'ledger') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">占卜</span></div>
+        <div className="app-page-body"><FortuneApp /></div>
+      </div>
+    )
+    if (currentApp === 'fishing') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">钓鱼</span></div>
+        <div className="app-page-body"><FishingApp /></div>
+      </div>
+    )
+    if (currentApp === 'reader') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">阅读</span></div>
+        <div className="app-page-body"><ReaderApp /></div>
+      </div>
+    )
+    if (currentApp === 'drafts') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">草稿箱</span></div>
+        <div className="app-page-body"><DraftsApp /></div>
+      </div>
+    )
+    // iframe类app由PreloadedApps处理（始终挂载在外层）
+    if (currentApp) return null
     return <HomeScreen onOpenApp={handleOpenApp} theme={theme} />
   }
 
@@ -1556,7 +1600,10 @@ export default function Home() {
             <span className="status-icons">{'\ud83d\udcf6 \ud83d\udd0b'}</span>
           </div>
           <div className="phone-screen">
-            <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%'}}>{renderPhoneContent()}</div>
+            <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%'}}>
+              {renderPhoneContent()}
+              <PreloadedApps currentApp={currentApp} onBack={handleBack} />
+            </div>
             <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
           </div>
           <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
