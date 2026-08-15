@@ -165,6 +165,23 @@ function ChatView({ theme }) {
       if (d.notifications) localStorage.setItem('pool_notifications', JSON.stringify(d.notifications))
     }).catch(()=>{})
   }, [])
+  // Preload all app data from backend on page load (eliminates per-app fetch delay)
+  useEffect(() => {
+    fetch('/api/data').then(r => r.json()).then(d => {
+      if (d.keys && d.keys.length) {
+        // Fetch all KV values in parallel
+        Promise.all(d.keys.map(k =>
+          fetch(`/api/data/${encodeURIComponent(k.key)}`).then(r => r.json()).then(v => ({ key: k.key, value: v.value })).catch(() => null)
+        )).then(results => {
+          results.filter(Boolean).forEach(({ key, value }) => {
+            if (value != null) {
+              try { localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value)) } catch {}
+            }
+          })
+        })
+      }
+    }).catch(() => {})
+  }, [])
   const [moodPrompt, setMoodPrompt] = useState('')
   // Load emotion snapshot on init
   useEffect(() => {
@@ -1345,6 +1362,39 @@ function AppContent({ appId, onBack }) {
   )
 }
 
+// 预挂载所有iframe的容器组件 — 所有HTML app只加载一次，切换时仅显示/隐藏
+function PreloadedApps({ currentApp, onBack }) {
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', travel:'旅行' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html' }
+  const [loaded, setLoaded] = useState({})
+
+  // 标记已访问过的app（只有访问过的才真正加载iframe）
+  useEffect(() => {
+    if (currentApp && appFiles[currentApp] && !loaded[currentApp]) {
+      setLoaded(prev => ({ ...prev, [currentApp]: true }))
+    }
+  }, [currentApp])
+
+  return (
+    <>
+      {Object.entries(appFiles).map(([id, file]) => {
+        const isActive = currentApp === id
+        const isLoaded = loaded[id]
+        if (!isLoaded) return null
+        return (
+          <div key={id} className="app-page" style={{ display: isActive ? 'flex' : 'none' }}>
+            <div className="app-page-header">
+              <button className="back-btn" onClick={onBack}>{'←'}</button>
+              <span className="app-page-title">{appNames[id] || id}</span>
+            </div>
+            <iframe src={`/apps/${file}`} className="app-iframe" />
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
 function HomeScreen({ onOpenApp, theme }) {
   const page1Apps = [
     { id: 'notes', icon: '/icons/notes.png', name: '\u4fbf\u7b7e' },
@@ -1483,7 +1533,12 @@ export default function Home() {
 
   function renderPhoneContent() {
     if (locked) return <LockScreen onUnlock={() => setLocked(false)} theme={theme} />
-    if (currentApp) return <AppContent appId={currentApp} onBack={handleBack} />
+    // React组件类app仍用旧方式
+    if (currentApp === 'system') return <AppContent appId="system" onBack={handleBack} />
+    if (currentApp === 'theme') return <AppContent appId="theme" onBack={handleBack} />
+    if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
+    // iframe类app用预加载容器（显示/隐藏切换，不重新加载）
+    if (currentApp) return <PreloadedApps currentApp={currentApp} onBack={handleBack} />
     return <HomeScreen onOpenApp={handleOpenApp} theme={theme} />
   }
 
