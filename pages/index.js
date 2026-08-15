@@ -6,6 +6,15 @@ import FortuneApp from '../components/apps/FortuneApp'
 import FishingApp from '../components/apps/FishingApp'
 import ReaderApp from '../components/apps/ReaderApp'
 import DraftsApp from '../components/apps/DraftsApp'
+import HtmlApp from '../components/apps/HtmlApp'
+import notesHtml from '../public/apps/_notes.html'
+import gachaHtml from '../public/apps/_gacha.html'
+import messagesHtml from '../public/apps/_messages.html'
+import musicHtml from '../public/apps/_music_player.html'
+import coupleHtml from '../public/apps/_couple.html'
+import doodleHtml from '../public/apps/_doodle.html'
+import sleepHtml from '../public/apps/_sleep.html'
+import travelHtml from '../public/apps/_travel.html'
 
 // 工具调用日志组件 - 可折叠显示
 function ToolLogBubble({ logs }) {
@@ -1367,45 +1376,9 @@ function AppContent({ appId, onBack }) {
   )
 }
 
-// 预挂载所有iframe的容器组件 — 所有HTML app只加载一次，切换时仅显示/隐藏
+// 预挂载所有iframe的容器组件 — 已全部React化，保留空壳防止引用报错
 function PreloadedApps({ currentApp, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行' }
-  const appFiles = { notes:'_notes.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', doodle:'_doodle.html', travel:'_travel.html' }
-  const [loaded, setLoaded] = useState({})
-
-  // 页面加载时预加载所有iframe（后台不可见）
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoaded(Object.keys(appFiles).reduce((acc, k) => ({ ...acc, [k]: true }), {}))
-    }, 1000) // 延迟1秒开始预加载，不阻塞首屏
-    return () => clearTimeout(timer)
-  }, [])
-
-  // 确保当前app立刻加载
-  useEffect(() => {
-    if (currentApp && appFiles[currentApp] && !loaded[currentApp]) {
-      setLoaded(prev => ({ ...prev, [currentApp]: true }))
-    }
-  }, [currentApp])
-
-  return (
-    <>
-      {Object.entries(appFiles).map(([id, file]) => {
-        const isActive = currentApp === id
-        const isLoaded = loaded[id]
-        if (!isLoaded) return null
-        return (
-          <div key={id} className="app-page" style={{ display: isActive ? 'flex' : 'none' }}>
-            <div className="app-page-header">
-              <button className="back-btn" onClick={onBack}>{'←'}</button>
-              <span className="app-page-title">{appNames[id] || id}</span>
-            </div>
-            <iframe src={`/apps/${file}`} className="app-iframe" />
-          </div>
-        )
-      })}
-    </>
-  )
+  return null
 }
 
 function HomeScreen({ onOpenApp, theme }) {
@@ -1581,8 +1554,54 @@ export default function Home() {
         <div className="app-page-body"><DraftsApp /></div>
       </div>
     )
-    // iframe类app由PreloadedApps处理（始终挂载在外层）
-    if (currentApp) return null
+    if (currentApp === 'notes') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">便签</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={notesHtml} /></div>
+      </div>
+    )
+    if (currentApp === 'gallery') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">命运卡池</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={gachaHtml} /></div>
+      </div>
+    )
+    if (currentApp === 'messages') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">如果…</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={messagesHtml} /></div>
+      </div>
+    )
+    if (currentApp === 'music') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">音乐</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={musicHtml} /></div>
+      </div>
+    )
+    if (currentApp === 'couple') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">情侣空间</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={coupleHtml} /></div>
+      </div>
+    )
+    if (currentApp === 'doodle') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">涂鸦</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={doodleHtml} /></div>
+      </div>
+    )
+    if (currentApp === 'game') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">晚安</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={sleepHtml} /></div>
+      </div>
+    )
+    if (currentApp === 'travel') return (
+      <div className="app-page">
+        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">旅行</span></div>
+        <div className="app-page-body"><HtmlApp htmlContent={travelHtml} /></div>
+      </div>
+    )
     return <HomeScreen onOpenApp={handleOpenApp} theme={theme} />
   }
 
