@@ -247,13 +247,13 @@ syncCardList();
 var _savedScroll=parseInt(localStorage.getItem("pool_gacha_scrollY")||"0");
 if(_savedScroll>0)requestAnimationFrame(function(){window.scrollTo(0,_savedScroll);});
 }
-function save(){localStorage.setItem("pool_gacha_v1",JSON.stringify(gd));}
-function save2(){localStorage.setItem("pool_gacha_v2_chi",JSON.stringify(gd2));}
+function save(){localStorage.setItem("pool_gacha_v1",JSON.stringify(gd));try{fetch('/api/data/pool_gacha_v1',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:JSON.stringify(gd)})});}catch(e){}}
+function save2(){localStorage.setItem("pool_gacha_v2_chi",JSON.stringify(gd2));try{fetch('/api/data/pool_gacha_v2_chi',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:JSON.stringify(gd2)})});}catch(e){}}
 function loadFishScore(){
 try{var fs=localStorage.getItem("pool_fishing_v2");if(fs){var fd=JSON.parse(fs);gd.score=fd.score||0;gd.poolScore=fd.poolScore||0;}}catch(e){}
 }
 function syncScoreBack(){
-try{var fs=localStorage.getItem("pool_fishing_v2");if(fs){var fd=JSON.parse(fs);fd.score=gd.score;localStorage.setItem("pool_fishing_v2",JSON.stringify(fd));}}catch(e){}
+try{var fs=localStorage.getItem("pool_fishing_v2");if(fs){var fd=JSON.parse(fs);fd.score=gd.score;localStorage.setItem("pool_fishing_v2",JSON.stringify(fd));fetch('/api/data/pool_fishing_v2',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:JSON.stringify(fd)})});}}catch(e){}
 }
 
 function render(){
