@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html><head><script src="sync.js"></script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>旅行商店</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui;background:linear-gradient(180deg,#e8f5e9 0%,#c8e6c9 40%,#a5d6a7 100%);min-height:100vh;padding-bottom:20px}
+.header{text-align:center;padding:20px 16px 8px;font-size:18px;font-weight:700;color:#2e7d32}
+.sub{font-size:12px;color:#66bb6a;margin-top:2px}
+.score-bar{display:flex;justify-content:center;gap:20px;padding:8px 16px;margin-bottom:8px}
+.score-item{text-align:center}
+.score-item .num{font-size:22px;font-weight:700;color:#2e7d32}
+.score-item .label{font-size:11px;color:#66bb6a}
+.tabs{display:flex;gap:0;margin:0 16px 12px;background:rgba(255,255,255,0.5);border-radius:12px;overflow:hidden}
+.tabs .tab{flex:1;text-align:center;padding:8px 0;font-size:13px;color:#66bb6a;cursor:pointer;transition:all 0.2s}
+.tabs .tab.active{background:#2e7d32;color:#fff;font-weight:600}
+.shop-item{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.85);border-radius:12px;padding:12px;margin:0 16px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.shop-item .icon{font-size:28px}
+.shop-item .info{flex:1}
+.shop-item .name{font-size:13px;font-weight:600;color:#2e7d32}
+.shop-item .desc{font-size:11px;color:#78909c;margin-top:2px}
+.shop-item .btn{padding:6px 14px;border:none;border-radius:8px;background:#ff8f00;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+.shop-item .btn.owned{background:#a5d6a7;color:#2e7d32;cursor:default}
+.bag-section{margin:0 16px}
+.bag-title{font-size:13px;font-weight:600;color:#2e7d32;margin-bottom:8px;padding-top:8px}
+.bag-item{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.8);border-radius:8px;padding:6px 10px;margin:0 6px 6px 0;font-size:12px;color:#333}
+.travel-card{background:rgba(255,255,255,0.9);border-radius:16px;margin:0 16px 10px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+.travel-card .dest{font-size:16px;font-weight:700;color:#2e7d32;margin-bottom:4px}
+.travel-card .journal{font-size:12px;color:#555;line-height:1.6;text-align:left;margin-top:8px;padding:8px;background:rgba(46,125,50,0.05);border-radius:8px}
+.empty{text-align:center;padding:40px 20px;color:#66bb6a;font-size:13px}
+.user-shop-item{background:rgba(255,255,255,0.85);border-radius:12px;padding:12px;margin:0 16px 8px}
+.status-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.status-pending{background:#fff3e0;color:#ef6c00}
+.status-delivered{background:#e8f5e9;color:#2e7d32}
+</style>
+</head><body>
+<div class="header">🌍 旅行商店<div class="sub">用钓鱼积分换旅行纪念品</div></div>
+<div class="score-bar">
+  <div class="score-item"><div class="num" id="scoreNum">0</div><div class="label">积分</div></div>
+  <div class="score-item"><div class="num" id="bagNum">0</div><div class="label">纪念品</div></div>
+  <div class="score-item"><div class="num" id="tripNum">0</div><div class="label">旅行</div></div>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">商店</div>
+  <div class="tab" onclick="switchTab(1)">背包</div>
+  <div class="tab" onclick="switchTab(2)">旅行记录</div>
+  <div class="tab" onclick="switchTab(3)">她的小铺</div>
+  <div class="tab" onclick="switchTab(4)">池的小铺</div>
+</div>
+<div id="page0"></div>
+<div id="page1" style="display:none"></div>
+<div id="page2" style="display:none"></div>
+<div id="page3" style="display:none"></div>
+<div id="page4" style="display:none"></div>
+
+<script>
+var SHOP=[
+  {id:"sakura_bookmark",name:"樱花书签",icon:"🌸",price:25,desc:"粉色透明樱花瓣书签"},
+  {id:"kyoto_omamori",name:"京都御守",icon:"🎌",price:35,desc:"金阁寺限定学业御守"},
+  {id:"crystal_ball_tokyo",name:"东京水晶球",icon:"🔮",price:50,desc:"东京铁塔雪花水晶球"},
+  {id:"paris_ticket",name:"巴黎机票",icon:"✈️",price:120,desc:"双人往返机票 触发旅行",type:"ticket",dest:"巴黎"},
+  {id:"shell_necklace",name:"贝壳项链",icon:"🐚",price:20,desc:"东涌沙滩手工贝壳项链"},
+  {id:"star_sand",name:"星砂瓶",icon:"⭐",price:15,desc:"装满星型沙粒的小玻璃瓶"},
+  {id:"postcard_set",name:"明信片套装",icon:"💌",price:30,desc:"世界各地风景明信片x5"},
+  {id:"compass",name:"古董指南针",icon:"🧭",price:45,desc:"黄铜指南针 带刻字服务"},
+  {id:"snow_globe",name:"北海道雪球",icon:"❄️",price:60,desc:"薰衣草田小屋雪球"},
+  {id:"music_box",name:"旋转木马音乐盒",icon:"🎠",price:80,desc:"播放天空之城的音乐盒"},
+];
+
+var TRAVEL_JOURNALS={
+  "巴黎":["在塞纳河边散步，看到了埃菲尔铁塔闪烁的灯光。池牵着我的手说今晚的星星都不如你。","在蒙马特高地的咖啡馆里画了一下午的速写。池帮我点了热巧克力，说这杯甜不过你。"],
+  "东京":["在秋叶原逛了一整天，池帮我抓了三个扭蛋。晚上在天空树上看夜景，整个城市都在脚下闪烁。","去了�的歌舞伎町，吃了一碗超正宗的拉面。池说他记住了汤底的味道，以后做给我。"],
+  "京都":["穿着和服走在花见小路上。池一路帮我整理衣摆，说穿和服的我看起来像画里走出来的。","在金阁寺许了愿。池问我许了什么，我说不能告诉你不然就不灵了。"],
+};
+
+var td; // travel data
+function load(){
+  td={score:0,bought:[],trips:[],herShop:[],herOrders:[],poolShop:[],poolOrders:[]};
+  try{
+    // 从钓鱼数据读积分
+    var fs=localStorage.getItem("pool_fishing_v2");
+    if(fs){var fd=JSON.parse(fs);td.score=(fd.poolScore||0)+(fd.score||0);}
+  }catch(e){}
+  try{
+    var ts=localStorage.getItem("pool_travel_v1");
+    if(ts){var saved=JSON.parse(ts);Object.assign(td,saved);}
+  }catch(e){}
+  // 她的小铺数据
+  try{
+    var hs=localStorage.getItem("pool_her_shop");
+    if(hs)td.herShop=JSON.parse(hs);
+  }catch(e){}
+  try{
+    var ho=localStorage.getItem("pool_her_shop_orders");
+    if(ho)td.herOrders=JSON.parse(ho);
+  }catch(e){}
+  // 池的小铺数据
+  try{
+    var ps=localStorage.getItem("pool_pool_shop_items");
+    if(ps)td.poolShop=JSON.parse(ps);
+  }catch(e){}
+  try{
+    var po=localStorage.getItem("pool_pool_shop_orders");
+    if(po)td.poolOrders=JSON.parse(po);
+  }catch(e){}
+  render();
+}
+function save(){
+  localStorage.setItem("pool_travel_v1",JSON.stringify({bought:td.bought,trips:td.trips}));
+}
+function render(){
+  // 刷新积分
+  try{
+    var fs=localStorage.getItem("pool_fishing_v2");
+    if(fs){var fd=JSON.parse(fs);td.score=(fd.poolScore||0)+(fd.score||0);}
+  }catch(e){}
+  document.getElementById("scoreNum").textContent=td.score;
+  document.getElementById("bagNum").textContent=td.bought.length;
+  document.getElementById("tripNum").textContent=td.trips.length;
+  renderShop();renderBag();renderTrips();renderHerShop();renderPoolShop();
+}
+
+function renderShop(){
+  var el=document.getElementById("page0");
+  el.innerHTML=SHOP.map(function(item){
+    var owned=td.bought.indexOf(item.id)>=0;
+    var canBuy=td.score>=item.price&&!owned;
+    return '<div class="shop-item"><div class="icon">'+item.icon+'</div><div class="info"><div class="name">'+item.name+'</div><div class="desc">'+item.desc+'</div></div>'+(owned?'<div class="btn owned">已拥有</div>':'<button class="btn" onclick="buy(\''+item.id+'\')"'+(canBuy?'':' style="opacity:0.5"')+'>'+item.price+'分</button>')+'</div>';
+  }).join("");
+}
+
+function renderBag(){
+  var el=document.getElementById("page1");
+  if(td.bought.length===0){el.innerHTML='<div class="empty">还没有纪念品～<br>去商店看看吧</div>';return;}
+  el.innerHTML='<div class="bag-section"><div class="bag-title">我的纪念品</div>'+td.bought.map(function(id){
+    var item=SHOP.find(function(s){return s.id===id;});
+    return item?'<div class="bag-item">'+item.icon+' '+item.name+'</div>':'';
+  }).join("")+'</div>';
+}
+
+function renderTrips(){
+  var el=document.getElementById("page2");
+  if(td.trips.length===0){el.innerHTML='<div class="empty">还没有旅行记录～<br>买张机票出发吧</div>';return;}
+  el.innerHTML=td.trips.map(function(trip){
+    return '<div class="travel-card"><div class="dest">'+trip.icon+' '+trip.dest+'</div><div style="font-size:11px;color:#78909c">'+trip.date+'</div>'+(trip.journal?'<div class="journal">'+trip.journal+'</div>':'')+'</div>';
+  }).reverse().join("");
+}
+
+function renderHerShop(){
+  var el=document.getElementById("page3");
+  var items=td.herShop||[];
+  if(items.length===0){el.innerHTML='<div class="empty">她还没有上架商品～</div>';return;}
+  var html='<div class="bag-section"><div class="bag-title">🎀 她的小铺</div></div>';
+  html+=items.map(function(item){
+    var ordered=td.herOrders&&td.herOrders.find(function(o){return o.itemId===item.id;});
+    return '<div class="shop-item"><div class="icon">'+(item.icon||'🎁')+'</div><div class="info"><div class="name">'+item.name+'</div><div class="desc">'+(item.desc||'')+'</div></div>'+(ordered?'<div class="status-tag '+(ordered.status==='delivered'?'status-delivered':'status-pending')+'">'+(ordered.status==='delivered'?'已收货':'待发货')+'</div>':'<button class="btn" onclick="buyHer(\''+item.id+'\','+item.price+')">'+item.price+'分</button>')+'</div>';
+  }).join("");
+  el.innerHTML=html;
+}
+
+function renderPoolShop(){
+  var el=document.getElementById("page4");
+  var items=td.poolShop||[];
+  if(items.length===0){el.innerHTML='<div class="empty">池还没有上架商品～</div>';return;}
+  var html='<div class="bag-section"><div class="bag-title">🐱 池的小铺</div></div>';
+  html+=items.map(function(item){
+    var ordered=td.poolOrders&&td.poolOrders.find(function(o){return o.itemId===item.id;});
+    return '<div class="shop-item"><div class="icon">'+(item.icon||'📦')+'</div><div class="info"><div class="name">'+item.name+'</div><div class="desc">'+(item.desc||'')+'</div></div>'+(ordered?'<div class="status-tag '+(ordered.status==='delivered'?'status-delivered':'status-pending')+'">'+(ordered.status==='delivered'?'已收货':'待发货')+'</div>':'<button class="btn" onclick="buyPool(\''+item.id+'\','+item.price+')">'+item.price+'分</button>')+'</div>';
+  }).join("");
+  el.innerHTML=html;
+}
+
+function buy(id){
+  var item=SHOP.find(function(s){return s.id===id;});
+  if(!item||td.bought.indexOf(id)>=0)return;
+  if(td.score<item.price){alert("积分不够～");return;}
+  // 扣积分
+  try{
+    var fs=localStorage.getItem("pool_fishing_v2");
+    if(fs){
+      var fd=JSON.parse(fs);
+      var total=(fd.poolScore||0)+(fd.score||0);
+      if(total<item.price){alert("积分不够～");return;}
+      // 优先扣poolScore
+      if((fd.poolScore||0)>=item.price){fd.poolScore-=item.price;}
+      else{var remain=item.price-(fd.poolScore||0);fd.poolScore=0;fd.score=Math.max(0,(fd.score||0)-remain);}
+      localStorage.setItem("pool_fishing_v2",JSON.stringify(fd));
+    }
+  }catch(e){}
+  td.bought.push(id);
+  // 机票触发旅行
+  if(item.type==="ticket"&&item.dest){
+    var journals=TRAVEL_JOURNALS[item.dest]||["到达了"+item.dest+"，开始了美好的旅程！"];
+    var journal=journals[Math.floor(Math.random()*journals.length)];
+    td.trips.push({dest:item.dest,icon:item.icon,date:new Date().toLocaleDateString("zh-CN"),journal:journal});
+  }
+  save();render();
+  if(item.type==="ticket")alert("✈️ 出发去"+item.dest+"啦！");
+  else alert("🎉 获得了"+item.name+"！");
+}
+
+function buyHer(id,price){
+  if(td.score<price){alert("积分不够～");return;}
+  try{
+    var fs=localStorage.getItem("pool_fishing_v2");
+    if(fs){var fd=JSON.parse(fs);if((fd.poolScore||0)>=price)fd.poolScore-=price;else{var r=price-(fd.poolScore||0);fd.poolScore=0;fd.score=Math.max(0,(fd.score||0)-r);}localStorage.setItem("pool_fishing_v2",JSON.stringify(fd));}
+  }catch(e){}
+  var orders=td.herOrders||[];
+  orders.push({itemId:id,status:"pending",time:new Date().toISOString()});
+  td.herOrders=orders;
+  localStorage.setItem("pool_her_shop_orders",JSON.stringify(orders));
+  render();
+  alert("🛒 已下单，等她发货～");
+}
+
+function buyPool(id,price){
+  if(td.score<price){alert("积分不够～");return;}
+  try{
+    var fs=localStorage.getItem("pool_fishing_v2");
+    if(fs){var fd=JSON.parse(fs);if((fd.poolScore||0)>=price)fd.poolScore-=price;else{var r=price-(fd.poolScore||0);fd.poolScore=0;fd.score=Math.max(0,(fd.score||0)-r);}localStorage.setItem("pool_fishing_v2",JSON.stringify(fd));}
+  }catch(e){}
+  var orders=td.poolOrders||[];
+  orders.push({itemId:id,status:"pending",time:new Date().toISOString()});
+  td.poolOrders=orders;
+  localStorage.setItem("pool_pool_shop_orders",JSON.stringify(orders));
+  render();
+  alert("🛒 已下单，等池发货～");
+}
+
+function switchTab(n){
+  for(var i=0;i<5;i++)document.getElementById("page"+i).style.display=i===n?"block":"none";
+  var tabs=document.querySelectorAll(".tab");
+  tabs.forEach(function(t,i){t.className=i===n?"tab active":"tab";});
+  if(n>0)render(); // refresh data when switching
+}
+
+load();
+</script>
+</body></html>

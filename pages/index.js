@@ -1262,8 +1262,8 @@ function EmotionMonitor() {
 }
 
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
   return (
@@ -1302,6 +1302,7 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'ledger', icon: '/icons/ledger.png', name: '\u5360\u535c' },
     { id: 'drafts', icon: '/icons/drafts.png', name: '\u8349\u7a3f' },
     { id: 'fishing', icon: '/icons/fishing.png', name: '\u9493\u9c7c' },
+    { id: 'travel', icon: '/icons/travel.png', name: '\u65c5\u884c' },
     { id: 'reader', icon: '/icons/reader.png', name: '\u9605\u8bfb' },
     { id: 'game', icon: '/icons/game.png', name: '\u665a\u5b89' },
     { id: 'theme', icon: '/icons/theme.png', name: '\u7f8e\u5316' },

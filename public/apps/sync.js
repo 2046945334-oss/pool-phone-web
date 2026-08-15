@@ -29,7 +29,7 @@
     if (key.indexOf('pool_') === 0 || key.indexOf('f_') === 0 || 
         key.indexOf('doodle_') === 0 || key.indexOf('study') === 0 ||
         key.indexOf('radio_') === 0 || key.indexOf('mail_') === 0 ||
-        key.indexOf('voice_') === 0) return true;
+        key.indexOf('voice_') === 0 || key.indexOf('travel') === 0) return true;
     return false;
   }
 
@@ -53,6 +53,7 @@
     try {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', API_BASE + encodeURIComponent(key), false); // sync
+      xhr.timeout = 3000; // 3s timeout to prevent hanging
       xhr.send();
       if (xhr.status === 200) {
         var resp = JSON.parse(xhr.responseText);
@@ -61,7 +62,11 @@
           _origSet(key, val);
         }
       }
-    } catch(e) {}
+      // 404 or other status: do nothing, use whatever is in localStorage
+    } catch(e) {
+      // Network error, timeout, parse error: silently ignore
+      console.warn('[sync] pullFromBackend failed for key:', key, e);
+    }
   }
 
   // Override getItem

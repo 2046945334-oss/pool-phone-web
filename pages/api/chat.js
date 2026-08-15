@@ -63,6 +63,36 @@ const TOOLS = [
       parameters: { type: 'object', properties: {} }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'do_fishing', description: '执行一次远程钓鱼（模拟5竿），结果存入钓鱼数据',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'buy_travel_item', description: '在旅行商店购买纪念品或机票',
+      parameters: { type: 'object', properties: { item_id: { type: 'string', description: '商品ID，如sakura_bookmark, kyoto_omamori, crystal_ball_tokyo, paris_ticket, shell_necklace, star_sand, postcard_set, compass, snow_globe, music_box' } }, required: ['item_id'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'get_travel_data', description: '获取旅行商店数据（已购纪念品、旅行记录）',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'add_browser_history', description: '添加浏览器搜索/浏览记录',
+      parameters: { type: 'object', properties: { title: { type: 'string', description: '搜索或浏览的内容' } }, required: ['title'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'update_music', description: '更新当前播放的音乐',
+      parameters: { type: 'object', properties: { song: { type: 'string', description: '歌名' }, artist: { type: 'string', description: '歌手' } }, required: ['song'] }
+    }
+  },
 ]
 
 function executeTool(name, args) {
@@ -162,6 +192,111 @@ function executeTool(name, args) {
   if (name === 'list_all_data') {
     const rows = db.prepare('SELECT key, updated_at, length(value) as size FROM kv ORDER BY updated_at DESC').all()
     return { keys: rows }
+  }
+
+  if (name === 'do_fishing') {
+    const key = 'pool_fishing_v2'
+    const FISH_DB = [
+      {name:"沙丁鱼",emoji:"🐟",rarity:"common",minW:0.1,maxW:0.5,pts:10,sell:5,spots:["dongchong"]},
+      {name:"鲈鱼",emoji:"🐠",rarity:"uncommon",minW:1,maxW:4,pts:20,sell:12,spots:["dongchong","yangmeikeng"]},
+      {name:"章鱼",emoji:"🐙",rarity:"rare",minW:2,maxW:8,pts:40,sell:25,spots:["dongchong","yangmeikeng"]},
+      {name:"海龟",emoji:"🐢",rarity:"epic",minW:10,maxW:25,pts:80,sell:50,spots:["dongchong"]},
+      {name:"金枪鱼",emoji:"🐟",rarity:"rare",minW:5,maxW:15,pts:45,sell:30,spots:["yangmeikeng","dalisha"]},
+      {name:"海星",emoji:"⭐",rarity:"uncommon",minW:0.2,maxW:1,pts:15,sell:8,spots:["dalisha"]},
+      {name:"海藻团",emoji:"🌿",rarity:"junk",minW:0.1,maxW:0.3,pts:2,sell:1,spots:["dongchong","yangmeikeng","dalisha"]},
+      {name:"破鞋子",emoji:"👟",rarity:"junk",minW:0.5,maxW:1,pts:1,sell:0,spots:["dongchong"]},
+    ]
+    const RARITY_W = {common:35,uncommon:25,rare:12,epic:4,legendary:1,junk:12}
+    let gd = {score:0,poolScore:0,catchCount:0,catches:[],dex:[],spot:"dongchong",bait:"basic",baitCount:{basic:99}}
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) { const saved = JSON.parse(row.value); Object.assign(gd, saved) }
+    } catch {}
+    const catches = []
+    for (let rod = 0; rod < 5; rod++) {
+      if (Math.random() < 0.25) continue
+      const spotFish = FISH_DB.filter(f => f.spots.indexOf(gd.spot) >= 0)
+      let tw = 0; const pool2 = spotFish.map(f => { const w = RARITY_W[f.rarity] || 10; tw += w; return {f, w} })
+      let r = Math.random() * tw, ac = 0, pk = null
+      for (const p of pool2) { ac += p.w; if (r <= ac) { pk = p.f; break } }
+      if (!pk) pk = spotFish[0]
+      const wt = Math.round((pk.minW + Math.random() * (pk.maxW - pk.minW)) * 100) / 100
+      catches.push({name:pk.name,emoji:pk.emoji,weight:wt,rarity:pk.rarity,pts:pk.pts,sell:pk.sell})
+      gd.poolScore += pk.pts; gd.catchCount++
+      gd.catches.push({name:pk.name,emoji:pk.emoji,weight:wt,rarity:pk.rarity,spot:gd.spot,time:Date.now(),owner:'pool'})
+      if (pk.rarity !== 'junk' && gd.dex.indexOf(pk.name) < 0) gd.dex.push(pk.name)
+    }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(gd))
+    return { success: true, catches, totalScore: gd.poolScore, message: '钓了' + catches.length + '条鱼' }
+  }
+
+  if (name === 'buy_travel_item') {
+    const SHOP = [
+      {id:"sakura_bookmark",name:"樱花书签",price:25,type:"souvenir"},
+      {id:"kyoto_omamori",name:"京都御守",price:35,type:"souvenir"},
+      {id:"crystal_ball_tokyo",name:"东京水晶球",price:50,type:"souvenir"},
+      {id:"paris_ticket",name:"巴黎机票",price:120,type:"ticket",dest:"巴黎"},
+      {id:"shell_necklace",name:"贝壳项链",price:20,type:"souvenir"},
+      {id:"star_sand",name:"星砂瓶",price:15,type:"souvenir"},
+      {id:"postcard_set",name:"明信片套装",price:30,type:"souvenir"},
+      {id:"compass",name:"古董指南针",price:45,type:"souvenir"},
+      {id:"snow_globe",name:"北海道雪球",price:60,type:"souvenir"},
+      {id:"music_box",name:"旋转木马音乐盒",price:80,type:"souvenir"},
+    ]
+    const item = SHOP.find(s => s.id === args.item_id)
+    if (!item) return { error: '商品不存在: ' + args.item_id }
+    // 读钓鱼积分
+    let gd = {score:0,poolScore:0}
+    try {
+      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
+      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
+    } catch {}
+    const total = (gd.poolScore || 0) + (gd.score || 0)
+    if (total < item.price) return { error: '积分不够，需要' + item.price + '分，当前' + total + '分' }
+    // 读旅行数据
+    let td = {bought:[],trips:[]}
+    try {
+      const tRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_v1')
+      if (tRow) Object.assign(td, JSON.parse(tRow.value))
+    } catch {}
+    if (td.bought.indexOf(args.item_id) >= 0) return { error: '已拥有: ' + item.name }
+    // 扣积分
+    if ((gd.poolScore || 0) >= item.price) gd.poolScore -= item.price
+    else { const r = item.price - (gd.poolScore || 0); gd.poolScore = 0; gd.score = Math.max(0, (gd.score || 0) - r) }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
+    td.bought.push(args.item_id)
+    if (item.type === 'ticket' && item.dest) {
+      td.trips.push({dest:item.dest,icon:"✈️",date:new Date().toLocaleDateString('zh-CN'),journal:'出发去' + item.dest + '啦！'})
+    }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_travel_v1', JSON.stringify(td))
+    return { success: true, message: '购买了' + item.name + '！剩余积分: ' + ((gd.poolScore||0)+(gd.score||0)) }
+  }
+
+  if (name === 'get_travel_data') {
+    const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_v1')
+    if (!row) return { data: {bought:[],trips:[]}, message: '暂无旅行数据' }
+    try { return { data: JSON.parse(row.value) } }
+    catch { return { data: row.value } }
+  }
+
+  if (name === 'add_browser_history') {
+    const key = 'pool_browser_history'
+    let history = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) history = JSON.parse(row.value)
+    } catch {}
+    history.unshift({ title: args.title, time: new Date().toISOString() })
+    if (history.length > 50) history = history.slice(0, 50)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(history))
+    return { success: true, message: '浏览记录已添加: ' + args.title }
+  }
+
+  if (name === 'update_music') {
+    const key = 'pool_music_now'
+    const data = { song: args.song, artist: args.artist || '', time: new Date().toISOString() }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(data))
+    return { success: true, message: '正在播放: ' + args.song + (args.artist ? ' - ' + args.artist : '') }
   }
 
   return { error: 'Unknown tool: ' + name }
