@@ -787,6 +787,7 @@ export default async function handler(req, res) {
       const reqModel = model || 'gpt-4o-mini'
 
       const reqMessages = convertSystemRole(currentMessages.slice())
+        .filter(m => m && m.role && ['user', 'assistant'].includes(m.role) && m.content)
 
       const bodyObj = {
         model: reqModel,
