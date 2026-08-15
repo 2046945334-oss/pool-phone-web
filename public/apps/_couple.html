@@ -878,5 +878,47 @@ try{
   }
 }catch(e){}
 </script>
+<script src="backend-sync.js"></script>
+<script>
+// 从后端拉最新情侣空间数据
+syncFromBackend(['pool_couple_space_v2', 'pool_tv_program', 'pool_couple_pocket', 'pool_couple_universes'], function() {
+  // 重载state
+  state = loadState();
+  renderLamps();
+  renderRoom();
+  renderPocket();
+  // 刷新电视
+  try { loadTVProgram(); startTV(); } catch(e) {}
+  // 合并远程平行宇宙
+  try {
+    var extra = localStorage.getItem('pool_couple_universes');
+    if (extra) {
+      var arr = JSON.parse(extra);
+      for (var i = 0; i < arr.length; i++) {
+        if (universeLines.indexOf(arr[i]) === -1) universeLines.push(arr[i]);
+      }
+      renderUniverse();
+    }
+  } catch(e) {}
+  // 合并口袋纸条
+  try {
+    var pocketData = localStorage.getItem('pool_couple_pocket');
+    if (pocketData) {
+      var remoteItems = JSON.parse(pocketData);
+      if (remoteItems.length > 0) {
+        // 追加到 pocketItems 末尾（如果不重复）
+        for (var j = 0; j < remoteItems.length; j++) {
+          var exists = false;
+          for (var k = 0; k < pocketItems.length; k++) {
+            if (pocketItems[k].content === remoteItems[j].content) { exists = true; break; }
+          }
+          if (!exists) pocketItems.push(remoteItems[j]);
+        }
+        renderPocket();
+      }
+    }
+  } catch(e) {}
+});
+</script>
 </body>
 </html>

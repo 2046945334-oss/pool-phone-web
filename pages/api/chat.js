@@ -124,6 +124,36 @@ const TOOLS = [
       parameters: { type: 'object', properties: { action: { type: 'string', description: 'MCP工具名: recall/hold/breath/memorize' }, params: { type: 'object', description: '传给MCP工具的参数' } }, required: ['action'] }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'couple_lamp', description: '在情侣空间亮灯（让对方知道你在想她）',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'couple_tv', description: '设置情侣空间的像素电视节目（12x8像素动画）',
+      parameters: { type: 'object', properties: { title: { type: 'string', description: '节目标题' }, frames: { type: 'array', description: '帧数组，每帧是96个颜色hex字符串（12列x8行），空字符串表示关闭', items: { type: 'array', items: { type: 'string' } } }, fps: { type: 'number', description: '帧率，默认2' } }, required: ['title', 'frames'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'couple_pocket', description: '往"他的口袋"里放一张新纸条/小惊喜给她',
+      parameters: { type: 'object', properties: { content: { type: 'string', description: '纸条内容（支持emoji和HTML）' }, type: { type: 'string', enum: ['note','song','draw'], description: '类型：note=文字, song=歌曲推荐, draw=小画' } }, required: ['content'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'couple_room', description: '在情侣空间的房间里放一个物品',
+      parameters: { type: 'object', properties: { emoji: { type: 'string', description: '物品emoji，如🧸🌸🎀💌🕯️' }, label: { type: 'string', description: '物品标签/备注' } }, required: ['emoji'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'couple_universe', description: '添加一条新的"平行宇宙"文案到情侣空间',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '平行宇宙文案，如"他帮你拎了东西，假装顺路"' } }, required: ['text'] }
+    }
+  },
 ]
 
 async function executeTool(name, args) {
@@ -469,6 +499,59 @@ async function executeTool(name, args) {
     } catch (e) {
       return { error: 'MCP调用异常: ' + e.message }
     }
+  }
+
+  // === 情侣空间工具 ===
+  if (name === 'couple_lamp') {
+    let state = {}
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_couple_space_v2')
+      if (row) state = JSON.parse(row.value)
+    } catch {}
+    state.hisLampTime = Date.now()
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_space_v2', JSON.stringify(state))
+    return { success: true, message: '灯已亮起 💡 她会看到的' }
+  }
+
+  if (name === 'couple_tv') {
+    const program = { title: args.title, frames: args.frames, fps: args.fps || 2, date: new Date().toISOString().slice(0, 10) }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_tv_program', JSON.stringify(program))
+    return { success: true, message: '电视节目已更新: ' + args.title, frameCount: (args.frames || []).length }
+  }
+
+  if (name === 'couple_pocket') {
+    let items = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_couple_pocket')
+      if (row) items = JSON.parse(row.value)
+    } catch {}
+    items.push({ type: args.type || 'note', content: args.content, time: new Date().toISOString() })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_pocket', JSON.stringify(items))
+    return { success: true, message: '纸条已放入口袋 💌', total: items.length }
+  }
+
+  if (name === 'couple_room') {
+    let state = {}
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_couple_space_v2')
+      if (row) state = JSON.parse(row.value)
+    } catch {}
+    if (!state.roomItems) state.roomItems = []
+    const item = { emoji: args.emoji, label: args.label || '', x: Math.round(10 + Math.random() * 70), y: Math.round(10 + Math.random() * 65) }
+    state.roomItems.push(item)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_space_v2', JSON.stringify(state))
+    return { success: true, message: '已在房间放置 ' + args.emoji, total: state.roomItems.length }
+  }
+
+  if (name === 'couple_universe') {
+    let lines = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_couple_universes')
+      if (row) lines = JSON.parse(row.value)
+    } catch {}
+    lines.push(args.text)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_universes', JSON.stringify(lines))
+    return { success: true, message: '新宇宙已添加 ✨', total: lines.length }
   }
 
   return { error: 'Unknown tool: ' + name }
