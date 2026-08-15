@@ -631,6 +631,13 @@ syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi', 'pool_fishing_v2'], funct
   // 确保后端也有卡面列表（供AI抽卡用）
   syncCardList();
 });
+// 每10秒自动从后端拉取最新数据（AI抽卡后前端能及时刷新）
+setInterval(function() {
+  syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi', 'pool_fishing_v2'], function() {
+    load();
+    render();
+  });
+}, 10000);
 </script>
 <div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
 <div class="detail-card" id="detailCard"></div>

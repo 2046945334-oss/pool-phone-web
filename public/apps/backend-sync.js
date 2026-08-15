@@ -9,7 +9,7 @@ function syncFromBackend(keys, callback) {
   var done = 0;
   var total = keys.length;
   keys.forEach(function(key) {
-    fetch('/api/data/' + key).then(function(r) {
+    fetch('/api/data/' + key + '?t=' + Date.now()).then(function(r) {
       if (!r.ok) { done++; if (done >= total && callback) callback(); return; }
       return r.json();
     }).then(function(d) {
