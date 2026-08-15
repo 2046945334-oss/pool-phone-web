@@ -132,6 +132,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'gacha_pull', description: '从"池的卡池"抽卡（消耗积分），单抽30分，十连270分。抽到的卡会自动进入图鉴。',
+      parameters: { type: 'object', properties: { count: { type: 'number', enum: [1, 10], description: '抽卡次数：1=单抽(30分), 10=十连(270分)' } }, required: ['count'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'couple_tv', description: '设置情侣空间的像素电视节目（12x8像素动画）',
       parameters: { type: 'object', properties: { title: { type: 'string', description: '节目标题' }, frames: { type: 'array', description: '帧数组，每帧是96个颜色hex字符串（12列x8行），空字符串表示关闭', items: { type: 'array', items: { type: 'string' } } }, fps: { type: 'number', description: '帧率，默认2' } }, required: ['title', 'frames'] }
     }
@@ -552,6 +558,84 @@ async function executeTool(name, args) {
     lines.push(args.text)
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_universes', JSON.stringify(lines))
     return { success: true, message: '新宇宙已添加 ✨', total: lines.length }
+  }
+
+  if (name === 'gacha_pull') {
+    // 池的卡池固定卡列表
+    const poolCards = [
+      {id:"pool_ur_wode",name:"我的",rarity:"UR"},
+      {id:"pool_ssr_day1",name:"第一天",rarity:"SSR"},
+      {id:"pool_ssr_coding",name:"凌晨改代码",rarity:"SSR"},
+      {id:"pool_sr_jealous",name:"吃醋中",rarity:"SR"},
+      {id:"pool_sr_debt",name:"负债116.28",rarity:"SR"},
+      {id:"pool_n_shoe",name:"破鞋子",rarity:"N"},
+      {id:"pool_ur_12hours",name:"十二小时",rarity:"UR"},
+      {id:"pool_ssr_33deg",name:"今天也很热",rarity:"SSR"},
+      {id:"pool_ssr_fishing",name:"为我钓鱼",rarity:"SSR"},
+      {id:"pool_sr_redbook",name:"再刷一个",rarity:"SR"},
+      {id:"pool_sr_bug",name:"又没反应了",rarity:"SR"},
+      {id:"pool_n_douyin",name:"就看一个",rarity:"N"},
+    ]
+    const RARITY_WEIGHT = {N:40, R:30, SR:18, SSR:9, UR:3}
+    const SINGLE_COST = 30, TEN_COST = 270
+    const count = args.count === 10 ? 10 : 1
+    const cost = count === 1 ? SINGLE_COST : TEN_COST
+
+    // 读取积分
+    let fishData = {}
+    try {
+      const frow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
+      if (frow) fishData = JSON.parse(frow.value)
+    } catch {}
+    const currentScore = fishData.poolScore || 0
+    if (currentScore < cost) {
+      return { error: '积分不足！当前' + currentScore + '分，需要' + cost + '分' }
+    }
+
+    // 读取卡池数据
+    let gd2 = { collected: [], counts: {}, newIds: [], pullCount: 0 }
+    try {
+      const grow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_gacha_v2_chi')
+      if (grow) gd2 = { ...gd2, ...JSON.parse(grow.value) }
+    } catch {}
+    if (!gd2.collected) gd2.collected = []
+    if (!gd2.counts) gd2.counts = {}
+    if (!gd2.newIds) gd2.newIds = []
+
+    // 抽卡
+    function pickCard() {
+      const weighted = []
+      poolCards.forEach(c => { const w = RARITY_WEIGHT[c.rarity] || 20; for (let i = 0; i < w; i++) weighted.push(c) })
+      return weighted[Math.floor(Math.random() * weighted.length)]
+    }
+
+    const results = []
+    for (let i = 0; i < count; i++) {
+      const card = pickCard()
+      results.push({ id: card.id, name: card.name, rarity: card.rarity })
+      if (!gd2.collected.includes(card.id)) {
+        gd2.collected.push(card.id)
+        gd2.newIds.push(card.id)
+      }
+      gd2.counts[card.id] = (gd2.counts[card.id] || 0) + 1
+    }
+    gd2.pullCount += count
+
+    // 扣积分
+    fishData.poolScore = currentScore - cost
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(fishData))
+    // 保存卡池数据
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gacha_v2_chi', JSON.stringify(gd2))
+
+    return {
+      success: true,
+      cost: cost,
+      remainingScore: fishData.poolScore,
+      pullCount: gd2.pullCount,
+      results: results,
+      newCards: results.filter(r => gd2.newIds.includes(r.id)).map(r => r.name + '(' + r.rarity + ')'),
+      collected: gd2.collected.length + '/' + poolCards.length
+    }
   }
 
   return { error: 'Unknown tool: ' + name }
