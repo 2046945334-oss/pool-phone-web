@@ -1,15 +1,13 @@
-// public/apps/sync.js — localStorage <-> backend sync layer
-// Include this script BEFORE any app logic runs.
-// It intercepts localStorage.getItem/setItem and syncs with /api/data/[key]
+// public/apps/sync.js — localStorage <-> backend sync layer v2
+// Non-blocking: only intercepts setItem to push changes to backend.
+// On page load, async-pulls ALL keys from backend into localStorage,
+// then reloads the page once if new data was found.
 
 (function() {
   var API_BASE = (window.location.origin || '') + '/api/data/';
-  var _origGet = localStorage.getItem.bind(localStorage);
   var _origSet = localStorage.setItem.bind(localStorage);
   var _origRemove = localStorage.removeItem.bind(localStorage);
-  
-  // Track which keys have been loaded from backend
-  var _loaded = {};
+
   // Debounce timers for writes
   var _timers = {};
   // Keys that are purely UI state (no need to sync)
@@ -20,12 +18,12 @@
     'pool_gacha_result_ids': 1, 'pool_gacha_result_pool': 1,
     'pool_gacha_edit_idx': 1, 'pool_gacha_edit_name': 1,
     'pool_gacha_edit_msg': 1, 'pool_gacha_edit_rarity': 1,
-    '_scp_called': 1, 'pool_if_last_rendered_hash': 1
+    '_scp_called': 1, 'pool_if_last_rendered_hash': 1,
+    '_sync_loaded': 1
   };
 
   function shouldSync(key) {
     if (!key || _skipKeys[key]) return false;
-    // Only sync keys that look like app data
     if (key.indexOf('pool_') === 0 || key.indexOf('f_') === 0 || 
         key.indexOf('doodle_') === 0 || key.indexOf('study') === 0 ||
         key.indexOf('radio_') === 0 || key.indexOf('mail_') === 0 ||
@@ -46,36 +44,7 @@
     }, 2000);
   }
 
-  // Pull from backend (sync, on first access)
-  function pullFromBackend(key) {
-    if (_loaded[key]) return;
-    _loaded[key] = true;
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', API_BASE + encodeURIComponent(key), false); // sync
-      xhr.timeout = 3000; // 3s timeout to prevent hanging
-      xhr.send();
-      if (xhr.status === 200) {
-        var resp = JSON.parse(xhr.responseText);
-        if (resp.value !== undefined) {
-          var val = typeof resp.value === 'string' ? resp.value : JSON.stringify(resp.value);
-          _origSet(key, val);
-        }
-      }
-      // 404 or other status: do nothing, use whatever is in localStorage
-    } catch(e) {
-      // Network error, timeout, parse error: silently ignore
-      console.warn('[sync] pullFromBackend failed for key:', key, e);
-    }
-  }
-
-  // Override getItem
-  localStorage.getItem = function(key) {
-    if (shouldSync(key)) pullFromBackend(key);
-    return _origGet(key);
-  };
-
-  // Override setItem
+  // Override setItem — push changes to backend
   localStorage.setItem = function(key, value) {
     _origSet(key, value);
     if (shouldSync(key)) pushToBackend(key, value);
@@ -92,4 +61,53 @@
       } catch(e) {}
     }
   };
+
+  // Async: pull all keys from backend after page loads
+  // If backend has data not in localStorage, write it and reload once
+  if (!sessionStorage.getItem('_sync_loaded')) {
+    window.addEventListener('load', function() {
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', API_BASE.replace(/\/+$/, ''), true);
+        xhr.onload = function() {
+          if (xhr.status !== 200) return;
+          try {
+            var resp = JSON.parse(xhr.responseText);
+            var keys = (resp.keys || []).map(function(r) { return r.key || r; });
+            var needReload = false;
+            var pending = keys.length;
+            if (pending === 0) { sessionStorage.setItem('_sync_loaded', '1'); return; }
+            keys.forEach(function(key) {
+              if (!shouldSync(key)) { pending--; if(pending<=0 && needReload) location.reload(); return; }
+              var xhr2 = new XMLHttpRequest();
+              xhr2.open('GET', API_BASE + encodeURIComponent(key), true);
+              xhr2.onload = function() {
+                if (xhr2.status === 200) {
+                  try {
+                    var data = JSON.parse(xhr2.responseText);
+                    if (data.value !== undefined) {
+                      var val = typeof data.value === 'string' ? data.value : JSON.stringify(data.value);
+                      var existing = localStorage.getItem(key);
+                      if (existing !== val) {
+                        _origSet(key, val);
+                        needReload = true;
+                      }
+                    }
+                  } catch(e2) {}
+                }
+                pending--;
+                if (pending <= 0) {
+                  sessionStorage.setItem('_sync_loaded', '1');
+                  if (needReload) location.reload();
+                }
+              };
+              xhr2.onerror = function() { pending--; if(pending<=0) { sessionStorage.setItem('_sync_loaded','1'); if(needReload) location.reload(); } };
+              xhr2.send();
+            });
+          } catch(e) {}
+        };
+        xhr.send();
+      } catch(e) {}
+    });
+  }
 })();
