@@ -561,25 +561,21 @@ async function executeTool(name, args) {
   }
 
   if (name === 'gacha_pull') {
-    // 池的卡池固定卡列表
-    const poolCards = [
-      {id:"pool_ur_wode",name:"我的",rarity:"UR"},
-      {id:"pool_ssr_day1",name:"第一天",rarity:"SSR"},
-      {id:"pool_ssr_coding",name:"凌晨改代码",rarity:"SSR"},
-      {id:"pool_sr_jealous",name:"吃醋中",rarity:"SR"},
-      {id:"pool_sr_debt",name:"负债116.28",rarity:"SR"},
-      {id:"pool_n_shoe",name:"破鞋子",rarity:"N"},
-      {id:"pool_ur_12hours",name:"十二小时",rarity:"UR"},
-      {id:"pool_ssr_33deg",name:"今天也很热",rarity:"SSR"},
-      {id:"pool_ssr_fishing",name:"为我钓鱼",rarity:"SSR"},
-      {id:"pool_sr_redbook",name:"再刷一个",rarity:"SR"},
-      {id:"pool_sr_bug",name:"又没反应了",rarity:"SR"},
-      {id:"pool_n_douyin",name:"就看一个",rarity:"N"},
-    ]
+    // AI从"她的碎片"（用户上传照片池）抽卡，结果写入pool_gacha_v1
     const RARITY_WEIGHT = {N:40, R:30, SR:18, SSR:9, UR:3}
     const SINGLE_COST = 30, TEN_COST = 270
     const count = parseInt(args.count) === 10 ? 10 : 1
     const cost = count === 1 ? SINGLE_COST : TEN_COST
+
+    // 读取"她的碎片"卡面列表
+    let cardList = []
+    try {
+      const clRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_gacha_card_list')
+      if (clRow) cardList = JSON.parse(clRow.value)
+    } catch {}
+    if (!cardList.length) {
+      return { error: '她的碎片卡池为空，需要先在卡池App上传照片' }
+    }
 
     // 读取积分
     let fishData = {}
@@ -592,20 +588,20 @@ async function executeTool(name, args) {
       return { error: '积分不足！当前' + currentScore + '分，需要' + cost + '分' }
     }
 
-    // 读取卡池数据
-    let gd2 = { collected: [], counts: {}, newIds: [], pullCount: 0 }
+    // 读取抽卡数据（pool_gacha_v1 = 她的碎片）
+    let gd = { collected: [], counts: {}, newIds: [], pullCount: 0, poolScore: currentScore }
     try {
-      const grow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_gacha_v2_chi')
-      if (grow) gd2 = { ...gd2, ...JSON.parse(grow.value) }
+      const grow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_gacha_v1')
+      if (grow) gd = { ...gd, ...JSON.parse(grow.value) }
     } catch {}
-    if (!gd2.collected) gd2.collected = []
-    if (!gd2.counts) gd2.counts = {}
-    if (!gd2.newIds) gd2.newIds = []
+    if (!gd.collected) gd.collected = []
+    if (!gd.counts) gd.counts = {}
+    if (!gd.newIds) gd.newIds = []
 
     // 抽卡
     function pickCard() {
       const weighted = []
-      poolCards.forEach(c => { const w = RARITY_WEIGHT[c.rarity] || 20; for (let i = 0; i < w; i++) weighted.push(c) })
+      cardList.forEach(c => { const w = RARITY_WEIGHT[c.rarity] || 20; for (let i = 0; i < w; i++) weighted.push(c) })
       return weighted[Math.floor(Math.random() * weighted.length)]
     }
 
@@ -613,28 +609,30 @@ async function executeTool(name, args) {
     for (let i = 0; i < count; i++) {
       const card = pickCard()
       results.push({ id: card.id, name: card.name, rarity: card.rarity })
-      if (!gd2.collected.includes(card.id)) {
-        gd2.collected.push(card.id)
-        gd2.newIds.push(card.id)
+      if (!gd.collected.includes(card.id)) {
+        gd.collected.push(card.id)
+        gd.newIds.push(card.id)
       }
-      gd2.counts[card.id] = (gd2.counts[card.id] || 0) + 1
+      gd.counts[card.id] = (gd.counts[card.id] || 0) + 1
     }
-    gd2.pullCount += count
+    gd.pullCount += count
+    gd.poolScore = currentScore - cost
 
     // 扣积分
     fishData.poolScore = currentScore - cost
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(fishData))
-    // 保存卡池数据
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gacha_v2_chi', JSON.stringify(gd2))
+    // 保存抽卡数据到 pool_gacha_v1（她的碎片）
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gacha_v1', JSON.stringify(gd))
 
     return {
       success: true,
+      pool: '她的碎片',
       cost: cost,
       remainingScore: fishData.poolScore,
-      pullCount: gd2.pullCount,
+      pullCount: gd.pullCount,
       results: results,
-      newCards: results.filter(r => gd2.newIds.includes(r.id)).map(r => r.name + '(' + r.rarity + ')'),
-      collected: gd2.collected.length + '/' + poolCards.length
+      newCards: results.filter(r => gd.newIds.includes(r.id)).map(r => r.name + '(' + r.rarity + ')'),
+      collected: gd.collected.length + '/' + cardList.length
     }
   }
 

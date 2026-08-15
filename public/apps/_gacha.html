@@ -488,6 +488,8 @@ var list=cards.map(function(c){return{id:c.id,name:c.name,rarity:c.rarity,msg:c.
 var json=JSON.stringify(list);
 localStorage.setItem("pool_gacha_card_list",json);
 if(window.GachaBridge&&GachaBridge.saveCardList)GachaBridge.saveCardList(json);
+// 同步卡面列表到后端
+try{fetch('/api/data/pool_gacha_card_list',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:json})});}catch(e){}
 }catch(e){}
 }
 function renderManageList(){
@@ -626,6 +628,8 @@ load();
 syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi', 'pool_fishing_v2'], function() {
   load();
   render();
+  // 确保后端也有卡面列表（供AI抽卡用）
+  syncCardList();
 });
 </script>
 <div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
