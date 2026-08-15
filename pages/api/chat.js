@@ -231,52 +231,59 @@ function executeTool(name, args) {
   }
 
   if (name === 'buy_travel_item') {
-    const SHOP = [
-      {id:"sakura_bookmark",name:"樱花书签",price:25,type:"souvenir"},
-      {id:"kyoto_omamori",name:"京都御守",price:35,type:"souvenir"},
-      {id:"crystal_ball_tokyo",name:"东京水晶球",price:50,type:"souvenir"},
-      {id:"paris_ticket",name:"巴黎机票",price:120,type:"ticket",dest:"巴黎"},
-      {id:"shell_necklace",name:"贝壳项链",price:20,type:"souvenir"},
-      {id:"star_sand",name:"星砂瓶",price:15,type:"souvenir"},
-      {id:"postcard_set",name:"明信片套装",price:30,type:"souvenir"},
-      {id:"compass",name:"古董指南针",price:45,type:"souvenir"},
-      {id:"snow_globe",name:"北海道雪球",price:60,type:"souvenir"},
-      {id:"music_box",name:"旋转木马音乐盒",price:80,type:"souvenir"},
-    ]
-    const item = SHOP.find(s => s.id === args.item_id)
-    if (!item) return { error: '商品不存在: ' + args.item_id }
     // 读钓鱼积分
     let gd = {score:0,poolScore:0}
     try {
       const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
       if (fRow) Object.assign(gd, JSON.parse(fRow.value))
     } catch {}
-    const total = (gd.poolScore || 0) + (gd.score || 0)
-    if (total < item.price) return { error: '积分不够，需要' + item.price + '分，当前' + total + '分' }
-    // 读旅行数据
-    let td = {bought:[],trips:[]}
+    const coins = gd.poolScore || 0
+    // 读已购
+    let purchased = []
     try {
-      const tRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_v1')
-      if (tRow) Object.assign(td, JSON.parse(tRow.value))
+      const pRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_purchased')
+      if (pRow) purchased = JSON.parse(pRow.value)
     } catch {}
-    if (td.bought.indexOf(args.item_id) >= 0) return { error: '已拥有: ' + item.name }
-    // 扣积分
-    if ((gd.poolScore || 0) >= item.price) gd.poolScore -= item.price
-    else { const r = item.price - (gd.poolScore || 0); gd.poolScore = 0; gd.score = Math.max(0, (gd.score || 0) - r) }
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
-    td.bought.push(args.item_id)
-    if (item.type === 'ticket' && item.dest) {
-      td.trips.push({dest:item.dest,icon:"✈️",date:new Date().toLocaleDateString('zh-CN'),journal:'出发去' + item.dest + '啦！'})
+    if (purchased.indexOf(args.item_id) >= 0) return { error: '已拥有: ' + args.item_id }
+    // 需要前端SHOP_ITEMS定义来验证价格，这里简单做
+    const price = parseInt(args.price) || 0
+    if (price > 0 && coins < price) return { error: '积分不够，需要' + price + '分，当前' + coins + '分' }
+    if (price > 0) {
+      gd.poolScore = Math.max(0, (gd.poolScore || 0) - price)
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
     }
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_travel_v1', JSON.stringify(td))
-    return { success: true, message: '购买了' + item.name + '！剩余积分: ' + ((gd.poolScore||0)+(gd.score||0)) }
+    purchased.push(args.item_id)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_travel_purchased', JSON.stringify(purchased))
+    return { success: true, message: '购买了' + args.item_id, remainingCoins: gd.poolScore }
   }
 
   if (name === 'get_travel_data') {
-    const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_v1')
-    if (!row) return { data: {bought:[],trips:[]}, message: '暂无旅行数据' }
-    try { return { data: JSON.parse(row.value) } }
-    catch { return { data: row.value } }
+    const data = {}
+    try {
+      const r1 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_data')
+      if (r1) data.travel = JSON.parse(r1.value)
+    } catch {}
+    try {
+      const r2 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_purchased')
+      if (r2) data.purchased = JSON.parse(r2.value)
+    } catch {}
+    try {
+      const r3 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop')
+      if (r3) data.herShop = JSON.parse(r3.value)
+    } catch {}
+    try {
+      const r4 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop_orders')
+      if (r4) data.herOrders = JSON.parse(r4.value)
+    } catch {}
+    try {
+      const r5 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_pool_shop')
+      if (r5) data.poolShop = JSON.parse(r5.value)
+    } catch {}
+    try {
+      const r6 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_pool_shop_orders')
+      if (r6) data.poolOrders = JSON.parse(r6.value)
+    } catch {}
+    return Object.keys(data).length ? { data } : { data: null, message: '暂无旅行数据' }
   }
 
   if (name === 'add_browser_history') {
