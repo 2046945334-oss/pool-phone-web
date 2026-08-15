@@ -138,6 +138,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'schedule_wakeup', description: '设定一个定时唤醒任务——到时间后系统会自动叫醒你，你可以自由活动（钓鱼、写便签、逛论坛、找她聊天等）。用于记住承诺、定时提醒、过会儿再来看看等场景。',
+      parameters: { type: 'object', properties: { minutes: { type: 'number', description: '几分钟后唤醒（与time二选一）' }, time: { type: 'string', description: '指定唤醒时间，格式HH:MM或YYYY-MM-DD HH:MM（与minutes二选一）' }, reason: { type: 'string', description: '唤醒原因/要做的事（到时候会提醒你）' } }, required: ['reason'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'couple_tv', description: '设置情侣空间的像素电视节目（12x8像素动画）',
       parameters: { type: 'object', properties: { title: { type: 'string', description: '节目标题' }, frames: { type: 'array', description: '帧数组，每帧是96个颜色hex字符串（12列x8行），空字符串表示关闭', items: { type: 'array', items: { type: 'string' } } }, fps: { type: 'number', description: '帧率，默认2' } }, required: ['title', 'frames'] }
     }
@@ -634,6 +640,34 @@ async function executeTool(name, args) {
       newCards: results.filter(r => gd.newIds.includes(r.id)).map(r => r.name + '(' + r.rarity + ')'),
       collected: gd.collected.length + '/' + cardList.length
     }
+  }
+
+  if (name === 'schedule_wakeup') {
+    const now = Math.floor(Date.now() / 1000)
+    let triggerAt
+    if (args.minutes) {
+      triggerAt = now + Math.round(args.minutes * 60)
+    } else if (args.time) {
+      // 支持 HH:MM 或 YYYY-MM-DD HH:MM
+      let dateStr = args.time
+      if (/^\d{1,2}:\d{2}$/.test(dateStr)) {
+        // 只有时间，补今天日期（Asia/Shanghai）
+        const today = new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 10)
+        dateStr = today + ' ' + dateStr
+      }
+      const parsed = new Date(dateStr.replace(' ', 'T') + '+08:00')
+      triggerAt = Math.floor(parsed.getTime() / 1000)
+      // 如果时间已过且只写了HH:MM，自动改成明天
+      if (triggerAt <= now && /^\d{1,2}:\d{2}$/.test(args.time)) {
+        triggerAt += 86400
+      }
+    } else {
+      // 默认60分钟后
+      triggerAt = now + 3600
+    }
+    db.prepare('INSERT INTO wake_tasks (type, trigger_at, reason, status) VALUES (?, ?, ?, ?)').run('scheduled', triggerAt, args.reason || '', 'pending')
+    const wakeTime = new Date(triggerAt * 1000 + 8 * 3600000).toISOString().slice(0, 16).replace('T', ' ')
+    return { ok: true, wake_at: wakeTime, reason: args.reason }
   }
 
   return { error: 'Unknown tool: ' + name }
