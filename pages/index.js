@@ -7,7 +7,7 @@ import FishingApp from '../components/apps/FishingApp'
 import ReaderApp from '../components/apps/ReaderApp'
 import DraftsApp from '../components/apps/DraftsApp'
 import HtmlApp from '../components/apps/HtmlApp'
-import AppCustomizer, { getAppBgStyle, getAppBgCss } from '../components/apps/AppCustomizer'
+import AppCustomizer, { getAppBgStyle, getAppBgCss, getCoupleInjectJs } from '../components/apps/AppCustomizer'
 import notesHtml from '../public/apps/_notes.html'
 import gachaHtml from '../public/apps/_gacha.html'
 import messagesHtml from '../public/apps/_messages.html'
@@ -1559,6 +1559,13 @@ export default function Home() {
           htmlContent = htmlContent.replace('</head>', `<style>${injectedCss}</style></head>`)
         }
       }
+      // For couple app, inject avatar/room/pocket image replacements
+      if (currentApp === 'couple' && bgCfg) {
+        const coupleJs = getCoupleInjectJs(bgCfg)
+        if (coupleJs) {
+          htmlContent = htmlContent.replace('</body>', `${coupleJs}</body>`)
+        }
+      }
 
       return (
         <div className="app-page" style={isReact ? bgStyle : {}}>
@@ -1847,6 +1854,7 @@ export default function Home() {
         .customizer-footer { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid #eee; }
         .customizer-btn-clear { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #fff; color: #999; font-size: 13px; cursor: pointer; }
         .customizer-btn-done { flex: 1; padding: 10px; border: none; border-radius: 10px; background: #c77dba; color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .customizer-section-title { font-size: 14px; font-weight: 600; color: #333; margin: 4px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #f0e8f0; }
       `}</style>
     </>
   )
