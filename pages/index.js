@@ -153,6 +153,12 @@ function ChatView({ theme }) {
   useEffect(() => { setVisibleStart(Math.max(0, messages.length - 20)) }, [messages.length])
   const [memoryContext, setMemoryContext] = useState('')
   useEffect(() => { callMemory('breath', {}).then(r => { if (r && r.result && r.result.content && r.result.content[0]) setMemoryContext(r.result.content[0].text || '') }) }, [])
+  // Register Service Worker for app caching (instant load)
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+  }, [])
   // Load notifications from backend
   useEffect(() => {
     fetch('/api/notifications').then(r=>r.json()).then(d => {
