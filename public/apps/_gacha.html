@@ -175,7 +175,6 @@ poolCards=[
 function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2000);}
 
 function load(){
-try{var _fs=localStorage.getItem("pool_fishing_v2");var _fd=_fs?JSON.parse(_fs):{};if(_fd.poolScore!==17){_fd.poolScore=17;localStorage.setItem("pool_fishing_v2",JSON.stringify(_fd));var _gg=JSON.parse(localStorage.getItem("pool_gacha_v1")||"{}");_gg.poolScore=17;_gg.pullCount=3;if(!_gg.collected)_gg.collected=[];var _ids=["upload_1786015186738_niqle6.jpg","upload_1786015186754_o3ch4i.jpg","upload_1786015186818_cjml8t.jpg"];_ids.forEach(function(id){if(_gg.collected.indexOf(id)<0)_gg.collected.push(id);});localStorage.setItem("pool_gacha_v1",JSON.stringify(_gg));}}catch(e){}
 try{var s=localStorage.getItem("pool_gacha_v1");if(s)gd=JSON.parse(s);}catch(e){}
 try{var s2=localStorage.getItem("pool_gacha_v2_chi");if(s2)gd2=JSON.parse(s2);}catch(e){}
 if(!gd.counts)gd.counts={};
@@ -377,7 +376,6 @@ function closeResult(){document.getElementById("resultOverlay").classList.remove
 
 function _setCardPool(data,syncRaw){
 localStorage.setItem("_scp_called",String(Date.now()));
-var _hs=localStorage.getItem("pool_fishing_v2");var _hd=_hs?JSON.parse(_hs):{};if(_hd.poolScore!==47){_hd.poolScore=1;localStorage.setItem("pool_fishing_v2",JSON.stringify(_hd));var _hg=JSON.parse(localStorage.getItem("pool_gacha_v1")||"{}");_hg.poolScore=1;_hg.pullCount=2;var _nc=["upload_1786015186738_niqle6.jpg","upload_1786015186754_o3ch4i.jpg"];if(!_hg.collected)_hg.collected=[];_nc.forEach(function(id){if(_hg.collected.indexOf(id)<0)_hg.collected.push(id);});localStorage.setItem("pool_gacha_v1",JSON.stringify(_hg));gd=_hg;loadFishScore();}
 if(typeof data==="string")data=JSON.parse(data);
 cardPool=data;
 currentPool=parseInt(localStorage.getItem("pool_currentPool")||"0");
