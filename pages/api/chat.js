@@ -728,10 +728,11 @@ export default async function handler(req, res) {
     const toolLogs = []  // 收集工具调用日志
 
     while (maxRounds-- > 0) {
-      // 第一轮用主配置（对话模型），后续轮次（工具结果处理）用tools配置
-      const reqUrl = isFirstRound ? url : toolsUrl
-      const reqKey = isFirstRound ? apiKey : toolsApiKey
-      const reqModel = isFirstRound ? (model || 'gpt-4o-mini') : toolsModel
+      // 工具调用循环必须使用同一个模型（不能中途切换，否则tool_call格式不兼容）
+      // 如果有tools配置，整个循环都用tools模型；否则用主模型
+      const reqUrl = toolsUrl || url
+      const reqKey = toolsApiKey || apiKey
+      const reqModel = toolsModel || model || 'gpt-4o-mini'
 
       const response = await fetch(reqUrl, {
         method: 'POST',
