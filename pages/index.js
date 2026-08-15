@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
+import { pullAllFromBackend, pushAllToBackend } from '../lib/appSync'
 
 // 语音条组件 - AI发送[voice]标记时渲染为可播放语音条
 function VoiceBubble({ text }) {
@@ -1382,8 +1383,11 @@ export default function Home() {
     return () => window.removeEventListener('theme-changed', load)
   }, [])
 
+  // Pull backend data into localStorage on first load
+  useEffect(() => { pullAllFromBackend() }, [])
+
   function handleOpenApp(id) { if (id === 'chat') { setActiveTab('chat') } else { setCurrentApp(id) } }
-  function handleBack() { setCurrentApp(null) }
+  function handleBack() { pushAllToBackend(); setCurrentApp(null) }
 
   function renderPhoneContent() {
     if (locked) return <LockScreen onUnlock={() => setLocked(false)} theme={theme} />
