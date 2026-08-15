@@ -720,26 +720,47 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4. 两阶段架构：
-    // 阶段一：用工具模型（便宜）完成工具调用循环
-    // 阶段二：把工具结果注入上下文，用主对话模型（贵）生成最终回复
+    // 4. API请求循环（支持工具调用）
+    // 第一轮用主模型（带工具，Pro能判断是否需要调工具）
+    // 后续轮次（工具结果处理）用工具模型（便宜）
     const toolLogs = []
     
-    // --- 阶段一：工具调用循环（用tools配置的模型） ---
-    const tcUrl = toolsUrl || url
-    const tcKey = toolsApiKey || apiKey
-    const tcModel = toolsModel || model || 'gpt-4o-mini'
+    // 将system role转为user消息（部分代理不支持system role）
+    function convertSystemRole(msgs) {
+      let systemContent = ''
+      const filtered = msgs.filter(m => {
+        if (m.role === 'system') { systemContent += (systemContent ? '\n\n' : '') + m.content; return false }
+        return true
+      })
+      if (systemContent && filtered.length) {
+        const firstUser = filtered.find(m => m.role === 'user')
+        if (firstUser) {
+          firstUser.content = '[系统设定]\n' + systemContent + '\n\n[用户消息]\n' + firstUser.content
+        } else {
+          filtered.unshift({ role: 'user', content: '[系统设定]\n' + systemContent })
+        }
+      }
+      return filtered
+    }
     
-    let toolMessages = currentMessages.slice()  // 工具模型的消息上下文
     let maxRounds = 5
-    
+    let isFirstRound = true
+
     while (maxRounds-- > 0) {
-      const response = await fetch(tcUrl, {
+      // 第一轮用主模型（它更聪明，能正确判断是否需要工具）
+      // 后续轮次（处理tool result）用工具模型（同provider，格式兼容）
+      const reqUrl = isFirstRound ? url : (toolsUrl || url)
+      const reqKey = isFirstRound ? apiKey : (toolsApiKey || apiKey)
+      const reqModel = isFirstRound ? (model || 'gpt-4o-mini') : (toolsModel || model || 'gpt-4o-mini')
+
+      const reqMessages = convertSystemRole(currentMessages.slice())
+
+      const response = await fetch(reqUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tcKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + reqKey },
         body: JSON.stringify({
-          model: tcModel,
-          messages: toolMessages,
+          model: reqModel,
+          messages: reqMessages,
           tools: TOOLS,
           stream: false,
         }),
@@ -747,20 +768,21 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         const errText = await response.text()
-        return res.status(response.status).json({ error: errText, debug: { url: tcUrl, model: tcModel } })
+        return res.status(response.status).json({ error: errText, debug: { url: reqUrl, model: reqModel } })
       }
 
       const data = await response.json()
       const choice = data.choices && data.choices[0]
 
       if (choice && choice.message && choice.message.tool_calls && choice.message.tool_calls.length) {
-        toolMessages.push(choice.message)
+        isFirstRound = false
+        currentMessages.push(choice.message)
         for (const tc of choice.message.tool_calls) {
           let args = {}
           try { args = JSON.parse(tc.function.arguments) } catch {}
           const result = await executeTool(tc.function.name, args)
           toolLogs.push({ name: tc.function.name, args, result })
-          toolMessages.push({
+          currentMessages.push({
             role: 'tool',
             tool_call_id: tc.id,
             content: JSON.stringify(result)
@@ -769,52 +791,15 @@ export default async function handler(req, res) {
         continue
       }
 
-      // 工具模型没有调用工具
-      if (!toolLogs.length) {
-        // 没调用任何工具，直接用工具模型的回复
-        const reply = (choice && choice.message && choice.message.content) || '无响应'
-        await processNewMessage(sessionId, 'assistant', reply, apiConfig)
-        return res.status(200).json({ reply })
-      }
-      break
+      const reply = (choice && choice.message && choice.message.content) || '无响应'
+
+      // 5. 存储AI回复到数据库
+      await processNewMessage(sessionId, 'assistant', reply, apiConfig)
+
+      return res.status(200).json({ reply, toolLogs: toolLogs.length ? toolLogs : undefined })
     }
 
-    // --- 阶段二：用主对话模型生成最终回复（仅当真正调用了工具时） ---
-    // 将工具执行结果以文本形式注入到主模型的上下文中
-    let finalMessages = currentMessages.slice()
-    if (toolLogs.length) {
-      const toolSummary = toolLogs.map(t => 
-        `[工具调用] ${t.name}(${JSON.stringify(t.args)})\n[结果] ${JSON.stringify(t.result)}`
-      ).join('\n\n')
-      finalMessages.push({
-        role: 'user',
-        content: `[系统：以下是你刚才调用工具的执行结果，请基于这些结果回复用户]\n\n${toolSummary}`
-      })
-    }
-
-    const finalResponse = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-      body: JSON.stringify({
-        model: model || 'gpt-4o-mini',
-        messages: finalMessages,
-        stream: false,
-      }),
-    })
-
-    if (!finalResponse.ok) {
-      const errText = await finalResponse.text()
-      return res.status(finalResponse.status).json({ error: errText, debug: { url, model: model || 'gpt-4o-mini' } })
-    }
-
-    const finalData = await finalResponse.json()
-    const finalChoice = finalData.choices && finalData.choices[0]
-    const reply = (finalChoice && finalChoice.message && finalChoice.message.content) || '无响应'
-
-    // 5. 存储AI回复到数据库
-    await processNewMessage(sessionId, 'assistant', reply, apiConfig)
-
-    return res.status(200).json({ reply, toolLogs: toolLogs.length ? toolLogs : undefined })
+    return res.status(200).json({ reply: '工具调用次数过多，已停止', toolLogs: toolLogs.length ? toolLogs : undefined })
   } catch (err) {
     return res.status(500).json({ error: err.message, debug: { url, model: model || 'gpt-4o-mini' } })
   }
