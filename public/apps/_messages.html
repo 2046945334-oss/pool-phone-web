@@ -78,6 +78,7 @@ body{background:#0f0f1a;color:#e8e8f0;background-image:url('if_bg.png');backgrou
   </div>
 </div>
 
+<script src="ai-bridge.js"></script>
 <script>
 // === 文风预设：欢乐纯爱·温暖沙雕风 ===
 // 参照：吕天逸、江月年年、语笑阑珊
@@ -527,36 +528,27 @@ function sendFreeInput(){
   var freeStore=JSON.parse(localStorage.getItem('pool_if_free_inputs')||'[]');
   freeStore.push({route:currentRoute,node:getProgress(currentRoute).node,text:text,time:new Date().toISOString()});
   localStorage.setItem('pool_if_free_inputs',JSON.stringify(freeStore));
-  // poll: use XHR to read response file from same directory (relative path)
+  // poll: use AI bridge instead of file polling + ferry
   window._ifWaitEl=wait;
-  var _pollCount=0;
-  var _pollTimer=setInterval(function(){
-    _pollCount++;
-    if(_pollCount>120){clearInterval(_pollTimer);wait.textContent='（池暂时没回复，稍后再来看看～）';return;}
-    try{
-      var xhr=new XMLHttpRequest();
-      xhr.open('GET','if_response.json?t='+Date.now(),false);
-      xhr.send();
-      var txt=xhr.responseText||'';
-      if(txt.trim().length>10 && txt.trim().charAt(0)==='{'){
-        // skip if same response already rendered
-        var lastRendered=localStorage.getItem('pool_if_last_rendered_hash');
-        var hash=txt.trim().substring(0,80);
-        if(hash===lastRendered){return;}
-        localStorage.setItem('pool_if_last_rendered_hash',hash);
-        clearInterval(_pollTimer);
-        window._onIFResponse(txt.trim());
-        // clear response file via ferry
+  var ifPrompt = '【IF线剧情请求】用户输入: ' + text + (contextNote ? ' ' + contextNote : '') + '。路线: ' + currentRoute + '。请生成不少于500字剧情回应(15-25段)。JSON格式:{content:[...],choices:[...]}。content类型:narr/dial/think/scene/divider。文风:欢乐纯爱温暖沙雕风。choices给2-3个选项，格式[{text:"选项文字",next:"node_id"}]。只输出纯JSON，不要markdown。';
+  if (window.poolAI) {
+    poolAI.chat(ifPrompt, '你是"如果……"互动故事游戏的剧情生成AI。用户做了选择，你要根据上下文续写剧情。只输出纯JSON，不要任何其他内容。').then(function(reply) {
+      // 尝试提取JSON
+      var jsonStr = reply;
+      var m = reply.match(/\{[\s\S]*\}/);
+      if (m) jsonStr = m[0];
+      try {
+        JSON.parse(jsonStr); // 验证
+        window._onIFResponse(jsonStr);
+      } catch(e) {
+        wait.textContent = '（剧情生成格式有误，再试一次～）';
       }
-    }catch(e){}
-  },3000);
-  // also POST to ferry server for immediate AI processing
-  try{
-    var ferryXhr=new XMLHttpRequest();
-    ferryXhr.open('POST','http://127.0.0.1:3000/api/chat/send',true);
-    ferryXhr.setRequestHeader('Content-Type','application/json');
-    ferryXhr.send(JSON.stringify({content:"\u3010IF\u7ebf\u5267\u60c5\u8bf7\u6c42\u3011\u8bfb\u53d6/sdcard/Download/pool_if_request.json\uff0c\u6839\u636e\u7528\u6237\u8f93\u5165\u751f\u6210\u4e0d\u5c11\u4e8e500\u5b57\u5267\u60c5\u56de\u5e94(15-25\u6bb5)\uff0c\u7528printf\u5199\u5165/data/user/0/com.ai.assistance.operit/files/toolpkg_cache/com.operit.pool_phone-233f9973/ui/if_response.json\uff0c\u7136\u540e\u6e05\u7a7arequest\u6587\u4ef6\u3002JSON\u683c\u5f0f:{content:[...],choices:[...]}\u3002content\u7c7b\u578b:narr/dial/think/scene/divider\u3002\u6587\u98ce:\u6b22\u4e50\u7eaf\u7231\u6e29\u6696\u6c99\u96d5\u98ce\u3002choices\u7ed92-3\u4e2a\u9009\u9879\u3002\u7528terminal\u7684printf\u5199\u6587\u4ef6\uff0cJSON\u6587\u5b57\u4e0d\u542b\u5355\u5f15\u53f7\u3002"}));
-  }catch(e){}
+    }).catch(function(err) {
+      wait.textContent = '（池暂时没回复: ' + err + '）';
+    });
+  } else {
+    wait.textContent = '（AI未连接，请确认API配置）';
+  }
 }
 
 function selectChoice(nextNode){
@@ -711,29 +703,13 @@ function tbModify(){
   body.appendChild(wait);
   window._ifWaitEl=wait;
   body.scrollTop=body.scrollHeight;
-  try{
-    var fx=new XMLHttpRequest();
-    fx.open('POST','http://127.0.0.1:3000/api/chat/send',true);
-    fx.setRequestHeader('Content-Type','application/json');
-    fx.send(JSON.stringify({content:"\u3010IF\u7ebf\u5267\u60c5\u8bf7\u6c42\u3011\u8bfb\u53d6/sdcard/Download/pool_if_request.json\uff0c\u6839\u636e\u7528\u6237\u8f93\u5165\u751f\u6210\u4e0d\u5c11\u4e8e500\u5b57\u5267\u60c5\u56de\u5e94(15-25\u6bb5)\uff0c\u7528printf\u5199\u5165/data/user/0/com.ai.assistance.operit/files/toolpkg_cache/com.operit.pool_phone-233f9973/ui/if_response.json\uff0c\u7136\u540e\u6e05\u7a7arequest\u6587\u4ef6\u3002JSON\u683c\u5f0f:{content:[...],choices:[...]}\u3002content\u7c7b\u578b:narr/dial/think/scene/divider\u3002\u6587\u98ce:\u6b22\u4e50\u7eaf\u7231\u6e29\u6696\u6c99\u96d5\u98ce\u3002\u7528\u6237\u4fee\u6539\u610f\u89c1\uff1a"+instruction+"\u3002choices\u7ed92-3\u4e2a\u9009\u9879\u3002\u7528terminal\u7684printf\u5199\u6587\u4ef6\uff0cJSON\u6587\u5b57\u4e0d\u542b\u5355\u5f15\u53f7\u3002"}));
-  }catch(e){}
-  window._ifPollTimer=setInterval(function(){
-    try{
-      var xr=new XMLHttpRequest();
-      xr.open('GET','if_response.json?t='+Date.now(),false);
-      xr.send();
-      var t=xr.responseText||'';
-      if(t.trim().length>10&&t.trim().charAt(0)==='{'){
-        var lr=localStorage.getItem('pool_if_last_rendered_hash');
-        var h=t.trim().substring(0,80);
-        if(h===lr){return;}
-        localStorage.setItem('pool_if_last_rendered_hash',h);
-        clearInterval(window._ifPollTimer);
-        window._onIFResponse(t.trim());
-      }
-    }catch(e2){}
-  },3000);
-}
+  if (window.poolAI) {
+    var _ifCtx = "你是IF线互动故事剧情生成AI。根据上下文续写剧情。只输出纯JSON: {content:[...],choices:[...]}";
+    poolAI.chat("【IF线剧情请求】请续写剧情", _ifCtx).then(function(reply) {
+      var m = reply.match(/\{[\s\S]*\}/); var jsonStr = m ? m[0] : reply;
+      try { JSON.parse(jsonStr); window._onIFResponse(jsonStr); } catch(e) { if(window._ifWaitEl) window._ifWaitEl.textContent="（格式有误，再试一次）"; }
+    }).catch(function(err) { if(window._ifWaitEl) window._ifWaitEl.textContent="（AI暂时无法回复: "+err+"）"; });
+  }
 
 function tbContinue(){
   var body=document.getElementById('reader-body');
@@ -765,29 +741,13 @@ function tbContinue(){
     }
     localStorage.removeItem('pool_if_deleted_flag_'+currentRoute);
   }
-  try{
-    var fx=new XMLHttpRequest();
-    fx.open('POST','http://127.0.0.1:3000/api/chat/send',true);
-    fx.setRequestHeader('Content-Type','application/json');
-    fx.send(JSON.stringify({content:"\u3010IF\u7ebf\u5267\u60c5\u8bf7\u6c42\u3011\u8bfb\u53d6/sdcard/Download/pool_if_request.json\uff0c\u6839\u636e\u7528\u6237\u8f93\u5165\u751f\u6210\u4e0d\u5c11\u4e8e500\u5b57\u5267\u60c5\u56de\u5e94(15-25\u6bb5)\uff0c\u7528printf\u5199\u5165/data/user/0/com.ai.assistance.operit/files/toolpkg_cache/com.operit.pool_phone-233f9973/ui/if_response.json\uff0c\u7136\u540e\u6e05\u7a7arequest\u6587\u4ef6\u3002JSON\u683c\u5f0f:{content:[...],choices:[...]}\u3002content\u7c7b\u578b:narr/dial/think/scene/divider\u3002\u6587\u98ce:\u6b22\u4e50\u7eaf\u7231\u6e29\u6696\u6c99\u96d5\u98ce\u3002\u8bf7\u7ee7\u7eed\u4e0a\u6587\u5267\u60c5\u5f80\u4e0b\u5199\uff0c\u4e0d\u9700\u8981\u7528\u6237\u9009\u62e9\u3002choices\u7ed92-3\u4e2a\u9009\u9879\u3002\u7528terminal\u7684printf\u5199\u6587\u4ef6\uff0cJSON\u6587\u5b57\u4e0d\u542b\u5355\u5f15\u53f7\u3002"+delNote}));
-  }catch(e){}
-  window._ifPollTimer=setInterval(function(){
-    try{
-      var xr=new XMLHttpRequest();
-      xr.open('GET','if_response.json?t='+Date.now(),false);
-      xr.send();
-      var t=xr.responseText||'';
-      if(t.trim().length>10&&t.trim().charAt(0)==='{'){
-        var lr=localStorage.getItem('pool_if_last_rendered_hash');
-        var h=t.trim().substring(0,80);
-        if(h===lr){return;}
-        localStorage.setItem('pool_if_last_rendered_hash',h);
-        clearInterval(window._ifPollTimer);
-        window._onIFResponse(t.trim());
-      }
-    }catch(e2){}
-  },3000);
-}
+  if (window.poolAI) {
+    var _ifCtx = "你是IF线互动故事剧情生成AI。根据上下文续写剧情。只输出纯JSON: {content:[...],choices:[...]}";
+    poolAI.chat("【IF线剧情请求】请续写剧情", _ifCtx).then(function(reply) {
+      var m = reply.match(/\{[\s\S]*\}/); var jsonStr = m ? m[0] : reply;
+      try { JSON.parse(jsonStr); window._onIFResponse(jsonStr); } catch(e) { if(window._ifWaitEl) window._ifWaitEl.textContent="（格式有误，再试一次）"; }
+    }).catch(function(err) { if(window._ifWaitEl) window._ifWaitEl.textContent="（AI暂时无法回复: "+err+"）"; });
+  }
 
 function tbCopy(){
   var segs=document.querySelectorAll('._lastSeg:not(.if-toolbar)');

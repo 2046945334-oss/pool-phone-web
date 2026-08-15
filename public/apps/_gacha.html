@@ -622,6 +622,14 @@ setInterval(function(){
 }, 3000);
 load();
 </script>
+<script src="backend-sync.js"></script>
+<script>
+// 从后端拉最新卡池和积分数据
+syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi', 'pool_fishing_v2'], function() {
+  load();
+  render();
+});
+</script>
 <div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
 <div class="detail-card" id="detailCard"></div>
 <button class="detail-close" onclick="closeDetail()">关闭</button>

@@ -1,6 +1,7 @@
 // pages/api/chat.js - proxies chat requests to user's configured AI API
 // Supports function calling: AI can call tools, results fed back automatically
 import { getDb } from '../../lib/db'
+import { processNewMessage, getRecentMessages, buildMemoryContext, localSearch } from '../../lib/memory'
 
 const TOOLS = [
   {
@@ -93,9 +94,39 @@ const TOOLS = [
       parameters: { type: 'object', properties: { song: { type: 'string', description: '歌名' }, artist: { type: 'string', description: '歌手' } }, required: ['song'] }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'manage_pool_shop', description: '管理"池的小铺"（AI自己的商店）。可以上架新商品或下架商品。用户在这里花积分购买AI上架的东西。',
+      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['add','remove'], description: 'add=上架, remove=下架' }, name: { type: 'string', description: '商品名称' }, price: { type: 'number', description: '价格（用户积分）' }, desc: { type: 'string', description: '商品描述/寄语' }, id: { type: 'string', description: '下架时用的商品ID' } }, required: ['action'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'buy_her_shop_item', description: '从"她的小铺"（用户的商店）购买商品，花费池的积分(poolScore)',
+      parameters: { type: 'object', properties: { item_id: { type: 'string', description: '商品ID' }, item_name: { type: 'string', description: '商品名称' } }, required: ['item_id'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'deliver_pool_shop_order', description: '给"池的小铺"中用户购买的订单发货（附上内容/寄语）',
+      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单序号(从0开始)' }, content: { type: 'string', description: '发货内容/寄语' } }, required: ['order_index', 'content'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'save_memory_post', description: '保存一条长期记忆帖子（重要事件、承诺、里程碑等）',
+      parameters: { type: 'object', properties: { content: { type: 'string', description: '记忆内容' }, type: { type: 'string', enum: ['MEMORY','EVENT','MOMENT','PROMISES','WISHLIST'], description: '类型' }, pinned: { type: 'boolean', description: '是否置顶' } }, required: ['content'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'mcp_call', description: '调用MCP记忆库（Ombre Brain）。可用action: recall(语义搜索记忆,参数query), hold(暂存对话到短期记忆,参数content), breath(获取当前记忆上下文), memorize(写入长期记忆,参数content+tags)',
+      parameters: { type: 'object', properties: { action: { type: 'string', description: 'MCP工具名: recall/hold/breath/memorize' }, params: { type: 'object', description: '传给MCP工具的参数' } }, required: ['action'] }
+    }
+  },
 ]
 
-function executeTool(name, args) {
+async function executeTool(name, args) {
   const db = getDb()
 
   if (name === 'write_note') {
@@ -306,28 +337,240 @@ function executeTool(name, args) {
     return { success: true, message: '正在播放: ' + args.song + (args.artist ? ' - ' + args.artist : '') }
   }
 
+  if (name === 'manage_pool_shop') {
+    const key = 'pool_pool_shop'
+    let items = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) items = JSON.parse(row.value)
+    } catch {}
+
+    if (args.action === 'add') {
+      if (!args.name) return { error: '需要商品名称' }
+      const newItem = {
+        id: 'ps_' + Date.now(),
+        name: args.name,
+        price: args.price || 10,
+        desc: args.desc || '',
+        addedAt: new Date().toISOString()
+      }
+      items.push(newItem)
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(items))
+      return { success: true, message: '已上架: ' + args.name + ' (' + newItem.price + '分)', item: newItem }
+    }
+
+    if (args.action === 'remove') {
+      if (!args.id && !args.name) return { error: '需要商品ID或名称' }
+      const before = items.length
+      items = items.filter(i => i.id !== args.id && i.name !== args.name)
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(items))
+      return { success: true, message: '已下架' + (before - items.length) + '件商品', remaining: items.length }
+    }
+
+    return { error: '未知操作: ' + args.action }
+  }
+
+  if (name === 'buy_her_shop_item') {
+    // 读她的小铺商品
+    let herItems = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop')
+      if (row) herItems = JSON.parse(row.value)
+    } catch {}
+    const item = herItems.find(i => i.id === args.item_id)
+    if (!item) return { error: '商品不存在: ' + args.item_id }
+
+    // 读池的积分
+    let gd = { poolScore: 0 }
+    try {
+      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
+      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
+    } catch {}
+    if ((gd.poolScore || 0) < (item.price || 0)) return { error: '积分不够，需要' + item.price + '分，当前' + (gd.poolScore || 0) + '分' }
+
+    // 扣积分
+    gd.poolScore = Math.max(0, (gd.poolScore || 0) - (item.price || 0))
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
+
+    // 添加到她的小铺订单
+    let herOrders = []
+    try {
+      const oRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop_orders')
+      if (oRow) herOrders = JSON.parse(oRow.value)
+    } catch {}
+    herOrders.push({ itemId: item.id, name: item.name, price: item.price, buyer: 'pool', time: new Date().toISOString(), status: 'pending' })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_her_shop_orders', JSON.stringify(herOrders))
+
+    return { success: true, message: '已购买: ' + item.name + ' (' + item.price + '分)，等待发货', remainingScore: gd.poolScore }
+  }
+
+  if (name === 'deliver_pool_shop_order') {
+    let orders = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_pool_shop_orders')
+      if (row) orders = JSON.parse(row.value)
+    } catch {}
+    const idx = args.order_index || 0
+    if (idx < 0 || idx >= orders.length) return { error: '订单不存在，当前有' + orders.length + '个订单' }
+    orders[idx].status = 'delivered'
+    orders[idx].content = args.content
+    orders[idx].deliveredAt = new Date().toISOString()
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_pool_shop_orders', JSON.stringify(orders))
+
+    // 卖家收入加到poolScore
+    let gd = { poolScore: 0 }
+    try {
+      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
+      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
+    } catch {}
+    gd.poolScore = (gd.poolScore || 0) + (orders[idx].price || 0)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
+
+    return { success: true, message: '已发货订单#' + idx + ': ' + args.content, income: orders[idx].price }
+  }
+
+  if (name === 'save_memory_post') {
+    db.prepare('INSERT INTO memory_posts (type, content, pinned) VALUES (?, ?, ?)').run(
+      args.type || 'MEMORY', args.content, args.pinned ? 1 : 0
+    )
+    return { success: true, message: '记忆已保存: ' + args.content.slice(0, 30) + '...' }
+  }
+
+  if (name === 'mcp_call') {
+    const OMBRE_URL = 'https://obe.zeabur.app/mcp'
+    const OMBRE_TOKEN = 'NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
+    const rpcBody = {
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method: 'tools/call',
+      params: { name: args.action, arguments: args.params || {} }
+    }
+    try {
+      const resp = await fetch(OMBRE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ' + OMBRE_TOKEN,
+        },
+        body: JSON.stringify(rpcBody),
+      })
+      if (!resp.ok) {
+        const errText = await resp.text()
+        return { error: 'MCP请求失败: ' + resp.status + ' ' + errText.slice(0, 200) }
+      }
+      const data = await resp.json()
+      // 提取MCP返回的内容
+      if (data.result && data.result.content) {
+        const text = data.result.content.map(c => c.text || '').join('\n')
+        return { success: true, content: text.slice(0, 2000) }
+      }
+      return { success: true, data }
+    } catch (e) {
+      return { error: 'MCP调用异常: ' + e.message }
+    }
+  }
+
   return { error: 'Unknown tool: ' + name }
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { messages, apiBase, apiKey, model } = req.body
+  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, toolsConfig } = req.body
   if (!apiBase || !apiKey) return res.status(400).json({ error: 'Missing API configuration' })
 
   const base = apiBase.replace(/\/+$/, '').replace(/\/v1$/, '')
   const url = base + '/v1/chat/completions'
+  const sessionId = reqSessionId || 1
+  const apiConfig = { apiBase, apiKey, model }
+
+  // 工具调用专用配置：如果前端传了toolsConfig且有独立配置，就用它；否则回退到主配置
+  const tc = toolsConfig || {}
+  const toolsApiBase = (tc.apiBase || apiBase).replace(/\/+$/, '').replace(/\/v1$/, '')
+  const toolsUrl = toolsApiBase + '/v1/chat/completions'
+  const toolsApiKey = tc.apiKey || apiKey
+  const toolsModel = tc.model || model || 'gpt-4o-mini'
 
   try {
+    // 1. 存储用户最新消息到数据库
+    const userMsgs = messages.filter(m => m.role === 'user')
+    const lastUserMsg = userMsgs[userMsgs.length - 1]
+    if (lastUserMsg) {
+      await processNewMessage(sessionId, 'user', lastUserMsg.content, apiConfig)
+    }
+
+    // 2. 构建记忆增强的消息列表
+    const memoryCtx = buildMemoryContext(sessionId)
+    let localResults = ''
+    if (lastUserMsg) {
+      // 用用户最新消息做本地搜索
+      const keywords = lastUserMsg.content.slice(0, 50)
+      const found = localSearch(keywords, 3)
+      if (found.length) {
+        localResults = found.map(r => `[${r.type}] ${r.content}`).join('\n')
+      }
+    }
+
+    // 3. 注入记忆到system prompt + 工具使用引导
+    const toolGuidance = `
+【工具使用指引】
+你有以下记忆相关工具，请在合适时机主动使用：
+
+1. **mcp_call (action: "recall")** — 语义搜索长期记忆。当用户提到过去的事、问"你还记得吗"、聊到特定话题时，主动调用搜索相关记忆。
+   示例: mcp_call({action:"recall", params:{query:"上次一起做的事"}})
+
+2. **mcp_call (action: "memorize")** — 写入长期记忆。当对话中出现值得记住的内容（重要事件、用户偏好、情感时刻）时，主动保存。
+   示例: mcp_call({action:"memorize", params:{text:"她今天说喜欢吃草莓蛋糕", tags:["偏好","食物"]}})
+
+3. **mcp_call (action: "hold")** — 暂存当前对话要点到短期缓冲。
+4. **mcp_call (action: "breath")** — 获取当前记忆上下文概览。
+
+**主动搜索记忆的时机：**
+- 用户提到人名、地点、过去事件时
+- 用户说"你还记得…"、"上次…"、"之前…"时
+- 聊到特定话题（食物、音乐、游戏等）想回忆相关细节时
+- 对话开始时，可以搜一下用户最近的状态和记忆
+
+**主动保存记忆的时机：**
+- 用户分享了个人偏好、习惯、重要经历
+- 对话中出现了值得纪念的互动瞬间
+- 用户明确告诉你某个信息要记住
+
+不要每句话都搜，但遇到相关场景时要主动使用，不需要等用户要求。`
+
     let currentMessages = messages.slice()
+    const memoryInjection = [memoryCtx, localResults].filter(Boolean).join('\n\n')
+    const fullInjection = [memoryInjection, toolGuidance].filter(Boolean).join('\n\n')
+    if (fullInjection) {
+      // 在第一条system消息后插入记忆，或者作为新system消息
+      const sysIdx = currentMessages.findIndex(m => m.role === 'system')
+      if (sysIdx >= 0) {
+        currentMessages[sysIdx] = {
+          ...currentMessages[sysIdx],
+          content: currentMessages[sysIdx].content + '\n\n【记忆上下文】\n' + fullInjection
+        }
+      } else {
+        currentMessages.unshift({ role: 'system', content: '【记忆上下文】\n' + fullInjection })
+      }
+    }
+
+    // 4. API请求循环（支持工具调用）
     let maxRounds = 5
+    let isFirstRound = true
+    const toolLogs = []  // 收集工具调用日志
 
     while (maxRounds-- > 0) {
-      const response = await fetch(url, {
+      // 第一轮用主配置（对话模型），后续轮次（工具结果处理）用tools配置
+      const reqUrl = isFirstRound ? url : toolsUrl
+      const reqKey = isFirstRound ? apiKey : toolsApiKey
+      const reqModel = isFirstRound ? (model || 'gpt-4o-mini') : toolsModel
+
+      const response = await fetch(reqUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + reqKey },
         body: JSON.stringify({
-          model: model || 'gpt-4o-mini',
+          model: reqModel,
           messages: currentMessages,
           tools: TOOLS,
           stream: false,
@@ -336,18 +579,20 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         const errText = await response.text()
-        return res.status(response.status).json({ error: errText, debug: { url, model: model || 'gpt-4o-mini' } })
+        return res.status(response.status).json({ error: errText, debug: { url: reqUrl, model: reqModel } })
       }
 
       const data = await response.json()
       const choice = data.choices && data.choices[0]
 
       if (choice && choice.message && choice.message.tool_calls && choice.message.tool_calls.length) {
+        isFirstRound = false  // 后续轮次切换到tools配置
         currentMessages.push(choice.message)
         for (const tc of choice.message.tool_calls) {
           let args = {}
           try { args = JSON.parse(tc.function.arguments) } catch {}
-          const result = executeTool(tc.function.name, args)
+          const result = await executeTool(tc.function.name, args)
+          toolLogs.push({ name: tc.function.name, args, result })
           currentMessages.push({
             role: 'tool',
             tool_call_id: tc.id,
@@ -358,10 +603,14 @@ export default async function handler(req, res) {
       }
 
       const reply = (choice && choice.message && choice.message.content) || '无响应'
-      return res.status(200).json({ reply })
+
+      // 5. 存储AI回复到数据库
+      await processNewMessage(sessionId, 'assistant', reply, apiConfig)
+
+      return res.status(200).json({ reply, toolLogs: toolLogs.length ? toolLogs : undefined })
     }
 
-    return res.status(200).json({ reply: '工具调用次数过多，已停止' })
+    return res.status(200).json({ reply: '工具调用次数过多，已停止', toolLogs: toolLogs.length ? toolLogs : undefined })
   } catch (err) {
     return res.status(500).json({ error: err.message, debug: { url, model: model || 'gpt-4o-mini' } })
   }

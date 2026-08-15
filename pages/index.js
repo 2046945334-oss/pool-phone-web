@@ -2,6 +2,35 @@ import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 import { pullAllFromBackend, pushAllToBackend } from '../lib/appSync'
 
+// 工具调用日志组件 - 可折叠显示
+function ToolLogBubble({ logs }) {
+  const [open, setOpen] = useState(false)
+  if (!logs || !logs.length) return null
+  return (
+    <div className="tool-log-wrap" onClick={() => setOpen(!open)}>
+      <div className="tool-log-header">
+        <span>{'🔧'} {logs.length}{'个工具调用'}</span>
+        <span className="tool-log-arrow">{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div className="tool-log-body">
+          {logs.map((log, i) => (
+            <div key={i} className="tool-log-item">
+              <div className="tool-log-name">{'▸ '}{log.name}</div>
+              {log.args && Object.keys(log.args).length > 0 && (
+                <div className="tool-log-args">{'参数: '}{JSON.stringify(log.args, null, 1)}</div>
+              )}
+              <div className="tool-log-result">
+                {'结果: '}{typeof log.result === 'object' ? JSON.stringify(log.result, null, 1) : String(log.result)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // 语音条组件 - AI发送[voice]标记时渲染为可播放语音条
 function VoiceBubble({ text }) {
   const [audioUrl, setAudioUrl] = useState(null)
@@ -109,7 +138,7 @@ function getApiConfig(feature) {
 }
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
-  useEffect(() => { try { localStorage.setItem('pool_chat_history', JSON.stringify(messages)); syncToBackend('pool_chat_history', messages) } catch {} }, [messages])
+  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); syncToBackend('pool_chat_history', saveMsgs) } catch {} }, [messages])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
@@ -200,6 +229,14 @@ function ChatView({ theme }) {
       parts.push({ role: 'system', content: '[长期记忆]\n' + memoryContext })
     }
 
+    // Context summary (压缩后的对话摘要，不显示在界面但AI可见)
+    try {
+      const summary = localStorage.getItem('pool_context_summary')
+      if (summary) {
+        parts.push({ role: 'system', content: '[对话背景摘要]\n' + summary })
+      }
+    } catch {}
+
     // Recall from OB based on latest user message
     // (async recall happens in sendMessage, stored in memoryContext)
 
@@ -265,7 +302,7 @@ function ChatView({ theme }) {
             return { ...m, content }
           }
           return m
-        })], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model }),
+        })], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
       })
       const data = await res.json()
       if (data.error) {
@@ -279,6 +316,7 @@ function ChatView({ theme }) {
         setLoading(false); return
       }
       const reply = data.reply || '\u65e0\u54cd\u5e94'
+      const toolLogs = data.toolLogs || null
       // Split reply into sentences and show one by one
       // Protect [voice]...[/voice] blocks from being split
       const voiceBlocks = []
@@ -291,6 +329,11 @@ function ChatView({ theme }) {
         current = [...current, { role: 'assistant', content: restored[i].trim() }]
         setMessages([...current])
         if (i < restored.length - 1) await new Promise(r => setTimeout(r, 600))
+      }
+      // 附加工具调用日志（如果有）
+      if (toolLogs) {
+        current = [...current, { role: 'tool_log', content: JSON.stringify(toolLogs) }]
+        setMessages([...current])
       }
       if (data.reply) {
         const lastUser = newMessages[newMessages.length - 1]?.content || ''
@@ -400,9 +443,14 @@ function ChatView({ theme }) {
       })
       const data = await res.json()
       if (data.reply) {
-        const summaryMsg = { role: 'system', content: data.reply }
-        setMessages([summaryMsg, ...recentMessages])
-        alert(`\u2705 \u538b\u7f29\u5b8c\u6210\uff01\u4ece ${messages.length} \u6761\u51cf\u5c11\u5230 ${recentMessages.length + 1} \u6761`)
+        // 存进localStorage供API上下文注入（不显示在聊天界面）
+        localStorage.setItem('pool_context_summary', data.reply)
+        syncToBackend('pool_context_summary', data.reply)
+        // 同时存入记忆系统
+        callMemory('hold', { content: '[对话摘要] ' + data.reply })
+        // 去掉旧对话，只保留最近的
+        setMessages(recentMessages)
+        alert(`\u2705 \u538b\u7f29\u5b8c\u6210\uff01\u65e7\u5bf9\u8bdd\u5df2\u538b\u7f29\u4e3a\u8bb0\u5fc6\uff0c\u4fdd\u7559\u6700\u8fd1 ${recentMessages.length} \u6761`)
       }
     } catch(e) { alert('\u538b\u7f29\u5931\u8d25: ' + e.message) }
     setLoading(false)
@@ -477,7 +525,9 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           <div key={i} className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
             {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
             {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
-            {msg.role === 'system' ? (
+            {msg.role === 'tool_log' ? (
+              <ToolLogBubble logs={JSON.parse(msg.content)} />
+            ) : msg.role === 'system' ? (
               <div className="msg-system" style={theme?.systemMsgBg||theme?.systemMsgText||theme?.systemMsgBorder?{background:theme.systemMsgBg||undefined,color:theme.systemMsgText||undefined,borderColor:theme.systemMsgBorder||undefined}:{}}>{msg.content}</div>
             ) : editIdx === i ? (
               <div className="msg-edit-wrap">
@@ -842,6 +892,7 @@ function ThemePanel() {
 function SettingsPanel() {
   const FEATURES = [
     { key: 'chat', label: '\u5bf9\u8bdd\u529f\u80fd', desc: '\u4e3b\u8981\u7684AI\u5bf9\u8bdd' },
+    { key: 'tools', label: '\u5de5\u5177\u8c03\u7528', desc: '\u5de5\u5177\u6267\u884c\u65f6\u7684AI\u5224\u65ad\uff08\u53ef\u7528\u66f4\u4fbf\u5b9c\u7684\u6a21\u578b\uff09' },
     { key: 'summary', label: '\u4e0a\u4e0b\u6587\u603b\u7ed3', desc: '\u538b\u7f29\u4e0a\u4e0b\u6587\uff0c\u751f\u6210\u6458\u8981' },
     { key: 'memory', label: '\u8bb0\u5fc6\u63d0\u53d6', desc: '\u4ece\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u5173\u952e\u4fe1\u606f' },
   ]
@@ -1386,6 +1437,41 @@ export default function Home() {
   // Pull backend data into localStorage on first load
   useEffect(() => { pullAllFromBackend() }, [])
 
+  // AI Bridge: let iframe apps call AI via postMessage
+  useEffect(() => {
+    const handler = async (e) => {
+      if (!e.data || e.data.type !== 'poolAI_request') return
+      const { id, message, context } = e.data
+      try {
+        const cfg = JSON.parse(localStorage.getItem('pool_api_config_chat') || localStorage.getItem('pool_api_config') || '{}')
+        const apiBase = cfg.apiBase || cfg.base
+        const apiKey = cfg.apiKey || cfg.key
+        if (!apiBase || !apiKey) {
+          e.source?.postMessage({ type: 'poolAI_response', id, error: '未配置API' }, '*')
+          return
+        }
+        const sysPrompt = context || '你是池，一个陪伴型AI。请简短回复，语气亲切随意。'
+        const resp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: sysPrompt },
+              { role: 'user', content: message }
+            ],
+            apiBase, apiKey, model: cfg.model || 'gpt-4o-mini'
+          })
+        })
+        const data = await resp.json()
+        e.source?.postMessage({ type: 'poolAI_response', id, reply: data.reply || data.error || '无响应' }, '*')
+      } catch (err) {
+        e.source?.postMessage({ type: 'poolAI_response', id, error: err.message }, '*')
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
+
   function handleOpenApp(id) { if (id === 'chat') { setActiveTab('chat') } else { setCurrentApp(id) } }
   function handleBack() { pushAllToBackend(); setCurrentApp(null) }
 
@@ -1580,6 +1666,16 @@ export default function Home() {
         .msg-menu button { display: block; width: 100%; padding: 9px 14px; background: none; border: none; color: #e0e0e0; font-size: 13px; text-align: left; cursor: pointer; }
         .msg-menu button:active { background: rgba(232,160,191,.15); }
         .msg-system { font-size: 12px; color: #9a8a99; background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 12px; margin: 4px auto; max-width: 85%; text-align: center; border: 1px dashed #333; }
+        .tool-log-wrap { width: 90%; margin: 4px auto; background: rgba(255,255,255,.04); border-radius: 8px; border: 1px solid #2a2a2a; cursor: pointer; overflow: hidden; }
+        .tool-log-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; font-size: 11px; color: #8a8a8a; }
+        .tool-log-arrow { font-size: 10px; color: #666; }
+        .tool-log-body { padding: 0 12px 8px; border-top: 1px solid #2a2a2a; }
+        .tool-log-item { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+        .tool-log-item:last-child { border-bottom: none; }
+        .tool-log-name { font-size: 11px; color: #c77dba; font-weight: 600; }
+        .tool-log-args { font-size: 10px; color: #7a7a7a; white-space: pre-wrap; word-break: break-all; margin-top: 2px; }
+        .tool-log-result { font-size: 10px; color: #6a9a6a; white-space: pre-wrap; word-break: break-all; margin-top: 2px; }
+        .msg-row.tool_log { justify-content: center; }
         .msg-edit-wrap { max-width: 72%; }
         .msg-edit-input { width: 100%; min-height: 60px; background: #1a1a1a; border: 1px solid #e8a0bf; border-radius: 12px; padding: 8px 12px; color: #e0e0e0; font-size: 14px; resize: none; outline: none; }
         .msg-edit-btns { display: flex; gap: 8px; margin-top: 4px; }

@@ -77,6 +77,7 @@ canvas{background:#fff;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.08);
   <button id="finishBtn" style="display:none;background:#4caf50;color:#fff" ontouchend="finishWork()">&#x2705; 完成</button>
   <button class="primary-btn" id="mainAction" ontouchend="mainActionClick()">保存</button>
 </div>
+<script src="ai-bridge.js"></script>
 <script>
 // One-time cleanup of bad data from old version
 try{var _old=localStorage.getItem('doodle_canvas_state');if(_old&&_old.indexOf('"type":"fill"')>=0){localStorage.removeItem('doodle_canvas_state');localStorage.removeItem('doodle_mode_state');}}catch(e){}
@@ -364,66 +365,37 @@ function submitGuess(){
   showGuessResult({guess:answer,correct:correct,comment:correct?'\u4F60\u592A\u5389\u5BB3\u4E86\uFF01':'\u7B54\u6848\u662F\u300C'+topic+'\u300D\u54E6~'});
 }
 
-// Ferry bridge communication
-var FERRY_URL='http://127.0.0.1:3000';
-var lastMsgId=0;
+// AI bridge communication (replaces ferry)
 var waitingForAI=false;
-var pollAITimer=null;
 
 function sendToFerry(msg){
-  var retries=0;
-  function doSend(){
-    fetch(FERRY_URL+'/api/chat/send',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({content:msg,page_context:{source:'doodle_board',mode:currentMode}})
-    }).then(function(r){
-      if(!r.ok)throw new Error('status '+r.status);
-      if(currentMode==='relay'){waitingForAI=true;startPollAI();}
-    }).catch(function(e){
-      retries++;
-      if(retries<3){
-        setTimeout(doSend,1000*retries);
-      }else{
-        showToast('\u26A0\uFE0F \u53D1\u9001\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5');
-        document.getElementById('aiStatus').classList.remove('show');
-      }
-    });
+  if (!window.poolAI) { showToast('⚠️ AI未连接'); return; }
+  var aiContext = '你是池，用户在涂鸦板和你互动。模式: ' + currentMode + '。';
+  if (currentMode === 'relay') {
+    aiContext += ' 涂鸦接龙模式：用户画完了一轮，请你也画一些。用JSON格式回复绘画指令：{"draw":[{"tool":"pen","color":"#ff0000","size":3,"points":[[x1,y1],[x2,y2],...]},...]}。画布大小约300x400。';
+  } else if (currentMode === 'guess') {
+    aiContext += ' 你画我猜模式：请根据用户提交的画作猜测主题，用JSON回复：{"guess":"你的答案","correct":true/false,"comment":"评价"}';
   }
-  doSend();
-}
-
-// Poll for AI drawing commands
-function startPollAI(){
-  stopPollAI();
+  waitingForAI = true;
   document.getElementById('aiStatus').classList.add('show');
-  pollAITimer=setInterval(function(){pollAIReply();},2000);
-  // Also get current lastMsgId
-  fetch(FERRY_URL+'/api/chat/messages').then(function(r){return r.json();}).then(function(d){
-    if(d.data&&d.data.length)lastMsgId=d.data[d.data.length-1].id;
-  }).catch(function(){});
-}
-function stopPollAI(){if(pollAITimer){clearInterval(pollAITimer);pollAITimer=null;}waitingForAI=false;document.getElementById('aiStatus').classList.remove('show');}
-
-function pollAIReply(){
-  fetch(FERRY_URL+'/api/chat/messages?since='+lastMsgId).then(function(r){return r.json();}).then(function(d){
-    if(!d.data||!d.data.length)return;
-    for(var i=0;i<d.data.length;i++){
-      var msg=d.data[i];
-      if(msg.id>lastMsgId)lastMsgId=msg.id;
-      if(msg.role==='assistant'&&msg.content){
-        // Check for draw commands (relay mode)
-        var cmds=parseDrawCommands(msg.content);
-        if(cmds){executeDrawCommands(cmds);stopPollAI();showToast('\u2728 AI\u753B\u597D\u4E86\uFF01\u8F6E\u5230\u4F60\u4E86~');pushUndo();return;}
-        // Check for guess result
-        var guessResult=parseGuessResult(msg.content);
-        if(guessResult){stopPollAI();showGuessResult(guessResult);return;}
-        // If neither format matched but we got a reply, just show it as toast
-        if(waitingForAI){stopPollAI();showToast(msg.content.substring(0,50));return;}
-      }
+  poolAI.chat(msg, aiContext).then(function(reply) {
+    waitingForAI = false;
+    document.getElementById('aiStatus').classList.remove('show');
+    if (currentMode === 'relay') {
+      var cmds = parseDrawCommands(reply);
+      if (cmds) { executeDrawCommands(cmds); showToast('✨ AI画好了！轮到你了~'); pushUndo(); return; }
     }
-  }).catch(function(){});
+    var guessResult = parseGuessResult(reply);
+    if (guessResult) { showGuessResult(guessResult); return; }
+    showToast(reply.substring(0, 60));
+  }).catch(function(err) {
+    waitingForAI = false;
+    document.getElementById('aiStatus').classList.remove('show');
+    showToast('⚠️ AI响应失败: ' + err);
+  });
 }
+
+function stopPollAI(){ waitingForAI=false; document.getElementById('aiStatus').classList.remove('show'); }
 
 function parseGuessResult(text){
   var match=text.match(/\{[\s\S]*"guess"[\s\S]*\}/);

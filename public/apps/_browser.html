@@ -82,4 +82,8 @@ function clearH(){localStorage.removeItem(K);render()}
 document.getElementById('si').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
 render();
 </script>
+<script src="backend-sync.js"></script>
+<script>
+syncFromBackend(['pool_browser_history'], function() { render(); });
+</script>
 </body></html>

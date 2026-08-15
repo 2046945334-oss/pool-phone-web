@@ -1131,7 +1131,12 @@ function getPoolShopOrders() {
 }
 function savePoolShopOrders(orders) {
   localStorage.setItem('pool_pool_shop_orders', JSON.stringify(orders));
-  // 同步到文件，让AI醒来时能看到订单
+  // 同步到后端数据库
+  try {
+    fetch('/api/data/pool_pool_shop_orders', { method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ value: orders })
+    }).catch(function(){});
+  } catch(e) {}
   try {
     var pending = orders.filter(function(o){ return o.status === 'pending'; });
     if (pending.length > 0) {
@@ -1299,6 +1304,22 @@ function doBuy() {
   setPoolCoins(coins - item.price);
   // 记录购买
   addPurchased(item.id);
+  // 创建订单到pool_pool_shop_orders
+  var orders = getPoolShopOrders();
+  orders.push({ itemId: item.id, name: item.name, price: item.price, buyer: 'user', time: new Date().toISOString(), status: 'pending' });
+  savePoolShopOrders(orders);
+  // 同步扣分和订单到后端
+  try {
+    var fishData = localStorage.getItem('pool_fishing_v2');
+    if (fishData) {
+      fetch('/api/data/pool_fishing_v2', { method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ value: JSON.parse(fishData) })
+      }).catch(function(){});
+    }
+    fetch('/api/data/pool_pool_shop_orders', { method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ value: orders })
+    }).catch(function(){});
+  } catch(e) {}
   // 如果是机票，触发旅行
   if (item.type === 'ticket' && item.dest) {
     startTrip(item.dest);
@@ -1539,6 +1560,31 @@ function deliverOrder(idx) {
     renderManageContent();
   }
 }
+
+// 启动时从后端拉最新数据（订单和积分），确保AI发货后前端能看到
+(function syncFromBackendTravel() {
+  var keys = ['pool_pool_shop_orders', 'pool_fishing_v2', 'pool_pool_shop', 'pool_her_shop_orders'];
+  keys.forEach(function(key) {
+    fetch('/api/data/' + key).then(function(r) {
+      if (!r.ok) return;
+      return r.json();
+    }).then(function(d) {
+      if (d && d.value !== undefined && d.value !== null) {
+        localStorage.setItem(key, typeof d.value === 'string' ? d.value : JSON.stringify(d.value));
+      }
+    }).catch(function(){});
+  });
+  // 延迟后刷新UI（等后端数据拉完）——必须同时刷新商店区域
+  setTimeout(function() {
+    render();
+    try { renderShopArea(); } catch(e) {}
+  }, 1200);
+  // 再延迟一次确保异步fetch完成
+  setTimeout(function() {
+    render();
+    try { renderShopArea(); } catch(e) {}
+  }, 3000);
+})();
 </script>
 
 <!-- 购买确认弹窗 -->

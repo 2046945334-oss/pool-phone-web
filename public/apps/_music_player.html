@@ -177,6 +177,7 @@ h3 { font-size:14px; color:#546e7a; margin:12px 0 6px; }
 </div>
 
 <audio id="audio" preload="none"></audio>
+<script src="ai-bridge.js"></script>
 <script>
 var audio = document.getElementById("audio");
 var playlist = [];
@@ -679,13 +680,24 @@ function sendDetailChat() {
   div.textContent = text;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
-  // Send to ferry
-  var songContext = _detailSong ? (" [\u5F53\u524D\u6B4C\u66F2: " + (_detailSong.name||"") + " - " + (_detailSong.artist||"") + "]") : "";
-  fetch("http://127.0.0.1:3000/api/chat/send",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({content:"[\u97F3\u4E50\u804A\u5929]" + songContext + " \u7528\u6237\u8BF4: " + text + " \u3002\u8BF7\u7B80\u77ED\u56DE\u590D\uFF0C\u8BED\u6C14\u4EB2\u5207\u968F\u610F\u3002"})
-  }).catch(function(){});
+  // Call AI via bridge
+  var songContext = _detailSong ? (" [当前歌曲: " + (_detailSong.name||"") + " - " + (_detailSong.artist||"") + "]") : "";
+  var aiContext = "你是池，用户正在听音乐。" + songContext + " 请简短回复，可以聊歌、聊心情，语气亲切随意。";
+  if (window.poolAI) {
+    poolAI.chat(text, aiContext).then(function(reply) {
+      var d2 = document.createElement("div");
+      d2.className = "msg ai";
+      d2.textContent = reply;
+      container.appendChild(d2);
+      container.scrollTop = container.scrollHeight;
+    }).catch(function(err) {
+      var d2 = document.createElement("div");
+      d2.className = "msg ai";
+      d2.textContent = "(AI暂时无法回复: " + err + ")";
+      container.appendChild(d2);
+      container.scrollTop = container.scrollHeight;
+    });
+  }
 }
 
 

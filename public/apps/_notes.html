@@ -535,4 +535,11 @@ var _noteChecker=setInterval(function(){
 })();
 render();
 </script>
+<script src="backend-sync.js"></script>
+<script>
+syncFromBackend(['pool_notes_v3'], function() {
+  try { var s=localStorage.getItem('pool_notes_v3'); if(s) state=JSON.parse(s); } catch(e){}
+  render();
+});
+</script>
 </body></html>

@@ -171,7 +171,7 @@ var gd={score:0,poolScore:0,catchCount:0,catches:[],dex:[],spot:"dongchong",bait
 var lastCatch=null,isFishing=false,tensionTimer=null,needlePos=0,needleDir=1;
 var currentFisher="user"; // "user" or "pool" - 当前谁在钓鱼
 var bagOwnerView="user"; // "pool" or "user"
-function load(){try{var s=localStorage.getItem("pool_fishing_v2");if(s){gd=JSON.parse(s);if(typeof gd.poolScore==="undefined")gd.poolScore=0;}}catch(e){}render();
+function load(){try{var s=localStorage.getItem("pool_fishing_v2");if(s){var parsed=JSON.parse(s);Object.assign(gd,parsed);if(!Array.isArray(gd.dex))gd.dex=[];if(!Array.isArray(gd.catches))gd.catches=[];if(typeof gd.poolScore==="undefined")gd.poolScore=0;if(typeof gd.score==="undefined")gd.score=0;if(!gd.baitCount)gd.baitCount={basic:99,shrimp:0,glow:0,gold:0};}}catch(e){console.error('load err',e);}render();
 // AI远程钓鱼轮询（跟抽卡完全一样）
 var _fishCheckCount=0;
 var _fishChecker=setInterval(function(){
@@ -221,13 +221,16 @@ localStorage.setItem('pool_fish_last_result',JSON.stringify(catches));
 }
 function save(){localStorage.setItem("pool_fishing_v2",JSON.stringify(gd));}
 function render(){
-document.getElementById("scoreNum").textContent=gd.score;
+document.getElementById("scoreNum").textContent=gd.score||0;
 document.getElementById("poolScoreNum").textContent=gd.poolScore||0;
-document.getElementById("catchNum").textContent=gd.catchCount;
-document.getElementById("dexNum").textContent=gd.dex.length+"/"+FISH_DB.filter(f=>f.rarity!=="junk").length;
+document.getElementById("catchNum").textContent=gd.catchCount||0;
+document.getElementById("dexNum").textContent=(gd.dex||[]).length+"/"+FISH_DB.filter(f=>f.rarity!=="junk").length;
 var sp=SPOTS.find(s=>s.id===gd.spot);
 document.getElementById("spotLabel").textContent="深圳 · "+(sp?sp.name:"东涌沙滩");
-renderBag();renderDex();renderShop();renderSpots();
+try{renderBag();}catch(e){console.error('renderBag',e);}
+try{renderDex();}catch(e){console.error('renderDex',e);}
+try{renderShop();}catch(e){console.error('renderShop',e);}
+try{renderSpots();}catch(e){console.error('renderSpots',e);}
 }
 function renderBag(){
 var list=document.getElementById("bagList");
@@ -439,6 +442,10 @@ document.getElementById("overlay").classList.remove("show");
 cookingIdx=-1;
 }
 load();
+</script>
+<script src="backend-sync.js"></script>
+<script>
+syncFromBackend(['pool_fishing_v2'], function() { load(); });
 </script>
 </body>
 </html>
