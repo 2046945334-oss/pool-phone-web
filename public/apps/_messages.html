@@ -79,7 +79,32 @@ body{background:#0f0f1a;color:#e8e8f0;background-image:url('if_bg.png');backgrou
   </div>
 </div>
 
-<script src="ai-bridge.js"></script>
+<script>
+// ai-bridge inline
+(function() {
+  var _pending = {};
+  var _idCounter = 0;
+  window.addEventListener('message', function(e) {
+    if (!e.data || e.data.type !== 'poolAI_response') return;
+    var cb = _pending[e.data.id];
+    if (cb) {
+      delete _pending[e.data.id];
+      if (e.data.error) { cb.reject(e.data.error); } else { cb.resolve(e.data.reply || ''); }
+    }
+  });
+  window.poolAI = {
+    chat: function(message, context) {
+      var id = 'ai_' + (++_idCounter) + '_' + Date.now();
+      return new Promise(function(resolve, reject) {
+        _pending[id] = { resolve: resolve, reject: reject };
+        setTimeout(function() { if (_pending[id]) { delete _pending[id]; reject('AI响应超时'); } }, 15000);
+        try { parent.postMessage({ type: 'poolAI_request', id: id, message: message, context: context || '' }, '*'); }
+        catch(err) { delete _pending[id]; reject('无法连接AI: ' + err.message); }
+      });
+    }
+  };
+})();
+</script>
 <script>
 // === 文风预设：欢乐纯爱·温暖沙雕风 ===
 // 参照：吕天逸、江月年年、语笑阑珊
