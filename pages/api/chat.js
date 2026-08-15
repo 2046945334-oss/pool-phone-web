@@ -747,23 +747,25 @@ export default async function handler(req, res) {
     let isFirstRound = true
 
     while (maxRounds-- > 0) {
-      // 第一轮用主模型（它更聪明，能正确判断是否需要工具）
-      // 后续轮次也必须用同一个模型（tool_call格式跨provider不兼容）
+      // 全程用主模型
       const reqUrl = url
       const reqKey = apiKey
       const reqModel = model || 'gpt-4o-mini'
 
       const reqMessages = convertSystemRole(currentMessages.slice())
 
+      const bodyObj = {
+        model: reqModel,
+        messages: reqMessages,
+        stream: false,
+      }
+      // 只在第一轮带工具（后续轮次不带，避免无限循环）
+      if (isFirstRound) bodyObj.tools = TOOLS
+
       const response = await fetch(reqUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + reqKey },
-        body: JSON.stringify({
-          model: reqModel,
-          messages: reqMessages,
-          tools: TOOLS,
-          stream: false,
-        }),
+        body: JSON.stringify(bodyObj),
       })
 
       if (!response.ok) {
@@ -775,19 +777,21 @@ export default async function handler(req, res) {
       const choice = data.choices && data.choices[0]
 
       if (choice && choice.message && choice.message.tool_calls && choice.message.tool_calls.length) {
-        isFirstRound = false
-        currentMessages.push(choice.message)
+        // 执行工具，但不把tool_call/tool消息放回（中转站不支持这些role）
+        const toolResults = []
         for (const tc of choice.message.tool_calls) {
           let args = {}
           try { args = JSON.parse(tc.function.arguments) } catch {}
           const result = await executeTool(tc.function.name, args)
           toolLogs.push({ name: tc.function.name, args, result })
-          currentMessages.push({
-            role: 'tool',
-            tool_call_id: tc.id,
-            content: JSON.stringify(result)
-          })
+          toolResults.push(`[${tc.function.name}] ${JSON.stringify(result)}`)
         }
+        // 将工具结果作为纯文本user消息注入（中转站友好）
+        currentMessages.push({
+          role: 'user',
+          content: `[系统：工具执行结果如下，请基于结果回复用户]\n\n${toolResults.join('\n\n')}`
+        })
+        isFirstRound = false
         continue
       }
 
