@@ -7,6 +7,7 @@ import FishingApp from '../components/apps/FishingApp'
 import ReaderApp from '../components/apps/ReaderApp'
 import DraftsApp from '../components/apps/DraftsApp'
 import HtmlApp from '../components/apps/HtmlApp'
+import AppCustomizer, { getAppBgStyle, getAppBgCss } from '../components/apps/AppCustomizer'
 import notesHtml from '../public/apps/_notes.html'
 import gachaHtml from '../public/apps/_gacha.html'
 import messagesHtml from '../public/apps/_messages.html'
@@ -1468,6 +1469,8 @@ export default function Home() {
   const [currentApp, setCurrentApp] = useState(null)
   const [activeTab, setActiveTab] = useState('phone')
   const [theme, setTheme] = useState({})
+  const [appBg, setAppBg] = useState({})
+  const [customizerApp, setCustomizerApp] = useState(null)
 
   useEffect(() => {
     const load = () => setTheme(JSON.parse(localStorage.getItem('pool_theme') || '{}'))
@@ -1475,6 +1478,20 @@ export default function Home() {
     window.addEventListener('theme-changed', load)
     return () => window.removeEventListener('theme-changed', load)
   }, [])
+
+  // Load per-app background settings
+  useEffect(() => {
+    try { setAppBg(JSON.parse(localStorage.getItem('pool_app_bg') || '{}')) } catch {}
+  }, [])
+
+  function updateAppBg(appId, config) {
+    const next = { ...appBg, [appId]: config }
+    // Remove empty entries
+    if (!config || Object.keys(config).length === 0) delete next[appId]
+    setAppBg(next)
+    localStorage.setItem('pool_app_bg', JSON.stringify(next))
+    syncToBackend('pool_app_bg', next)
+  }
 
   // Pull backend data into localStorage on first load
   useEffect(() => { pullAllFromBackend() }, [])
@@ -1519,89 +1536,53 @@ export default function Home() {
 
   function renderPhoneContent() {
     if (locked) return <LockScreen onUnlock={() => setLocked(false)} theme={theme} />
-    // React组件类app
+    // React组件类app (system/theme/memory don't get customizer)
     if (currentApp === 'system') return <AppContent appId="system" onBack={handleBack} />
     if (currentApp === 'theme') return <AppContent appId="theme" onBack={handleBack} />
     if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
-    // 已React化的app
-    if (currentApp === 'browser') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">浏览</span></div>
-        <div className="app-page-body"><BrowserApp /></div>
-      </div>
-    )
-    if (currentApp === 'ledger') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">占卜</span></div>
-        <div className="app-page-body"><FortuneApp /></div>
-      </div>
-    )
-    if (currentApp === 'fishing') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">钓鱼</span></div>
-        <div className="app-page-body"><FishingApp /></div>
-      </div>
-    )
-    if (currentApp === 'reader') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">阅读</span></div>
-        <div className="app-page-body"><ReaderApp /></div>
-      </div>
-    )
-    if (currentApp === 'drafts') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">草稿箱</span></div>
-        <div className="app-page-body"><DraftsApp /></div>
-      </div>
-    )
-    if (currentApp === 'notes') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">便签</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={notesHtml} /></div>
-      </div>
-    )
-    if (currentApp === 'gallery') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">命运卡池</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={gachaHtml} /></div>
-      </div>
-    )
-    if (currentApp === 'messages') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">如果…</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={messagesHtml} /></div>
-      </div>
-    )
-    if (currentApp === 'music') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">音乐</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={musicHtml} /></div>
-      </div>
-    )
-    if (currentApp === 'couple') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">情侣空间</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={coupleHtml} /></div>
-      </div>
-    )
-    if (currentApp === 'doodle') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">涂鸦</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={doodleHtml} /></div>
-      </div>
-    )
-    if (currentApp === 'game') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">晚安</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={sleepHtml} /></div>
-      </div>
-    )
-    if (currentApp === 'travel') return (
-      <div className="app-page">
-        <div className="app-page-header"><button className="back-btn" onClick={handleBack}>{'←'}</button><span className="app-page-title">旅行</span></div>
-        <div className="app-page-body"><HtmlApp htmlContent={travelHtml} /></div>
-      </div>
-    )
+
+    const appTitles = { browser:'浏览', ledger:'占卜', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'如果…', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行' }
+    const reactApps = { browser: <BrowserApp />, ledger: <FortuneApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
+    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml }
+
+    if (currentApp && appTitles[currentApp]) {
+      const bgCfg = appBg[currentApp]
+      const bgStyle = getAppBgStyle(bgCfg)
+      const isHtml = !!htmlApps[currentApp]
+      const isReact = !!reactApps[currentApp]
+
+      // For HTML apps with bg config, inject CSS into the HTML content
+      let htmlContent = htmlApps[currentApp] || ''
+      if (isHtml && bgCfg && (bgCfg.bgImage || bgCfg.bgColor)) {
+        const injectedCss = getAppBgCss(bgCfg)
+        if (injectedCss) {
+          htmlContent = htmlContent.replace('</head>', `<style>${injectedCss}</style></head>`)
+        }
+      }
+
+      return (
+        <div className="app-page" style={isReact ? bgStyle : {}}>
+          <div className="app-page-header">
+            <button className="back-btn" onClick={handleBack}>{'←'}</button>
+            <span className="app-page-title">{appTitles[currentApp]}</span>
+            <button className="app-customize-btn" onClick={() => setCustomizerApp(currentApp)}>{'🎨'}</button>
+          </div>
+          <div className="app-page-body" style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
+            {isReact && reactApps[currentApp]}
+            {isHtml && <HtmlApp htmlContent={htmlContent} />}
+          </div>
+          {customizerApp === currentApp && (
+            <AppCustomizer
+              appId={currentApp}
+              config={bgCfg || {}}
+              onChange={(cfg) => updateAppBg(currentApp, cfg)}
+              onClose={() => setCustomizerApp(null)}
+            />
+          )}
+        </div>
+      )
+    }
+
     return <HomeScreen onOpenApp={handleOpenApp} theme={theme} />
   }
 
@@ -1838,6 +1819,34 @@ export default function Home() {
         .theme-preview-sm { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-top: 6px; border: 2px solid #d8c8d8; }
         .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
         .user-avatar { background: #c77dba; }
+
+        /* App Customizer */
+        .app-customize-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px 8px; margin-left: auto; opacity: 0.6; transition: opacity 0.2s; }
+        .app-customize-btn:hover { opacity: 1; }
+        .app-customizer-overlay { position: absolute; inset: 0; z-index: 100; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .app-customizer-panel { width: 100%; max-height: 75%; background: #fff; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.25s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .customizer-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eee; }
+        .customizer-header span { font-size: 15px; font-weight: 500; color: #333; }
+        .customizer-close { background: none; border: none; font-size: 22px; color: #999; cursor: pointer; padding: 0 4px; }
+        .customizer-body { flex: 1; overflow-y: auto; padding: 16px; }
+        .customizer-item { margin-bottom: 16px; }
+        .customizer-item > label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+        .customizer-row { display: flex; align-items: center; gap: 8px; }
+        .customizer-input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; outline: none; }
+        .customizer-input:focus { border-color: #c77dba; }
+        .customizer-upload { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: #f5f0f5; border: 1px solid #e8dce8; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .customizer-preview { margin-top: 8px; position: relative; display: inline-block; }
+        .customizer-preview img { width: 100%; max-height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+        .customizer-preview button { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
+        .customizer-color-label { font-size: 12px; color: #999; }
+        .customizer-clear-btn { background: none; border: 1px solid #ddd; border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #999; cursor: pointer; }
+        .customizer-select { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; outline: none; background: #fff; }
+        .customizer-item input[type="range"] { width: 100%; accent-color: #c77dba; }
+        .customizer-footer { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid #eee; }
+        .customizer-btn-clear { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #fff; color: #999; font-size: 13px; cursor: pointer; }
+        .customizer-btn-done { flex: 1; padding: 10px; border: none; border-radius: 10px; background: #c77dba; color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
       `}</style>
     </>
   )
