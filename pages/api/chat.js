@@ -748,10 +748,10 @@ export default async function handler(req, res) {
 
     while (maxRounds-- > 0) {
       // 第一轮用主模型（它更聪明，能正确判断是否需要工具）
-      // 后续轮次（处理tool result）用工具模型（同provider，格式兼容）
-      const reqUrl = isFirstRound ? url : (toolsUrl || url)
-      const reqKey = isFirstRound ? apiKey : (toolsApiKey || apiKey)
-      const reqModel = isFirstRound ? (model || 'gpt-4o-mini') : (toolsModel || model || 'gpt-4o-mini')
+      // 后续轮次也必须用同一个模型（tool_call格式跨provider不兼容）
+      const reqUrl = url
+      const reqKey = apiKey
+      const reqModel = model || 'gpt-4o-mini'
 
       const reqMessages = convertSystemRole(currentMessages.slice())
 
