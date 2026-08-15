@@ -133,7 +133,7 @@ const TOOLS = [
   {
     type: 'function', function: {
       name: 'gacha_pull', description: '从"池的卡池"抽卡（消耗积分），单抽30分，十连270分。抽到的卡会自动进入图鉴。',
-      parameters: { type: 'object', properties: { count: { type: 'number', enum: [1, 10], description: '抽卡次数：1=单抽(30分), 10=十连(270分)' } }, required: ['count'] }
+      parameters: { type: 'object', properties: { count: { type: 'string', enum: ['1', '10'], description: '抽卡次数：1=单抽(30分), 10=十连(270分)' } }, required: ['count'] }
     }
   },
   {
@@ -578,7 +578,7 @@ async function executeTool(name, args) {
     ]
     const RARITY_WEIGHT = {N:40, R:30, SR:18, SSR:9, UR:3}
     const SINGLE_COST = 30, TEN_COST = 270
-    const count = args.count === 10 ? 10 : 1
+    const count = parseInt(args.count) === 10 ? 10 : 1
     const cost = count === 1 ? SINGLE_COST : TEN_COST
 
     // 读取积分
