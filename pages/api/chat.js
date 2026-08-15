@@ -162,8 +162,19 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'couple_universe', description: '添加一条新的"平行宇宙"文案到情侣空间',
+      name: 'couple_universe', description: '添加一条新的"平行宇宙"文案到情侣空间（注意：这不是"如果"剧情线app，不要混淆）',
       parameters: { type: 'object', properties: { text: { type: 'string', description: '平行宇宙文案，如"他帮你拎了东西，假装顺路"' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'add_if_route', description: '给"如果…"故事App添加一条新的剧情线/路线。用户说想要新剧情线时用这个，不要用couple_universe',
+      parameters: { type: 'object', properties: {
+        id: { type: 'string', description: '路线ID，英文小写无空格，如"cafe"、"rainynight"' },
+        title: { type: 'string', description: '标题，如"如果我们在咖啡店相遇"' },
+        desc: { type: 'string', description: '简短描述/开场，1-2句话' },
+        tag: { type: 'string', description: '标签，如"日常"、"校园"、"都市"' }
+      }, required: ['id', 'title', 'desc', 'tag'] }
     }
   },
 ]
@@ -564,6 +575,22 @@ async function executeTool(name, args) {
     lines.push(args.text)
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_universes', JSON.stringify(lines))
     return { success: true, message: '新宇宙已添加 ✨', total: lines.length }
+  }
+
+  if (name === 'add_if_route') {
+    // 添加新的"如果"剧情线到 pool_if_custom_routes
+    let routes = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_if_custom_routes')
+      if (row) routes = JSON.parse(row.value)
+    } catch {}
+    // Check for duplicate id
+    if (routes.some(r => r.id === args.id)) {
+      return { success: false, message: '已存在同ID的剧情线: ' + args.id }
+    }
+    routes.push({ id: args.id, title: args.title, desc: args.desc, tag: args.tag, chapters: [] })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_if_custom_routes', JSON.stringify(routes))
+    return { success: true, message: '新剧情线已添加: ' + args.title, total: routes.length }
   }
 
   if (name === 'gacha_pull') {

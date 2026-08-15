@@ -94,6 +94,8 @@ var routes=[
   {id:'online',title:'如果我们网恋',desc:'从一个帖子下面的评论开始。ID背后的人，你见还是不见？',tag:'网恋',chapters:[]},
   {id:'boss',title:'如果他是我上司',desc:'新来的项目组长，年轻得过分。他叫池。',tag:'职场',chapters:[]}
 ];
+// 加载AI添加的自定义剧情线
+try{var _cr=JSON.parse(localStorage.getItem('pool_if_custom_routes')||'[]');_cr.forEach(function(r){if(!routes.some(function(x){return x.id===r.id}))routes.push(r);});}catch(e){}
 
 var chapters={
   'childhood_ch1':{
