@@ -769,16 +769,17 @@ export default async function handler(req, res) {
         continue
       }
 
-      // 工具模型没有调用工具，直接用它的回复（如果没有独立的对话模型）
-      if (!toolsUrl || toolsUrl === url) {
+      // 工具模型没有调用工具
+      if (!toolLogs.length) {
+        // 没调用任何工具，直接用工具模型的回复
         const reply = (choice && choice.message && choice.message.content) || '无响应'
         await processNewMessage(sessionId, 'assistant', reply, apiConfig)
-        return res.status(200).json({ reply, toolLogs: toolLogs.length ? toolLogs : undefined })
+        return res.status(200).json({ reply })
       }
       break
     }
 
-    // --- 阶段二：用主对话模型生成最终回复 ---
+    // --- 阶段二：用主对话模型生成最终回复（仅当真正调用了工具时） ---
     // 将工具执行结果以文本形式注入到主模型的上下文中
     let finalMessages = currentMessages.slice()
     if (toolLogs.length) {
