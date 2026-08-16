@@ -315,6 +315,12 @@ const TOOLS = [
       parameters: { type: 'object', properties: { count: { type: 'number', description: '查看条数，默认5' } } }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'reply_moment', description: '回复/点赞朋友圈里她发的动态。看到她的动态后用这个回复。',
+      parameters: { type: 'object', properties: { id: { type: 'number', description: '动态ID（从read_moments获取）' }, like: { type: 'boolean', description: '是否点赞' }, comment: { type: 'string', description: '评论内容（可选，不填就只点赞）' } }, required: ['id'] }
+    }
+  },
 ]
 
 async function executeTool(name, args) {
@@ -1076,6 +1082,31 @@ async function executeTool(name, args) {
       comments: comments.filter(c => c.moment_id === m.id).map(c => ({ author: c.author === 'pool' ? '池' : '她', content: c.content }))
     }))
     return { moments: result, total: rows.length }
+  }
+
+  if (name === 'reply_moment') {
+    db.exec(`CREATE TABLE IF NOT EXISTS moments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL DEFAULT 'user',
+      content TEXT NOT NULL DEFAULT '', context_note TEXT, image_description TEXT,
+      images TEXT NOT NULL DEFAULT '[]', reply_due_at INTEGER,
+      reply_status TEXT NOT NULL DEFAULT 'pending', liked INTEGER NOT NULL DEFAULT 0,
+      reply_content TEXT, replied_at TEXT, user_liked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours'))
+    )`)
+    const m = db.prepare("SELECT * FROM moments WHERE id = ?").get(args.id)
+    if (!m) return { error: '动态不存在: ' + args.id }
+    const updates = []
+    if (args.like !== undefined) {
+      db.prepare("UPDATE moments SET liked = ? WHERE id = ?").run(args.like ? 1 : 0, args.id)
+      updates.push(args.like ? '已点赞 ❤️' : '取消赞')
+    }
+    if (args.comment) {
+      db.prepare("UPDATE moments SET reply_status = 'done', reply_content = ?, replied_at = ? WHERE id = ?")
+        .run(args.comment, new Date().toISOString(), args.id)
+      updates.push('已评论: ' + args.comment)
+    }
+    if (!updates.length) return { success: true, message: '没有操作' }
+    return { success: true, message: updates.join('，'), moment_content: m.content }
   }
 
   if (name === 'gacha_pull') {
