@@ -154,6 +154,24 @@ function getApiConfig(feature) {
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); syncToBackend('pool_chat_history', saveMsgs) } catch {} }, [messages])
+  // 页面加载时从后端拉取唤醒消息并合并
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/data/pool_chat_history')
+        if (!res.ok) return
+        const data = await res.json()
+        const backendMsgs = Array.isArray(data.value) ? data.value : (typeof data.value === 'string' ? JSON.parse(data.value) : [])
+        if (!backendMsgs.length) return
+        setMessages(prev => {
+          const prevSet = new Set(prev.map(m => m.content))
+          const wakeMsgs = backendMsgs.filter(m => m.content && m.content.startsWith('[自主唤醒]') && !prevSet.has(m.content))
+          if (wakeMsgs.length > 0) return [...prev, ...wakeMsgs]
+          return prev
+        })
+      } catch {}
+    })()
+  }, [])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
