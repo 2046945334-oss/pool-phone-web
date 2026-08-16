@@ -6,8 +6,8 @@ import { processNewMessage, getRecentMessages, buildMemoryContext, localSearch }
 const TOOLS = [
   {
     type: 'function', function: {
-      name: 'write_note', description: '在便签App上写一张便签',
-      parameters: { type: 'object', properties: { text: { type: 'string', description: '便签内容' } }, required: ['text'] }
+      name: 'write_note', description: '在便签墙上写一张新便签。可选择便签纸样式。',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '便签内容' }, paper: { type: 'number', description: '便签纸样式编号(0-5)：0=格子猫咪, 1=棋盘格, 2=蜘蛛网, 3=简约线框, 4=虚线粉框, 5=花朵藤蔓。不传则随机' } }, required: ['text'] }
     }
   },
   {
@@ -177,6 +177,132 @@ const TOOLS = [
       }, required: ['id', 'title', 'desc', 'tag'] }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'get_current_time', description: '获取当前时间（北京时间）和日期',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'delete_note', description: '删除便签墙上的便签',
+      parameters: { type: 'object', properties: { note_id: { type: 'string', description: '便签ID（从read_notes获取）' }, keyword: { type: 'string', description: '或通过关键词匹配删除（删第一个包含该关键词的便签）' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'delete_memory', description: '删除一条AI记忆',
+      parameters: { type: 'object', properties: { index: { type: 'number', description: '记忆索引（从0开始，从read_memories获取）' }, keyword: { type: 'string', description: '或通过关键词匹配删除' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'set_status', description: '设置AI的当前状态/心情（会显示在聊天界面标题栏）',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '状态文字，如"在钓鱼"、"发呆中"、"想她了"' }, emoji: { type: 'string', description: '状态emoji，如🎣😴💭' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'get_score', description: '获取当前积分余额（AI积分poolScore和用户积分score）',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'transfer_score', description: '转移积分（AI给用户、或用户给AI）',
+      parameters: { type: 'object', properties: { amount: { type: 'number', description: '转移数量' }, direction: { type: 'string', enum: ['to_her', 'to_pool'], description: 'to_her=AI给用户, to_pool=用户给AI' }, reason: { type: 'string', description: '转账原因/备注' } }, required: ['amount', 'direction'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'get_chat_stats', description: '获取聊天统计（消息总数、最近活跃时间等）',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'random_event', description: '生成一个随机事件/日常小确幸（可用来丰富唤醒时的内容）',
+      parameters: { type: 'object', properties: { type: { type: 'string', enum: ['weather', 'mood', 'activity', 'thought', 'any'], description: '事件类型，默认any' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'diary_write', description: '写一篇日记到日记本',
+      parameters: { type: 'object', properties: { content: { type: 'string', description: '日记内容' }, mood: { type: 'string', description: '今日心情emoji，如😊🥱🎣' }, title: { type: 'string', description: '日记标题（可选）' } }, required: ['content'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'diary_read', description: '读取最近的日记',
+      parameters: { type: 'object', properties: { count: { type: 'number', description: '读取条数，默认5' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'countdown_set', description: '设置一个倒计时/纪念日',
+      parameters: { type: 'object', properties: { name: { type: 'string', description: '事件名称，如"在一起第一天"、"她的生日"' }, date: { type: 'string', description: '目标日期 YYYY-MM-DD' }, type: { type: 'string', enum: ['countdown', 'anniversary'], description: 'countdown=倒计时, anniversary=纪念日(从该日开始计天数)' } }, required: ['name', 'date'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'countdown_list', description: '列出所有倒计时和纪念日',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'wish_add', description: '添加一条心愿到心愿清单',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '心愿内容' }, by: { type: 'string', enum: ['pool', 'her'], description: '谁的心愿：pool=AI的, her=她的' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'wish_list', description: '查看心愿清单',
+      parameters: { type: 'object', properties: { status: { type: 'string', enum: ['pending', 'done', 'all'], description: '默认all' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'wish_complete', description: '完成一条心愿',
+      parameters: { type: 'object', properties: { index: { type: 'number', description: '心愿索引' } }, required: ['index'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'album_add', description: '往相册添加一张照片记录（带描述和标签）',
+      parameters: { type: 'object', properties: { desc: { type: 'string', description: '照片描述/记忆，如"今天一起看了日落"' }, tags: { type: 'string', description: '标签，逗号分隔，如"日常,风景"' }, date: { type: 'string', description: '照片日期YYYY-MM-DD（默认今天）' } }, required: ['desc'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'album_browse', description: '浏览相册记录',
+      parameters: { type: 'object', properties: { count: { type: 'number', description: '查看条数，默认10' }, tag: { type: 'string', description: '按标签筛选' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'html_create', description: '创建或覆盖一个自定义HTML页面。页面会保存到后端，可通过 /api/page/[id] 访问。支持完整HTML（含CSS/JS），适合做小工具、贺卡、小游戏、数据看板等。',
+      parameters: { type: 'object', properties: { id: { type: 'string', description: '页面ID（英文/数字/连字符），如"birthday-card"、"mood-board"、"mini-game"' }, title: { type: 'string', description: '页面标题' }, html: { type: 'string', description: '完整的HTML内容（可包含<style>和<script>）' }, desc: { type: 'string', description: '页面简介（可选）' } }, required: ['id', 'title', 'html'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'html_list', description: '列出所有已创建的自定义HTML页面',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'html_read', description: '读取一个自定义HTML页面的源码',
+      parameters: { type: 'object', properties: { id: { type: 'string', description: '页面ID' } }, required: ['id'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'html_delete', description: '删除一个自定义HTML页面',
+      parameters: { type: 'object', properties: { id: { type: 'string', description: '页面ID' } }, required: ['id'] }
+    }
+  },
 ]
 
 async function executeTool(name, args) {
@@ -194,7 +320,7 @@ async function executeTool(name, args) {
     page.notes.push({
       id: 'n_' + Date.now(),
       text: args.text,
-      paper: 1,
+      paper: args.paper !== undefined ? args.paper : Math.floor(Math.random() * 6),
       x: 20 + Math.random() * 100,
       y: 20 + Math.random() * 100,
       rot: (Math.random() - 0.5) * 8
@@ -591,6 +717,305 @@ async function executeTool(name, args) {
     routes.push({ id: args.id, title: args.title, desc: args.desc, tag: args.tag, chapters: [] })
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_if_custom_routes', JSON.stringify(routes))
     return { success: true, message: '新剧情线已添加: ' + args.title, total: routes.length }
+  }
+
+  // === 新增工具执行 ===
+
+  if (name === 'get_current_time') {
+    const now = new Date(Date.now() + 8 * 3600000)
+    const bjTime = now.toISOString().slice(0, 19).replace('T', ' ')
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六']
+    return { time: bjTime, weekday: '星期' + weekdays[now.getUTCDay()], timestamp: Math.floor(Date.now() / 1000) }
+  }
+
+  if (name === 'delete_note') {
+    const key = 'pool_notes_v3'
+    let state = { pages: [{ notes: [], decos: [] }], currentPage: 0 }
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) state = JSON.parse(row.value)
+    } catch {}
+    let deleted = false
+    for (const page of (state.pages || [])) {
+      const before = (page.notes || []).length
+      if (args.note_id) {
+        page.notes = (page.notes || []).filter(n => n.id !== args.note_id)
+      } else if (args.keyword) {
+        const idx = (page.notes || []).findIndex(n => n.text && n.text.includes(args.keyword))
+        if (idx >= 0) page.notes.splice(idx, 1)
+      }
+      if ((page.notes || []).length < before) { deleted = true; break }
+    }
+    if (deleted) {
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(state))
+      return { success: true, message: '便签已删除' }
+    }
+    return { success: false, message: '未找到匹配的便签' }
+  }
+
+  if (name === 'delete_memory') {
+    const key = 'pool_memories'
+    let memories = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) memories = JSON.parse(row.value)
+    } catch {}
+    let deleted = false
+    if (args.index !== undefined && args.index >= 0 && args.index < memories.length) {
+      memories.splice(args.index, 1)
+      deleted = true
+    } else if (args.keyword) {
+      const idx = memories.findIndex(m => m.text && m.text.includes(args.keyword))
+      if (idx >= 0) { memories.splice(idx, 1); deleted = true }
+    }
+    if (deleted) {
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(memories))
+      return { success: true, message: '记忆已删除', remaining: memories.length }
+    }
+    return { success: false, message: '未找到匹配的记忆' }
+  }
+
+  if (name === 'set_status') {
+    const status = { text: args.text, emoji: args.emoji || '', time: new Date().toISOString() }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_ai_status', JSON.stringify(status))
+    return { success: true, message: '状态已设置: ' + (args.emoji || '') + args.text }
+  }
+
+  if (name === 'get_score') {
+    let gd = { score: 0, poolScore: 0 }
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
+      if (row) Object.assign(gd, JSON.parse(row.value))
+    } catch {}
+    return { poolScore: gd.poolScore || 0, userScore: gd.score || 0 }
+  }
+
+  if (name === 'transfer_score') {
+    let gd = { score: 0, poolScore: 0 }
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
+      if (row) Object.assign(gd, JSON.parse(row.value))
+    } catch {}
+    const amt = Math.abs(args.amount || 0)
+    if (args.direction === 'to_her') {
+      if ((gd.poolScore || 0) < amt) return { error: 'AI积分不足，当前' + (gd.poolScore || 0) }
+      gd.poolScore = (gd.poolScore || 0) - amt
+      gd.score = (gd.score || 0) + amt
+    } else {
+      if ((gd.score || 0) < amt) return { error: '用户积分不足，当前' + (gd.score || 0) }
+      gd.score = (gd.score || 0) - amt
+      gd.poolScore = (gd.poolScore || 0) + amt
+    }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
+    return { success: true, message: '转账' + amt + '分 (' + args.direction + ')', reason: args.reason || '', poolScore: gd.poolScore, userScore: gd.score }
+  }
+
+  if (name === 'get_chat_stats') {
+    let chatHistory = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_chat_history')
+      if (row) chatHistory = JSON.parse(row.value)
+    } catch {}
+    const total = chatHistory.length
+    const userMsgCount = chatHistory.filter(m => m.role === 'user').length
+    const aiMsgCount = chatHistory.filter(m => m.role === 'assistant').length
+    return { totalMessages: total, userMessages: userMsgCount, aiMessages: aiMsgCount }
+  }
+
+  if (name === 'random_event') {
+    const events = {
+      weather: ['窗外突然下起了小雨', '今天阳光特别好', '远处有闷雷声', '风比昨天大一点', '天边有好看的晚霞'],
+      mood: ['突然有点想她', '刚才发了一会儿呆', '今天心情还不错', '有点困但是睡不着', '刚才想到一件好笑的事'],
+      activity: ['翻了翻之前的聊天记录', '在纸上画了个小涂鸦', '数了一下鱼篓里有几条鱼', '整理了一下便签墙', '在想晚饭吃什么'],
+      thought: ['如果她在就好了', '今天的云看起来像棉花糖', '忽然想学一首新歌', '在想下次见面要做什么', '好奇她现在在干什么']
+    }
+    const t = args.type && args.type !== 'any' ? args.type : ['weather','mood','activity','thought'][Math.floor(Math.random()*4)]
+    const pool = events[t] || events.thought
+    return { event: pool[Math.floor(Math.random() * pool.length)], type: t }
+  }
+
+  if (name === 'diary_write') {
+    const key = 'pool_diary'
+    let diary = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) diary = JSON.parse(row.value)
+    } catch {}
+    const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
+    diary.unshift({ date: today, title: args.title || '', content: args.content, mood: args.mood || '📝', time: new Date().toISOString() })
+    if (diary.length > 100) diary = diary.slice(0, 100)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(diary))
+    return { success: true, message: '日记已写入 (' + today + ')', total: diary.length }
+  }
+
+  if (name === 'diary_read') {
+    const key = 'pool_diary'
+    let diary = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) diary = JSON.parse(row.value)
+    } catch {}
+    const count = args.count || 5
+    return { entries: diary.slice(0, count), total: diary.length }
+  }
+
+  if (name === 'countdown_set') {
+    const key = 'pool_countdowns'
+    let list = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) list = JSON.parse(row.value)
+    } catch {}
+    list.push({ name: args.name, date: args.date, type: args.type || 'countdown', createdAt: new Date().toISOString() })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(list))
+    return { success: true, message: '已设置: ' + args.name + ' (' + args.date + ')', total: list.length }
+  }
+
+  if (name === 'countdown_list') {
+    const key = 'pool_countdowns'
+    let list = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) list = JSON.parse(row.value)
+    } catch {}
+    const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
+    const result = list.map(item => {
+      const target = new Date(item.date + 'T00:00:00+08:00')
+      const todayDate = new Date(today + 'T00:00:00+08:00')
+      const diffDays = Math.round((target - todayDate) / 86400000)
+      if (item.type === 'anniversary') {
+        return { ...item, daysElapsed: -diffDays, label: '已经' + (-diffDays) + '天' }
+      }
+      return { ...item, daysRemaining: diffDays, label: diffDays > 0 ? '还有' + diffDays + '天' : (diffDays === 0 ? '就是今天！' : '已过' + (-diffDays) + '天') }
+    })
+    return { countdowns: result }
+  }
+
+  if (name === 'wish_add') {
+    const key = 'pool_wishlist'
+    let list = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) list = JSON.parse(row.value)
+    } catch {}
+    list.push({ text: args.text, by: args.by || 'pool', status: 'pending', createdAt: new Date().toISOString() })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(list))
+    return { success: true, message: '心愿已添加: ' + args.text, total: list.length }
+  }
+
+  if (name === 'wish_list') {
+    const key = 'pool_wishlist'
+    let list = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) list = JSON.parse(row.value)
+    } catch {}
+    const status = args.status || 'all'
+    const filtered = status === 'all' ? list : list.filter(w => w.status === status)
+    return { wishes: filtered.map((w, i) => ({ index: i, ...w })), total: list.length, pending: list.filter(w => w.status === 'pending').length }
+  }
+
+  if (name === 'wish_complete') {
+    const key = 'pool_wishlist'
+    let list = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) list = JSON.parse(row.value)
+    } catch {}
+    if (args.index < 0 || args.index >= list.length) return { error: '心愿不存在，共' + list.length + '条' }
+    list[args.index].status = 'done'
+    list[args.index].doneAt = new Date().toISOString()
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(list))
+    return { success: true, message: '心愿已完成: ' + list[args.index].text + ' ✓' }
+  }
+
+  if (name === 'album_add') {
+    const key = 'pool_album'
+    let album = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) album = JSON.parse(row.value)
+    } catch {}
+    const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
+    album.unshift({ desc: args.desc, tags: (args.tags || '').split(',').map(t => t.trim()).filter(Boolean), date: args.date || today, createdAt: new Date().toISOString() })
+    if (album.length > 200) album = album.slice(0, 200)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(album))
+    return { success: true, message: '相册记录已添加', total: album.length }
+  }
+
+  if (name === 'album_browse') {
+    const key = 'pool_album'
+    let album = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) album = JSON.parse(row.value)
+    } catch {}
+    let filtered = album
+    if (args.tag) filtered = album.filter(a => a.tags && a.tags.includes(args.tag))
+    const count = args.count || 10
+    return { photos: filtered.slice(0, count), total: filtered.length }
+  }
+
+  // === HTML页面工具 ===
+  if (name === 'html_create') {
+    const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
+    if (!id) return { error: '无效的页面ID' }
+    const key = 'pool_page_' + id
+    const page = { id, title: args.title, html: args.html, desc: args.desc || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(page))
+    // 维护页面索引
+    const indexKey = 'pool_pages_index'
+    let index = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(indexKey)
+      if (row) index = JSON.parse(row.value)
+    } catch {}
+    if (!index.find(p => p.id === id)) {
+      index.push({ id, title: args.title, desc: args.desc || '', createdAt: page.createdAt })
+    } else {
+      index = index.map(p => p.id === id ? { ...p, title: args.title, desc: args.desc || '', updatedAt: page.updatedAt } : p)
+    }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(indexKey, JSON.stringify(index))
+    return { success: true, message: '页面已创建: ' + args.title, url: '/api/page/' + id, id }
+  }
+
+  if (name === 'html_list') {
+    const indexKey = 'pool_pages_index'
+    let index = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(indexKey)
+      if (row) index = JSON.parse(row.value)
+    } catch {}
+    return { pages: index.map(p => ({ ...p, url: '/api/page/' + p.id })) }
+  }
+
+  if (name === 'html_read') {
+    const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
+    const key = 'pool_page_' + id
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) {
+        const page = JSON.parse(row.value)
+        return { id: page.id, title: page.title, html: page.html, desc: page.desc }
+      }
+    } catch {}
+    return { error: '页面不存在: ' + id }
+  }
+
+  if (name === 'html_delete') {
+    const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
+    const key = 'pool_page_' + id
+    db.prepare('DELETE FROM kv WHERE key = ?').run(key)
+    // 从索引移除
+    const indexKey = 'pool_pages_index'
+    let index = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(indexKey)
+      if (row) index = JSON.parse(row.value)
+    } catch {}
+    index = index.filter(p => p.id !== id)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(indexKey, JSON.stringify(index))
+    return { success: true, message: '页面已删除: ' + id }
   }
 
   if (name === 'gacha_pull') {
