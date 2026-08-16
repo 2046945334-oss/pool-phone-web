@@ -57,6 +57,10 @@ export default async function handler(req, res) {
   let config
   try { config = JSON.parse(configRow.value) } catch { return res.json({ action: 'skip', reason: 'invalid wake_config' }) }
   const { apiBase, apiKey, model, systemPrompt } = config
+  // 工具调用专用模型（可选，不配则全程用主模型）
+  const toolsApiBase = (config.toolsApiBase || apiBase).replace(/\/+$/, '').replace(/\/v1$/, '')
+  const toolsApiKey = config.toolsApiKey || apiKey
+  const toolsModel = config.toolsModel || model
   if (!apiBase || !apiKey) {
     return res.json({ action: 'skip', reason: 'wake_config missing apiBase/apiKey' })
   }
@@ -281,13 +285,19 @@ export default async function handler(req, res) {
     let isFirstRound = true
 
     while (maxRounds-- > 0) {
+      // 第一轮用工具模型（gemini，擅长function calling），后续轮用主模型（opus，质量好）
+      const useTools = isFirstRound && toolsApiKey !== apiKey
+      const reqUrl = useTools ? (toolsApiBase + '/v1/chat/completions') : url
+      const reqKey = useTools ? toolsApiKey : apiKey
+      const reqModel = useTools ? toolsModel : (model || 'gpt-4o-mini')
+
       const reqMessages = convertSystemRole(currentMessages.slice())
-      const bodyObj = { model: model || 'gpt-4o-mini', messages: reqMessages, stream: false }
+      const bodyObj = { model: reqModel, messages: reqMessages, stream: false }
       if (isFirstRound) bodyObj.tools = WAKE_TOOLS
 
-      const response = await fetch(url, {
+      const response = await fetch(reqUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + reqKey },
         body: JSON.stringify(bodyObj),
       })
 
