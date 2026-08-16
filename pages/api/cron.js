@@ -1,6 +1,26 @@
 // pages/api/cron.js — 唤醒系统定时检查端点
-// 由外部 cron 每分钟 GET 一次，检查是否需要唤醒 AI
+// 由外部 cron 或内部定时器每分钟调用，检查是否需要唤醒 AI
 import { getDb } from '../../lib/db'
+
+// --- 内部自轮询（Zeabur无原生cron支持）---
+// 服务启动后自动每60秒调用自身
+if (typeof global.__cronStarted === 'undefined') {
+  global.__cronStarted = true
+  // 延迟10秒后开始（等服务完全就绪）
+  setTimeout(() => {
+    const doSelfPing = async () => {
+      try {
+        // 用环境变量或硬编码的内部地址
+        const base = process.env.ZEABUR_URL || process.env.VERCEL_URL || 'http://localhost:3000'
+        const url = (base.startsWith('http') ? base : 'https://' + base) + '/api/cron'
+        await fetch(url, { method: 'GET', headers: { 'x-cron-source': 'self' } }).catch(() => {})
+      } catch {}
+    }
+    setInterval(doSelfPing, 60000) // 每60秒
+    doSelfPing() // 立即执行一次
+    console.log('[cron] Self-polling started (60s interval)')
+  }, 10000)
+}
 
 const SILENCE_THRESHOLD = 3600 // 1小时（秒）沉默检测阈值
 const WAKE_HOURS = { start: 8, end: 23 } // 活动时段 08:00-23:00
