@@ -1506,8 +1506,22 @@ export default function Home() {
     syncToBackend('pool_app_bg', next)
   }
 
-  // Pull backend data into localStorage on first load
-  useEffect(() => { pullAllFromBackend() }, [])
+  // Pull backend data into localStorage on first load, then sync chat history
+  useEffect(() => { 
+    pullAllFromBackend().then(() => {
+      // 唤醒回复可能写入了后端的pool_chat_history，同步到前端state
+      try {
+        const backendChat = JSON.parse(localStorage.getItem('pool_chat_history') || '[]')
+        if (backendChat.length > 0) {
+          setMessages(prev => {
+            // 合并：如果后端有更多消息（唤醒回复），用后端的
+            if (backendChat.length > prev.length) return backendChat
+            return prev
+          })
+        }
+      } catch {}
+    })
+  }, [])
 
   // AI Bridge: let iframe apps call AI via postMessage
   useEffect(() => {
