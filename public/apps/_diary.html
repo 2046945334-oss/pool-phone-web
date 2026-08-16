@@ -80,14 +80,16 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif
       <label>我的头像</label>
       <div style="display:flex;align-items:center;gap:8px">
         <div class="preview" id="myPreview"></div>
-        <label class="upload-btn">📷 选择<input type="file" accept="image/*" onchange="handleAvatar('my',event)" hidden></label>
+        <button class="upload-btn" onclick="document.getElementById('myAvatarInput').click()">📷 选择</button>
+        <input type="file" id="myAvatarInput" accept="image/*" onchange="handleAvatar('my',event)" style="display:none">
       </div>
     </div>
     <div class="setting-row">
       <label>池的头像</label>
       <div style="display:flex;align-items:center;gap:8px">
         <div class="preview" id="poolPreview"></div>
-        <label class="upload-btn">📷 选择<input type="file" accept="image/*" onchange="handleAvatar('pool',event)" hidden></label>
+        <button class="upload-btn" onclick="document.getElementById('poolAvatarInput').click()">📷 选择</button>
+        <input type="file" id="poolAvatarInput" accept="image/*" onchange="handleAvatar('pool',event)" style="display:none">
       </div>
     </div>
     <div class="setting-row">
