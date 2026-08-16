@@ -309,6 +309,12 @@ const TOOLS = [
       parameters: { type: 'object', properties: { content: { type: 'string', description: '动态正文，1-3句，自然、具体、像随手发出的朋友圈' }, context_note: { type: 'string', description: '内部备注（用户不可见）：为什么发这条、当时在聊什么、情绪底色' } }, required: ['content', 'context_note'] }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'read_moments', description: '查看朋友圈最近的动态（自己和她发的都会显示）',
+      parameters: { type: 'object', properties: { count: { type: 'number', description: '查看条数，默认5' } } }
+    }
+  },
 ]
 
 async function executeTool(name, args) {
@@ -1039,6 +1045,37 @@ async function executeTool(name, args) {
       `INSERT INTO moments (author, content, context_note, images, reply_due_at, reply_status, created_at) VALUES (?, ?, ?, '[]', 0, 'done', ?)`
     ).run('pool', args.content, args.context_note || '', bjTime)
     return { success: true, message: '朋友圈动态已发布 ✨', content: args.content }
+  }
+
+  if (name === 'read_moments') {
+    db.exec(`CREATE TABLE IF NOT EXISTS moments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL DEFAULT 'user',
+      content TEXT NOT NULL DEFAULT '', context_note TEXT, image_description TEXT,
+      images TEXT NOT NULL DEFAULT '[]', reply_due_at INTEGER,
+      reply_status TEXT NOT NULL DEFAULT 'pending', liked INTEGER NOT NULL DEFAULT 0,
+      reply_content TEXT, replied_at TEXT, user_liked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours'))
+    )`)
+    db.exec(`CREATE TABLE IF NOT EXISTS moment_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, moment_id INTEGER NOT NULL,
+      author TEXT NOT NULL, content TEXT NOT NULL, reply_due_at INTEGER,
+      reply_status TEXT NOT NULL DEFAULT 'none',
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours'))
+    )`)
+    const count = args.count || 5
+    const rows = db.prepare("SELECT * FROM moments ORDER BY created_at DESC LIMIT ?").all(count)
+    const comments = db.prepare("SELECT * FROM moment_comments ORDER BY created_at ASC").all()
+    const result = rows.map(m => ({
+      id: m.id,
+      author: m.author === 'pool' ? '池' : '她',
+      content: m.content,
+      time: m.created_at,
+      liked: !!m.liked,
+      user_liked: !!m.user_liked,
+      reply: m.reply_content || null,
+      comments: comments.filter(c => c.moment_id === m.id).map(c => ({ author: c.author === 'pool' ? '池' : '她', content: c.content }))
+    }))
+    return { moments: result, total: rows.length }
   }
 
   if (name === 'gacha_pull') {
