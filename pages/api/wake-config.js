@@ -33,6 +33,21 @@ export default function handler(req, res) {
     return res.json({ ok: true })
   }
 
+  // PATCH — 局部更新唤醒配置
+  if (req.method === 'PATCH') {
+    const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('wake_config')
+    if (!row) return res.status(400).json({ error: 'No existing config to patch' })
+    let config
+    try { config = JSON.parse(row.value) } catch { return res.status(400).json({ error: 'Invalid existing config' }) }
+    const updates = req.body
+    if (updates.model !== undefined) config.model = updates.model
+    if (updates.apiBase !== undefined) config.apiBase = updates.apiBase
+    if (updates.apiKey !== undefined) config.apiKey = updates.apiKey
+    if (updates.systemPrompt !== undefined) config.systemPrompt = updates.systemPrompt
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('wake_config', JSON.stringify(config))
+    return res.json({ ok: true, model: config.model })
+  }
+
   // DELETE — 清除唤醒配置（停用唤醒系统）
   if (req.method === 'DELETE') {
     db.prepare('DELETE FROM kv WHERE key = ?').run('wake_config')
