@@ -72,9 +72,27 @@ export default async function handler(req, res) {
     }
   }
 
-  // 没有触发条件，返回
+  // 没有触发条件，返回（附带debug信息）
   if (dueTasks.length === 0 && !silenceWake) {
-    return res.json({ action: 'idle', checked_at: now })
+    // Debug: 列出所有任务状态
+    const allTasks = db.prepare('SELECT id, type, trigger_at, reason, status, created_at FROM wake_tasks ORDER BY id DESC LIMIT 10').all()
+    const lastMsg = db.prepare("SELECT role, created_at FROM messages ORDER BY id DESC LIMIT 1").get()
+    return res.json({ 
+      action: 'idle', 
+      checked_at: now,
+      bjTime: new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 19).replace('T', ' '),
+      debug: {
+        pending_tasks: db.prepare("SELECT count(*) as c FROM wake_tasks WHERE status = 'pending'").get()?.c || 0,
+        recent_tasks: allTasks.map(t => ({
+          id: t.id,
+          status: t.status,
+          trigger_at: new Date(t.trigger_at * 1000 + 8 * 3600000).toISOString().slice(0, 19).replace('T', ' '),
+          reason: (t.reason || '').slice(0, 50),
+          created: new Date(t.created_at * 1000 + 8 * 3600000).toISOString().slice(0, 19).replace('T', ' ')
+        })),
+        last_message: lastMsg ? { role: lastMsg.role, age_minutes: Math.round((now - lastMsg.created_at) / 60) } : null
+      }
+    })
   }
 
   // --- 触发唤醒 ---
