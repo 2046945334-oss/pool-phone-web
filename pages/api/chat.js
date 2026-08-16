@@ -730,8 +730,11 @@ export default async function handler(req, res) {
     const memoryCtx = buildMemoryContext(sessionId)
     let localResults = ''
     if (lastUserMsg) {
-      // 用用户最新消息做本地搜索
-      const keywords = lastUserMsg.content.slice(0, 50)
+      // 用用户最新消息做本地搜索（content可能是multimodal数组）
+      const textContent = typeof lastUserMsg.content === 'string' 
+        ? lastUserMsg.content 
+        : (Array.isArray(lastUserMsg.content) ? lastUserMsg.content.filter(c => c.type === 'text').map(c => c.text).join(' ') : String(lastUserMsg.content))
+      const keywords = textContent.slice(0, 50)
       const found = localSearch(keywords, 3)
       if (found.length) {
         localResults = found.map(r => `[${r.type}] ${r.content}`).join('\n')
