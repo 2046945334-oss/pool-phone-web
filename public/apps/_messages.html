@@ -56,6 +56,7 @@ body { font-family:-apple-system,'PingFang SC',sans-serif; background:#f7f7f8; c
 .setting-row input[type=color] { width:36px; height:28px; border:none; cursor:pointer; }
 .avatar-preview { width:32px; height:32px; border-radius:50%; overflow:hidden; background:#e8e0f0; }
 .avatar-preview img { width:100%; height:100%; object-fit:cover; }
+.upload-btn { background:#f0edfa; color:#7c5cbf; border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; font-weight:500; }
 </style>
 </head><body>
 <div class="header">
@@ -65,8 +66,8 @@ body { font-family:-apple-system,'PingFang SC',sans-serif; background:#f7f7f8; c
 
 <div class="settings-panel" id="settingsPanel">
   <h3>🎨 个性化设置</h3>
-  <div class="setting-row"><label>我的头像</label><input type="text" id="myAvatarUrl" placeholder="图片URL" oninput="saveSettings()"><div class="avatar-preview" id="myAvatarPreview"></div></div>
-  <div class="setting-row"><label>池的头像</label><input type="text" id="poolAvatarUrl" placeholder="图片URL" oninput="saveSettings()"><div class="avatar-preview" id="poolAvatarPreview"></div></div>
+  <div class="setting-row"><label>我的头像</label><label class="upload-btn">📷 选择<input type="file" accept="image/*" hidden onchange="handleAvatarUpload('my',event)"></label><div class="avatar-preview" id="myAvatarPreview"></div></div>
+  <div class="setting-row"><label>池的头像</label><label class="upload-btn">📷 选择<input type="file" accept="image/*" hidden onchange="handleAvatarUpload('pool',event)"></label><div class="avatar-preview" id="poolAvatarPreview"></div></div>
   <div class="setting-row"><label>文字颜色</label><input type="color" id="textColor" value="#333333" oninput="saveSettings()"><span id="textColorHex" style="font-size:12px;color:#999">#333333</span></div>
 </div>
 
@@ -89,8 +90,6 @@ let moments = [];
 let settings = JSON.parse(localStorage.getItem('moments_settings') || '{}');
 
 function applySettings() {
-  document.getElementById('myAvatarUrl').value = settings.myAvatar || '';
-  document.getElementById('poolAvatarUrl').value = settings.poolAvatar || '';
   document.getElementById('textColor').value = settings.textColor || '#333333';
   document.getElementById('textColorHex').textContent = settings.textColor || '#333333';
   document.documentElement.style.setProperty('--text-color', settings.textColor || '#333');
@@ -102,14 +101,23 @@ function updatePreviews() {
   myP.innerHTML = settings.myAvatar ? `<img src="${settings.myAvatar}">` : '';
   poolP.innerHTML = settings.poolAvatar ? `<img src="${settings.poolAvatar}">` : '';
 }
+function handleAvatarUpload(who, e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    if (who === 'my') settings.myAvatar = dataUrl;
+    else settings.poolAvatar = dataUrl;
+    localStorage.setItem('moments_settings', JSON.stringify(settings));
+    updatePreviews(); render();
+  };
+  reader.readAsDataURL(file);
+}
 function saveSettings() {
-  settings.myAvatar = document.getElementById('myAvatarUrl').value.trim();
-  settings.poolAvatar = document.getElementById('poolAvatarUrl').value.trim();
   settings.textColor = document.getElementById('textColor').value;
   document.getElementById('textColorHex').textContent = settings.textColor;
   document.documentElement.style.setProperty('--text-color', settings.textColor);
   localStorage.setItem('moments_settings', JSON.stringify(settings));
-  updatePreviews();
   render();
 }
 function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('show'); }
