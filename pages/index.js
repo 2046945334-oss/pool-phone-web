@@ -1509,13 +1509,21 @@ export default function Home() {
   // Pull backend data into localStorage on first load, then sync chat history
   useEffect(() => { 
     pullAllFromBackend().then(() => {
-      // 唤醒回复可能写入了后端的pool_chat_history，同步到前端state
+      // 唤醒回复可能写入了后端的pool_chat_history，合并到前端state
       try {
         const backendChat = JSON.parse(localStorage.getItem('pool_chat_history') || '[]')
         if (backendChat.length > 0) {
           setMessages(prev => {
-            // 合并：如果后端有更多消息（唤醒回复），用后端的
-            if (backendChat.length > prev.length) return backendChat
+            // 找出后端有但前端没有的唤醒消息
+            const prevContents = new Set(prev.map(m => m.content))
+            const newWakeMsgs = backendChat.filter(m => 
+              m.content && m.content.startsWith('[自主唤醒]') && !prevContents.has(m.content)
+            )
+            if (newWakeMsgs.length > 0) {
+              return [...prev, ...newWakeMsgs]
+            }
+            // 如果前端完全空但后端有数据，用后端的
+            if (prev.length === 0 && backendChat.length > 0) return backendChat
             return prev
           })
         }
