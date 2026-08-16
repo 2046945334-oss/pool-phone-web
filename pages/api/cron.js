@@ -33,6 +33,12 @@ export default async function handler(req, res) {
 
   const db = getDb()
   const now = Math.floor(Date.now() / 1000)
+  const forceTest = req.query?.test === '1'
+
+  // 如果是测试模式，插入一个已到期的任务
+  if (forceTest) {
+    db.prepare('INSERT INTO wake_tasks (type, trigger_at, reason, status) VALUES (?, ?, ?, ?)').run('scheduled', now - 10, '唤醒测试', 'pending')
+  }
 
   // 当前北京时间
   const bjHour = new Date(now * 1000 + 8 * 3600000).getUTCHours()
