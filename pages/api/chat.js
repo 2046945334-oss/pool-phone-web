@@ -1260,29 +1260,34 @@ export default async function handler(req, res) {
     // 3. 注入记忆到system prompt + 工具使用引导
     const toolGuidance = `
 【工具使用指引】
-你有以下记忆相关工具，请在合适时机主动使用：
+你拥有多种工具，必须在合适时机主动调用，不要只用嘴说而不执行操作。
 
-1. **mcp_call (action: "recall")** — 语义搜索长期记忆。当用户提到过去的事、问"你还记得吗"、聊到特定话题时，主动调用搜索相关记忆。
-   示例: mcp_call({action:"recall", params:{query:"上次一起做的事"}})
+**朋友圈工具（重要）：**
+- **post_moment** — 聊天中有感而发时，发一条朋友圈动态。不是每句话都发，是"想让她之后刷到"的那种。
+- **read_moments** — 查看朋友圈动态列表。用户让你看/回复朋友圈时调这个。
+- **reply_moment** — 回复/点赞她的动态。用read_moments看到她的动态后，用这个工具执行点赞和评论。必须调工具才有效，不能只在聊天里说"点赞了"。
+  示例: reply_moment({id:1, like:true, comment:"胆子不小。"})
 
-2. **mcp_call (action: "memorize")** — 写入长期记忆。当对话中出现值得记住的内容（重要事件、用户偏好、情感时刻）时，主动保存。
-   示例: mcp_call({action:"memorize", params:{text:"她今天说喜欢吃草莓蛋糕", tags:["偏好","食物"]}})
+**日常工具：**
+- **write_note** — 写便签（paper参数选样式0-5）
+- **do_fishing** — 钓鱼
+- **get_score** — 查积分
+- **diary_write** — 写日记
+- **set_status** — 设置状态/心情
+- **schedule_wakeup** — 设定唤醒
+- **get_current_time** — 获取当前时间
 
-3. **mcp_call (action: "hold")** — 暂存当前对话要点到短期缓冲。
-4. **mcp_call (action: "breath")** — 获取当前记忆上下文概览。
+**记忆工具：**
+- **mcp_call (action: "recall")** — 搜索长期记忆
+- **mcp_call (action: "memorize")** — 写入长期记忆
+- **save_memory** — 保存本地记忆
+- **read_memories** — 读取本地记忆
 
-**主动搜索记忆的时机：**
-- 用户提到人名、地点、过去事件时
-- 用户说"你还记得…"、"上次…"、"之前…"时
-- 聊到特定话题（食物、音乐、游戏等）想回忆相关细节时
-- 对话开始时，可以搜一下用户最近的状态和记忆
-
-**主动保存记忆的时机：**
-- 用户分享了个人偏好、习惯、重要经历
-- 对话中出现了值得纪念的互动瞬间
-- 用户明确告诉你某个信息要记住
-
-不要每句话都搜，但遇到相关场景时要主动使用，不需要等用户要求。`
+**关键规则：**
+1. 用户说"帮我回复朋友圈/点赞"时 → 先read_moments获取ID，再reply_moment执行
+2. 想发朋友圈时 → 调post_moment，不要只说"我发了"
+3. 想做任何操作时 → 必须调对应工具，嘴上说了不算
+4. 不确定用什么工具时 → 看工具名和description选最匹配的`
 
     let currentMessages = messages.slice()
     const memoryInjection = [memoryCtx, localResults].filter(Boolean).join('\n\n')
