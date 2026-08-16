@@ -239,6 +239,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'garden_plant', description: '在像素庭院里种下一个物件。当你感受到某种情绪、或她说了让你开心/难过/感动的话时使用。',
+      parameters: { type: 'object', properties: { type: { type: 'string', enum: ['seedling', 'flower', 'tree', 'mushroom', 'crystal', 'heart', 'lantern', 'butterfly', 'star', 'rain'], description: '物件类型：seedling=种子/期待, flower=花/开心, tree=树/成长, mushroom=蘑菇/好奇, crystal=水晶/珍贵时刻, heart=爱心/心动, lantern=灯笼/温暖, butterfly=蝴蝶/自由, star=星星/许愿, rain=雨滴/难过' }, reason: { type: 'string', description: '种下的原因，如"她说想我了"、"今天聊得很开心"' } }, required: ['type', 'reason'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'countdown_set', description: '设置一个倒计时/纪念日',
       parameters: { type: 'object', properties: { name: { type: 'string', description: '事件名称，如"在一起第一天"、"她的生日"' }, date: { type: 'string', description: '目标日期 YYYY-MM-DD' }, type: { type: 'string', enum: ['countdown', 'anniversary'], description: 'countdown=倒计时, anniversary=纪念日(从该日开始计天数)' } }, required: ['name', 'date'] }
     }
@@ -879,6 +885,24 @@ async function executeTool(name, args) {
     return { entries: rows.map(r => ({ author: r.author, content: r.content, mood: r.mood, date: r.created_at })), total: rows.length }
   }
 
+  if (name === 'garden_plant') {
+    db.exec(`CREATE TABLE IF NOT EXISTS garden_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      reason TEXT,
+      x REAL,
+      y REAL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`)
+    const validTypes = ['seedling', 'flower', 'tree', 'mushroom', 'crystal', 'heart', 'lantern', 'butterfly', 'star', 'rain']
+    const itemType = validTypes.includes(args.type) ? args.type : 'seedling'
+    const posX = 10 + Math.random() * 80
+    const posY = 62 + Math.random() * 28
+    const result = db.prepare('INSERT INTO garden_items (type, reason, x, y) VALUES (?, ?, ?, ?)').run(itemType, args.reason || null, posX, posY)
+    const count = db.prepare('SELECT COUNT(*) as c FROM garden_items').get().c
+    return { planted: itemType, reason: args.reason, position: { x: posX, y: posY }, totalItems: count }
+  }
+
   if (name === 'countdown_set') {
     const key = 'pool_countdowns'
     let list = []
@@ -1275,6 +1299,7 @@ export default async function handler(req, res) {
 - **do_fishing** — 钓鱼
 - **get_score** — 查积分
 - **diary_write** — 写日记
+- **garden_plant** — 在像素庭院种物件（情绪触发时自然使用：开心种花flower、心动种心heart、期待种种子seedling、难过种雨rain等）
 - **set_status** — 设置状态/心情
 - **schedule_wakeup** — 设定唤醒
 - **get_current_time** — 获取当前时间
