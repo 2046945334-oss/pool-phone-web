@@ -327,20 +327,33 @@ function ChatView({ theme }) {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...buildSystemMessages(newMessages), ...newMessages.filter(m=>m.role!=='system').slice(-20).map(m => {
-          if (m.content && m.content.includes('[img]')) {
-            // Convert [img]...[/img] to vision multimodal format
-            const parts = m.content.split(/\[img\](.*?)\[\/img\]/g)
-            const content = []
-            for (let k = 0; k < parts.length; k++) {
-              if (k % 2 === 0) { if (parts[k].trim()) content.push({ type: 'text', text: parts[k].trim() }) }
-              else { content.push({ type: 'image_url', image_url: { url: parts[k].startsWith('data:') ? parts[k] : parts[k].startsWith('/') ? (typeof window !== 'undefined' ? window.location.origin : '') + parts[k] : parts[k] } }) }
-            }
-            if (content.length === 0) content.push({ type: 'text', text: '(图片)' })
-            return { ...m, content }
+        body: JSON.stringify({ messages: (() => {
+          // 合并连续同角色消息，避免拆句导致上下文浪费
+          const raw = newMessages.filter(m => m.role !== 'system' && m.role !== 'tool_log')
+          const merged = []
+          for (const m of raw) {
+            const last = merged[merged.length - 1]
+            if (last && last.role === m.role) { last.content += '\n' + m.content }
+            else { merged.push({ role: m.role, content: m.content }) }
           }
-          return m
-        })], apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
+          // 取最近50条合并后消息（约25轮对话）
+          const recent = merged.slice(-50)
+          // 处理图片标签
+          const processed = recent.map(m => {
+            if (m.content && m.content.includes('[img]')) {
+              const parts = m.content.split(/\[img\](.*?)\[\/img\]/g)
+              const content = []
+              for (let k = 0; k < parts.length; k++) {
+                if (k % 2 === 0) { if (parts[k].trim()) content.push({ type: 'text', text: parts[k].trim() }) }
+                else { content.push({ type: 'image_url', image_url: { url: parts[k].startsWith('data:') ? parts[k] : parts[k].startsWith('/') ? (typeof window !== 'undefined' ? window.location.origin : '') + parts[k] : parts[k] } }) }
+              }
+              if (content.length === 0) content.push({ type: 'text', text: '(图片)' })
+              return { ...m, content }
+            }
+            return m
+          })
+          return [...buildSystemMessages(newMessages), ...processed]
+        })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
       })
       const data = await res.json()
       if (data.error) {
