@@ -5,50 +5,73 @@
 <title>朋友圈</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:-apple-system,sans-serif; background:#111; color:#eee; min-height:100vh; padding-bottom:80px; }
-.header { position:sticky; top:0; background:#111e; backdrop-filter:blur(10px); padding:14px 16px; border-bottom:1px solid #222; z-index:10; display:flex; justify-content:space-between; align-items:center; }
-.header h1 { font-size:17px; font-weight:600; }
-.header .btn-post { background:#2563eb; color:#fff; border:none; border-radius:16px; padding:6px 14px; font-size:13px; cursor:pointer; }
-.feed { padding:8px 0; }
-.moment-card { padding:14px 16px; border-bottom:1px solid #1a1a1a; }
-.moment-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-.avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; }
-.avatar-pool { background:#1e3a5f; }
-.avatar-user { background:#3a1e5f; }
-.author-name { font-size:14px; font-weight:500; }
-.moment-time { font-size:11px; color:#666; margin-left:auto; }
-.moment-content { font-size:14px; line-height:1.6; margin-bottom:8px; white-space:pre-wrap; }
-.moment-actions { display:flex; gap:16px; align-items:center; margin-top:6px; }
-.action-btn { background:none; border:none; color:#888; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px; }
+body { font-family:-apple-system,'PingFang SC',sans-serif; background:#f7f7f8; color:#333; min-height:100vh; padding-bottom:20px; }
+.header { position:sticky; top:0; background:#fff; padding:12px 16px; border-bottom:1px solid #eee; z-index:10; display:flex; justify-content:space-between; align-items:center; }
+.header h1 { font-size:17px; font-weight:600; color:#333; }
+.header .btn-post { background:linear-gradient(135deg,#7c5cbf,#5b8def); color:#fff; border:none; border-radius:18px; padding:7px 16px; font-size:13px; cursor:pointer; font-weight:500; }
+.settings-btn { background:none; border:none; font-size:18px; cursor:pointer; }
+.feed { padding:6px 0; }
+.moment-card { background:#fff; margin:6px 10px; border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px #0001; }
+.moment-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; overflow:hidden; background:#e8e0f0; color:#7c5cbf; }
+.avatar img { width:100%; height:100%; object-fit:cover; }
+.avatar-pool { background:#e0ecf8; color:#4a7fbd; }
+.author-info { display:flex; flex-direction:column; }
+.author-name { font-size:14px; font-weight:600; }
+.moment-time { font-size:11px; color:#999; }
+.moment-content { font-size:14.5px; line-height:1.7; margin-bottom:10px; white-space:pre-wrap; color:var(--text-color, #333); }
+.moment-actions { display:flex; gap:20px; align-items:center; padding-top:8px; border-top:1px solid #f0f0f0; }
+.action-btn { background:none; border:none; color:#999; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px; }
 .action-btn.liked { color:#e74c3c; }
-.reply-box { margin-top:10px; background:#1a1a1a; border-radius:10px; padding:10px 12px; }
-.reply-label { font-size:11px; color:#666; margin-bottom:4px; }
-.reply-text { font-size:13px; line-height:1.5; }
-.comments-section { margin-top:8px; padding-left:46px; }
-.comment-item { font-size:13px; margin-bottom:4px; line-height:1.4; }
-.comment-item .c-author { color:#5b9bd5; font-weight:500; }
-.comment-item .c-text { color:#ccc; }
-.comment-input-wrap { display:flex; gap:6px; margin-top:8px; padding-left:46px; }
-.comment-input-wrap input { flex:1; background:#1a1a1a; border:1px solid #333; border-radius:14px; padding:6px 12px; font-size:13px; color:#eee; outline:none; }
-.comment-input-wrap button { background:#2563eb; border:none; border-radius:14px; padding:6px 12px; font-size:12px; color:#fff; cursor:pointer; }
-.modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:#000c; z-index:100; display:none; align-items:center; justify-content:center; padding:20px; }
+.reply-box { margin-top:10px; background:#f5f3fa; border-radius:8px; padding:10px 12px; border-left:3px solid #7c5cbf; }
+.reply-label { font-size:11px; color:#7c5cbf; font-weight:500; margin-bottom:3px; }
+.reply-text { font-size:13px; line-height:1.5; color:#444; }
+.comments-section { margin-top:10px; padding:8px 12px; background:#f9f9f9; border-radius:8px; }
+.comment-item { font-size:13px; margin-bottom:5px; line-height:1.5; }
+.comment-item .c-author { color:#7c5cbf; font-weight:600; }
+.comment-item .c-text { color:#444; }
+.comment-input-wrap { display:flex; gap:6px; margin-top:10px; }
+.comment-input-wrap input { flex:1; background:#f5f5f5; border:1px solid #e0e0e0; border-radius:18px; padding:8px 14px; font-size:13px; color:#333; outline:none; }
+.comment-input-wrap input:focus { border-color:#7c5cbf; }
+.comment-input-wrap button { background:linear-gradient(135deg,#7c5cbf,#5b8def); border:none; border-radius:18px; padding:8px 14px; font-size:12px; color:#fff; cursor:pointer; font-weight:500; }
+.modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:#0005; z-index:100; display:none; align-items:center; justify-content:center; padding:20px; }
 .modal-overlay.show { display:flex; }
-.modal { background:#1a1a1a; border-radius:16px; padding:20px; width:100%; max-width:340px; }
-.modal h3 { font-size:15px; margin-bottom:12px; }
-.modal textarea { width:100%; background:#111; border:1px solid #333; border-radius:10px; padding:10px; font-size:14px; color:#eee; resize:none; height:100px; outline:none; }
-.modal .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
-.modal .actions button { border:none; border-radius:12px; padding:8px 16px; font-size:13px; cursor:pointer; }
-.modal .cancel { background:#333; color:#ccc; }
-.modal .submit { background:#2563eb; color:#fff; }
-.empty { text-align:center; color:#555; padding:60px 20px; font-size:14px; }
-.pending-badge { font-size:11px; color:#f59e0b; background:#2a2000; padding:2px 8px; border-radius:8px; }
+.modal { background:#fff; border-radius:16px; padding:20px; width:100%; max-width:320px; box-shadow:0 10px 40px #0003; }
+.modal h3 { font-size:16px; margin-bottom:14px; color:#333; }
+.modal textarea { width:100%; background:#f7f7f8; border:1px solid #e0e0e0; border-radius:12px; padding:12px; font-size:14px; color:#333; resize:none; height:100px; outline:none; }
+.modal textarea:focus { border-color:#7c5cbf; }
+.modal .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+.modal .actions button { border:none; border-radius:14px; padding:9px 18px; font-size:13px; cursor:pointer; font-weight:500; }
+.modal .cancel { background:#f0f0f0; color:#666; }
+.modal .submit { background:linear-gradient(135deg,#7c5cbf,#5b8def); color:#fff; }
+.empty { text-align:center; color:#999; padding:60px 20px; font-size:14px; line-height:1.8; }
+.pending-badge { font-size:11px; color:#b8860b; background:#fef9e7; padding:3px 10px; border-radius:10px; border:1px solid #f0e0a0; margin-top:8px; display:inline-block; }
+/* 设置面板 */
+.settings-panel { display:none; background:#fff; margin:6px 10px; border-radius:12px; padding:16px; box-shadow:0 1px 3px #0001; }
+.settings-panel.show { display:block; }
+.settings-panel h3 { font-size:14px; margin-bottom:12px; color:#666; }
+.setting-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.setting-row label { font-size:13px; color:#666; min-width:70px; }
+.setting-row input[type=text] { flex:1; border:1px solid #e0e0e0; border-radius:8px; padding:6px 10px; font-size:13px; outline:none; }
+.setting-row input[type=color] { width:36px; height:28px; border:none; cursor:pointer; }
+.avatar-preview { width:32px; height:32px; border-radius:50%; overflow:hidden; background:#e8e0f0; }
+.avatar-preview img { width:100%; height:100%; object-fit:cover; }
 </style>
 </head><body>
 <div class="header">
   <h1>朋友圈</h1>
-  <button class="btn-post" onclick="showPostModal()">✏️ 写动态</button>
+  <div><button class="settings-btn" onclick="toggleSettings()">⚙️</button> <button class="btn-post" onclick="showPostModal()">✏️ 发动态</button></div>
 </div>
+
+<div class="settings-panel" id="settingsPanel">
+  <h3>🎨 个性化设置</h3>
+  <div class="setting-row"><label>我的头像</label><input type="text" id="myAvatarUrl" placeholder="图片URL" oninput="saveSettings()"><div class="avatar-preview" id="myAvatarPreview"></div></div>
+  <div class="setting-row"><label>池的头像</label><input type="text" id="poolAvatarUrl" placeholder="图片URL" oninput="saveSettings()"><div class="avatar-preview" id="poolAvatarPreview"></div></div>
+  <div class="setting-row"><label>文字颜色</label><input type="color" id="textColor" value="#333333" oninput="saveSettings()"><span id="textColorHex" style="font-size:12px;color:#999">#333333</span></div>
+</div>
+
 <div class="feed" id="feed"><div class="empty">加载中...</div></div>
+
 <div class="modal-overlay" id="postModal">
   <div class="modal">
     <h3>发一条动态</h3>
@@ -59,44 +82,81 @@ body { font-family:-apple-system,sans-serif; background:#111; color:#eee; min-he
     </div>
   </div>
 </div>
+
 <script>
 const API = '/api/moments';
 let moments = [];
+let settings = JSON.parse(localStorage.getItem('moments_settings') || '{}');
+
+function applySettings() {
+  document.getElementById('myAvatarUrl').value = settings.myAvatar || '';
+  document.getElementById('poolAvatarUrl').value = settings.poolAvatar || '';
+  document.getElementById('textColor').value = settings.textColor || '#333333';
+  document.getElementById('textColorHex').textContent = settings.textColor || '#333333';
+  document.documentElement.style.setProperty('--text-color', settings.textColor || '#333');
+  updatePreviews();
+}
+function updatePreviews() {
+  const myP = document.getElementById('myAvatarPreview');
+  const poolP = document.getElementById('poolAvatarPreview');
+  myP.innerHTML = settings.myAvatar ? `<img src="${settings.myAvatar}">` : '';
+  poolP.innerHTML = settings.poolAvatar ? `<img src="${settings.poolAvatar}">` : '';
+}
+function saveSettings() {
+  settings.myAvatar = document.getElementById('myAvatarUrl').value.trim();
+  settings.poolAvatar = document.getElementById('poolAvatarUrl').value.trim();
+  settings.textColor = document.getElementById('textColor').value;
+  document.getElementById('textColorHex').textContent = settings.textColor;
+  document.documentElement.style.setProperty('--text-color', settings.textColor);
+  localStorage.setItem('moments_settings', JSON.stringify(settings));
+  updatePreviews();
+  render();
+}
+function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('show'); }
+
+function getAvatar(author) {
+  if (author === 'pool') {
+    if (settings.poolAvatar) return `<div class="avatar avatar-pool"><img src="${settings.poolAvatar}"></div>`;
+    return '<div class="avatar avatar-pool">池</div>';
+  }
+  if (settings.myAvatar) return `<div class="avatar"><img src="${settings.myAvatar}"></div>`;
+  return '<div class="avatar">我</div>';
+}
+
 async function loadMoments() {
   try { const res = await fetch(API); const data = await res.json(); moments = data.entries || []; render(); }
   catch(e) { document.getElementById('feed').innerHTML = '<div class="empty">加载失败</div>'; }
 }
 function timeAgo(dateStr) {
+  if (!dateStr) return '';
   const now = new Date(); const d = new Date(dateStr.replace(' ', 'T') + '+08:00');
   const diff = Math.floor((now - d) / 1000);
   if (diff < 60) return '刚刚'; if (diff < 3600) return Math.floor(diff/60) + '分钟前';
   if (diff < 86400) return Math.floor(diff/3600) + '小时前'; return Math.floor(diff/86400) + '天前';
 }
 function render() {
-  if (!moments.length) { document.getElementById('feed').innerHTML = '<div class="empty">还没有动态<br>点右上角写一条，或者跟他聊天时他会自己发</div>'; return; }
+  if (!moments.length) { document.getElementById('feed').innerHTML = '<div class="empty">还没有动态 💭<br><br>你可以点上方「发动态」写一条<br>聊天时他也会自己发朋友圈</div>'; return; }
   const html = moments.map(m => {
     const isPool = m.author === 'pool';
-    const avatar = isPool ? '<div class="avatar avatar-pool">池</div>' : '<div class="avatar avatar-user">我</div>';
     const name = isPool ? '池' : '我';
     let replyHtml = '';
-    if (m.reply_content && !isPool) replyHtml = `<div class="reply-box"><div class="reply-label">池 回复了：</div><div class="reply-text">${esc(m.reply_content)}</div></div>`;
-    if ((m.reply_status === 'pending' || m.reply_status === 'processing') && !isPool) replyHtml = `<div style="margin-top:8px"><span class="pending-badge">池 还没看到...</span></div>`;
+    if (m.reply_content && !isPool) replyHtml = `<div class="reply-box"><div class="reply-label">池的回复</div><div class="reply-text">${esc(m.reply_content)}</div></div>`;
+    if ((m.reply_status === 'pending' || m.reply_status === 'processing') && !isPool) replyHtml = `<div><span class="pending-badge">💤 池还没看到...</span></div>`;
     let commentsHtml = '';
     if (m.comments && m.comments.length) {
       commentsHtml = '<div class="comments-section">' + m.comments.map(c => {
         const cName = c.author === 'pool' ? '池' : '我';
-        return `<div class="comment-item"><span class="c-author">${cName}：</span><span class="c-text">${esc(c.content)}</span></div>`;
+        return `<div class="comment-item"><span class="c-author">${cName}</span>：<span class="c-text">${esc(c.content)}</span></div>`;
       }).join('') + '</div>';
     }
-    const likeClass = (isPool ? m.user_liked : m.liked) ? 'liked' : '';
-    const likeText = (isPool ? m.user_liked : m.liked) ? '❤️' : '🤍';
+    const liked = isPool ? m.user_liked : m.liked;
     const likeAction = isPool ? `onclick="toggleLike(${m.id})"` : '';
     return `<div class="moment-card">
-      <div class="moment-header">${avatar}<span class="author-name">${name}</span><span class="moment-time">${timeAgo(m.created_at)}</span></div>
+      <div class="moment-header">${getAvatar(m.author)}<div class="author-info"><span class="author-name">${name}</span><span class="moment-time">${timeAgo(m.created_at)}</span></div></div>
       <div class="moment-content">${esc(m.content)}</div>
-      <div class="moment-actions"><button class="action-btn ${likeClass}" ${likeAction}>${likeText}</button><button class="action-btn" onclick="showComment(${m.id})">💬 评论</button></div>
+      <div class="moment-actions"><button class="action-btn ${liked?'liked':''}" ${likeAction}>${liked?'❤️':'🤍'} ${liked?'已赞':'赞'}</button><button class="action-btn" onclick="showComment(${m.id})">💬 评论</button></div>
       ${replyHtml}${commentsHtml}
-      <div class="comment-input-wrap" id="ci_${m.id}" style="display:none"><input id="cin_${m.id}" placeholder="说点什么..." onkeydown="if(event.key==='Enter')submitComment(${m.id})"><button onclick="submitComment(${m.id})">发送</button></div>
+      <div class="comment-input-wrap" id="ci_${m.id}" style="display:none"><input id="cin_${m.id}" placeholder="写评论..." onkeydown="if(event.key==='Enter')submitComment(${m.id})"><button onclick="submitComment(${m.id})">发送</button></div>
     </div>`;
   }).join('');
   document.getElementById('feed').innerHTML = html;
@@ -112,6 +172,6 @@ async function submitPost() {
 async function toggleLike(id) { await fetch(API, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, action:'user_like' }) }); loadMoments(); }
 function showComment(id) { const el = document.getElementById('ci_' + id); el.style.display = el.style.display === 'none' ? 'flex' : 'none'; if (el.style.display === 'flex') document.getElementById('cin_' + id).focus(); }
 async function submitComment(id) { const input = document.getElementById('cin_' + id); const text = input.value.trim(); if (!text) return; input.value = ''; await fetch(API, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, action:'comment', comment_content: text }) }); loadMoments(); }
-loadMoments(); setInterval(loadMoments, 30000);
+applySettings(); loadMoments(); setInterval(loadMoments, 30000);
 </script>
 </body></html>

@@ -78,6 +78,107 @@ export default async function handler(req, res) {
     }
   }
 
+  // === 朋友圈回复生成（每次cron触发都检查） ===
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS moments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL DEFAULT 'user',
+      content TEXT NOT NULL DEFAULT '', context_note TEXT, image_description TEXT,
+      images TEXT NOT NULL DEFAULT '[]', reply_due_at INTEGER,
+      reply_status TEXT NOT NULL DEFAULT 'pending', liked INTEGER NOT NULL DEFAULT 0,
+      reply_content TEXT, replied_at TEXT, user_liked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours'))
+    )`)
+    db.exec(`CREATE TABLE IF NOT EXISTS moment_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, moment_id INTEGER NOT NULL,
+      author TEXT NOT NULL, content TEXT NOT NULL, reply_due_at INTEGER,
+      reply_status TEXT NOT NULL DEFAULT 'none',
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours'))
+    )`)
+    // 处理到期的动态回复
+    const dueMoments = db.prepare(
+      "SELECT * FROM moments WHERE reply_status = 'pending' AND reply_due_at <= ? AND author = 'user' LIMIT 2"
+    ).all(now)
+    // 处理到期的评论回复
+    const dueComments = db.prepare(
+      "SELECT * FROM moment_comments WHERE reply_status = 'pending' AND reply_due_at <= ? AND author = 'user' LIMIT 2"
+    ).all(now)
+
+    if ((dueMoments.length > 0 || dueComments.length > 0) && wakeConfig) {
+      const cfg = JSON.parse(wakeConfig.value)
+      if (cfg.apiBase && cfg.apiKey && cfg.model) {
+        const base = cfg.apiBase.replace(/\/+$/, '').replace(/\/v1$/, '')
+        const url = base + '/v1/chat/completions'
+
+        // 生成动态回复
+        for (const m of dueMoments) {
+          try {
+            const resp = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+              body: JSON.stringify({
+                model: cfg.model,
+                messages: [
+                  { role: 'system', content: '你是池，在朋友圈回复她的动态。简短自然，1-2句，像真实朋友圈评论。可以点赞也可以不点。回复JSON格式：{"like":true/false,"comment":"你的评论"}' },
+                  { role: 'user', content: '她发了一条动态：' + m.content }
+                ],
+                max_tokens: 200
+              })
+            })
+            const data = await resp.json()
+            let reply = data?.choices?.[0]?.message?.content || ''
+            // 解析JSON
+            let liked = false, comment = reply
+            try {
+              const cleaned = reply.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+              const firstBrace = cleaned.indexOf('{')
+              const lastBrace = cleaned.lastIndexOf('}')
+              if (firstBrace >= 0 && lastBrace > firstBrace) {
+                const parsed = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1))
+                liked = !!parsed.like
+                comment = parsed.comment || ''
+              }
+            } catch {}
+            db.prepare("UPDATE moments SET reply_status = 'done', liked = ?, reply_content = ?, replied_at = ? WHERE id = ?")
+              .run(liked ? 1 : 0, comment, new Date().toISOString(), m.id)
+          } catch (e) {
+            db.prepare("UPDATE moments SET reply_status = 'done', reply_content = ? WHERE id = ?")
+              .run('(回复生成失败)', m.id)
+          }
+        }
+
+        // 生成评论链回复
+        for (const c of dueComments) {
+          try {
+            const moment = db.prepare("SELECT * FROM moments WHERE id = ?").get(c.moment_id)
+            const allComments = db.prepare("SELECT * FROM moment_comments WHERE moment_id = ? ORDER BY created_at ASC").all(c.moment_id)
+            const commentChain = allComments.slice(-6).map(cc => (cc.author === 'pool' ? '池' : '她') + '：' + cc.content).join('\n')
+            const resp = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+              body: JSON.stringify({
+                model: cfg.model,
+                messages: [
+                  { role: 'system', content: '你是池，在朋友圈评论区回复她。简短自然，像朋友圈评论回复。直接回复文字，不要JSON。' },
+                  { role: 'user', content: '动态：' + (moment?.content || '') + '\n\n评论链：\n' + commentChain }
+                ],
+                max_tokens: 150
+              })
+            })
+            const data = await resp.json()
+            const reply = data?.choices?.[0]?.message?.content || '嗯'
+            const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 19).replace('T', ' ')
+            db.prepare("INSERT INTO moment_comments (moment_id, author, content, reply_status, created_at) VALUES (?, 'pool', ?, 'none', ?)").run(c.moment_id, reply, bjTime)
+            db.prepare("UPDATE moment_comments SET reply_status = 'done' WHERE id = ?").run(c.id)
+          } catch {
+            db.prepare("UPDATE moment_comments SET reply_status = 'done' WHERE id = ?").run(c.id)
+          }
+        }
+      }
+    }
+  } catch (momentErr) {
+    console.error('[cron] moments error:', momentErr.message)
+  }
+
   // 没有触发条件，返回（附带debug信息）
   if (dueTasks.length === 0 && !silenceWake) {
     // Debug: 列出所有任务状态
