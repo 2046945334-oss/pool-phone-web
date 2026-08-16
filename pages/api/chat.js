@@ -853,28 +853,30 @@ async function executeTool(name, args) {
   }
 
   if (name === 'diary_write') {
-    const key = 'pool_diary'
-    let diary = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) diary = JSON.parse(row.value)
-    } catch {}
-    const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
-    diary.unshift({ date: today, title: args.title || '', content: args.content, mood: args.mood || '📝', time: new Date().toISOString() })
-    if (diary.length > 100) diary = diary.slice(0, 100)
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(diary))
-    return { success: true, message: '日记已写入 (' + today + ')', total: diary.length }
+    db.exec(`CREATE TABLE IF NOT EXISTS diary_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      author TEXT NOT NULL DEFAULT 'pool',
+      content TEXT NOT NULL,
+      mood TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`)
+    db.prepare("INSERT INTO diary_entries (author, content, mood) VALUES (?, ?, ?)")
+      .run('pool', args.content, args.mood || null)
+    const count = db.prepare("SELECT COUNT(*) as c FROM diary_entries").get().c
+    return { success: true, message: '日记已写入 📖', total: count }
   }
 
   if (name === 'diary_read') {
-    const key = 'pool_diary'
-    let diary = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) diary = JSON.parse(row.value)
-    } catch {}
-    const count = args.count || 5
-    return { entries: diary.slice(0, count), total: diary.length }
+    db.exec(`CREATE TABLE IF NOT EXISTS diary_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      author TEXT NOT NULL DEFAULT 'pool',
+      content TEXT NOT NULL,
+      mood TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`)
+    const limit = args.count || 5
+    const rows = db.prepare("SELECT * FROM diary_entries ORDER BY created_at DESC LIMIT ?").all(limit)
+    return { entries: rows.map(r => ({ author: r.author, content: r.content, mood: r.mood, date: r.created_at })), total: rows.length }
   }
 
   if (name === 'countdown_set') {

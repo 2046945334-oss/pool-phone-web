@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>日记</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f7f7f8; min-height:100vh; color:#333; }
+.header { position:sticky; top:0; background:#fff; padding:12px 16px; border-bottom:1px solid #eee; z-index:10; display:flex; justify-content:space-between; align-items:center; }
+.header h1 { font-size:17px; font-weight:600; color:#333; }
+.header-btns { display:flex; gap:8px; }
+.header-btns button { background:none; border:none; font-size:18px; cursor:pointer; padding:4px 8px; touch-action:manipulation; }
+.diary-list { padding:12px 16px; }
+.diary-card { background:#fff; border-radius:12px; padding:14px 16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.diary-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.avatar { width:32px; height:32px; border-radius:50%; overflow:hidden; background:#e0e0e0; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.avatar img { width:100%; height:100%; object-fit:cover; }
+.diary-meta { flex:1; }
+.diary-author { font-size:13px; font-weight:600; color:#7c5cbf; }
+.diary-time { font-size:11px; color:#999; }
+.diary-content { font-size:14.5px; line-height:1.7; white-space:pre-wrap; color:var(--text-color, #333); }
+.diary-mood { margin-top:6px; font-size:12px; color:#999; }
+.empty-state { text-align:center; padding:60px 20px; color:#999; }
+.empty-state p { font-size:14px; margin-top:10px; }
+
+/* 写日记面板 */
+.write-panel { position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; z-index:200; display:none; flex-direction:column; }
+.write-panel.show { display:flex; }
+.write-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #eee; }
+.write-header button { background:none; border:none; font-size:14px; cursor:pointer; padding:6px 12px; touch-action:manipulation; }
+.write-header .publish-btn { background:linear-gradient(135deg,#7c5cbf,#5b8def); color:#fff; border-radius:18px; font-weight:500; }
+.write-body { flex:1; padding:16px; display:flex; flex-direction:column; gap:10px; }
+.write-body textarea { flex:1; border:none; outline:none; font-size:15px; line-height:1.7; resize:none; color:#333; }
+.write-body input { border:none; border-bottom:1px solid #eee; outline:none; font-size:13px; padding:8px 0; color:#666; }
+
+/* 设置面板 */
+.settings-panel { position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; z-index:200; display:none; flex-direction:column; }
+.settings-panel.show { display:flex; }
+.settings-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #eee; }
+.settings-header button { background:none; border:none; font-size:14px; cursor:pointer; padding:6px 12px; touch-action:manipulation; }
+.settings-body { flex:1; padding:16px; overflow-y:auto; }
+.setting-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0; }
+.setting-row label { font-size:14px; color:#333; }
+.setting-row .preview { width:36px; height:36px; border-radius:50%; overflow:hidden; background:#f0f0f0; display:flex; align-items:center; justify-content:center; }
+.setting-row .preview img { width:100%; height:100%; object-fit:cover; }
+.upload-btn { background:linear-gradient(135deg,#7c5cbf,#5b8def); color:#fff; border:none; border-radius:14px; padding:6px 12px; font-size:12px; cursor:pointer; touch-action:manipulation; }
+</style>
+</head><body>
+<div class="header">
+  <h1>📖 日记</h1>
+  <div class="header-btns">
+    <button onclick="openSettings()">⚙️</button>
+    <button onclick="openWrite()">✏️</button>
+  </div>
+</div>
+<div class="diary-list" id="diaryList"></div>
+
+<!-- 写日记面板 -->
+<div class="write-panel" id="writePanel">
+  <div class="write-header">
+    <button onclick="closeWrite()">取消</button>
+    <span style="font-weight:600;font-size:15px">写日记</span>
+    <button class="publish-btn" onclick="submitDiary()">发布</button>
+  </div>
+  <div class="write-body">
+    <textarea id="diaryText" placeholder="今天想记录点什么..."></textarea>
+    <input id="diaryMood" placeholder="此刻心情（可选，如：☀️ 晴朗）" />
+  </div>
+</div>
+
+<!-- 设置面板 -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-header">
+    <button onclick="closeSettings()">关闭</button>
+    <span style="font-weight:600;font-size:15px">个性化设置</span>
+    <button onclick="closeSettings()">✓</button>
+  </div>
+  <div class="settings-body">
+    <div class="setting-row">
+      <label>我的头像</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="preview" id="myPreview"></div>
+        <label class="upload-btn">📷 选择<input type="file" accept="image/*" onchange="handleAvatar('my',event)" hidden></label>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>池的头像</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="preview" id="poolPreview"></div>
+        <label class="upload-btn">📷 选择<input type="file" accept="image/*" onchange="handleAvatar('pool',event)" hidden></label>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>文字颜色</label>
+      <input type="color" id="textColorPicker" value="#333333" onchange="saveSettings()" style="border:none;width:36px;height:36px;cursor:pointer">
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/diary';
+let settings = JSON.parse(localStorage.getItem('diary_settings') || '{}');
+
+function applySettings() {
+  document.documentElement.style.setProperty('--text-color', settings.textColor || '#333');
+  const myP = document.getElementById('myPreview');
+  const poolP = document.getElementById('poolPreview');
+  myP.innerHTML = settings.myAvatar ? `<img src="${settings.myAvatar}">` : '我';
+  poolP.innerHTML = settings.poolAvatar ? `<img src="${settings.poolAvatar}">` : '池';
+  document.getElementById('textColorPicker').value = settings.textColor || '#333333';
+}
+
+function saveSettings() {
+  settings.textColor = document.getElementById('textColorPicker').value;
+  localStorage.setItem('diary_settings', JSON.stringify(settings));
+  applySettings();
+}
+
+function handleAvatar(who, e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (who === 'my') settings.myAvatar = reader.result;
+    else settings.poolAvatar = reader.result;
+    localStorage.setItem('diary_settings', JSON.stringify(settings));
+    applySettings();
+  };
+  reader.readAsDataURL(file);
+}
+
+function getAvatar(author) {
+  if (author === 'pool') {
+    return settings.poolAvatar ? `<div class="avatar"><img src="${settings.poolAvatar}"></div>` : '<div class="avatar">池</div>';
+  }
+  return settings.myAvatar ? `<div class="avatar"><img src="${settings.myAvatar}"></div>` : '<div class="avatar">我</div>';
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function timeAgo(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff/60) + '分钟前';
+  if (diff < 86400) return Math.floor(diff/3600) + '小时前';
+  if (diff < 604800) return Math.floor(diff/86400) + '天前';
+  return d.toLocaleDateString('zh-CN');
+}
+
+async function loadDiary() {
+  try {
+    const resp = await fetch(API);
+    const data = await resp.json();
+    const list = data.entries || [];
+    const container = document.getElementById('diaryList');
+    if (!list.length) {
+      container.innerHTML = '<div class="empty-state"><p>📝 还没有日记</p><p>点右上角 ✏️ 开始记录</p></div>';
+      return;
+    }
+    container.innerHTML = list.map(d => {
+      const name = d.author === 'pool' ? '池' : '我';
+      return `<div class="diary-card">
+        <div class="diary-header">${getAvatar(d.author)}<div class="diary-meta"><span class="diary-author">${name}</span><span class="diary-time"> · ${timeAgo(d.created_at)}</span></div></div>
+        <div class="diary-content">${esc(d.content)}</div>
+        ${d.mood ? '<div class="diary-mood">' + esc(d.mood) + '</div>' : ''}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('diaryList').innerHTML = '<div class="empty-state"><p>加载失败</p></div>';
+  }
+}
+
+function openWrite() { document.getElementById('writePanel').classList.add('show'); }
+function closeWrite() { document.getElementById('writePanel').classList.remove('show'); }
+function openSettings() { document.getElementById('settingsPanel').classList.add('show'); applySettings(); }
+function closeSettings() { document.getElementById('settingsPanel').classList.remove('show'); }
+
+async function submitDiary() {
+  const text = document.getElementById('diaryText').value.trim();
+  if (!text) return;
+  const mood = document.getElementById('diaryMood').value.trim();
+  await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: text, mood: mood || undefined, author: 'user' })
+  });
+  document.getElementById('diaryText').value = '';
+  document.getElementById('diaryMood').value = '';
+  closeWrite();
+  loadDiary();
+}
+
+applySettings();
+loadDiary();
+setInterval(loadDiary, 60000);
+</script>
+</body></html>
