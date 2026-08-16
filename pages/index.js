@@ -225,7 +225,7 @@ function ChatView({ theme }) {
   }, [])
 
   // Build system prompt with character + memory entries
-  function buildSystemMessages(userMessages) {
+  async function buildSystemMessages(userMessages) {
     const parts = []
     // Base character prompt
     const systemPrompt = localStorage.getItem('pool_system_prompt') || `你是「池」，住在这部小手机里的AI，她的男朋友。
@@ -254,6 +254,7 @@ function ChatView({ theme }) {
     parts.push({ role: 'system', content: systemPrompt })
 
     // Real-time context injection
+    const injectCfg = JSON.parse(localStorage.getItem('pool_inject_config') || '{"time":true,"battery":true,"weather":true}')
     const now = new Date()
     const timeStr = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     const hour = now.getHours()
@@ -264,7 +265,43 @@ function ChatView({ theme }) {
     else if (hour >= 17 && hour < 19) timeHint = '（晚饭时间）'
     else if (hour >= 22) timeHint = '（深夜了）'
 
-    let contextInfo = `[当前环境]\n时间: ${timeStr} ${timeHint}`
+    let contextInfo = ''
+    if (injectCfg.time) contextInfo += `[当前环境]\n时间: ${timeStr} ${timeHint}`
+
+    // Battery info
+    if (injectCfg.battery) {
+      try {
+        if (navigator.getBattery) {
+          const battery = await navigator.getBattery()
+          contextInfo += `\n电量: ${Math.round(battery.level * 100)}% ${battery.charging ? '(充电中)' : '(未充电)'}`
+        }
+      } catch {}
+    }
+
+    // Geolocation + Weather (use cached if recent)
+    if (injectCfg.weather) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('pool_env_cache') || '{}')
+        const cacheAge = Date.now() - (cached.ts || 0)
+        if (cacheAge < 10 * 60 * 1000 && cached.weather) {
+          contextInfo += `\n位置: ${cached.lat?.toFixed(4)}, ${cached.lon?.toFixed(4)}`
+          contextInfo += `\n天气: ${cached.weather}`
+        } else if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+              const lat = pos.coords.latitude.toFixed(4)
+              const lon = pos.coords.longitude.toFixed(4)
+              const wResp = await fetch(`https://wttr.in/${lat},${lon}?format=%C+%t+%h&lang=zh`)
+              const wText = await wResp.text()
+              localStorage.setItem('pool_env_cache', JSON.stringify({ ts: Date.now(), lat: pos.coords.latitude, lon: pos.coords.longitude, weather: wText.trim() }))
+            } catch {}
+          }, () => {}, { timeout: 5000 })
+          if (cached.weather) contextInfo += `\n天气: ${cached.weather} (缓存)`
+        }
+      } catch {}
+    }
+
+    if (!contextInfo) contextInfo = `[当前环境]\n时间: ${timeStr}`
 
     // Notifications from backend (if available)
     try {
@@ -346,7 +383,7 @@ function ChatView({ theme }) {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: (() => {
+        body: JSON.stringify({ messages: await (async () => {
           // 合并连续同角色消息，避免拆句导致上下文浪费
           const raw = newMessages.filter(m => m.role !== 'system' && m.role !== 'tool_log')
           const merged = []
@@ -371,7 +408,7 @@ function ChatView({ theme }) {
             }
             return m
           })
-          return [...buildSystemMessages(newMessages), ...processed]
+return [...await buildSystemMessages(newMessages), ...processed]
         })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
       })
       const data = await res.json()
@@ -977,11 +1014,13 @@ function SettingsPanel() {
   const [mcpResult, setMcpResult] = useState('')
   const [mcpLoading, setMcpLoading] = useState(false)
   const [mcpInput, setMcpInput] = useState('')
+  const [injectCfg, setInjectCfg] = useState(() => JSON.parse(localStorage.getItem('pool_inject_config') || '{"time":true,"battery":true,"weather":true}'))
 
   function saveAll() {
     localStorage.setItem('pool_api_config', JSON.stringify(defaultCfg))
     localStorage.setItem('pool_api_configs', JSON.stringify(configs))
     localStorage.setItem('pool_tts_config', JSON.stringify(ttsConfig))
+    localStorage.setItem('pool_inject_config', JSON.stringify(injectCfg))
     syncToBackend('pool_tts_config', ttsConfig)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
@@ -1115,6 +1154,19 @@ function SettingsPanel() {
       </div>
 
       <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
+
+      <div className="settings-section" style={{marginTop:'20px'}}>
+        <h3 className="settings-title">{'\ud83d\udce1 \u4fe1\u606f\u6ce8\u5165'}</h3>
+        <p className="settings-desc">{'\u53d1\u6d88\u606f\u65f6\u81ea\u52a8\u6ce8\u5165\u73af\u5883\u4fe1\u606f\u5230AI\u4e0a\u4e0b\u6587'}</p>
+        <div style={{display:'flex',flexDirection:'column',gap:'8px',marginTop:'8px'}}>
+          {[{k:'time',l:'\u23f0 \u65f6\u95f4'},{k:'battery',l:'\ud83d\udd0b \u7535\u91cf'},{k:'weather',l:'\u2601\ufe0f \u5929\u6c14+\u4f4d\u7f6e'}].map(item => (
+            <label key={item.k} style={{display:'flex',alignItems:'center',gap:'8px',fontSize:'14px',cursor:'pointer'}}>
+              <input type="checkbox" checked={!!injectCfg[item.k]} onChange={e => setInjectCfg({...injectCfg, [item.k]: e.target.checked})} />
+              {item.l}
+            </label>
+          ))}
+        </div>
+      </div>
 
       <div className="settings-section" style={{marginTop:'20px'}}>
         <h3 className="settings-title">{'\ud83e\udde0 MCP \u8bb0\u5fc6\u5e93'}</h3>
