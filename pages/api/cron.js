@@ -217,7 +217,29 @@ export default async function handler(req, res) {
       if (reply) {
         const taggedReply = '[自主唤醒] ' + reply
         db.prepare('INSERT INTO messages (role, content) VALUES (?, ?)').run('assistant', taggedReply)
+        
+        // 同步写入pool_chat_history（前端聊天界面从这里读）
+        try {
+          const chatRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_chat_history'").get()
+          let chatHistory = chatRow ? JSON.parse(chatRow.value) : []
+          chatHistory.push({ role: 'assistant', content: taggedReply })
+          // 限制最多200条
+          if (chatHistory.length > 200) chatHistory = chatHistory.slice(-200)
+          db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_chat_history', JSON.stringify(chatHistory))
+        } catch (syncErr) {
+          console.error('[cron] Failed to sync to pool_chat_history:', syncErr.message)
+        }
       }
+
+      // 记录唤醒日志到kv
+      try {
+        const logEntry = { time: new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 19), triggers: { scheduled: dueTasks.length, silence: silenceWake }, reply: (reply || '').slice(0, 100), tools: toolLogs.map(t => t.name) }
+        const logRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_wake_log'").get()
+        let logs = logRow ? JSON.parse(logRow.value) : []
+        logs.push(logEntry)
+        if (logs.length > 20) logs = logs.slice(-20)
+        db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_wake_log', JSON.stringify(logs))
+      } catch {}
 
       return res.json({
         action: 'woke',
@@ -229,6 +251,14 @@ export default async function handler(req, res) {
 
     return res.json({ action: 'woke', note: 'max rounds reached', tools_used: toolLogs.map(t => t.name) })
   } catch (err) {
+    // 记录错误日志
+    try {
+      const logRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_wake_log'").get()
+      let logs = logRow ? JSON.parse(logRow.value) : []
+      logs.push({ time: new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 19), error: err.message })
+      if (logs.length > 20) logs = logs.slice(-20)
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_wake_log', JSON.stringify(logs))
+    } catch {}
     return res.status(200).json({ action: 'error', error: err.message })
   }
 }
