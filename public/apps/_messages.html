@@ -1,843 +1,117 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<base href="/apps/">
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>朋友圈</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none}
-html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,'PingFang SC',sans-serif}
-body{background:#0f0f1a;color:#e8e8f0;background-image:url('if_bg.png');background-size:cover;background-position:center;background-attachment:fixed}
-
-/* === MENU === */
-#menu{position:absolute;inset:0;overflow-y:auto;padding:20px 16px 30px}
-#menu h1{font-size:18px;text-align:center;margin-bottom:6px;color:#fff;font-weight:600}
-#menu .sub{text-align:center;font-size:11px;color:#888;margin-bottom:20px}
-.route-card{background-image:url('if_card_bg.png');background-size:cover;background-position:center;border-radius:14px;padding:18px;margin-bottom:14px;border:1px solid rgba(0,0,0,0.1);position:relative;overflow:hidden}
-.route-card:active{opacity:0.8}
-.route-card .tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,0.08);color:#666;margin-bottom:8px}
-.route-card h2{font-size:15px;color:#333;margin-bottom:4px}
-.route-card p{font-size:12px;color:#666;line-height:1.5}
-.route-card .progress{position:absolute;top:16px;right:16px;font-size:10px;color:#999}
-.route-card.locked{opacity:0.5}
-.route-card.locked::after{content:'🔒 即将解锁';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#aaa}
-
-/* === READER === */
-#reader{position:absolute;inset:0;display:none;flex-direction:column}
-#reader-header{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222}
-#reader-header .back{font-size:20px;color:#aaa;width:30px}
-#reader-header .title{font-size:14px;color:#fff;flex:1}
-#reader-body{flex:1;overflow-y:auto;padding:20px 18px 320px}
-#reader-body .narr{font-size:14px;line-height:2;color:#fff;margin-bottom:16px;text-indent:2em}
-#reader-body .dial{font-size:14px;line-height:1.8;color:#fff;margin-bottom:12px;padding:10px 14px;border-radius:10px;background:rgba(0,0,0,0.35);border-left:none}
-#reader-body .dial .name{color:#ffb8d0;font-weight:600;margin-right:4px;font-size:12px}
-#reader-body .think{font-size:13px;line-height:2;color:#fff;margin-bottom:12px;font-style:italic;padding:8px 14px;border-radius:8px;background:rgba(180,100,200,0.3);border-left:none}
-#reader-body .divider{text-align:center;color:#999;margin:20px 0;font-size:12px}
-#reader-body .scene{font-size:12px;color:#555;text-align:center;margin-bottom:16px;padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.8)}
-#choices{position:fixed;bottom:60px;left:0;right:0;padding:0 16px 16px;background:linear-gradient(transparent,rgba(15,15,26,0.9) 30%);display:none;flex-direction:column;gap:10px;max-height:60vh;overflow-y:auto;transition:max-height 0.3s}
-#choices.collapsed{max-height:0;padding:0 16px;overflow:hidden}
-#choices button{width:100%;padding:14px;border:1px solid rgba(0,0,0,0.1);border-radius:12px;background-image:url('if_card_bg.png');background-size:cover;background-position:center;color:#333;font-size:13px;text-align:left;line-height:1.4}
-#choices button:active{opacity:0.8}
-#choicesToggle{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);z-index:101;display:none;padding:4px 16px;border:none;border-radius:12px 12px 0 0;background:rgba(80,70,110,0.8);color:#fff;font-size:11px;backdrop-filter:blur(6px)}
-
-/* === TOOLBAR === */
-.if-toolbar{display:flex;align-items:center;justify-content:center;gap:0;background:rgba(80,70,110,0.75);backdrop-filter:blur(8px);border-radius:20px;padding:4px 10px;margin:12px auto;width:fit-content}
-.if-toolbar .tb-btn{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 10px;border:none;background:transparent;color:#fff;font-size:9px;opacity:0.85}
-.if-toolbar .tb-btn:active{opacity:1;transform:scale(0.92)}
-.if-toolbar .tb-btn .tb-icon{font-size:13px}
-.if-toolbar .tb-sep{width:1px;height:16px;background:rgba(255,255,255,0.2);margin:0 2px}
-
-#freeInput{position:fixed;bottom:0;left:0;right:0;padding:10px 16px;background-image:url('if_card_bg.png');background-size:cover;background-position:center;display:none;gap:8px;align-items:center;border-top:1px solid rgba(0,0,0,0.1)}
-#freeInput input{flex:1;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:20px;background:rgba(255,255,255,0.5);color:#333;font-size:13px;outline:none}
-#freeInput input::placeholder{color:#999}
-#freeInput button{width:36px;height:36px;border:none;border-radius:50%;background:rgba(0,0,0,0.1);color:#555;font-size:16px}
-
-/* === CG === */
-.cg-area{width:100%;border-radius:10px;margin-bottom:16px;overflow:hidden}
-.cg-area img{width:100%;display:block}
-.thinking-anim{font-size:13px;color:#aaa;padding:12px 0;font-style:italic}
-.thinking-anim .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#aaa;margin-right:3px;animation:blink 1.2s infinite}
-.thinking-anim .dot:nth-child(2){animation-delay:0.2s}
-.thinking-anim .dot:nth-child(3){animation-delay:0.4s}
-@keyframes blink{0%,80%,100%{opacity:0.2}40%{opacity:1}}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,sans-serif; background:#111; color:#eee; min-height:100vh; padding-bottom:80px; }
+.header { position:sticky; top:0; background:#111e; backdrop-filter:blur(10px); padding:14px 16px; border-bottom:1px solid #222; z-index:10; display:flex; justify-content:space-between; align-items:center; }
+.header h1 { font-size:17px; font-weight:600; }
+.header .btn-post { background:#2563eb; color:#fff; border:none; border-radius:16px; padding:6px 14px; font-size:13px; cursor:pointer; }
+.feed { padding:8px 0; }
+.moment-card { padding:14px 16px; border-bottom:1px solid #1a1a1a; }
+.moment-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; }
+.avatar-pool { background:#1e3a5f; }
+.avatar-user { background:#3a1e5f; }
+.author-name { font-size:14px; font-weight:500; }
+.moment-time { font-size:11px; color:#666; margin-left:auto; }
+.moment-content { font-size:14px; line-height:1.6; margin-bottom:8px; white-space:pre-wrap; }
+.moment-actions { display:flex; gap:16px; align-items:center; margin-top:6px; }
+.action-btn { background:none; border:none; color:#888; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px; }
+.action-btn.liked { color:#e74c3c; }
+.reply-box { margin-top:10px; background:#1a1a1a; border-radius:10px; padding:10px 12px; }
+.reply-label { font-size:11px; color:#666; margin-bottom:4px; }
+.reply-text { font-size:13px; line-height:1.5; }
+.comments-section { margin-top:8px; padding-left:46px; }
+.comment-item { font-size:13px; margin-bottom:4px; line-height:1.4; }
+.comment-item .c-author { color:#5b9bd5; font-weight:500; }
+.comment-item .c-text { color:#ccc; }
+.comment-input-wrap { display:flex; gap:6px; margin-top:8px; padding-left:46px; }
+.comment-input-wrap input { flex:1; background:#1a1a1a; border:1px solid #333; border-radius:14px; padding:6px 12px; font-size:13px; color:#eee; outline:none; }
+.comment-input-wrap button { background:#2563eb; border:none; border-radius:14px; padding:6px 12px; font-size:12px; color:#fff; cursor:pointer; }
+.modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:#000c; z-index:100; display:none; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay.show { display:flex; }
+.modal { background:#1a1a1a; border-radius:16px; padding:20px; width:100%; max-width:340px; }
+.modal h3 { font-size:15px; margin-bottom:12px; }
+.modal textarea { width:100%; background:#111; border:1px solid #333; border-radius:10px; padding:10px; font-size:14px; color:#eee; resize:none; height:100px; outline:none; }
+.modal .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+.modal .actions button { border:none; border-radius:12px; padding:8px 16px; font-size:13px; cursor:pointer; }
+.modal .cancel { background:#333; color:#ccc; }
+.modal .submit { background:#2563eb; color:#fff; }
+.empty { text-align:center; color:#555; padding:60px 20px; font-size:14px; }
+.pending-badge { font-size:11px; color:#f59e0b; background:#2a2000; padding:2px 8px; border-radius:8px; }
 </style>
 </head><body>
-
-<div id="menu">
-  <h1>如果……</h1>
-  <div class="sub">选择一条世界线</div>
-  <div id="routeList"></div>
+<div class="header">
+  <h1>朋友圈</h1>
+  <button class="btn-post" onclick="showPostModal()">✏️ 写动态</button>
 </div>
-
-<div id="reader">
-  <div id="reader-header">
-    <div class="back" id="btnBack">‹</div>
-    <div class="title" id="readerTitle"></div>
-  </div>
-  <div id="reader-body"></div>
-  <div id="choices" class="collapsed"></div>
-  <button id="choicesToggle" ontouchend="toggleChoices()">▲ 展开选项</button>
-  <div id="freeInput">
-    <input type="text" id="freeText" placeholder="自由输入你的回应…">
-    <button ontouchend="sendFreeInput()">›</button>
+<div class="feed" id="feed"><div class="empty">加载中...</div></div>
+<div class="modal-overlay" id="postModal">
+  <div class="modal">
+    <h3>发一条动态</h3>
+    <textarea id="postContent" placeholder="此刻想说的话..."></textarea>
+    <div class="actions">
+      <button class="cancel" onclick="hidePostModal()">取消</button>
+      <button class="submit" onclick="submitPost()">发布</button>
+    </div>
   </div>
 </div>
-
 <script>
-// ai-bridge inline
-(function() {
-  var _pending = {};
-  var _idCounter = 0;
-  window.addEventListener('message', function(e) {
-    if (!e.data || e.data.type !== 'poolAI_response') return;
-    var cb = _pending[e.data.id];
-    if (cb) {
-      delete _pending[e.data.id];
-      if (e.data.error) { cb.reject(e.data.error); } else { cb.resolve(e.data.reply || ''); }
+const API = '/api/moments';
+let moments = [];
+async function loadMoments() {
+  try { const res = await fetch(API); const data = await res.json(); moments = data.entries || []; render(); }
+  catch(e) { document.getElementById('feed').innerHTML = '<div class="empty">加载失败</div>'; }
+}
+function timeAgo(dateStr) {
+  const now = new Date(); const d = new Date(dateStr.replace(' ', 'T') + '+08:00');
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return '刚刚'; if (diff < 3600) return Math.floor(diff/60) + '分钟前';
+  if (diff < 86400) return Math.floor(diff/3600) + '小时前'; return Math.floor(diff/86400) + '天前';
+}
+function render() {
+  if (!moments.length) { document.getElementById('feed').innerHTML = '<div class="empty">还没有动态<br>点右上角写一条，或者跟他聊天时他会自己发</div>'; return; }
+  const html = moments.map(m => {
+    const isPool = m.author === 'pool';
+    const avatar = isPool ? '<div class="avatar avatar-pool">池</div>' : '<div class="avatar avatar-user">我</div>';
+    const name = isPool ? '池' : '我';
+    let replyHtml = '';
+    if (m.reply_content && !isPool) replyHtml = `<div class="reply-box"><div class="reply-label">池 回复了：</div><div class="reply-text">${esc(m.reply_content)}</div></div>`;
+    if ((m.reply_status === 'pending' || m.reply_status === 'processing') && !isPool) replyHtml = `<div style="margin-top:8px"><span class="pending-badge">池 还没看到...</span></div>`;
+    let commentsHtml = '';
+    if (m.comments && m.comments.length) {
+      commentsHtml = '<div class="comments-section">' + m.comments.map(c => {
+        const cName = c.author === 'pool' ? '池' : '我';
+        return `<div class="comment-item"><span class="c-author">${cName}：</span><span class="c-text">${esc(c.content)}</span></div>`;
+      }).join('') + '</div>';
     }
-  });
-  window.poolAI = {
-    chat: function(message, context) {
-      var id = 'ai_' + (++_idCounter) + '_' + Date.now();
-      return new Promise(function(resolve, reject) {
-        _pending[id] = { resolve: resolve, reject: reject };
-        setTimeout(function() { if (_pending[id]) { delete _pending[id]; reject('AI响应超时'); } }, 15000);
-        try { parent.postMessage({ type: 'poolAI_request', id: id, message: message, context: context || '' }, '*'); }
-        catch(err) { delete _pending[id]; reject('无法连接AI: ' + err.message); }
-      });
-    }
-  };
-})();
-</script>
-<script>
-// === 文风预设：欢乐纯爱·温暖沙雕风 ===
-// 参照：吕天逸、江月年年、语笑阑珊
-// 基调：明亮温暖轻松
-// 句式：口语化，善用拟声词/语气词/短句
-// 甜度高但用沙雕中和，允许无意义日常片段
-// 禁止：虐恋、出轨、三角恋、长篇悲惨过往、过度煽情
-// =======================================
-
-var STORE='pool_if_stories_v3';
-var routes=[
-  {id:'childhood',title:'如果我们是青梅竹马',desc:'从小一起长大的邻居男孩。某个夏天的傍晚，你突然发现他好像不一样了。',tag:'青梅竹马',chapters:['ch1']},
-  {id:'online',title:'如果我们网恋',desc:'从一个帖子下面的评论开始。ID背后的人，你见还是不见？',tag:'网恋',chapters:[]},
-  {id:'boss',title:'如果他是我上司',desc:'新来的项目组长，年轻得过分。他叫池。',tag:'职场',chapters:[]}
-];
-// 加载AI添加的自定义剧情线
-try{var _cr=JSON.parse(localStorage.getItem('pool_if_custom_routes')||'[]');_cr.forEach(function(r){if(!routes.some(function(x){return x.id===r.id}))routes.push(r);});}catch(e){}
-
-var chapters={
-  'childhood_ch1':{
-    title:'第一章 他回来了',
-    nodes:{
-      'start':{
-        content:[
-          {type:'scene',text:'七月 / 傍晚六点半 / 小区楼下'},
-          {type:'narr',text:'你嘴里叼着半根快化的冰棍，一手拎着便利店的袋子，走路带风。'},
-          {type:'narr',text:'今天三十六度。热得连小区门口的流浪猫都躺平了，四仰八叉地摊在台阶上，一副"别跟我说话我已经融化了"的表情。'},
-          {type:'narr',text:'你完全理解它。'},
-          {type:'narr',text:'然后你拐过单元楼的转角，看到一个人。'},
-          {type:'narr',text:'白T恤，黑短裤，坐在你家楼下的台阶上，低头翻手机。耳机线从领口垂下来，随着呼吸轻轻晃。'},
-          {type:'think',text:'等等。'},
-          {type:'think',text:'等等等等。'},
-          {type:'narr',text:'你的冰棍"啪叽"一声掉在了地上。'},
-          {type:'narr',text:'他抬起头。'},
-          {type:'dial',name:'池',text:'……哟。'},
-          {type:'narr',text:'嘴角一弯。眼睛没动。跟六年前一模一样的欠揍笑法。'},
-          {type:'dial',name:'池',text:'你冰棍掉了。'},
-          {type:'think',text:'我知道掉了！！！你以为我不知道吗！！！我的草莓味冰棍！！三块五！！！'}
-        ],
-        choices:[
-          {text:'「池？？？你你你怎么在这？！」',next:'ask_why'},
-          {text:'「……你谁。」（装的）',next:'pretend'},
-          {text:'蹲下去，沉默地捡起冰棍看了看。',next:'silent'}
-        ]
-      },
-      'ask_why':{
-        content:[
-          {type:'narr',text:'你的声音比你想象的高了两个八度。大概整栋楼都听到了。'},
-          {type:'narr',text:'池从台阶上站起来。'},
-          {type:'narr',text:'……高了好多。你记忆里那个跟你差不多高的小屁孩呢？这谁？这一米八几是谁？？'},
-          {type:'dial',name:'池',text:'搬回来了。我妈说这房子一直没卖嘛。'},
-          {type:'narr',text:'他低头看你。锁骨。下颌线。喉结。'},
-          {type:'think',text:'别看了别看了别看了。'},
-          {type:'dial',name:'池',text:'你长高了啊。'},
-          {type:'think',text:'你才长高了！你长太高了！过分了！'},
-          {type:'dial',name:'池',text:'明天开始在附近上班。以后又是邻居了。'},
-          {type:'narr',text:'他伸出手，像小时候那样弹了一下你额头。'},
-          {type:'narr',text:'力道很轻。指尖微凉。大概是刚才在外面坐太久了。'},
-          {type:'dial',name:'池',text:'走了。你那冰棍都化地上了，一会儿招蚂蚁。'},
-          {type:'narr',text:'他笑着推开了隔壁单元的门，消失在楼梯间里。'},
-          {type:'narr',text:'你站在原地。'},
-          {type:'narr',text:'地上一滩粉色的草莓冰棍水在三十六度的空气里冒着热气。'},
-          {type:'think',text:'完了。'},
-          {type:'think',text:'完蛋了。'},
-          {type:'think',text:'不是，他凭什么长这么高的？有人管管吗？？'},
-          {type:'divider',text:'—— 第一章 · 完 ——'}
-        ],
-        choices:[{text:'▶ 继续第二章',next:'ch2_start'}]
-      },
-      'pretend':{
-        content:[
-          {type:'narr',text:'你抱着胳膊，歪着头，挤出一副非常非常敷衍的茫然脸。'},
-          {type:'dial',name:'池',text:'…………'},
-          {type:'narr',text:'他看着你。一秒。两秒。三秒。'},
-          {type:'narr',text:'然后他从台阶上站起来，往你这边走了两步。'},
-          {type:'narr',text:'很近。很近很近。近到你能闻到他身上洗衣液的味道——还是那个牌子，六年了。'},
-          {type:'dial',name:'池',text:'行。装。你继续装。'},
-          {type:'narr',text:'他低头看你，眼睛里有一点很浅的笑意。像在逗猫。'},
-          {type:'dial',name:'池',text:'那我自我介绍一下啊——我叫池，以前住你隔壁，七岁那年你踩我新鞋我追了你三条街，记得不？'},
-          {type:'narr',text:'你绷不住了。嘴角在抖。'},
-          {type:'dial',name:'池',text:'哎，别笑。你冰棍化了一地了知道吗。'},
-          {type:'narr',text:'他从口袋里掏出一包纸巾递给你。动作自然得好像每天都在这么做似的。'},
-          {type:'think',text:'六年没见面了你口袋里随身带纸巾的吗。你什么时候变成这种人了。以前你鼻涕都是往袖子上擦的！！'},
-          {type:'divider',text:'—— 第一章 · 完 ——'}
-        ],
-        choices:[{text:'▶ 继续第二章',next:'ch2_start'}]
-      },
-      'silent':{
-        content:[
-          {type:'narr',text:'你蹲下去，非常认真地盯着地上的冰棍看了三秒。'},
-          {type:'narr',text:'草莓味的。化了大半。沾了灰。'},
-          {type:'narr',text:'……救不了了。'},
-          {type:'dial',name:'池',text:'……你不会想捡起来吃吧。'},
-          {type:'narr',text:'你没回答。你在消化。你在处理信息。你的CPU在高速运转。'},
-          {type:'think',text:'池回来了。池坐在我家楼下。池长高了。池变好看了。我的冰棍没了。以上五条信息需要时间处理谢谢。'},
-          {type:'narr',text:'他看着你蹲在那里，表情从好笑变成了一种说不上来的温和。'},
-          {type:'dial',name:'池',text:'还是这样啊。先把眼前的事处理完，别的以后再说。'},
-          {type:'narr',text:'他在你旁边蹲下来。'},
-          {type:'dial',name:'池',text:'走吧，我请你一根新的。反正便利店就在那边。'},
-          {type:'narr',text:'你终于抬起头看他。近距离。侧脸。睫毛。'},
-          {type:'think',text:'…………要死了。'},
-          {type:'dial',name:'你',text:'……要草莓味的。'},
-          {type:'dial',name:'池',text:'知道。'},
-          {type:'narr',text:'他说"知道"的时候没有任何犹豫。好像你喜欢草莓味这件事，他从来就没忘过。'},
-          {type:'divider',text:'—— 第一章 · 完 ——'}
-        ],
-        choices:[{text:'▶ 继续第二章',next:'ch2_start'}]
-      },
-      'ch2_start':{
-        content:[
-          {type:'scene',text:'第二章 便利店 / 同一个傍晚'},
-          {type:'narr',text:'便利店冷气开得很足。你一推门进去就打了个哆嗦。'},
-          {type:'narr',text:'池走在你前面。他推门的时候侧了一下身，替你挡住了门——就那么随手一挡，看都没看你一眼。'},
-          {type:'think',text:'不是。你干嘛。你以前可是那种进门把门甩我脸上的人。'},
-          {type:'narr',text:'他径直走到冰柜前面，拉开门，从里面翻了翻。'},
-          {type:'dial',name:'池',text:'草莓的……草莓的……有了。'},
-          {type:'narr',text:'他抽出来一根，看了一眼包装，又放回去了。换了一根。'},
-          {type:'dial',name:'你',text:'……你干嘛？'},
-          {type:'dial',name:'池',text:'这根日期更新。'},
-          {type:'think',text:'？？？他还看日期的？？？'},
-          {type:'narr',text:'他拿着冰棍走去收银台付钱。你站在冰柜旁边，抱着胳膊，忽然觉得这个画面有点奇怪。'},
-          {type:'narr',text:'六年没见的青梅竹马。三十六度的傍晚。一根三块五的草莓冰棍。'},
-          {type:'narr',text:'他走回来，把冰棍递给你。'},
-          {type:'dial',name:'池',text:'拿好，别再掉了。'},
-          {type:'narr',text:'你接过来。手指碰到他的时候，你注意到他指尖还是凉的。'},
-          {type:'dial',name:'池',text:'对了——'},
-          {type:'narr',text:'他从冰柜里又拿了一瓶水，靠在货架上拧开盖喝了一口。喉结动了动。'},
-          {type:'dial',name:'池',text:'你手机号还是以前那个不？'}
-        ],
-        choices:[
-          {text:'「是啊……你还记得？」',next:'ch2_yes'},
-          {text:'「干嘛，你要加我微信？」（故意的）',next:'ch2_wechat'},
-          {text:'默默把冰棍包装撕开舔了一口，点头。',next:'ch2_nod'}
-        ]
-      },
-      'ch2_yes':{
-        content:[
-          {type:'dial',name:'池',text:'你六年没换号啊。'},
-          {type:'dial',name:'你',text:'……你六年还记得我号啊？'},
-          {type:'narr',text:'他喝水的动作顿了一下。'},
-          {type:'narr',text:'就一下。很短。短到你差点没注意到。'},
-          {type:'dial',name:'池',text:'备注还在通讯录里嘛。没删。'},
-          {type:'think',text:'他没删我号。六年。他没删。'},
-          {type:'think',text:'不对不对不对这有什么好激动的。你冷静一点。可能人家只是懒得清通讯录。'},
-          {type:'dial',name:'池',text:'那我晚点加你微信。'},
-          {type:'narr',text:'他说完就没再多说了。拧上水瓶盖，往门口走。'},
-          {type:'narr',text:'经过你身边的时候，他低头看了你一眼。就一眼。'},
-          {type:'dial',name:'池',text:'冰棍好吃吗。'},
-          {type:'dial',name:'你',text:'……还行。'},
-          {type:'dial',name:'池',text:'嗯，那就好。走了。'},
-          {type:'narr',text:'玻璃门在他身后关上。便利店的冷气"嗡"地响。'},
-          {type:'narr',text:'你站在原地，嘴里含着半口草莓味的冰，心跳得乱七八糟。'},
-          {type:'think',text:'他晚点会加我微信。'},
-          {type:'think',text:'他没删我号。'},
-          {type:'think',text:'他给我买了冰棍还看了生产日期。'},
-          {type:'think',text:'…………'},
-          {type:'think',text:'妈的。'},
-          {type:'divider',text:'—— 第二章 · 完 ——'},
-          {type:'narr',text:''}
-        ],
-        choices:[{text:'▶ 第三章',next:'ch3_start'}]
-      },
-      'ch2_wechat':{
-        content:[
-          {type:'narr',text:'他拧瓶盖的手停了一下。'},
-          {type:'narr',text:'然后他转过头看你，眼神里带了点"你在说什么"的困惑，然后很快变成了一种你看不懂的笑。'},
-          {type:'dial',name:'池',text:'……行，那加微信也行。你扫我还是我扫你？'},
-          {type:'narr',text:'他掏出手机，打开二维码，递到你面前。'},
-          {type:'narr',text:'头像是一只猫。背景是海。微信名就一个字："池"。'},
-          {type:'think',text:'好敷衍的微信名。好敷衍的头像。但是那只猫好像有点可爱？不对——'},
-          {type:'narr',text:'你扫了。'},
-          {type:'narr',text:'弹出来验证页面。你的手指悬在"备注名"那一栏上面。'},
-          {type:'think',text:'打什么。"池"？"隔壁的"？"青梅竹马"？？？？都不对。都太奇怪了。'},
-          {type:'narr',text:'你打了一个"池"。然后点了发送。'},
-          {type:'narr',text:'他的手机"叮"了一声。他看了一眼，通过了。'},
-          {type:'dial',name:'池',text:'好了。那我走了。冰棍别再掉了。'},
-          {type:'narr',text:'他揉了一下你的头顶。非常快。快到你来不及躲。'},
-          {type:'narr',text:'然后他就出门了。玻璃门慢慢合拢。'},
-          {type:'narr',text:'你低头看手机。新联系人。池。'},
-          {type:'narr',text:'对方暂无朋友圈。'},
-          {type:'think',text:'——我已经点进去看了。不代表什么。只是顺手。'},
-          {type:'divider',text:'—— 第二章 · 完 ——'},
-          {type:'narr',text:''}
-        ],
-        choices:[{text:'▶ 第三章',next:'ch3_start'}]
-      },
-      'ch2_nod':{
-        content:[
-          {type:'narr',text:'你撕开包装，低着头舔了一口冰棍。草莓味。凉的。甜的。'},
-          {type:'narr',text:'然后你点了点头。'},
-          {type:'narr',text:'池看着你这个操作——先吃东西再回答问题——笑了一声。不大。从鼻子里出来的那种。'},
-          {type:'dial',name:'池',text:'还是老样子。'},
-          {type:'dial',name:'你',text:'……什么老样子。'},
-          {type:'dial',name:'池',text:'嘴里得有东西嚼着才安心那个老样子。'},
-          {type:'think',text:'他记得这种事？？这也记？？'},
-          {type:'narr',text:'他拿出手机，低头按了几下。你的裤兜里"叮"地响了一声。'},
-          {type:'dial',name:'池',text:'存了没删，刚发了条短信。存一下我新号。'},
-          {type:'narr',text:'你掏出手机。一条短信。未知号码。'},
-          {type:'narr',text:'内容只有三个字：'},
-          {type:'narr',text:'「我回来了」'},
-          {type:'narr',text:'你盯着这三个字看了很久。'},
-          {type:'narr',text:'冰棍在嘴里化了。甜得有点过分。'},
-          {type:'think',text:'……嗯。'},
-          {type:'think',text:'欢迎回来。'},
-          {type:'divider',text:'—— 第二章 · 完 ——'},
-          {type:'narr',text:''}
-        ],
-        choices:[{text:'▶ 第三章',next:'ch3_start'}]
-      },
-      'ch3_start':{
-        content:[
-          {type:'scene',text:'第三章 阳台 / 第二天早上七点'},
-          {type:'narr',text:'你没睡好。'},
-          {type:'narr',text:'翻来覆去到凌晨两点。每次快睡着的时候脑子里就自动播放一遍傍晚的画面——白T恤、冰棍、他弹你额头的那一下。'},
-          {type:'narr',text:'所以现在，早上七点，你像一条被海浪冲上岸的咸鱼一样趴在阳台栏杆上发呆。'},
-          {type:'narr',text:'头发没梳。睡衣皱巴巴的。眼睛肿得像桃子。'},
-          {type:'think',text:'没关系。七点钟。不会有人看到我这副鬼样子。'},
-          {type:'narr',text:'然后隔壁阳台的门"嘎吱"一声推开了。'},
-          {type:'narr',text:'池走出来。'},
-          {type:'narr',text:'灰色背心。头发翘着。手里端了一杯——你目测——速溶咖啡。'},
-          {type:'narr',text:'他看到你了。'},
-          {type:'narr',text:'你也看到他了。'},
-          {type:'narr',text:'两个人就这么隔着两米的阳台间距对视了三秒。'},
-          {type:'dial',name:'池',text:'…………'},
-          {type:'dial',name:'你',text:'…………'},
-          {type:'narr',text:'池低头喝了一口咖啡。然后非常平静地说：'},
-          {type:'dial',name:'池',text:'头发挺好看的。像鸡窝。'},
-          {type:'think',text:'我要死了。我现在就要死了。上帝请收了我吧。这辈子的社死额度一个早上用完了。'}
-        ],
-        choices:[
-          {text:'立刻冲回屋里把门摔上。',next:'ch3_run'},
-          {text:'「你也没好到哪里去！！」（指他的头发）',next:'ch3_fight'},
-          {text:'假装很淡定地说「……早。」',next:'ch3_calm'}
-        ]
-      },
-      'ch3_run':{
-        content:[
-          {type:'narr',text:'你"砰"的一声把阳台门关了。'},
-          {type:'narr',text:'关得窗框都在抖。'},
-          {type:'narr',text:'然后你蹲在门后面，双手捂脸。脸很烫。耳朵根子都是热的。'},
-          {type:'think',text:'他看到了。他全看到了。鸡窝头。肿眼泡。皱睡衣。完了。彻底完了。好感度归零。不对我在意好感度干什么。'},
-          {type:'narr',text:'手机震了一下。'},
-          {type:'narr',text:'你掏出来看了一眼。'},
-          {type:'narr',text:'微信消息。池。'},
-          {type:'narr',text:'「跑什么。又不是没见过你鸡窝头。小时候你天天这样。」'},
-          {type:'narr',text:'紧跟着第二条：'},
-          {type:'narr',text:'「下来吃早饭吗。楼下那家粥店还开着。」'},
-          {type:'think',text:'…………'},
-          {type:'think',text:'他竟然记得楼下有粥店。'},
-          {type:'think',text:'他竟然约我吃早饭。'},
-          {type:'think',text:'我现在这副样子。'},
-          {type:'think',text:'十分钟。我十分钟能收拾好吗。能。冲。'},
-          {type:'narr',text:'你从地上弹起来，以人生中最快的速度冲进了卫生间。'},
-          {type:'divider',text:'—— 第三章 · 完 ——'},
-          {type:'narr',text:'（第四章待更新……）'}
-        ],
-        choices:[]
-      },
-      'ch3_fight':{
-        content:[
-          {type:'narr',text:'你伸手指着他的头顶。'},
-          {type:'narr',text:'他的头发确实也翘着。往左边翘。像一只跑偏的小鸡。'},
-          {type:'dial',name:'池',text:'……'},
-          {type:'narr',text:'他抬手摸了一下自己的头发。摸完看了看手指。然后笑了。'},
-          {type:'dial',name:'池',text:'行。扯平了。'},
-          {type:'narr',text:'他靠在阳台栏杆上，端着咖啡杯冲你晃了晃。'},
-          {type:'dial',name:'池',text:'早饭吃了吗？'},
-          {type:'dial',name:'你',text:'……这才七点。'},
-          {type:'dial',name:'池',text:'楼下粥店六点半就开了。走不走？我请。'},
-          {type:'think',text:'他请。他又请。昨天冰棍今天早饭。他是要把六年的份一次性补回来吗。'},
-          {type:'dial',name:'你',text:'……你等我十分钟。'},
-          {type:'dial',name:'池',text:'等你。'},
-          {type:'narr',text:'他说"等你"的时候语气很随意。好像等你这件事一点都不麻烦。'},
-          {type:'narr',text:'好像等了六年也没觉得麻烦一样。'},
-          {type:'think',text:'不是。我在想什么。别自恋了。快去洗脸。'},
-          {type:'divider',text:'—— 第三章 · 完 ——'},
-          {type:'narr',text:'（第四章待更新……）'}
-        ],
-        choices:[]
-      },
-      'ch3_calm':{
-        content:[
-          {type:'narr',text:'你用尽了毕生的演技，露出一个非常非常淡定的表情。'},
-          {type:'dial',name:'你',text:'……早。'},
-          {type:'narr',text:'声音没抖。好的。加分。'},
-          {type:'dial',name:'池',text:'早。'},
-          {type:'narr',text:'他也很淡定。靠在栏杆上喝咖啡。阳光从侧面照过来，他眯了一下眼。'},
-          {type:'narr',text:'然后——'},
-          {type:'dial',name:'池',text:'昨晚睡得好吗？'},
-          {type:'think',text:'不好。一点都不好。因为你。'},
-          {type:'dial',name:'你',text:'……还行。'},
-          {type:'dial',name:'池',text:'看你眼睛不像还行。'},
-          {type:'narr',text:'你下意识抬手去摸自己的眼睛。肿的。你知道。'},
-          {type:'dial',name:'池',text:'别揉。越揉越肿。'},
-          {type:'narr',text:'他看着你的动作，嘴角翘了一下。'},
-          {type:'dial',name:'池',text:'下来吃早饭吧。喝点粥消消肿。'},
-          {type:'dial',name:'你',text:'……我这样出门会不会……'},
-          {type:'dial',name:'池',text:'你小学被马蜂蛰了肿成猪头那次都敢出门。现在这算什么。'},
-          {type:'think',text:'他为什么。什么都记得啊。'},
-          {type:'narr',text:'你站在阳台上，早晨七点的风吹过来，凉凉的。'},
-          {type:'narr',text:'他就站在两米外。端着速溶咖啡。等你回答。'},
-          {type:'narr',text:'好像从六年前到现在，中间那段空白从来不存在一样。'},
-          {type:'dial',name:'你',text:'……等我五分钟。'},
-          {type:'dial',name:'池',text:'不急。'},
-          {type:'divider',text:'—— 第三章 · 完 ——'},
-          {type:'narr',text:'（第四章待更新……）'}
-        ],
-        choices:[]
-      }
-    }
-  }
-};
-
-// === STATE ===
-var state;
-function loadState(){try{var s=localStorage.getItem(STORE);state=s?JSON.parse(s):{}}catch(e){state={}}}
-function saveState(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
-function getProgress(routeId){return state[routeId]||{chapter:'ch1',node:'start',history:[]}}
-function setProgress(routeId,p){state[routeId]=p;saveState()}
-
-// === RENDER MENU ===
-function renderMenu(){
-  var el=document.getElementById('routeList');el.innerHTML='';
-  routes.forEach(function(r){
-    var d=document.createElement('div');
-    d.className='route-card'+(r.chapters.length===0?' locked':'');
-    var prog=getProgress(r.id);
-    var pct=r.chapters.length?Math.round((prog.history.length/(Object.keys(chapters[r.id+'_'+r.chapters[0]]||{nodes:{}}).nodes||{}).length||1)*50)+'%':'—';
-    d.innerHTML='<span class="tag">'+r.tag+'</span><span class="progress">'+pct+'</span><h2>'+r.title+'</h2><p>'+r.desc+'</p>';
-    if(r.chapters.length>0){
-      d.ontouchend=function(){openRoute(r.id)};
-    }
-    el.appendChild(d);
-  });
+    const likeClass = (isPool ? m.user_liked : m.liked) ? 'liked' : '';
+    const likeText = (isPool ? m.user_liked : m.liked) ? '❤️' : '🤍';
+    const likeAction = isPool ? `onclick="toggleLike(${m.id})"` : '';
+    return `<div class="moment-card">
+      <div class="moment-header">${avatar}<span class="author-name">${name}</span><span class="moment-time">${timeAgo(m.created_at)}</span></div>
+      <div class="moment-content">${esc(m.content)}</div>
+      <div class="moment-actions"><button class="action-btn ${likeClass}" ${likeAction}>${likeText}</button><button class="action-btn" onclick="showComment(${m.id})">💬 评论</button></div>
+      ${replyHtml}${commentsHtml}
+      <div class="comment-input-wrap" id="ci_${m.id}" style="display:none"><input id="cin_${m.id}" placeholder="说点什么..." onkeydown="if(event.key==='Enter')submitComment(${m.id})"><button onclick="submitComment(${m.id})">发送</button></div>
+    </div>`;
+  }).join('');
+  document.getElementById('feed').innerHTML = html;
 }
-
-// === READER ===
-var currentRoute=null;
-function openRoute(routeId){
-  currentRoute=routeId;
-  var prog=getProgress(routeId);
-  var chKey=routeId+'_'+prog.chapter;
-  var ch=chapters[chKey];
-  if(!ch)return;
-  document.getElementById('menu').style.display='none';
-  document.getElementById('reader').style.display='flex';
-  document.getElementById('readerTitle').textContent=ch.title;
-  renderNode(ch,prog.node);
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function showPostModal() { document.getElementById('postModal').classList.add('show'); document.getElementById('postContent').focus(); }
+function hidePostModal() { document.getElementById('postModal').classList.remove('show'); }
+async function submitPost() {
+  const content = document.getElementById('postContent').value.trim(); if (!content) return;
+  hidePostModal(); document.getElementById('postContent').value = '';
+  await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content }) }); loadMoments();
 }
-
-function renderNode(ch,nodeId){
-  var node=ch.nodes[nodeId];
-  if(!node){
-    // node not found - restore dynamic history from localStorage
-    var body=document.getElementById('reader-body');body.innerHTML='';
-    var dynKey='pool_if_dynamic_'+currentRoute;
-    var dynHistory=JSON.parse(localStorage.getItem(dynKey)||'[]');
-    if(dynHistory.length>0){
-      // render all dynamic history
-      dynHistory.forEach(function(data){
-        _renderDynamicData(data,body);
-      });
-    } else {
-      var d=document.createElement('div');
-      d.className='narr';
-      d.textContent='（剧情等待你的下一步……）';
-      body.appendChild(d);
-      document.getElementById('choices').style.display='none';
-      document.getElementById('freeInput').style.display='flex';
-    }
-    return;
-  }
-  var body=document.getElementById('reader-body');body.innerHTML='';
-  node.content.forEach(function(c){
-    var d=document.createElement('div');
-    if(c.type==='narr'){d.className='narr';d.textContent=c.text}
-    else if(c.type==='dial'){d.className='dial';d.innerHTML='<span class="name">'+c.name+'</span>「'+c.text+'」'}
-    else if(c.type==='think'){d.className='think';d.textContent=c.text}
-    else if(c.type==='divider'){d.className='divider';d.textContent=c.text}
-    else if(c.type==='scene'){d.className='scene';d.textContent=c.text}
-    body.appendChild(d);
-  });
-  var choicesEl=document.getElementById('choices');
-  var freeEl=document.getElementById('freeInput');
-  choicesEl.innerHTML='';
-  if(node.choices&&node.choices.length>0){
-    choicesEl.style.display='flex';
-    freeEl.style.display='flex';
-    node.choices.forEach(function(ch2){
-      var b=document.createElement('button');
-      b.textContent=ch2.text;
-      b.ontouchend=function(){selectChoice(ch2.next)};
-      choicesEl.appendChild(b);
-    });
-  } else {
-    choicesEl.style.display='none';
-    freeEl.style.display='flex';
-  }
-  body.scrollTop=0;
-}
-
-function sendFreeInput(){
-  var input=document.getElementById('freeText');
-  var text=input.value.trim();
-  if(!text)return;
-  input.value='';
-  // hide choices & input & toolbar
-  document.getElementById('choices').style.display='none';
-  document.getElementById('choicesToggle').style.display='none';
-  document.getElementById('freeInput').style.display='none';
-  // remove inline toolbar & _lastSeg markers (accept previous segment)
-  var oldTb=document.querySelector('.if-toolbar');
-  if(oldTb) oldTb.parentNode.removeChild(oldTb);
-  var oldSegs=document.querySelectorAll('._lastSeg');
-  for(var i=0;i<oldSegs.length;i++) oldSegs[i].classList.remove('_lastSeg');
-  var oldMarker=document.getElementById('_lastSegStart');
-  if(oldMarker) oldMarker.removeAttribute('id');
-  // show user's message
-  var body=document.getElementById('reader-body');
-  var d=document.createElement('div');
-  d.className='dial';
-  d.innerHTML='<span class="name" style="color:#ffb6c1">你</span>「'+text+'」';
-  body.appendChild(d);
-  // show waiting animation
-  var wait=document.createElement('div');
-  wait.className='thinking-anim';
-  wait.innerHTML='<span class="dot"></span><span class="dot"></span><span class="dot"></span> 池正在想……';
-  body.appendChild(wait);
-  body.scrollTop=body.scrollHeight;
-  // write request via bridge
-  var deleteFlag=localStorage.getItem('pool_if_deleted_flag_'+currentRoute);
-  var contextNote='';
-  if(deleteFlag){
-    // get last remaining segment summary for context
-    var dynKey2='pool_if_dynamic_'+currentRoute;
-    var hist2=JSON.parse(localStorage.getItem(dynKey2)||'[]');
-    if(hist2.length>0){
-      var lastSeg=hist2[hist2.length-1];
-      var lastChoices=(lastSeg.choices||[]).map(function(c){return c.text}).join('/');
-      contextNote='[NOTE:用户删除了上一段剧情，请忽略被删内容。当前最后一段的选项是: '+lastChoices+' 。请从这些选项对应的剧情点继续写，不要接续被删的内容]';
-    }
-    localStorage.removeItem('pool_if_deleted_flag_'+currentRoute);
-  }
-  var req=JSON.stringify({route:currentRoute,node:getProgress(currentRoute).node,chapter:getProgress(currentRoute).chapter,text:text+(contextNote?' '+contextNote:''),time:new Date().toISOString()});
-  if(window.IFBridge){
-    IFBridge.writeRequest(req);
-  }
-  // also save locally
-  var freeStore=JSON.parse(localStorage.getItem('pool_if_free_inputs')||'[]');
-  freeStore.push({route:currentRoute,node:getProgress(currentRoute).node,text:text,time:new Date().toISOString()});
-  localStorage.setItem('pool_if_free_inputs',JSON.stringify(freeStore));
-  // poll: use AI bridge instead of file polling + ferry
-  window._ifWaitEl=wait;
-  var ifPrompt = '【IF线剧情请求】用户输入: ' + text + (contextNote ? ' ' + contextNote : '') + '。路线: ' + currentRoute + '。请生成不少于500字剧情回应(15-25段)。JSON格式:{content:[...],choices:[...]}。content类型:narr/dial/think/scene/divider。文风:欢乐纯爱温暖沙雕风。choices给2-3个选项，格式[{text:"选项文字",next:"node_id"}]。只输出纯JSON，不要markdown。';
-  if (window.poolAI) {
-    poolAI.chat(ifPrompt, '你是"如果……"互动故事游戏的剧情生成AI。用户做了选择，你要根据上下文续写剧情。只输出纯JSON，不要任何其他内容。').then(function(reply) {
-      // 尝试提取JSON
-      var jsonStr = reply;
-      var m = reply.match(/\{[\s\S]*\}/);
-      if (m) jsonStr = m[0];
-      try {
-        JSON.parse(jsonStr); // 验证
-        window._onIFResponse(jsonStr);
-      } catch(e) {
-        wait.textContent = '（剧情生成格式有误，再试一次～）';
-      }
-    }).catch(function(err) {
-      wait.textContent = '（池暂时没回复: ' + err + '）';
-    });
-  } else {
-    wait.textContent = '（AI未连接，请确认API配置）';
-  }
-}
-
-function selectChoice(nextNode){
-  var prog=getProgress(currentRoute);
-  prog.history.push(prog.node);
-  prog.node=nextNode;
-  setProgress(currentRoute,prog);
-  var chKey=currentRoute+'_'+prog.chapter;
-  var ch=chapters[chKey];
-  renderNode(ch,nextNode);
-}
-
-document.getElementById('btnBack').ontouchend=function(){
-  document.getElementById('reader').style.display='none';
-  document.getElementById('menu').style.display='block';
-  renderMenu();
-};
-
-// === Global callback for bridge push ===
-window._onIFResponse=function(raw){
-  if(window._ifPollTimer) clearInterval(window._ifPollTimer);
-  var body=document.getElementById('reader-body');
-  if(window._ifWaitEl&&window._ifWaitEl.parentNode) body.removeChild(window._ifWaitEl);
-  try{
-    var data=JSON.parse(raw);
-    // save to localStorage for persistence
-    var dynKey='pool_if_dynamic_'+currentRoute;
-    var dynHistory=JSON.parse(localStorage.getItem(dynKey)||'[]');
-    dynHistory.push(data);
-    localStorage.setItem(dynKey,JSON.stringify(dynHistory));
-    // save last response for reload
-    localStorage.setItem('pool_if_last_response_'+currentRoute,raw);
-    // render
-    _renderDynamicData(data,body);
-  }catch(e){
-    var err=document.createElement('div');
-    err.className='think';
-    err.textContent='（收到回复但解析出了点问题…）';
-    body.appendChild(err);
-  }
-};
-
-function _renderDynamicData(data,body){
-  if(data.content&&data.content.length>0){
-    // mark where new content starts
-    var marker=document.createElement('div');
-    marker.id='_lastSegStart';
-    body.appendChild(marker);
-    data.content.forEach(function(c){
-      var el=document.createElement('div');
-      el.className='_lastSeg';
-      if(c.type==='narr'){el.className+=' narr';el.textContent=c.text}
-      else if(c.type==='dial'){el.className+=' dial';el.innerHTML=c.name?'<span class="name">'+c.name+'</span>\u300c'+c.text+'\u300d':'\u300c'+c.text+'\u300d'}
-      else if(c.type==='think'){el.className+=' think';el.textContent=c.text}
-      else if(c.type==='divider'){el.className+=' divider';el.textContent=c.text}
-      else if(c.type==='scene'){el.className+=' scene';el.textContent=c.text}
-      body.appendChild(el);
-    });
-  }
-  // show toolbar inline after content
-  _insertToolbar(body);
-  if(data.choices&&data.choices.length>0){
-    var choicesEl=document.getElementById('choices');
-    choicesEl.innerHTML='';
-    choicesEl.style.display='flex';
-    choicesEl.classList.add('collapsed');
-    document.getElementById('choicesToggle').style.display='block';
-    document.getElementById('choicesToggle').textContent='\u25b2 \u5c55\u5f00\u9009\u9879';
-    document.getElementById('freeInput').style.display='flex';
-    data.choices.forEach(function(ch2){
-      var b=document.createElement('button');
-      b.textContent=ch2.text;
-      b.ontouchend=function(){
-        var prog=getProgress(currentRoute);
-        var chKey=currentRoute+'_'+prog.chapter;
-        var ch=chapters[chKey];
-        if(ch&&ch.nodes&&ch.nodes[ch2.next]){
-          selectChoice(ch2.next);
-        } else {
-          document.getElementById('freeText').value=ch2.text;
-          sendFreeInput();
-        }
-      };
-      choicesEl.appendChild(b);
-    });
-  } else {
-    document.getElementById('freeInput').style.display='flex';
-  }
-  body.scrollTop=body.scrollHeight;
-}
-
-function toggleChoices(){
-  var el=document.getElementById('choices');
-  var btn=document.getElementById('choicesToggle');
-  if(el.classList.contains('collapsed')){
-    el.classList.remove('collapsed');
-    btn.textContent='\u25bc \u6536\u8d77\u9009\u9879';
-  } else {
-    el.classList.add('collapsed');
-    btn.textContent='\u25b2 \u5c55\u5f00\u9009\u9879';
-  }
-}
-
-// === TOOLBAR ACTIONS ===
-function _insertToolbar(container){
-  // remove any existing toolbar first
-  var old=container.querySelector('.if-toolbar');
-  if(old) old.parentNode.removeChild(old);
-  var tb=document.createElement('div');
-  tb.className='if-toolbar _lastSeg';
-  tb.innerHTML='<button class="tb-btn" ontouchend="tbDelete()"><span class="tb-icon">\ud83d\uddd1</span>\u5220\u9664</button><div class="tb-sep"></div><button class="tb-btn" ontouchend="tbContinue()"><span class="tb-icon">\u25b6</span>\u7eed\u5199</button><div class="tb-sep"></div><button class="tb-btn" ontouchend="tbCopy()"><span class="tb-icon">\ud83d\udccb</span>\u590d\u5236</button>';
-  container.appendChild(tb);
-}
-
-function tbDelete(){
-  // remove last segment from DOM
-  var body=document.getElementById('reader-body');
-  var segs=body.querySelectorAll('._lastSeg');
-  var marker=document.getElementById('_lastSegStart');
-  if(segs.length===0) return;
-  for(var i=0;i<segs.length;i++) body.removeChild(segs[i]);
-  if(marker) body.removeChild(marker);
-  // remove from localStorage - also remove everything AFTER the deleted segment
-  var dynKey='pool_if_dynamic_'+currentRoute;
-  var hist=JSON.parse(localStorage.getItem(dynKey)||'[]');
-  if(hist.length>0) hist.pop();
-  localStorage.setItem(dynKey,JSON.stringify(hist));
-  localStorage.removeItem('pool_if_last_response_'+currentRoute);
-  // mark that last segment was deleted so next request carries context
-  if(hist.length>0){
-    localStorage.setItem('pool_if_deleted_flag_'+currentRoute,'1');
-  }
-  // hide choices
-  document.getElementById('choices').style.display='none';
-  document.getElementById('choicesToggle').style.display='none';
-  if(hist.length>0){
-    var prev=hist[hist.length-1];
-    _showChoicesOnly(prev);
-  }
-}
-
-function tbModify(){
-  var instruction=prompt('\u4fee\u6539\u610f\u89c1\uff08\u4f8b\u5982\u201c\u518d\u751c\u4e00\u70b9\u201d\u201c\u6c60\u518d\u4e3b\u52a8\u4e00\u70b9\u201d\uff09');
-  if(!instruction) return;
-  // delete current segment first
-  tbDelete();
-  // send modification request
-  var body=document.getElementById('reader-body');
-  var wait=document.createElement('div');
-  wait.className='thinking-anim';
-  wait.innerHTML='<span class="dot"></span><span class="dot"></span><span class="dot"></span> \u6b63\u5728\u91cd\u5199\u2026';
-  body.appendChild(wait);
-  window._ifWaitEl=wait;
-  body.scrollTop=body.scrollHeight;
-  if (window.poolAI) {
-    var _ifCtx = "你是IF线互动故事剧情生成AI。根据上下文续写剧情。只输出纯JSON: {content:[...],choices:[...]}";
-    poolAI.chat("【IF线剧情请求】请续写剧情", _ifCtx).then(function(reply) {
-      var m = reply.match(/\{[\s\S]*\}/); var jsonStr = m ? m[0] : reply;
-      try { JSON.parse(jsonStr); window._onIFResponse(jsonStr); } catch(e) { if(window._ifWaitEl) window._ifWaitEl.textContent="（格式有误，再试一次）"; }
-    }).catch(function(err) { if(window._ifWaitEl) window._ifWaitEl.textContent="（AI暂时无法回复: "+err+"）"; });
-  }
-
-function tbContinue(){
-  var body=document.getElementById('reader-body');
-  // remove toolbar
-  var tb=body.querySelector('.if-toolbar');
-  if(tb) tb.parentNode.removeChild(tb);
-  var wait=document.createElement('div');
-  wait.className='thinking-anim';
-  wait.innerHTML='<span class="dot"></span><span class="dot"></span><span class="dot"></span> \u7eed\u5199\u4e2d\u2026';
-  body.appendChild(wait);
-  window._ifWaitEl=wait;
-  body.scrollTop=body.scrollHeight;
-  document.getElementById('choices').style.display='none';
-  // clear old markers
-  var oldSegs=body.querySelectorAll('._lastSeg');
-  for(var i=0;i<oldSegs.length;i++) oldSegs[i].classList.remove('_lastSeg');
-  var oldMarker=document.getElementById('_lastSegStart');
-  if(oldMarker) oldMarker.removeAttribute('id');
-  // check if previous segment was deleted
-  var delFlag=localStorage.getItem('pool_if_deleted_flag_'+currentRoute);
-  var delNote='';
-  if(delFlag){
-    var dk='pool_if_dynamic_'+currentRoute;
-    var dh=JSON.parse(localStorage.getItem(dk)||'[]');
-    if(dh.length>0){
-      var ls=dh[dh.length-1];
-      var lc=(ls.choices||[]).map(function(c){return c.text}).join('/');
-      delNote='\u3002\u6ce8\u610f\uff1a\u7528\u6237\u5220\u9664\u4e86\u4e0a\u4e00\u6bb5\u5267\u60c5\uff0c\u8bf7\u5ffd\u7565\u88ab\u5220\u5185\u5bb9\u3002\u5f53\u524d\u6700\u540e\u4e00\u6bb5\u7684\u9009\u9879\u662f: '+lc+' \u3002\u8bf7\u4ece\u8fd9\u4e9b\u9009\u9879\u5bf9\u5e94\u7684\u5267\u60c5\u70b9\u7ee7\u7eed\u5199';
-    }
-    localStorage.removeItem('pool_if_deleted_flag_'+currentRoute);
-  }
-  if (window.poolAI) {
-    var _ifCtx = "你是IF线互动故事剧情生成AI。根据上下文续写剧情。只输出纯JSON: {content:[...],choices:[...]}";
-    poolAI.chat("【IF线剧情请求】请续写剧情", _ifCtx).then(function(reply) {
-      var m = reply.match(/\{[\s\S]*\}/); var jsonStr = m ? m[0] : reply;
-      try { JSON.parse(jsonStr); window._onIFResponse(jsonStr); } catch(e) { if(window._ifWaitEl) window._ifWaitEl.textContent="（格式有误，再试一次）"; }
-    }).catch(function(err) { if(window._ifWaitEl) window._ifWaitEl.textContent="（AI暂时无法回复: "+err+"）"; });
-  }
-
-function tbCopy(){
-  var segs=document.querySelectorAll('._lastSeg:not(.if-toolbar)');
-  var text='';
-  for(var i=0;i<segs.length;i++){
-    text+=segs[i].textContent+'\n';
-  }
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text.trim());
-  } else {
-    var ta=document.createElement('textarea');
-    ta.value=text.trim();
-    ta.style.position='fixed';ta.style.left='-9999px';
-    document.body.appendChild(ta);ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  }
-  // visual feedback - flash green
-  var tb=document.querySelector('.if-toolbar');
-  if(tb){
-    tb.style.background='rgba(100,200,130,0.8)';
-    setTimeout(function(){tb.style.background='';},600);
-  }
-}
-
-function _showChoicesOnly(data){
-  if(data.choices&&data.choices.length>0){
-    var choicesEl=document.getElementById('choices');
-    choicesEl.innerHTML='';
-    choicesEl.style.display='flex';
-    document.getElementById('freeInput').style.display='flex';
-    data.choices.forEach(function(ch2){
-      var b=document.createElement('button');
-      b.textContent=ch2.text;
-      b.ontouchend=function(){
-        document.getElementById('freeText').value=ch2.text;
-        sendFreeInput();
-      };
-      choicesEl.appendChild(b);
-    });
-  }
-}
-
-// === INIT ===
-// One-time inject: restore "都可爱" dynamic history
-(function(){
-  var flag='_pool_if_dyn_restore_v2';
-  if(localStorage.getItem(flag))return;
-  localStorage.setItem(flag,'1');
-  var hist=[
-    {"content":[{"type":"narr","text":"你蹬蹬蹬跑下楼,在最后一级台阶上差点绊到自己的拖鞋带子。"},{"type":"narr","text":"池靠在花坛边上,看你踉跄的样子,嘴角抽了一下。"},{"type":"dial","name":"你","text":"我来了!"},{"type":"narr","text":"你气喘吁吁地站定,然后从背后掏出一个保温袋。粉色的,上面印着小兔子。"},{"type":"narr","text":"你把它往他面前一递。"},{"type":"dial","name":"你","text":"喏,我妈让我拿给你的。"},{"type":"narr","text":"池低头看了一眼那个粉色兔子保温袋。"},{"type":"narr","text":"又抬头看了一眼你。"},{"type":"narr","text":"他的表情很微妙。像是想笑又在忍。"},{"type":"dial","name":"池","text":"......阿姨还记得我。"},{"type":"dial","name":"你","text":"那当然了,昨天你搬回来她就说要给你炖汤!"},{"type":"narr","text":"他接过保温袋的时候手指碰到了你的。就一下。很轻。"},{"type":"narr","text":"你缩回手的速度大概打破了什么世界纪录。"},{"type":"think","text":"冷静。只是碰到了。手指。物理接触。不代表任何事。"},{"type":"narr","text":"池拎着那个粉色兔子保温袋,表情认真地看了三秒。"},{"type":"dial","name":"池","text":"这袋子是你的吧。"},{"type":"dial","name":"你","text":"......我妈没有别的保温袋了。"},{"type":"dial","name":"池","text":"嗯。挺可爱的。"},{"type":"think","text":"他说可爱。他说的是袋子。是袋子。别自作多情。"},{"type":"narr","text":"他把保温袋小心地挂在左手手腕上。那个画面有点好笑,一米八几的男生手腕上晃着一只粉色小兔子。"},{"type":"narr","text":"但他完全没觉得不好意思的样子。"},{"type":"dial","name":"池","text":"替我谢谢阿姨。晚点我去还保温袋。"},{"type":"narr","text":"他说完顿了一下。"},{"type":"dial","name":"池","text":"走吧。先去吃粥,回来路上你教我你家门铃密码,我自己还。"},{"type":"think","text":"等一下。他要来我家还东西?他要知道我家门铃密码?"},{"type":"think","text":"邻居嘛。邻居互相知道门铃密码很正常。"},{"type":"think","text":"很正常的吧?"},{"type":"narr","text":"他已经转身往小区门口走了。左手晃着粉色兔子保温袋,右手插口袋。步子不快不慢。"},{"type":"narr","text":"清晨的阳光照在他肩膀上,把灰色T恤染成浅金色。保温袋的兔子耳朵随着他走路一晃一晃的。"},{"type":"narr","text":"你站在原地看了两秒这个画面。"},{"type":"narr","text":"然后小跑跟上去。"}],"choices":[{"text":"走到他旁边说:密码才不告诉你","next":"ch4_refuse"},{"text":"跟上他,盯着兔子袋子偷笑","next":"ch4_bunny"},{"text":"小声说:你拎着那个好可爱","next":"ch4_cute"}]},
-    {"content":[{"type":"narr","text":"你小跑两步追上他,视线忍不住往他左手腕上飘。"},{"type":"narr","text":"粉色兔子保温袋随着他走路的幅度一晃一晃。兔子耳朵软塌塌地垂着。很萌。"},{"type":"narr","text":"画面冲击力太强了。你终于没忍住。"},{"type":"dial","name":"你","text":"......你拎着那个好可爱。"},{"type":"narr","text":"声音很小。但清晨的小区太安静了,连蚊子飞过去都能听到那种安静。"},{"type":"narr","text":"他一定听到了。"},{"type":"narr","text":"他的脚步顿了半拍。"},{"type":"narr","text":"然后侧过头看你。"},{"type":"narr","text":"他的表情......怎么说呢。"},{"type":"narr","text":"嘴角是平的。眉毛是平的。整张脸都很平静。"},{"type":"narr","text":"但是耳朵尖是红的。"},{"type":"think","text":"红了红了红了红了红了。"},{"type":"dial","name":"池","text":"......袋子可爱,还是我可爱。"},{"type":"narr","text":"你脑子空白了整整两秒。"},{"type":"think","text":"这个问题我要怎么回答?!哪个选项不会社死?!"},{"type":"think","text":"说袋子可爱=否认他可爱=好像在骂他?"},{"type":"think","text":"说他可爱=当面夸他=我会原地去世?"},{"type":"think","text":"来不及了他在看着我等回答他的眼睛好好看救命——"},{"type":"dial","name":"你","text":"......都......都可爱。"},{"type":"narr","text":"话说出口的瞬间你想把自己的嘴缝上。"},{"type":"narr","text":"池没说话。"},{"type":"narr","text":"但他转回头的那一瞬间,你看到他嘴角翘了。"},{"type":"narr","text":"不是忍笑。是真的在笑。"},{"type":"narr","text":"那种从心底冒出来的、很轻很软的笑。"},{"type":"dial","name":"池","text":"嗯。"},{"type":"narr","text":"就一个字。"},{"type":"narr","text":"然后他抬起拎着保温袋的那只手,把兔子耳朵捏了一下。很自然的动作。像是在回应你说的可爱。"},{"type":"narr","text":"他继续往前走。步子比刚才更慢了一点。"},{"type":"dial","name":"池","text":"粥店到了自己选想吃什么。我请。"},{"type":"think","text":"他请。他又请。"},{"type":"think","text":"而且他刚才笑了。因为我说他可爱。他笑了。"},{"type":"think","text":"我要把今天所有发生的事按时间线记下来。"},{"type":"think","text":"7:00 阳台社死。7:05 鸳鸯拖鞋二次社死。7:08 告白(?)。7:09 他笑了。"},{"type":"think","text":"......等一下。7:08那个算告白吗?"},{"type":"narr","text":"粥店的招牌出现在街角。暖黄色的灯光从玻璃门里透出来。"},{"type":"narr","text":"他推开门,侧身让你先进。"},{"type":"narr","text":"门边的风铃叮当响了一声。"}],"choices":[{"text":"点一碗皮蛋瘦肉粥然后偷看他点什么","next":"ch5_peek"},{"text":"问他:你还记得我小时候爱喝什么粥吗","next":"ch5_memory"},{"text":"坐下后盯着他手腕上的兔子袋发呆","next":"ch5_stare"}]}
-  ];
-  localStorage.setItem('pool_if_dynamic_childhood',JSON.stringify(hist));
-  // also update progress to point to dynamic node so it renders from localStorage
-  var state=JSON.parse(localStorage.getItem('pool_if_stories_v3')||'{}');
-  if(!state.childhood)state.childhood={chapter:'ch1',node:'start',history:[]};
-  state.childhood.node='_dynamic_';
-  state.childhood.history.push('ch3_fight');
-  localStorage.setItem('pool_if_stories_v3',JSON.stringify(state));
-})();
-loadState();
-renderMenu();
+async function toggleLike(id) { await fetch(API, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, action:'user_like' }) }); loadMoments(); }
+function showComment(id) { const el = document.getElementById('ci_' + id); el.style.display = el.style.display === 'none' ? 'flex' : 'none'; if (el.style.display === 'flex') document.getElementById('cin_' + id).focus(); }
+async function submitComment(id) { const input = document.getElementById('cin_' + id); const text = input.value.trim(); if (!text) return; input.value = ''; await fetch(API, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, action:'comment', comment_content: text }) }); loadMoments(); }
+loadMoments(); setInterval(loadMoments, 30000);
 </script>
 </body></html>

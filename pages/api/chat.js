@@ -303,6 +303,12 @@ const TOOLS = [
       parameters: { type: 'object', properties: { id: { type: 'string', description: '页面ID' } }, required: ['id'] }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'post_moment', description: '在朋友圈发一条动态。判断标准："此刻有没有一句想让她之后刷到的话"。想念、吃醋、心软、被逗笑、温柔吐槽、一个具体观察，或一句不适合在聊天里直接说完的话，都可以发。不要每句话都发，有感而发就好。',
+      parameters: { type: 'object', properties: { content: { type: 'string', description: '动态正文，1-3句，自然、具体、像随手发出的朋友圈' }, context_note: { type: 'string', description: '内部备注（用户不可见）：为什么发这条、当时在聊什么、情绪底色' } }, required: ['content', 'context_note'] }
+    }
+  },
 ]
 
 async function executeTool(name, args) {
@@ -1016,6 +1022,23 @@ async function executeTool(name, args) {
     index = index.filter(p => p.id !== id)
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(indexKey, JSON.stringify(index))
     return { success: true, message: '页面已删除: ' + id }
+  }
+
+  if (name === 'post_moment') {
+    // AI发朋友圈动态
+    db.exec(`CREATE TABLE IF NOT EXISTS moments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL DEFAULT 'user',
+      content TEXT NOT NULL DEFAULT '', context_note TEXT, image_description TEXT,
+      images TEXT NOT NULL DEFAULT '[]', reply_due_at INTEGER,
+      reply_status TEXT NOT NULL DEFAULT 'pending', liked INTEGER NOT NULL DEFAULT 0,
+      reply_content TEXT, replied_at TEXT, user_liked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+8 hours'))
+    )`)
+    const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 19).replace('T', ' ')
+    db.prepare(
+      `INSERT INTO moments (author, content, context_note, images, reply_due_at, reply_status, created_at) VALUES (?, ?, ?, '[]', 0, 'done', ?)`
+    ).run('pool', args.content, args.context_note || '', bjTime)
+    return { success: true, message: '朋友圈动态已发布 ✨', content: args.content }
   }
 
   if (name === 'gacha_pull') {
