@@ -42,3 +42,554 @@ body {
   background: none; border: 1px solid var(--txt3); color: var(--txt2);
   border-radius: 12px; padding: 3px 10px; font-size: 10px; cursor: pointer;
 }
+.garden-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 60%, var(--ground2) 100%);
+}
+
+/* Ground */
+.ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 35%;
+  background: linear-gradient(180deg, var(--ground1) 0%, var(--ground2) 100%);
+  border-top: 2px solid #3a5a3a;
+}
+
+/* Stars */
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle 3s infinite alternate;
+}
+@keyframes twinkle { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+
+/* Weather effects */
+.weather-rain .raindrop-fx {
+  position: absolute;
+  width: 1px;
+  height: 12px;
+  background: linear-gradient(180deg, transparent, rgba(150,200,255,0.6));
+  animation: rainfall 1s linear infinite;
+}
+@keyframes rainfall {
+  0% { transform: translateY(-20px); opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0.3; }
+}
+
+.weather-snow .snowflake-fx {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #fff;
+  border-radius: 50%;
+  animation: snowfall 4s linear infinite;
+}
+@keyframes snowfall {
+  0% { transform: translateY(-10px) translateX(0); opacity: 0.8; }
+  50% { transform: translateY(50vh) translateX(15px); opacity: 0.6; }
+  100% { transform: translateY(100vh) translateX(-5px); opacity: 0; }
+}
+
+.weather-fireflies .firefly-fx {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #ff8;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #ff8;
+  animation: floatfly 6s ease-in-out infinite alternate;
+}
+@keyframes floatfly {
+  0% { transform: translate(0, 0); opacity: 0.3; }
+  25% { opacity: 1; }
+  50% { transform: translate(20px, -15px); opacity: 0.4; }
+  75% { opacity: 0.9; }
+  100% { transform: translate(-10px, -25px); opacity: 0.2; }
+}
+
+/* Growth animation for newly planted items */
+.pixel-item.growing {
+  animation: growIn 1.5s ease-out;
+}
+@keyframes growIn {
+  0% { transform: scale(0) translateY(10px); opacity: 0; }
+  50% { transform: scale(1.3) translateY(-3px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* Growth stages */
+.pixel-item[data-age="baby"] { transform: scale(0.6); opacity: 0.7; }
+.pixel-item[data-age="young"] { transform: scale(0.8); opacity: 0.85; }
+.pixel-item[data-age="mature"] { transform: scale(1); opacity: 1; }
+.pixel-item[data-age="ancient"] { transform: scale(1.1); filter: brightness(1.2); }
+
+/* Moon */
+.moon {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  width: 30px;
+  height: 30px;
+  background: var(--moon);
+  border-radius: 50%;
+  box-shadow: 0 0 15px var(--moonG);
+}
+
+/* Pixel items */
+.pixel-item {
+  position: absolute;
+  image-rendering: pixelated;
+  transition: transform 0.3s;
+  cursor: pointer;
+}
+.pixel-item:hover { transform: scale(1.2); }
+.pixel-item .tooltip {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2a2035;
+  color: #e0d0f0;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: normal;
+  word-break: break-all;
+  max-width: 140px;
+  text-align: center;
+  border: 1px solid #5a4a6a;
+  margin-bottom: 6px;
+  line-height: 1.4;
+  z-index: 100;
+}
+.pixel-item:hover .tooltip { display: block; }
+
+/* Item sprites (CSS pixel art) */
+.sprite-seedling {
+  width: 16px; height: 20px;
+  background: #4a8;
+  clip-path: polygon(40% 100%, 60% 100%, 60% 60%, 80% 40%, 60% 40%, 50% 0%, 40% 40%, 20% 40%, 40% 60%);
+}
+.sprite-flower {
+  width: 20px; height: 24px;
+  position: relative;
+}
+.sprite-flower::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px; height: 14px;
+  background: #f8a;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #f8a80;
+}
+.sprite-flower::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px; height: 12px;
+  background: #4a8;
+}
+.sprite-tree {
+  width: 24px; height: 36px;
+  position: relative;
+}
+.sprite-tree::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px; height: 22px;
+  background: #3a7;
+  border-radius: 50% 50% 30% 30%;
+}
+.sprite-tree::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px; height: 16px;
+  background: #864;
+}
+.sprite-mushroom {
+  width: 16px; height: 16px;
+  position: relative;
+}
+.sprite-mushroom::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px; height: 10px;
+  background: #e66;
+  border-radius: 50% 50% 0 0;
+}
+.sprite-mushroom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px; height: 8px;
+  background: #eee;
+}
+.sprite-crystal {
+  width: 12px; height: 20px;
+  background: #8af;
+  clip-path: polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%);
+  box-shadow: 0 0 6px #8af;
+}
+.sprite-heart {
+  width: 16px; height: 14px;
+  position: relative;
+}
+.sprite-heart::before, .sprite-heart::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 9px; height: 9px;
+  background: #f55;
+  border-radius: 50%;
+}
+.sprite-heart::before { left: 1px; }
+.sprite-heart::after { right: 1px; }
+.sprite-lantern {
+  width: 12px; height: 20px;
+  position: relative;
+}
+.sprite-lantern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px; height: 14px;
+  background: #fa5;
+  border-radius: 4px;
+  box-shadow: 0 0 8px #fa580;
+}
+.sprite-lantern::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px; height: 8px;
+  background: #864;
+}
+.sprite-butterfly {
+  width: 18px; height: 12px;
+  position: relative;
+}
+.sprite-butterfly::before, .sprite-butterfly::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 8px; height: 10px;
+  background: #c8f;
+  border-radius: 50%;
+  animation: flutter 1s infinite alternate;
+}
+.sprite-butterfly::before { left: 0; transform: rotate(-15deg); }
+.sprite-butterfly::after { right: 0; transform: rotate(15deg); }
+@keyframes flutter { 0% { transform: rotate(-15deg) scaleY(1); } 100% { transform: rotate(-15deg) scaleY(0.6); } }
+
+.sprite-star-item {
+  width: 16px; height: 16px;
+  background: #ff0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  box-shadow: 0 0 6px #ff080;
+}
+.sprite-rain {
+  width: 8px; height: 16px;
+  background: linear-gradient(180deg, transparent, #8cf);
+  border-radius: 0 0 4px 4px;
+  animation: raindrop 2s infinite;
+}
+@keyframes raindrop { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(10px); } }
+
+/* Info panel */
+.garden-info {
+  padding: 10px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--panelB);
+  color: var(--txt2);
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.item-count { color: var(--txt); }
+/* Emotion panel */
+.emotion-panel { display:none; background:var(--panel); border-top:1px solid var(--panelB); padding:12px 16px; max-height:40vh; overflow-y:auto; }
+.emotion-panel.open { display:block; }
+.emotion-panel h3 { color:var(--txt); font-size:12px; margin:0 0 8px; letter-spacing:1px; }
+.emo-bar { display:flex; gap:3px; flex-wrap:wrap; margin-bottom:10px; }
+.emo-bar span { height:18px; border-radius:3px; display:inline-block; min-width:10px; }
+.emo-legend { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.emo-legend span { font-size:10px; color:var(--txt2); }
+.emo-list { list-style:none; padding:0; }
+.emo-list li { color:var(--txt2); font-size:10px; padding:4px 0; border-bottom:1px solid var(--panelB); display:flex; justify-content:space-between; }
+.emo-list .emo-time { color:var(--txt3); font-size:9px; }
+.emo-stats { color:var(--txt); font-size:10px; margin-top:8px; text-align:center; opacity:.6; }
+
+/* Empty state */
+.empty-msg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #5a4a6a;
+  font-size: 13px;
+  text-align: center;
+  line-height: 2;
+}
+</style>
+</head>
+<body>
+
+<div class="garden-header"><span>🌙 像素庭院</span><button class="theme-btn" onclick="toggleTheme()">☼/☽</button></div>
+
+<div class="garden-canvas" id="canvas">
+  <div class="moon"></div>
+  <div class="ground"></div>
+  <div class="empty-msg" id="emptyMsg">
+    庭院还很安静...<br>
+    等池种下第一颗种子 🌱
+  </div>
+</div>
+
+<div class="garden-info" onclick="togglePanel()">
+  <span>物件: <span class="item-count" id="itemCount">0</span></span>
+  <span id="lastPlanted">▲ 情绪面板</span>
+</div>
+<div class="emotion-panel" id="emotionPanel"></div>
+
+<script>
+var API = '/api/garden';
+var SPRITE_MAP = {
+  seedling: 'sprite-seedling',
+  flower: 'sprite-flower',
+  tree: 'sprite-tree',
+  mushroom: 'sprite-mushroom',
+  crystal: 'sprite-crystal',
+  heart: 'sprite-heart',
+  lantern: 'sprite-lantern',
+  butterfly: 'sprite-butterfly',
+  star: 'sprite-star-item',
+  rain: 'sprite-rain'
+};
+
+function init() {
+  // Add stars
+  var canvas = document.getElementById('canvas');
+  for (var i = 0; i < 30; i++) {
+    var star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 55 + '%';
+    star.style.animationDelay = (Math.random() * 3) + 's';
+    canvas.appendChild(star);
+  }
+  loadGarden();
+  loadWeather();
+}
+
+function loadWeather() {
+  // Check cached weather from parent localStorage or fetch
+  try {
+    var cached = JSON.parse(localStorage.getItem('pool_env_cache') || '{}');
+    var weather = (cached.weather || '').toLowerCase();
+    var canvas = document.getElementById('canvas');
+
+    if (weather.indexOf('rain') >= 0 || weather.indexOf('drizzle') >= 0 || weather.indexOf('shower') >= 0) {
+      canvas.classList.add('weather-rain');
+      for (var i = 0; i < 40; i++) {
+        var drop = document.createElement('div');
+        drop.className = 'raindrop-fx';
+        drop.style.left = Math.random() * 100 + '%';
+        drop.style.top = Math.random() * -20 + '%';
+        drop.style.animationDelay = (Math.random() * 2) + 's';
+        drop.style.animationDuration = (0.6 + Math.random() * 0.8) + 's';
+        canvas.appendChild(drop);
+      }
+    } else if (weather.indexOf('snow') >= 0) {
+      canvas.classList.add('weather-snow');
+      for (var i = 0; i < 25; i++) {
+        var flake = document.createElement('div');
+        flake.className = 'snowflake-fx';
+        flake.style.left = Math.random() * 100 + '%';
+        flake.style.animationDelay = (Math.random() * 4) + 's';
+        canvas.appendChild(flake);
+      }
+    } else {
+      // Clear night = fireflies
+      canvas.classList.add('weather-fireflies');
+      for (var i = 0; i < 8; i++) {
+        var fly = document.createElement('div');
+        fly.className = 'firefly-fx';
+        fly.style.left = (20 + Math.random() * 60) + '%';
+        fly.style.top = (40 + Math.random() * 40) + '%';
+        fly.style.animationDelay = (Math.random() * 6) + 's';
+        canvas.appendChild(fly);
+      }
+    }
+  } catch(e) {}
+}
+
+function getAge(createdAt) {
+  if (!createdAt) return 'mature';
+  var created = new Date(createdAt).getTime();
+  var now = Date.now();
+  var hours = (now - created) / (1000 * 60 * 60);
+  if (hours < 1) return 'baby';
+  if (hours < 24) return 'young';
+  if (hours < 168) return 'mature';
+  return 'ancient';
+}
+
+function loadGarden() {
+  fetch(API).then(function(r) { return r.json(); }).then(function(data) {
+    var items = data.items || [];
+    renderItems(items);
+  }).catch(function() {
+    // Try localStorage fallback
+    var local = JSON.parse(localStorage.getItem('pool_garden') || '[]');
+    renderItems(local);
+  });
+}
+
+function renderItems(items) {
+  gardenItems = items;
+  var canvas = document.getElementById('canvas');
+  var emptyMsg = document.getElementById('emptyMsg');
+  var existing = canvas.querySelectorAll('.pixel-item');
+  for (var i = 0; i < existing.length; i++) existing[i].remove();
+
+  document.getElementById('itemCount').textContent = items.length;
+
+  if (items.length === 0) {
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  var lastItem = null;
+  for (var j = 0; j < items.length; j++) {
+    var item = items[j];
+    placeItem(item, canvas);
+    lastItem = item;
+  }
+
+  if (lastItem) {
+    var d = lastItem.created_at ? new Date(lastItem.created_at) : new Date();
+    document.getElementById('lastPlanted').textContent = '最近: ' + (lastItem.reason || lastItem.type) + ' ' + formatDate(d);
+  }
+}
+
+function placeItem(item, canvas) {
+  var el = document.createElement('div');
+  el.className = 'pixel-item';
+  var age = getAge(item.created_at);
+  el.setAttribute('data-age', age);
+
+  // New items get growth animation
+  if (age === 'baby') el.classList.add('growing');
+
+  var sprite = document.createElement('div');
+  sprite.className = SPRITE_MAP[item.type] || 'sprite-seedling';
+  el.appendChild(sprite);
+
+  var tooltip = document.createElement('div');
+  tooltip.className = 'tooltip';
+  var ageLabel = {baby:'🌱刚种下', young:'🌿成长中', mature:'🌳茁壮', ancient:'✨古老'}[age] || '';
+  tooltip.textContent = (item.reason || item.type) + ' ' + ageLabel;
+  el.appendChild(tooltip);
+
+  // Position: use stored x,y or generate based on index
+  var x = item.x !== undefined ? item.x : 10 + Math.random() * 80;
+  var y = item.y !== undefined ? item.y : 60 + Math.random() * 30;
+  el.style.left = x + '%';
+  el.style.top = y + '%';
+
+  canvas.appendChild(el);
+}
+
+function formatDate(d) {
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+
+init();
+// Auto refresh every 30s
+setInterval(loadGarden, 30000);
+
+// Theme toggle
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  var stars = document.querySelectorAll('.star,.firefly-fx');
+  stars.forEach(function(e) { e.style.opacity = document.body.classList.contains('light') ? '0' : ''; });
+}
+
+// Emotion panel
+var COLORS = {seedling:'#4a8',flower:'#f8a',tree:'#3a7',mushroom:'#e66',crystal:'#8af',heart:'#f55',lantern:'#fa5',butterfly:'#c8f',star:'#ff0',rain:'#8cf'};
+var NAMES = {seedling:'期待',flower:'开心',tree:'成长',mushroom:'好奇',crystal:'珍贵',heart:'心动',lantern:'温暖',butterfly:'自由',star:'许愿',rain:'难过'};
+var gardenItems = [];
+
+function togglePanel() {
+  var p = document.getElementById('emotionPanel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) buildPanel();
+}
+
+function buildPanel() {
+  var p = document.getElementById('emotionPanel');
+  if (!gardenItems.length) { p.innerHTML = '<p style="color:var(--txt3);text-align:center;font-size:11px">还没有情绪记录...</p>'; return; }
+  var counts = {};
+  gardenItems.forEach(function(it) { counts[it.type] = (counts[it.type]||0)+1; });
+  var total = gardenItems.length;
+
+  var bar = '<h3>情绪分布</h3><div class="emo-bar">';
+  Object.keys(counts).forEach(function(k) {
+    var pct = Math.max(8, Math.round(counts[k]/total*100));
+    bar += '<span style="width:'+pct+'%;background:'+(COLORS[k]||'#888')+'" title="'+(NAMES[k]||k)+' '+counts[k]+'"></span>';
+  });
+  bar += '</div>';
+
+  var legend = '<div class="emo-legend">';
+  Object.keys(counts).forEach(function(k) {
+    legend += '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+(COLORS[k]||'#888')+';margin-right:3px"></span>'+(NAMES[k]||k)+' '+counts[k]+'</span>';
+  });
+  legend += '</div>';
+
+  var recent = gardenItems.slice(-5).reverse();
+  var list = '<h3>最近种植</h3><ul class="emo-list">';
+  recent.forEach(function(it) {
+    var d = new Date(it.created_at);
+    var t = (d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+    list += '<li><span>'+(NAMES[it.type]||it.type)+' - '+(it.reason||'').substring(0,15)+'</span><span class="emo-time">'+t+'</span></li>';
+  });
+  list += '</ul>';
+
+  var stats = '<div class="emo-stats">共 '+total+' 个物件 · '+Object.keys(counts).length+' 种情绪 · 第一颗 '+new Date(gardenItems[0].created_at).toLocaleDateString()+'</div>';
+  p.innerHTML = bar + legend + list + stats;
+}
+</script>
+</body>
+</html>
