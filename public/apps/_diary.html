@@ -119,16 +119,30 @@ function saveSettings() {
 }
 
 function handleAvatar(who, e) {
-  const file = e.target.files[0];
+  const input = who === 'my' ? document.getElementById('myAvatarInput') : document.getElementById('poolAvatarInput');
+  const file = input.files[0];
   if (!file) return;
+  // 先用 createObjectURL 立即显示预览
+  const blobUrl = URL.createObjectURL(file);
+  // 同时转base64存储
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = function() {
     if (who === 'my') settings.myAvatar = reader.result;
     else settings.poolAvatar = reader.result;
     localStorage.setItem('diary_settings', JSON.stringify(settings));
     applySettings();
   };
+  reader.onerror = function() {
+    // fallback: 用blobUrl
+    if (who === 'my') settings.myAvatar = blobUrl;
+    else settings.poolAvatar = blobUrl;
+    localStorage.setItem('diary_settings', JSON.stringify(settings));
+    applySettings();
+  };
   reader.readAsDataURL(file);
+  // 立即更新预览（不等reader完成）
+  const previewId = who === 'my' ? 'myPreview' : 'poolPreview';
+  document.getElementById(previewId).innerHTML = '<img src="' + blobUrl + '">';
 }
 
 function getAvatar(author) {
