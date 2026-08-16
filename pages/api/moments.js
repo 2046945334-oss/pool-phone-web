@@ -128,6 +128,19 @@ export default async function handler(req, res) {
       return res.json({ ok: true, reply_in: delayMin + '分钟' })
     }
 
+    // AI直接回复动态（内部用）
+    if (action === 'ai_reply') {
+      const { like, reply_content } = req.body
+      const updates = {}
+      if (like !== undefined) updates.liked = like ? 1 : 0
+      if (reply_content) { updates.reply_content = reply_content; updates.reply_status = 'done'; updates.replied_at = new Date().toISOString() }
+      if (Object.keys(updates).length) {
+        const sets = Object.entries(updates).map(([k,v]) => `${k} = ?`).join(', ')
+        db.prepare(`UPDATE moments SET ${sets} WHERE id = ?`).run(...Object.values(updates), id)
+      }
+      return res.json({ ok: true, updates })
+    }
+
     return res.status(400).json({ error: 'unknown action' })
   }
 
