@@ -1688,6 +1688,11 @@ export default function Home() {
         <title>{'\u6c60\u7684\u5c0f\u624b\u673a'}</title>
         <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
         <meta name="theme-color" content="#0a0a0a" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/pwa-icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content={'\u5c0f\u624b\u673a'} />
       </Head>
       <div className="shell">
         <div className="phone-frame">

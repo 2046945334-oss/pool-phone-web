@@ -1,73 +1,48 @@
-// public/sw.js — Service Worker: 缓存所有App HTML实现秒开
-const CACHE_NAME = 'pool-apps-v1'
-const APP_FILES = [
-  '/apps/_browser.html',
-  '/apps/_couple.html',
-  '/apps/_doodle.html',
-  '/apps/_drafts.html',
-  '/apps/_fishing.html',
-  '/apps/_fortune.html',
-  '/apps/_gacha.html',
-  '/apps/_messages.html',
-  '/apps/_music_player.html',
-  '/apps/_notes.html',
-  '/apps/_reader.html',
-  '/apps/_sleep.html',
-  '/apps/_travel.html',
-  '/apps/backend-sync.js',
-  '/apps/ai-bridge.js',
+const CACHE_NAME = 'pool-phone-v1'
+const STATIC_ASSETS = [
+  '/',
+  '/icons/notes.png',
+  '/icons/music.png',
+  '/icons/couple.png',
+  '/icons/fishing.png',
+  '/icons/theme.png',
+  '/icons/gallery.png'
 ]
 
-// 安装时预缓存所有app文件
+// Install: cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_FILES)
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   )
+  self.skipWaiting()
 })
 
-// 激活时清除旧缓存
+// Activate: clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((names) => {
-      return Promise.all(
-        names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))
-      )
-    }).then(() => self.clients.claim())
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   )
+  self.clients.claim()
 })
 
-// 拦截请求：app文件优先从缓存读取（Cache First策略）
-// API请求和其他资源走网络
+// Fetch: network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url)
+  // Skip non-GET and API requests
+  if (event.request.method !== 'GET') return
+  if (event.request.url.includes('/api/')) return
 
-  // 只对 /apps/ 路径使用缓存策略
-  if (url.pathname.startsWith('/apps/')) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) {
-          // 返回缓存，同时后台更新（Stale While Revalidate）
-          const fetchPromise = fetch(event.request).then((response) => {
-            if (response.ok) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, response.clone())
-              })
-            }
-            return response
-          }).catch(() => {})
-          return cached
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Cache successful responses
+        if (response.ok) {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
         }
-        // 没缓存就走网络
-        return fetch(event.request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
-          }
-          return response
-        })
+        return response
       })
-    )
-  }
+      .catch(() => caches.match(event.request))
+  )
 })
