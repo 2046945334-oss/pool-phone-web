@@ -1332,10 +1332,12 @@ export default async function handler(req, res) {
     let isFirstRound = true
 
     while (maxRounds-- > 0) {
-      // 全程用主模型
-      const reqUrl = url
-      const reqKey = apiKey
-      const reqModel = model || 'gpt-4o-mini'
+      // 第一轮用工具模型（gemini等，擅长function calling决定调什么工具）
+      // 后续轮用主模型（opus等，基于工具结果生成高质量回复）
+      const useToolsModel = isFirstRound && toolsApiKey && toolsApiKey !== apiKey
+      const reqUrl = useToolsModel ? toolsUrl : url
+      const reqKey = useToolsModel ? toolsApiKey : apiKey
+      const reqModel = useToolsModel ? toolsModel : (model || 'gpt-4o-mini')
 
       const reqMessages = convertSystemRole(currentMessages.slice())
         .filter(m => m && m.role && ['user', 'assistant'].includes(m.role) && m.content)
