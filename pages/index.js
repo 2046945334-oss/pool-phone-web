@@ -1418,7 +1418,7 @@ function HomeScreen({ onOpenApp, theme }) {
   const page1Apps = [
     { id: 'notes', icon: '/icons/notes.png', name: '\u4fbf\u7b7e' },
     { id: 'gallery', icon: '/icons/gallery.png', name: '\u547d\u8fd0\u5361\u6c60' },
-    { id: 'messages', icon: '/icons/messages.png', name: '\u5982\u679c' },
+    { id: 'messages', icon: '/icons/messages.png', name: '\u670b\u53cb\u5708' },
     { id: 'music', icon: '/icons/music.png', name: '\u97f3\u4e50' },
     { id: 'browser', icon: '/icons/browser.png', name: '\u6d4f\u89c8' },
     { id: 'couple', icon: '/icons/couple.png', name: '\u60c5\u4fa3' },
@@ -1435,6 +1435,10 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'theme', icon: '/icons/theme.png', name: '\u7f8e\u5316' },
     { id: 'memoryMgr', icon: '/icons/system.png', name: '\u8bb0\u5fc6' },
   ]
+  const page3Apps = [
+    { id: 'diary', icon: '/icons/notes.png', name: '\u65e5\u8bb0' },
+  ]
+  const allPages = [page1Apps, page2Apps, page3Apps]
   const icons = theme?.icons || {}
   const getIcon = (app) => icons[app.id] || app.icon
   const [page, setPage] = useState(0)
@@ -1447,8 +1451,8 @@ function HomeScreen({ onOpenApp, theme }) {
   function handleSwipeEnd(e) {
     if (swipeX !== null) {
       const diff = swipeX - e.changedTouches[0].clientX
-      if (diff > 50 && page === 0) setPage(1)
-      if (diff < -50 && page === 1) setPage(0)
+      if (diff > 50 && page < allPages.length - 1) setPage(page + 1)
+      if (diff < -50 && page > 0) setPage(page - 1)
     }
     setSwipeX(null)
   }
@@ -1480,7 +1484,7 @@ function HomeScreen({ onOpenApp, theme }) {
       <div className="home-apps-area" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         <div className="home-section-title">{page === 0 ? '\ud83c\udf19 \u6c60\u7684\u624b\u673a' : '\u66f4\u591a\u5e94\u7528'}</div>
         <div className="app-grid">
-          {(page === 0 ? page1Apps : page2Apps).map(app => (
+          {(allPages[page] || []).map(app => (
             <div key={app.id} className="app-item" onClick={() => onOpenApp(app.id)}>
               <div className="app-icon"><img src={getIcon(app)} alt={app.name} /></div>
               <div className="app-label">{app.name}</div>
@@ -1488,8 +1492,9 @@ function HomeScreen({ onOpenApp, theme }) {
           ))}
         </div>
         <div className="page-dots">
-          <div className={`dot ${page === 0 ? 'active' : ''}`} onClick={() => setPage(0)} />
-          <div className={`dot ${page === 1 ? 'active' : ''}`} onClick={() => setPage(1)} />
+          {allPages.map((_, i) => (
+            <div key={i} className={`dot ${page === i ? 'active' : ''}`} onClick={() => setPage(i)} />
+          ))}
         </div>
       </div>
     </div>
