@@ -17,6 +17,7 @@ import coupleHtml from '../public/apps/_couple.html'
 import doodleHtml from '../public/apps/_doodle.html'
 import sleepHtml from '../public/apps/_sleep.html'
 import travelHtml from '../public/apps/_travel.html'
+import gardenHtml from '../public/apps/_garden.html'
 
 // 工具调用日志组件 - 可折叠显示
 function ToolLogBubble({ logs }) {
@@ -1436,8 +1437,8 @@ function EmotionMonitor() {
 }
 
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行', diary:'日记' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', diary:'_diary.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'占卜', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行', diary:'日记', garden:'庭院' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_fortune.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
   return (
@@ -1489,6 +1490,7 @@ function HomeScreen({ onOpenApp, theme }) {
   ]
   const page3Apps = [
     { id: 'diary', icon: '/icons/notes.png', name: '\u65e5\u8bb0' },
+    { id: 'garden', icon: '/icons/doodle.png', name: '\u5ead\u9662' },
   ]
   const allPages = [page1Apps, page2Apps, page3Apps]
   const icons = theme?.icons || {}
@@ -1630,9 +1632,9 @@ export default function Home() {
     if (currentApp === 'theme') return <AppContent appId="theme" onBack={handleBack} />
     if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
 
-    const appTitles = { browser:'浏览', ledger:'占卜', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记' }
+    const appTitles = { browser:'浏览', ledger:'占卜', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院' }
     const reactApps = { browser: <BrowserApp />, ledger: <FortuneApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
-    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml }
+    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml }
 
     if (currentApp && appTitles[currentApp]) {
       const bgCfg = appBg[currentApp]
