@@ -393,23 +393,40 @@ function ChatView({ theme }) {
             if (last && last.role === m.role) { last.content += '\n' + m.content }
             else { merged.push({ role: m.role, content: m.content }) }
           }
-          // 取最近50条合并后消息（约25轮对话）
-          const recent = merged.slice(-50)
+          // === Frozen/Active 上下文管理（提高 prompt cache 命中率）===
+          const ROTATION_THRESHOLD = 6 // 每6轮对话轮换一次
+          // 读取 frozen 区（稳定前缀，不变）
+          let frozen = []
+          try { frozen = JSON.parse(localStorage.getItem('pool_ctx_frozen') || '[]') } catch {}
+          // 计算 active 区：merged 中 frozen 之后的部分
+          const frozenLen = frozen.length
+          const active = merged.slice(frozenLen)
+          // 组装：system → frozen（稳定前缀）→ 动态注入 → active（当前对话）
           // 处理图片标签
-          const processed = recent.map(m => {
-            if (m.content && m.content.includes('[img]')) {
-              const parts = m.content.split(/\[img\](.*?)\[\/img\]/g)
-              const content = []
-              for (let k = 0; k < parts.length; k++) {
-                if (k % 2 === 0) { if (parts[k].trim()) content.push({ type: 'text', text: parts[k].trim() }) }
-                else { content.push({ type: 'image_url', image_url: { url: parts[k].startsWith('data:') ? parts[k] : parts[k].startsWith('/') ? (typeof window !== 'undefined' ? window.location.origin : '') + parts[k] : parts[k] } }) }
+          function processImgs(msgs) {
+            return msgs.map(m => {
+              if (m.content && m.content.includes('[img]')) {
+                const parts = m.content.split(/\[img\](.*?)\[\/img\]/g)
+                const content = []
+                for (let k = 0; k < parts.length; k++) {
+                  if (k % 2 === 0) { if (parts[k].trim()) content.push({ type: 'text', text: parts[k].trim() }) }
+                  else { content.push({ type: 'image_url', image_url: { url: parts[k].startsWith('data:') ? parts[k] : parts[k].startsWith('/') ? (typeof window !== 'undefined' ? window.location.origin : '') + parts[k] : parts[k] } }) }
+                }
+                if (content.length === 0) content.push({ type: 'text', text: '(图片)' })
+                return { ...m, content }
               }
-              if (content.length === 0) content.push({ type: 'text', text: '(图片)' })
-              return { ...m, content }
-            }
-            return m
-          })
-return [...await buildSystemMessages(newMessages), ...processed]
+              return m
+            })
+          }
+          const processedFrozen = processImgs(frozen)
+          const processedActive = processImgs(active)
+          // 请求顺序：[稳定 system_prompt] → [frozen] → [动态注入] → [active]
+          const sysParts = await buildSystemMessages(newMessages)
+          const stableSystem = sysParts.slice(0, 1) // 角色设定，稳定
+          const dynamicSystem = sysParts.slice(1)   // 时间/记忆/情绪，动态
+          // 日志：上下文分区状态
+          console.log(`[ctx-mgr] frozen=${frozen.length}msgs active=${active.length}msgs threshold=${ROTATION_THRESHOLD}`)
+          return [...stableSystem, ...processedFrozen, ...dynamicSystem, ...processedActive]
         })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
       })
       const data = await res.json()
@@ -486,6 +503,32 @@ return [...await buildSystemMessages(newMessages), ...processed]
     } catch (e) {
       setMessages([...newMessages, { role: 'assistant', content: '\u51fa\u9519: ' + e.message }])
     }
+    // === Frozen/Active 轮换检查 ===
+    try {
+      const ROTATION_THRESHOLD = 6
+      // 合并当前全部消息（和发送时一样的逻辑）
+      const allMsgs = (overrideMessages || messages).filter(m => m.role !== 'system' && m.role !== 'tool_log')
+      const mergedAll = []
+      for (const m of allMsgs) {
+        const last = mergedAll[mergedAll.length - 1]
+        if (last && last.role === m.role) { last.content += '\n' + m.content }
+        else { mergedAll.push({ role: m.role, content: m.content }) }
+      }
+      let frozen = []
+      try { frozen = JSON.parse(localStorage.getItem('pool_ctx_frozen') || '[]') } catch {}
+      const frozenLen = frozen.length
+      const active = mergedAll.slice(frozenLen)
+      // 计算 active 中的完整对话轮次（user+assistant对）
+      let rounds = 0
+      for (let i = 0; i < active.length; i++) {
+        if (active[i].role === 'assistant') rounds++
+      }
+      if (rounds >= ROTATION_THRESHOLD) {
+        // 轮换：active 变成新 frozen，旧 frozen 丢弃
+        localStorage.setItem('pool_ctx_frozen', JSON.stringify(active))
+        console.log(`[ctx-mgr] 轮换发生！旧frozen=${frozenLen}msgs 新frozen=${active.length}msgs`)
+      }
+    } catch(e) { console.warn('[ctx-mgr] rotation check error:', e) }
     // Auto extract memories every 10 user messages
     try {
       const userMsgCount = messages.filter(m => m.role === 'user').length
@@ -557,7 +600,7 @@ return [...await buildSystemMessages(newMessages), ...processed]
         // 同时存入记忆系统
         callMemory('hold', { content: '[对话摘要] ' + data.reply })
         // 去掉旧对话，只保留最近的
-        setMessages(recentMessages)
+        setMessages(recentMessages); localStorage.removeItem('pool_ctx_frozen')
         alert(`\u2705 \u538b\u7f29\u5b8c\u6210\uff01\u65e7\u5bf9\u8bdd\u5df2\u538b\u7f29\u4e3a\u8bb0\u5fc6\uff0c\u4fdd\u7559\u6700\u8fd1 ${recentMessages.length} \u6761`)
       }
     } catch(e) { alert('\u538b\u7f29\u5931\u8d25: ' + e.message) }
@@ -612,7 +655,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
     if (!silent) setLoading(false)
   }
 
-  function clearChat() { setMessages([]); setMenuIdx(-1) }
+  function clearChat() { setMessages([]); localStorage.removeItem('pool_ctx_frozen'); setMenuIdx(-1) }
 
   return (
     <div className="chat-view">
