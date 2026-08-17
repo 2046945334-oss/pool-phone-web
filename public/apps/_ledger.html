@@ -136,7 +136,7 @@ function applyTheme(key, val) {
 function editValue(field) {
   const current = field === 'gift' ? data.gift : data.debt;
   const label = field === 'gift' ? '礼物基金' : 'API欠款';
-  const val = prompt(label + ' (当前: ' + current.toFixed(1) + ')', current);
+  const val = prompt(label + ' (当前: ' + current.toFixed(2) + ')', current);
   if (val === null) return;
   const num = parseFloat(val);
   if (isNaN(num) || num < 0) return;
@@ -175,8 +175,8 @@ async function loadData() {
 }
 
 function render() {
-  document.getElementById('vGift').textContent = data.gift.toFixed(1);
-  document.getElementById('vDebt').textContent = data.debt.toFixed(1);
+  document.getElementById('vGift').textContent = data.gift.toFixed(2);
+  document.getElementById('vDebt').textContent = data.debt.toFixed(2);
   document.getElementById('vScore').textContent = data.score;
   if (!data.logs || !data.logs.length) {
     document.getElementById('logList').innerHTML = '<div class="empty">暂无记录<br>点击上方按钮开始记账</div>';
