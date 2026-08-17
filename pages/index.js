@@ -1666,6 +1666,11 @@ export default function Home() {
 
       // For HTML apps with bg config, inject CSS into the HTML content
       let htmlContent = htmlApps[currentApp] || ''
+      // Inject <base> so fetch('/api/...') works in srcdoc iframe
+      if (isHtml && typeof window !== 'undefined') {
+        const baseUrl = window.location.origin
+        htmlContent = htmlContent.replace('<head>', '<head><base href="' + baseUrl + '/">')
+      }
       if (isHtml && bgCfg && (bgCfg.bgImage || bgCfg.bgColor)) {
         const injectedCss = getAppBgCss(bgCfg)
         if (injectedCss) {
