@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>星图</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh;overflow:hidden;position:relative}
+.sky{width:100%;height:100vh;position:relative;overflow:hidden}
+.star{position:absolute;border-radius:50%;cursor:pointer;transition:transform .2s}
+.star:hover{transform:scale(1.5)}
+.star.from-ai{background:radial-gradient(circle,#fff,#a8d8ff,transparent)}
+.star.from-user{background:radial-gradient(circle,#fff,#ffd4a8,transparent)}
+.header{position:fixed;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:10;background:linear-gradient(to bottom,rgba(13,17,23,.9),transparent)}
+.header h1{font-size:16px;color:#e6edf3;font-weight:400}
+.header-btns{display:flex;gap:8px}
+.header-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e6edf3;padding:4px 12px;border-radius:16px;font-size:12px;cursor:pointer}
+.add-btn{background:rgba(255,200,100,.15);border-color:rgba(255,200,100,.3);color:#ffd4a8}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:#faf8f5;border-radius:16px;padding:20px;width:100%;max-width:320px;color:#4a3728;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h3{font-size:16px;color:#6b4c3b;margin-bottom:12px}
+.modal-meta{font-size:11px;color:#9b8578;margin-bottom:8px;display:flex;gap:12px}
+.modal-content{font-size:13px;line-height:1.7;color:#5a4a3f;white-space:pre-wrap;max-height:200px;overflow-y:auto;margin-bottom:12px}
+.modal-brightness{display:flex;gap:2px;margin-bottom:12px}
+.modal-brightness span{font-size:14px}
+.modal-close{width:100%;padding:8px;background:#6b4c3b;color:#fff;border:none;border-radius:20px;font-size:13px;cursor:pointer}
+/* Add form */
+.form-group{margin-bottom:10px}
+.form-group label{display:block;font-size:12px;color:#9b8578;margin-bottom:4px}
+.form-group input,.form-group textarea{width:100%;border:1px solid #e8ddd5;border-radius:8px;padding:8px;font-size:13px;font-family:inherit;outline:none;color:#4a3728}
+.form-group input:focus,.form-group textarea:focus{border-color:#a87c5f}
+.form-group textarea{min-height:80px;resize:vertical}
+.brightness-select{display:flex;gap:6px;align-items:center}
+.brightness-select button{width:28px;height:28px;border-radius:50%;border:2px solid #e8ddd5;background:#fff;cursor:pointer;font-size:12px}
+.brightness-select button.active{border-color:#ffa500;background:#fff8e7}
+.form-btns{display:flex;gap:8px;margin-top:12px}
+.form-btns button{flex:1;padding:8px;border-radius:20px;font-size:13px;cursor:pointer;border:none}
+.btn-cancel{background:#e8ddd5;color:#6b4c3b}
+.btn-send{background:#6b4c3b;color:#fff}
+.empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:rgba(255,255,255,.3);font-size:14px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);color:#4a3728;padding:8px 20px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .3s;z-index:200}
+.toast.show{opacity:1}
+</style>
+</head><body>
+<div class="header">
+  <h1>&#x2728; &#x661f;&#x56fe;</h1>
+  <div class="header-btns">
+    <button class="header-btn" onclick="loadStars()">&#x1f504;</button>
+    <button class="header-btn add-btn" onclick="showAddForm()">+ &#x6dfb;&#x52a0;&#x661f;&#x661f;</button>
+  </div>
+</div>
+<div class="sky" id="sky"></div>
+
+<div class="modal-overlay" id="viewModal">
+  <div class="modal">
+    <h3 id="viewTitle"></h3>
+    <div class="modal-meta"><span id="viewDate"></span><span id="viewFrom"></span></div>
+    <div class="modal-brightness" id="viewBright"></div>
+    <div class="modal-content" id="viewContent"></div>
+    <button class="modal-close" onclick="closeView()">&#x5173;&#x95ed;</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h3>&#x2728; &#x6dfb;&#x52a0;&#x4e00;&#x9897;&#x661f;&#x661f;</h3>
+    <div class="form-group"><label>&#x6807;&#x9898;</label><input id="addTitle" placeholder="&#x7b80;&#x77ed;&#x6982;&#x62ec;&#x8fd9;&#x4e2a;&#x77ac;&#x95f4;"></div>
+    <div class="form-group"><label>&#x5185;&#x5bb9;</label><textarea id="addContent" placeholder="&#x5f53;&#x65f6;&#x53d1;&#x751f;&#x4e86;&#x4ec0;&#x4e48;..."></textarea></div>
+    <div class="form-group"><label>&#x5149;&#x4eae;&#x5ea6;</label>
+      <div class="brightness-select" id="brightSelect">
+        <button onclick="setBright(1)">1</button>
+        <button onclick="setBright(2)">2</button>
+        <button class="active" onclick="setBright(3)">3</button>
+        <button onclick="setBright(4)">4</button>
+        <button onclick="setBright(5)">5</button>
+      </div>
+    </div>
+    <div class="form-btns">
+      <button class="btn-cancel" onclick="closeAdd()">&#x53d6;&#x6d88;</button>
+      <button class="btn-send" onclick="submitStar()">&#x6dfb;&#x52a0;</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+let stars=[];let selectedBright=3;
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+async function loadStars(){try{const r=await fetch('/api/starmap');const d=await r.json();if(d.stars){stars=d.stars;renderStars()}}catch(e){showToast('加载失败')}}
+function renderStars(){const sky=document.getElementById('sky');sky.innerHTML='';if(!stars.length){sky.innerHTML='<div class="empty-hint">还没有星星<br>每一个发光的瞬间<br>都会变成这里的星星</div>';return}
+stars.forEach((s,i)=>{const el=document.createElement('div');el.className='star from-'+s.from;const size=12+s.brightness*6;const opacity=0.3+s.brightness*0.14;el.style.width=size+'px';el.style.height=size+'px';el.style.opacity=opacity;el.style.boxShadow='0 0 '+(s.brightness*4)+'px '+(s.brightness*2)+'px '+(s.from==='ai'?'rgba(168,216,255,0.5)':'rgba(255,212,168,0.5)');const seed=hashCode(s.id);el.style.left=(10+pseudoRandom(seed,0)*80)+'%';el.style.top=(10+pseudoRandom(seed,1)*75)+'%';el.onclick=()=>viewStar(s);sky.appendChild(el)})}
+function hashCode(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h)}
+function pseudoRandom(seed,n){const x=Math.sin(seed+n*1000)*10000;return x-Math.floor(x)}
+function viewStar(s){document.getElementById('viewTitle').textContent=s.title;document.getElementById('viewDate').textContent=s.date;document.getElementById('viewFrom').textContent=s.from==='ai'?'\u6c60\u7684\u661f\u661f':'\u6211\u7684\u661f\u661f';document.getElementById('viewContent').textContent=s.content;document.getElementById('viewBright').innerHTML=Array(5).fill(0).map((_,i)=>'<span>'+(i<s.brightness?'\u2b50':'\u2606')+'</span>').join('');document.getElementById('viewModal').classList.add('show')}
+function closeView(){document.getElementById('viewModal').classList.remove('show')}
+function showAddForm(){selectedBright=3;document.getElementById('addTitle').value='';document.getElementById('addContent').value='';updateBrightUI();document.getElementById('addModal').classList.add('show')}
+function closeAdd(){document.getElementById('addModal').classList.remove('show')}
+function setBright(n){selectedBright=n;updateBrightUI()}
+function updateBrightUI(){document.querySelectorAll('#brightSelect button').forEach((b,i)=>b.classList.toggle('active',i+1===selectedBright))}
+async function submitStar(){const title=document.getElementById('addTitle').value.trim();const content=document.getElementById('addContent').value.trim();if(!title||!content){showToast('标题和内容不能为空');return}try{const r=await fetch('/api/starmap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content,brightness:selectedBright,from:'user'})});const d=await r.json();if(d.star){stars.unshift(d.star);renderStars();closeAdd();showToast('星星已添加 \u2728')}else{showToast(d.error||'添加失败')}}catch(e){showToast('网络错误')}}
+loadStars()
+</script>
+</body></html>
