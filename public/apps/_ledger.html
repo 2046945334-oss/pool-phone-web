@@ -17,7 +17,7 @@ body { font-family:-apple-system,'PingFang SC',sans-serif; background:var(--bg,#
 .acc-card.debt { background:#fff5f5; border:1px solid #ffe0e0; }
 .acc-card.score { background:#f0fff4; border:1px solid #d0f0d8; }
 .acc-label { font-size:11px; color:var(--sub); margin-bottom:4px; }
-.acc-value { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+.acc-value { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; cursor:pointer; }
 .acc-card.gift .acc-value { color:var(--blue); }
 .acc-card.debt .acc-value { color:var(--red); }
 .acc-card.score .acc-value { color:var(--green); }
@@ -73,16 +73,16 @@ body { font-family:-apple-system,'PingFang SC',sans-serif; background:var(--bg,#
 </style>
 </head><body>
 <div class="header">
-  <h1>账本 <button class="btn-settings" onclick="toggleSettings()">⚙️</button></h1>
+  <h1>账本 <button class="btn-settings" onclick="loadData()">🔄</button> <button class="btn-settings" onclick="toggleSettings()">⚙️</button></h1>
   <div class="accounts">
     <div class="acc-card gift">
       <div class="acc-label">礼物基金</div>
-      <div class="acc-value" id="vGift">0</div>
+      <div class="acc-value" id="vGift" onclick="editValue('gift')">0</div>
       <div class="acc-unit">元</div>
     </div>
     <div class="acc-card debt">
       <div class="acc-label">API欠款</div>
-      <div class="acc-value" id="vDebt">0</div>
+      <div class="acc-value" id="vDebt" onclick="editValue('debt')">0</div>
       <div class="acc-unit">元</div>
     </div>
     <div class="acc-card score">
@@ -133,6 +133,19 @@ function applyTheme(key, val) {
   document.documentElement.style.setProperty('--' + key, val);
   localStorage.setItem('ledger_theme', JSON.stringify(settings));
 }
+function editValue(field) {
+  const current = field === 'gift' ? data.gift : data.debt;
+  const label = field === 'gift' ? '礼物基金' : 'API欠款';
+  const val = prompt(label + ' (当前: ' + current.toFixed(1) + ')', current);
+  if (val === null) return;
+  const num = parseFloat(val);
+  if (isNaN(num) || num < 0) return;
+  if (field === 'gift') data.gift = num;
+  else data.debt = num;
+  saveData();
+  render();
+}
+
 function loadTheme() {
   Object.entries(settings).forEach(([k,v]) => document.documentElement.style.setProperty('--' + k, v));
 }
