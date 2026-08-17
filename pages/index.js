@@ -1676,7 +1676,7 @@ export default function Home() {
     if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
 
     const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院' }
-    const reactApps = { browser: <BrowserApp />, ledger: <FortuneApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
+    const reactApps = { browser: <BrowserApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
     const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml }
 
     if (currentApp && appTitles[currentApp]) {
