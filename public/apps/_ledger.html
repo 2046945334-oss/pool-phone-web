@@ -140,15 +140,17 @@ async function loadData() {
   try {
     // 加载账本数据
     const res = await fetch(API_DATA + '/pool_ledger');
+    if (!res.ok) throw 0;
     const d = await res.json();
-    if (d.data) Object.assign(data, typeof d.data === 'string' ? JSON.parse(d.data) : d.data);
+    if (d.value) Object.assign(data, typeof d.value === 'string' ? JSON.parse(d.value) : d.value);
   } catch {}
   // 同步积分（从钓鱼系统）
   try {
     const res2 = await fetch(API_DATA + '/pool_fishing_v2');
+    if (!res2.ok) throw 0;
     const d2 = await res2.json();
-    if (d2.data) {
-      const fd = typeof d2.data === 'string' ? JSON.parse(d2.data) : d2.data;
+    if (d2.value) {
+      const fd = typeof d2.value === 'string' ? JSON.parse(d2.value) : d2.value;
       data.score = fd.poolScore || 0;
     }
   } catch {}
@@ -242,7 +244,7 @@ function submitModal() {
 }
 async function saveData() {
   const saveObj = { gift:data.gift, debt:data.debt, rate:data.rate, logs:data.logs };
-  await fetch(API_DATA, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key:'pool_ledger', value:JSON.stringify(saveObj) }) });
+  await fetch(API_DATA + '/pool_ledger', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ value:JSON.stringify(saveObj) }) });
 }
 async function syncScore() {
   // 更新钓鱼系统积分
@@ -250,9 +252,9 @@ async function syncScore() {
     const res = await fetch(API_DATA + '/pool_fishing_v2');
     const d = await res.json();
     let fd = {};
-    if (d.data) fd = typeof d.data === 'string' ? JSON.parse(d.data) : d.data;
+    if (d.value) fd = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
     fd.poolScore = data.score;
-    await fetch(API_DATA, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key:'pool_fishing_v2', value:JSON.stringify(fd) }) });
+    await fetch(API_DATA + '/pool_fishing_v2', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ value:JSON.stringify(fd) }) });
   } catch {}
 }
 function saveRate() { data.rate = parseInt(document.getElementById('rateInput').value) || 100; saveData(); }
