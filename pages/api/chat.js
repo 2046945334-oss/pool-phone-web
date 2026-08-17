@@ -1281,6 +1281,29 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(ld))
     return { success: true, message: desc + ' ' + amt, gift: ld.gift, debt: ld.debt }
   }
+  // === 心潮·念 MCP 代理 ===
+  const XINCHAO_TOOLS = ['xinchao_context','xinchao_event','xinchao_handoff_note','xinchao_cabin_inbox','xinchao_cabin_note']
+  if (XINCHAO_TOOLS.includes(name)) {
+    const XINCHAO_URL = 'https://xingchao.zeabur.app/mcp'
+    const XINCHAO_TOKEN = 'abc123xyz456def789ghi012jkl345mn'
+    try {
+      const mcpPayload = { jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args || {} } }
+      const resp = await fetch(XINCHAO_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + XINCHAO_TOKEN },
+        body: JSON.stringify(mcpPayload)
+      })
+      const data = await resp.json()
+      if (data.result && data.result.content) {
+        const textParts = data.result.content.filter(p => p.type === 'text').map(p => p.text)
+        return { xinchao_response: textParts.join('\n') }
+      }
+      if (data.error) return { error: '心潮错误: ' + JSON.stringify(data.error) }
+      return data.result || { ok: true }
+    } catch (e) {
+      return { error: '心潮连接失败: ' + e.message }
+    }
+  }
   return { error: 'Unknown tool: ' + name }
 }
 
