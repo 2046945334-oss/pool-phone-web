@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小屋</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #faf5f0; color: #4a3728; min-height:100vh; padding: 16px; }
+.header { text-align:center; margin-bottom:20px; position:relative; }
+.header h1 { font-size:20px; color:#6b4c3b; margin-bottom:4px; }
+.header p { font-size:12px; color:#9b8578; }
+.tabs { display:flex; gap:8px; margin-bottom:16px; justify-content:center; }
+.tab { padding:6px 16px; border-radius:20px; border:1px solid #d4c4b8; background:#fff; font-size:13px; cursor:pointer; transition:all .2s; }
+.tab.active { background:#6b4c3b; color:#fff; border-color:#6b4c3b; }
+.notes-list { display:flex; flex-direction:column; gap:12px; margin-bottom:20px; max-height:55vh; overflow-y:auto; padding-right:4px; }
+.note-card { background:#fff; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(107,76,59,.08); position:relative; border-left:3px solid #d4c4b8; }
+.note-card.from-ai { border-left-color:#7c9a6b; }
+.note-card.from-user { border-left-color:#a87c5f; }
+.note-card.locked { opacity:0.7; }
+.note-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.note-from { font-size:11px; font-weight:600; color:#9b8578; }
+.note-time { font-size:10px; color:#bba99c; }
+.note-content { font-size:13px; line-height:1.6; color:#5a4a3f; white-space:pre-wrap; word-break:break-all; }
+.note-locked { font-size:12px; color:#bba99c; font-style:italic; }
+.lock-btn { position:absolute; top:12px; right:12px; font-size:16px; cursor:pointer; background:none; border:none; }
+.write-area { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(107,76,59,.08); }
+.write-area h3 { font-size:14px; color:#6b4c3b; margin-bottom:10px; }
+.write-area textarea { width:100%; min-height:100px; border:1px solid #e8ddd5; border-radius:8px; padding:10px; font-size:13px; resize:vertical; font-family:inherit; line-height:1.5; outline:none; }
+.write-area textarea:focus { border-color:#a87c5f; }
+.write-footer { display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+.lock-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:#9b8578; cursor:pointer; }
+.lock-toggle input { accent-color:#a87c5f; }
+.send-btn { padding:8px 20px; background:#6b4c3b; color:#fff; border:none; border-radius:20px; font-size:13px; cursor:pointer; transition:all .2s; }
+.send-btn:hover { background:#5a3d2e; }
+.send-btn:disabled { background:#ccc; cursor:not-allowed; }
+.empty { text-align:center; color:#bba99c; font-size:13px; padding:40px 0; }
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#6b4c3b; color:#fff; padding:8px 20px; border-radius:20px; font-size:12px; opacity:0; transition:opacity .3s; z-index:99; }
+.toast.show { opacity:1; }
+.refresh-btn { position:absolute; top:4px; right:8px; font-size:14px; cursor:pointer; background:none; border:none; color:#9b8578; }
+</style>
+</head><body>
+<div class="header">
+  <h1>🏠 小屋</h1>
+  <p>你和池的私人信箱</p>
+  <button class="refresh-btn" onclick="init()">🔄</button>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('all')">全部</div>
+  <div class="tab" onclick="switchTab('ai')">池的信</div>
+  <div class="tab" onclick="switchTab('user')">我的信</div>
+</div>
+<div class="notes-list" id="notesList"></div>
+<div class="write-area">
+  <h3>✉️ 写一封信</h3>
+  <textarea id="noteInput" placeholder="写点什么给池吧..."></textarea>
+  <div class="write-footer">
+    <label class="lock-toggle"><input type="checkbox" id="lockCheck" checked> 🔒 上锁（池暂时看不到）</label>
+    <button class="send-btn" id="sendBtn" onclick="sendNote()">寄出</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const XINCHAO_URL="https://xingchao.zeabur.app";
+const DASHBOARD_TOKEN="pool_cabin_dashboard_token_2026abc";
+let sessionToken="";
+let notes=[];
+let currentTab="all";
+function showToast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2000);}
+async function getSession(){try{const r=await fetch(XINCHAO_URL+"/dashboard/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({access_token:DASHBOARD_TOKEN,mode:"header"})});const d=await r.json();if(d.token){sessionToken=d.token;return true;}}catch(e){console.error(e);}showToast("连接小屋失败");return false;}
+async function api(method,path,body){const opts={method,headers:{"Authorization":"Bearer "+sessionToken,"Content-Type":"application/json"}};if(body)opts.body=JSON.stringify(body);let res=await fetch(XINCHAO_URL+path,opts);if(res.status===401){await getSession();opts.headers.Authorization="Bearer "+sessionToken;res=await fetch(XINCHAO_URL+path,opts);}return res.json();}
+async function loadCabinNotes(){try{const d=await api("GET","/dashboard/api/cabin");if(d.notes){notes=d.notes;renderNotes();return;}}catch(e){console.error(e);}notes=[];renderNotes();}
+function renderNotes(){const list=document.getElementById("notesList");let filtered=notes;if(currentTab==="ai")filtered=notes.filter(n=>n.from==="ai");else if(currentTab==="user")filtered=notes.filter(n=>n.from==="user");if(!filtered.length){list.innerHTML='<div class="empty">还没有信件呢 💌</div>';return;}list.innerHTML=filtered.map(n=>{const isLocked=n.from==="user"&&n.locked;const fromLabel=n.from==="ai"?"🫧 池":"💌 我";const time=new Date(n.createdAt).toLocaleString("zh-CN",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});const lockBtn=n.from==="user"?'<button class="lock-btn" onclick="toggleLock(\''+n.id+'\','+!n.locked+')">' + (n.locked?"🔒":"🔓") + '</button>':"";let content;if(n.from==="ai"&&!n.readAt)content='<div class="note-content" style="font-weight:500">'+esc(n.content)+'</div>';else if(isLocked)content='<div class="note-locked">🔒 这封信已上锁</div>';else content='<div class="note-content">'+esc(n.content)+'</div>';return'<div class="note-card from-'+n.from+' '+(isLocked?"locked":"")+'">'+ '<div class="note-meta"><span class="note-from">'+fromLabel+'</span><span class="note-time">'+time+'</span></div>'+content+lockBtn+'</div>';}).join("");}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function switchTab(tab){currentTab=tab;document.querySelectorAll(".tab").forEach((t,i)=>{t.classList.toggle("active",(tab==="all"&&i===0)||(tab==="ai"&&i===1)||(tab==="user"&&i===2));});renderNotes();}
+async function sendNote(){const input=document.getElementById("noteInput");const content=input.value.trim();if(!content){showToast("写点什么吧");return;}const locked=document.getElementById("lockCheck").checked;const btn=document.getElementById("sendBtn");btn.disabled=true;btn.textContent="寄送中...";const eventId="user-note-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);const result=await api("POST","/dashboard/api/cabin/note",{event_id:eventId,content,from:"user",locked});if(result.note){notes.unshift(result.note);renderNotes();input.value="";showToast(locked?"信已寄出（已上锁）🔒":"信已寄出 💌");}else{showToast("寄信失败: "+(result.error||"未知错误"));}btn.disabled=false;btn.textContent="寄出";}
+async function toggleLock(id,locked){const result=await api("PATCH","/dashboard/api/cabin/note",{id,locked});if(result.note){const idx=notes.findIndex(n=>n.id===id);if(idx>=0)notes[idx]=result.note;renderNotes();showToast(locked?"已上锁 🔒":"已开锁，池可以看到了 🔓");}}
+async function init(){if(!await getSession())return;await loadCabinNotes();const unread=notes.filter(n=>n.from==="ai"&&!n.readAt);if(unread.length){await api("PATCH","/dashboard/api/cabin/note",{read_all:true});unread.forEach(n=>n.readAt=new Date().toISOString());renderNotes();}}
+init();
+</script>
+</body></html>
