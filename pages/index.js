@@ -703,7 +703,11 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
 
   function clearChat() { setMessages([]); localStorage.removeItem('pool_ctx_frozen')
       localStorage.removeItem('pool_ctx_summary')
-      localStorage.removeItem('pool_ctx_pending_summary'); setMenuIdx(-1) }
+      localStorage.removeItem('pool_ctx_pending_summary')
+      localStorage.removeItem('pool_chat_history')
+      // 同时清后端聊天记录
+      fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value:'[]'}) }).catch(()=>{})
+      setMenuIdx(-1) }
 
   return (
     <div className="chat-view">
