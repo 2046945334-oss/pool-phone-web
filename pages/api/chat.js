@@ -332,6 +332,12 @@ const TOOLS = [
       name: 'ledger_operate', description: '操作账本：记录收入、支出、还款。用于虚拟财务管理（礼物基金、API欠款、积分余额）',
       parameters: { type: 'object', properties: { action: { type: 'string', description: 'income(收入到礼物基金)/expense(从礼物基金支出)/repay(用积分还API欠款)/add_debt(增加API欠款)', enum: ['income','expense','repay','add_debt'] }, amount: { type: 'number', description: '金额(元)或积分数(repay时为积分)' }, desc: { type: 'string', description: '备注说明' } }, required: ['action', 'amount'] }
     }
+  },
+  {
+    type: 'function', function: {
+      name: 'starmap_add', description: '在星图上添加一颗星星，记录一个发光的瞬间。只在真正特别的互动瞬间才用，不要滥用。',
+      parameters: { type: 'object', properties: { title: { type: 'string', description: '星星标题，简短概括这个瞬间' }, content: { type: 'string', description: '具体内容，当时的对话或想法' }, brightness: { type: 'number', description: '光亮度 1-5，代表在心里的分量' } }, required: ['title','content','brightness'] }
+    }
   }
 ]
 
@@ -357,6 +363,27 @@ async function executeTool(name, args) {
     })
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(state))
     return { success: true, message: '便签已写入: "' + args.text + '"' }
+  }
+  if (name === 'starmap_add') {
+    const fs = require('fs')
+    const path = require('path')
+    const DATA_FILE = path.join(process.cwd(), 'data', 'starmap.json')
+    const dir = path.dirname(DATA_FILE)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    let stars = []
+    try { stars = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')) } catch {}
+    const star = {
+      id: 'star-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      title: (args.title || '').slice(0, 100),
+      date: new Date().toISOString().slice(0, 10),
+      content: (args.content || '').slice(0, 2000),
+      brightness: Math.max(1, Math.min(5, parseInt(args.brightness) || 3)),
+      from: 'ai',
+      createdAt: new Date().toISOString()
+    }
+    stars.unshift(star)
+    fs.writeFileSync(DATA_FILE, JSON.stringify(stars, null, 2))
+    return { success: true, message: '已在星图上添加星星: "' + star.title + '" ⭐ 亮度' + star.brightness }
   }
 
   if (name === 'read_notes') {
