@@ -242,8 +242,6 @@ function submitModal() {
     data.userScore = (data.userScore || 0) + amt;
     data.debt = Math.max(0, data.debt - yuan);
     data.logs.push({ type:'repay', amount: yuan.toFixed(2) + '元(' + amt + '分)', desc: desc || '积分还款', time:now });
-    // 同步积分到钓鱼系统
-    syncScore();
     // 动画
     document.getElementById('vDebt').classList.add('pulse');
     document.getElementById('vScore').classList.add('pulse');
@@ -253,7 +251,7 @@ function submitModal() {
     const to = document.getElementById('mTo').value;
     const rate = data.rate || 100;
     if (from === 'gift') { data.gift = Math.max(0, data.gift - amt); if (to === 'debt') data.debt = Math.max(0, data.debt - amt); else data.gift += amt; }
-    else if (from === 'score') { const pts = amt * rate; if (pts > data.score) { alert('积分不足'); return; } data.score -= pts; data.userScore = (data.userScore || 0) + Math.round(pts); if (to === 'debt') data.debt = Math.max(0, data.debt - amt); else data.gift += amt; syncScore(); }
+    else if (from === 'score') { const pts = amt * rate; if (pts > data.score) { alert('积分不足'); return; } data.score -= pts; data.userScore = (data.userScore || 0) + Math.round(pts); if (to === 'debt') data.debt = Math.max(0, data.debt - amt); else data.gift += amt; }
     data.logs.push({ type:'transfer', amount:amt, desc: desc || '转账', time:now });
   }
   hideModal();
@@ -264,18 +262,7 @@ async function saveData() {
   const saveObj = { gift:data.gift, debt:data.debt, rate:data.rate, logs:data.logs };
   await fetch(API_DATA + '/pool_ledger', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ value:JSON.stringify(saveObj) }) });
 }
-async function syncScore() {
-  // 更新钓鱼系统积分
-  try {
-    const res = await fetch(API_DATA + '/pool_fishing_v2');
-    const d = await res.json();
-    let fd = {};
-    if (d.value) fd = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
-    fd.poolScore = data.score;
-    if (data.userScore) fd.score = data.userScore;
-    await fetch(API_DATA + '/pool_fishing_v2', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ value:JSON.stringify(fd) }) });
-  } catch {}
-}
+// syncScore removed - ledger is read-only for fishing data
 function deleteLog(idx) {
   if (idx < 0 || idx >= data.logs.length) return;
   if (!confirm('删除这条记录？')) return;
