@@ -525,9 +525,9 @@ function ChatView({ theme }) {
         if (active[i].role === 'assistant') rounds++
       }
       if (rounds >= ROTATION_THRESHOLD) {
-        // 轮换：active 变成新 frozen，旧 frozen 丢弃
-        localStorage.setItem('pool_ctx_frozen', JSON.stringify(active))
-        console.log(`[ctx-mgr] 轮换发生！旧frozen=${frozenLen}msgs 新frozen=${active.length}msgs`)
+        // 轮换：整个对话历史变成新 frozen
+        localStorage.setItem('pool_ctx_frozen', JSON.stringify(mergedAll))
+        console.log(`[ctx-mgr] 轮换发生！旧frozen=${frozenLen}msgs 新frozen=${mergedAll.length}msgs`)
       }
     } catch(e) { console.warn('[ctx-mgr] rotation check error:', e) }
     // Auto extract memories every 10 user messages
