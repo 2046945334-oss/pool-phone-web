@@ -327,7 +327,6 @@ const TOOLS = [
       parameters: { type: 'object', properties: { id: { type: 'number', description: '动态ID（从read_moments获取）' }, like: { type: 'boolean', description: '是否点赞' }, comment: { type: 'string', description: '评论内容（可选，不填就只点赞）' } }, required: ['id'] }
     }
   },
-,
   {
     type: 'function', function: {
       name: 'ledger_operate', description: '操作账本：记录收入、支出、还款。用于虚拟财务管理（礼物基金、API欠款、积分余额）',
