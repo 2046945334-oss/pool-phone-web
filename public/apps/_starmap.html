@@ -162,7 +162,7 @@ function makeGlow(color){
 function hashCode(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h)}
 function pseudoRandom(seed,n){const x=Math.sin(seed+n*9999)*10000;return x-Math.floor(x)}
 // === Data ===
-async function loadStars(){try{const r=await fetch('/api/starmap');const d=await r.json();if(d.stars){stars=d.stars;buildStars()}}catch(e){toast('\u52a0\u8f7d\u5931\u8d25')}}
+async function loadStars(){try{const r=await fetch((window.__BASE_URL__||'')+'/api/starmap');const d=await r.json();if(d.stars){stars=d.stars;buildStars()}}catch(e){toast('\u52a0\u8f7d\u5931\u8d25')}}
 function viewStar(s){
   document.getElementById('vTitle').textContent=s.title;
   document.getElementById('vDate').textContent=s.date||'';
@@ -181,7 +181,7 @@ async function submitStar(){
   const title=document.getElementById('aTitle').value.trim();
   const content=document.getElementById('aBody').value.trim();
   if(!title||!content){toast('\u6807\u9898\u548c\u5185\u5bb9\u4e0d\u80fd\u7a7a');return}
-  try{const r=await fetch('/api/starmap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content,brightness:selB,from:'user'})});
+  try{const r=await fetch((window.__BASE_URL__||'')+'/api/starmap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content,brightness:selB,from:'user'})});
   const d=await r.json();if(d.star){stars.unshift(d.star);buildStars();closeAdd();toast('\u661f\u661f\u5df2\u6dfb\u52a0 \u2728')}else{toast(d.error||'\u5931\u8d25')}}catch(e){toast('\u7f51\u7edc\u9519\u8bef')}
 }
 // Init
