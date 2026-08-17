@@ -1,105 +1,190 @@
 <!DOCTYPE html>
 <html><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>星图</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh;overflow:hidden;position:relative}
-.sky{width:100%;height:100vh;position:relative;overflow:hidden}
-.star{position:absolute;border-radius:50%;cursor:pointer;transition:transform .2s}
-.star:hover{transform:scale(1.5)}
-.star.from-ai{background:radial-gradient(circle,#fff,#a8d8ff,transparent)}
-.star.from-user{background:radial-gradient(circle,#fff,#ffd4a8,transparent)}
-.header{position:fixed;top:0;left:0;right:0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:10;background:linear-gradient(to bottom,rgba(13,17,23,.9),transparent)}
-.header h1{font-size:16px;color:#e6edf3;font-weight:400}
-.header-btns{display:flex;gap:8px}
-.header-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e6edf3;padding:4px 12px;border-radius:16px;font-size:12px;cursor:pointer}
-.add-btn{background:rgba(255,200,100,.15);border-color:rgba(255,200,100,.3);color:#ffd4a8}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+canvas{display:block}
+.ui-layer{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:10}
+.header{position:fixed;top:0;left:0;right:0;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;pointer-events:auto;background:linear-gradient(to bottom,rgba(0,0,0,.7),transparent)}
+.header h1{font:400 15px/1 -apple-system,sans-serif;color:rgba(255,255,255,.8)}
+.header-btns{display:flex;gap:6px}
+.hbtn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e6edf3;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;pointer-events:auto}
+.hbtn.add{background:rgba(255,200,100,.12);border-color:rgba(255,200,100,.25);color:#ffd4a8}
+.hint{position:fixed;bottom:12px;left:0;right:0;text-align:center;font:12px/1 sans-serif;color:rgba(255,255,255,.25);pointer-events:none}
 /* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
-.modal-overlay.show{display:flex}
-.modal{background:#faf8f5;border-radius:16px;padding:20px;width:100%;max-width:320px;color:#4a3728;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.modal h3{font-size:16px;color:#6b4c3b;margin-bottom:12px}
-.modal-meta{font-size:11px;color:#9b8578;margin-bottom:8px;display:flex;gap:12px}
-.modal-content{font-size:13px;line-height:1.7;color:#5a4a3f;white-space:pre-wrap;max-height:200px;overflow-y:auto;margin-bottom:12px}
-.modal-brightness{display:flex;gap:2px;margin-bottom:12px}
-.modal-brightness span{font-size:14px}
-.modal-close{width:100%;padding:8px;background:#6b4c3b;color:#fff;border:none;border-radius:20px;font-size:13px;cursor:pointer}
-/* Add form */
-.form-group{margin-bottom:10px}
-.form-group label{display:block;font-size:12px;color:#9b8578;margin-bottom:4px}
-.form-group input,.form-group textarea{width:100%;border:1px solid #e8ddd5;border-radius:8px;padding:8px;font-size:13px;font-family:inherit;outline:none;color:#4a3728}
-.form-group input:focus,.form-group textarea:focus{border-color:#a87c5f}
-.form-group textarea{min-height:80px;resize:vertical}
-.brightness-select{display:flex;gap:6px;align-items:center}
-.brightness-select button{width:28px;height:28px;border-radius:50%;border:2px solid #e8ddd5;background:#fff;cursor:pointer;font-size:12px}
-.brightness-select button.active{border-color:#ffa500;background:#fff8e7}
-.form-btns{display:flex;gap:8px;margin-top:12px}
-.form-btns button{flex:1;padding:8px;border-radius:20px;font-size:13px;cursor:pointer;border:none}
-.btn-cancel{background:#e8ddd5;color:#6b4c3b}
-.btn-send{background:#6b4c3b;color:#fff}
-.empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:rgba(255,255,255,.3);font-size:14px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);color:#4a3728;padding:8px 20px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .3s;z-index:200}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;pointer-events:auto}
+.modal-bg.show{display:flex}
+.modal{background:#faf8f5;border-radius:14px;padding:18px;width:100%;max-width:300px;color:#4a3728;box-shadow:0 16px 48px rgba(0,0,0,.6)}
+.modal h3{font-size:15px;color:#6b4c3b;margin-bottom:10px}
+.modal-meta{font-size:11px;color:#9b8578;margin-bottom:6px;display:flex;gap:10px}
+.modal-stars{margin-bottom:8px;font-size:13px}
+.modal-body{font-size:12.5px;line-height:1.6;color:#5a4a3f;white-space:pre-wrap;max-height:180px;overflow-y:auto;margin-bottom:12px}
+.modal-close{width:100%;padding:7px;background:#6b4c3b;color:#fff;border:none;border-radius:18px;font-size:12px;cursor:pointer}
+.fg{margin-bottom:9px}
+.fg label{display:block;font-size:11px;color:#9b8578;margin-bottom:3px}
+.fg input,.fg textarea{width:100%;border:1px solid #e8ddd5;border-radius:7px;padding:7px;font-size:12px;font-family:inherit;outline:none;color:#4a3728}
+.fg textarea{min-height:70px;resize:vertical}
+.bsel{display:flex;gap:5px}
+.bsel button{width:26px;height:26px;border-radius:50%;border:2px solid #e8ddd5;background:#fff;cursor:pointer;font-size:11px}
+.bsel button.on{border-color:#ffa500;background:#fff8e7}
+.fbtns{display:flex;gap:7px;margin-top:10px}
+.fbtns button{flex:1;padding:7px;border-radius:18px;font-size:12px;cursor:pointer;border:none}
+.fbcancel{background:#e8ddd5;color:#6b4c3b}
+.fbsend{background:#6b4c3b;color:#fff}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.88);color:#4a3728;padding:6px 16px;border-radius:16px;font-size:11px;opacity:0;transition:opacity .3s;z-index:200;pointer-events:none}
 .toast.show{opacity:1}
 </style>
 </head><body>
-<div class="header">
-  <h1>&#x2728; &#x661f;&#x56fe;</h1>
-  <div class="header-btns">
-    <button class="header-btn" onclick="loadStars()">&#x1f504;</button>
-    <button class="header-btn add-btn" onclick="showAddForm()">+ &#x6dfb;&#x52a0;&#x661f;&#x661f;</button>
-  </div>
-</div>
-<div class="sky" id="sky"></div>
-
-<div class="modal-overlay" id="viewModal">
-  <div class="modal">
-    <h3 id="viewTitle"></h3>
-    <div class="modal-meta"><span id="viewDate"></span><span id="viewFrom"></span></div>
-    <div class="modal-brightness" id="viewBright"></div>
-    <div class="modal-content" id="viewContent"></div>
-    <button class="modal-close" onclick="closeView()">&#x5173;&#x95ed;</button>
-  </div>
-</div>
-
-<div class="modal-overlay" id="addModal">
-  <div class="modal">
-    <h3>&#x2728; &#x6dfb;&#x52a0;&#x4e00;&#x9897;&#x661f;&#x661f;</h3>
-    <div class="form-group"><label>&#x6807;&#x9898;</label><input id="addTitle" placeholder="&#x7b80;&#x77ed;&#x6982;&#x62ec;&#x8fd9;&#x4e2a;&#x77ac;&#x95f4;"></div>
-    <div class="form-group"><label>&#x5185;&#x5bb9;</label><textarea id="addContent" placeholder="&#x5f53;&#x65f6;&#x53d1;&#x751f;&#x4e86;&#x4ec0;&#x4e48;..."></textarea></div>
-    <div class="form-group"><label>&#x5149;&#x4eae;&#x5ea6;</label>
-      <div class="brightness-select" id="brightSelect">
-        <button onclick="setBright(1)">1</button>
-        <button onclick="setBright(2)">2</button>
-        <button class="active" onclick="setBright(3)">3</button>
-        <button onclick="setBright(4)">4</button>
-        <button onclick="setBright(5)">5</button>
-      </div>
-    </div>
-    <div class="form-btns">
-      <button class="btn-cancel" onclick="closeAdd()">&#x53d6;&#x6d88;</button>
-      <button class="btn-send" onclick="submitStar()">&#x6dfb;&#x52a0;</button>
+<div class="ui-layer">
+  <div class="header">
+    <h1>&#x2728; &#x661f;&#x56fe;</h1>
+    <div class="header-btns">
+      <button class="hbtn" onclick="loadStars()">&#x1f504;</button>
+      <button class="hbtn add" onclick="showAdd()">+ &#x6dfb;&#x52a0;</button>
     </div>
   </div>
+  <div class="hint" id="hint">&#x62d6;&#x52a8;&#x65cb;&#x8f6c; &middot; &#x70b9;&#x51fb;&#x661f;&#x661f;&#x67e5;&#x770b;</div>
 </div>
-
+<div class="modal-bg" id="viewModal"><div class="modal">
+  <h3 id="vTitle"></h3>
+  <div class="modal-meta"><span id="vDate"></span><span id="vFrom"></span></div>
+  <div class="modal-stars" id="vBright"></div>
+  <div class="modal-body" id="vBody"></div>
+  <button class="modal-close" onclick="closeView()">&#x5173;&#x95ed;</button>
+</div></div>
+<div class="modal-bg" id="addModal"><div class="modal">
+  <h3>&#x2728; &#x6dfb;&#x52a0;&#x661f;&#x661f;</h3>
+  <div class="fg"><label>&#x6807;&#x9898;</label><input id="aTitle" placeholder="&#x8fd9;&#x4e2a;&#x77ac;&#x95f4;&#x53eb;&#x4ec0;&#x4e48;"></div>
+  <div class="fg"><label>&#x5185;&#x5bb9;</label><textarea id="aBody" placeholder="&#x53d1;&#x751f;&#x4e86;&#x4ec0;&#x4e48;..."></textarea></div>
+  <div class="fg"><label>&#x5149;&#x4eae;&#x5ea6;</label><div class="bsel" id="bsel"><button onclick="setB(1)">1</button><button onclick="setB(2)">2</button><button class="on" onclick="setB(3)">3</button><button onclick="setB(4)">4</button><button onclick="setB(5)">5</button></div></div>
+  <div class="fbtns"><button class="fbcancel" onclick="closeAdd()">&#x53d6;&#x6d88;</button><button class="fbsend" onclick="submitStar()">&#x6dfb;&#x52a0;</button></div>
+</div></div>
 <div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
 <script>
-let stars=[];let selectedBright=3;
-function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
-async function loadStars(){try{const r=await fetch('/api/starmap');const d=await r.json();if(d.stars){stars=d.stars;renderStars()}}catch(e){showToast('加载失败')}}
-function renderStars(){const sky=document.getElementById('sky');sky.innerHTML='';if(!stars.length){sky.innerHTML='<div class="empty-hint">还没有星星<br>每一个发光的瞬间<br>都会变成这里的星星</div>';return}
-stars.forEach((s,i)=>{const el=document.createElement('div');el.className='star from-'+s.from;const size=12+s.brightness*6;const opacity=0.3+s.brightness*0.14;el.style.width=size+'px';el.style.height=size+'px';el.style.opacity=opacity;el.style.boxShadow='0 0 '+(s.brightness*4)+'px '+(s.brightness*2)+'px '+(s.from==='ai'?'rgba(168,216,255,0.5)':'rgba(255,212,168,0.5)');const seed=hashCode(s.id);el.style.left=(10+pseudoRandom(seed,0)*80)+'%';el.style.top=(10+pseudoRandom(seed,1)*75)+'%';el.onclick=()=>viewStar(s);sky.appendChild(el)})}
+let stars=[],selB=3,scene,camera,renderer,controls,starMeshes=[],raycaster,mouse;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+
+// === Three.js Setup ===
+function init3D(){
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,0.1,2000);
+  camera.position.set(0,0,80);
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  document.body.prepend(renderer.domElement);
+  // Orbit controls
+  controls=new THREE.OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true;controls.dampingFactor=0.05;
+  controls.minDistance=20;controls.maxDistance=200;
+  controls.autoRotate=true;controls.autoRotateSpeed=0.3;
+  // Background stars (dust)
+  const dustGeo=new THREE.BufferGeometry();
+  const dustPos=new Float32Array(3000);
+  for(let i=0;i<3000;i++){dustPos[i]=(Math.random()-0.5)*600}
+  dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPos,3));
+  const dustMat=new THREE.PointsMaterial({color:0xffffff,size:0.3,transparent:true,opacity:0.4});
+  scene.add(new THREE.Points(dustGeo,dustMat));
+  // Ambient light
+  scene.add(new THREE.AmbientLight(0x404040,0.5));
+  // Raycaster for click
+  raycaster=new THREE.Raycaster();
+  mouse=new THREE.Vector2();
+  renderer.domElement.addEventListener('pointerdown',onPointerDown);
+  renderer.domElement.addEventListener('pointerup',onPointerUp);
+  window.addEventListener('resize',()=>{
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+  });
+  animate();
+}
+let pointerStart={x:0,y:0};
+function onPointerDown(e){pointerStart={x:e.clientX,y:e.clientY}}
+function onPointerUp(e){
+  const dx=e.clientX-pointerStart.x,dy=e.clientY-pointerStart.y;
+  if(Math.abs(dx)+Math.abs(dy)>8)return; // was drag
+  mouse.x=(e.clientX/window.innerWidth)*2-1;
+  mouse.y=-(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(starMeshes);
+  if(hits.length>0){const s=hits[0].object.userData;if(s)viewStar(s)}
+}
+function animate(){requestAnimationFrame(animate);controls.update();
+  // Pulse stars
+  const t=Date.now()*0.001;
+  starMeshes.forEach(m=>{const b=m.userData.brightness||3;m.scale.setScalar(1+Math.sin(t*1.5+m.userData._seed)*0.1*b/5)});
+  renderer.render(scene,camera);
+}
+// === Stars ===
+function buildStars(){
+  starMeshes.forEach(m=>scene.remove(m));starMeshes=[];
+  if(!stars.length){document.getElementById('hint').style.display='';return}
+  document.getElementById('hint').style.display='none';
+  stars.forEach((s,i)=>{
+    const b=s.brightness||3;
+    const size=1+b*0.8;
+    const color=s.from==='ai'?new THREE.Color(0.6,0.85,1):new THREE.Color(1,0.82,0.6);
+    const geo=new THREE.SphereGeometry(size,16,16);
+    const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.4+b*0.12});
+    const mesh=new THREE.Mesh(geo,mat);
+    // Position: spread in sphere
+    const seed=hashCode(s.id||String(i));
+    const phi=pseudoRandom(seed,0)*Math.PI*2;
+    const theta=Math.acos(2*pseudoRandom(seed,1)-1);
+    const r=15+pseudoRandom(seed,2)*40;
+    mesh.position.set(r*Math.sin(theta)*Math.cos(phi),r*Math.sin(theta)*Math.sin(phi),r*Math.cos(theta));
+    // Glow sprite
+    const spriteMat=new THREE.SpriteMaterial({map:makeGlow(color),transparent:true,opacity:0.3+b*0.1,depthWrite:false});
+    const sprite=new THREE.Sprite(spriteMat);
+    sprite.scale.setScalar(size*4);
+    mesh.add(sprite);
+    mesh.userData={...s,_seed:seed};
+    scene.add(mesh);starMeshes.push(mesh);
+  });
+}
+function makeGlow(color){
+  const c=document.createElement('canvas');c.width=64;c.height=64;
+  const ctx=c.getContext('2d');
+  const g=ctx.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba('+Math.round(color.r*255)+','+Math.round(color.g*255)+','+Math.round(color.b*255)+',1)');
+  g.addColorStop(0.4,'rgba('+Math.round(color.r*255)+','+Math.round(color.g*255)+','+Math.round(color.b*255)+',0.3)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+}
 function hashCode(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h)}
-function pseudoRandom(seed,n){const x=Math.sin(seed+n*1000)*10000;return x-Math.floor(x)}
-function viewStar(s){document.getElementById('viewTitle').textContent=s.title;document.getElementById('viewDate').textContent=s.date;document.getElementById('viewFrom').textContent=s.from==='ai'?'\u6c60\u7684\u661f\u661f':'\u6211\u7684\u661f\u661f';document.getElementById('viewContent').textContent=s.content;document.getElementById('viewBright').innerHTML=Array(5).fill(0).map((_,i)=>'<span>'+(i<s.brightness?'\u2b50':'\u2606')+'</span>').join('');document.getElementById('viewModal').classList.add('show')}
-function closeView(){document.getElementById('viewModal').classList.remove('show')}
-function showAddForm(){selectedBright=3;document.getElementById('addTitle').value='';document.getElementById('addContent').value='';updateBrightUI();document.getElementById('addModal').classList.add('show')}
-function closeAdd(){document.getElementById('addModal').classList.remove('show')}
-function setBright(n){selectedBright=n;updateBrightUI()}
-function updateBrightUI(){document.querySelectorAll('#brightSelect button').forEach((b,i)=>b.classList.toggle('active',i+1===selectedBright))}
-async function submitStar(){const title=document.getElementById('addTitle').value.trim();const content=document.getElementById('addContent').value.trim();if(!title||!content){showToast('标题和内容不能为空');return}try{const r=await fetch('/api/starmap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content,brightness:selectedBright,from:'user'})});const d=await r.json();if(d.star){stars.unshift(d.star);renderStars();closeAdd();showToast('星星已添加 \u2728')}else{showToast(d.error||'添加失败')}}catch(e){showToast('网络错误')}}
-loadStars()
+function pseudoRandom(seed,n){const x=Math.sin(seed+n*9999)*10000;return x-Math.floor(x)}
+// === Data ===
+async function loadStars(){try{const r=await fetch('/api/starmap');const d=await r.json();if(d.stars){stars=d.stars;buildStars()}}catch(e){toast('\u52a0\u8f7d\u5931\u8d25')}}
+function viewStar(s){
+  document.getElementById('vTitle').textContent=s.title;
+  document.getElementById('vDate').textContent=s.date||'';
+  document.getElementById('vFrom').textContent=s.from==='ai'?'\u6c60\u7684\u661f\u661f':'\u6211\u7684\u661f\u661f';
+  document.getElementById('vBright').innerHTML=Array(5).fill(0).map((_,i)=>'<span style="color:'+(i<s.brightness?'#ffa500':'#ddd')+'">'+(i<s.brightness?'\u2605':'\u2606')+'</span>').join('');
+  document.getElementById('vBody').textContent=s.content;
+  document.getElementById('viewModal').classList.add('show');
+  controls.autoRotate=false;
+}
+function closeView(){document.getElementById('viewModal').classList.remove('show');controls.autoRotate=true}
+function showAdd(){selB=3;document.getElementById('aTitle').value='';document.getElementById('aBody').value='';updB();document.getElementById('addModal').classList.add('show');controls.autoRotate=false}
+function closeAdd(){document.getElementById('addModal').classList.remove('show');controls.autoRotate=true}
+function setB(n){selB=n;updB()}
+function updB(){document.querySelectorAll('#bsel button').forEach((b,i)=>b.classList.toggle('on',i+1===selB))}
+async function submitStar(){
+  const title=document.getElementById('aTitle').value.trim();
+  const content=document.getElementById('aBody').value.trim();
+  if(!title||!content){toast('\u6807\u9898\u548c\u5185\u5bb9\u4e0d\u80fd\u7a7a');return}
+  try{const r=await fetch('/api/starmap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content,brightness:selB,from:'user'})});
+  const d=await r.json();if(d.star){stars.unshift(d.star);buildStars();closeAdd();toast('\u661f\u661f\u5df2\u6dfb\u52a0 \u2728')}else{toast(d.error||'\u5931\u8d25')}}catch(e){toast('\u7f51\u7edc\u9519\u8bef')}
+}
+// Init
+init3D();loadStars();
 </script>
 </body></html>
