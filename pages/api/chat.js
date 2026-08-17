@@ -102,8 +102,8 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'buy_her_shop_item', description: '从"她的小铺"（用户的商店）购买商品，花费池的积分(poolScore)',
-      parameters: { type: 'object', properties: { item_id: { type: 'string', description: '商品ID' }, item_name: { type: 'string', description: '商品名称' } }, required: ['item_id'] }
+      name: 'buy_her_shop_item', description: '从"她的小铺"（用户的商店）购买商品，花费池的积分(poolScore)。可用item_name按商品名购买',
+      parameters: { type: 'object', properties: { item_id: { type: 'string', description: '商品ID(可选)' }, item_name: { type: 'string', description: '商品名称(推荐用这个)' } } }
     }
   },
   {
@@ -586,8 +586,8 @@ async function executeTool(name, args) {
       const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop')
       if (row) herItems = JSON.parse(row.value)
     } catch {}
-    const item = herItems.find(i => i.id === args.item_id)
-    if (!item) return { error: '商品不存在: ' + args.item_id }
+    const item = herItems.find(i => i.id === args.item_id || i.name === args.item_id || i.name === args.item_name || (args.item_name && i.name.includes(args.item_name)))
+    if (!item) return { error: '商品不存在: ' + (args.item_name || args.item_id) + '。可用商品: ' + herItems.map(i=>i.name).join(', ') }
 
     // 读池的积分
     let gd = { poolScore: 0 }
