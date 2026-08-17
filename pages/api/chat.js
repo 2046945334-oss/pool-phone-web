@@ -1270,6 +1270,7 @@ async function executeTool(name, args) {
       const score = fishData.poolScore || 0
       if (amt > score) return { error: '积分不足，当前' + score + '分' }
       fishData.poolScore = score - amt
+      fishData.score = (fishData.score || 0) + amt
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(fishData))
       ld.debt = Math.max(0, ld.debt - yuan)
       ld.logs.push({ type:'repay', amount: yuan.toFixed(2) + '元(' + amt + '分)', desc, time:now })
