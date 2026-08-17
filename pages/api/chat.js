@@ -327,6 +327,13 @@ const TOOLS = [
       parameters: { type: 'object', properties: { id: { type: 'number', description: '动态ID（从read_moments获取）' }, like: { type: 'boolean', description: '是否点赞' }, comment: { type: 'string', description: '评论内容（可选，不填就只点赞）' } }, required: ['id'] }
     }
   },
+,
+  {
+    type: 'function', function: {
+      name: 'ledger_operate', description: '操作账本：记录收入、支出、还款。用于虚拟财务管理（礼物基金、API欠款、积分余额）',
+      parameters: { type: 'object', properties: { action: { type: 'string', description: 'income(收入到礼物基金)/expense(从礼物基金支出)/repay(用积分还API欠款)/add_debt(增加API欠款)', enum: ['income','expense','repay','add_debt'] }, amount: { type: 'number', description: '金额(元)或积分数(repay时为积分)' }, desc: { type: 'string', description: '备注说明' } }, required: ['action', 'amount'] }
+    }
+  }
 ]
 
 async function executeTool(name, args) {
@@ -1239,6 +1246,41 @@ async function executeTool(name, args) {
     return { ok: true, wake_at: wakeTime, reason: args.reason }
   }
 
+  if (name === 'ledger_operate') {
+    const key = 'pool_ledger'
+    let ld = { gift:0, debt:0, rate:100, logs:[] }
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
+      if (row) Object.assign(ld, JSON.parse(row.value))
+    } catch {}
+    const amt = args.amount || 0
+    const desc = args.desc || args.action
+    const now = new Date(Date.now() + 8*3600000).toISOString().slice(0,16).replace('T',' ')
+    if (args.action === 'income') {
+      ld.gift += amt
+      ld.logs.push({ type:'income', amount:amt, desc, time:now })
+    } else if (args.action === 'expense') {
+      ld.gift = Math.max(0, ld.gift - amt)
+      ld.logs.push({ type:'expense', amount:amt, desc, time:now })
+    } else if (args.action === 'repay') {
+      const rate = ld.rate || 100
+      const yuan = amt / rate
+      // Check score
+      let fishData = {}
+      try { const fr = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2'); if (fr) fishData = JSON.parse(fr.value) } catch {}
+      const score = fishData.poolScore || 0
+      if (amt > score) return { error: '积分不足，当前' + score + '分' }
+      fishData.poolScore = score - amt
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(fishData))
+      ld.debt = Math.max(0, ld.debt - yuan)
+      ld.logs.push({ type:'repay', amount: yuan.toFixed(2) + '元(' + amt + '分)', desc, time:now })
+    } else if (args.action === 'add_debt') {
+      ld.debt += amt
+      ld.logs.push({ type:'expense', amount:amt, desc: desc || 'API充值', time:now })
+    }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(ld))
+    return { success: true, message: desc + ' ' + amt, gift: ld.gift, debt: ld.debt }
+  }
   return { error: 'Unknown tool: ' + name }
 }
 
