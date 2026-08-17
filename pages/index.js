@@ -396,16 +396,7 @@ function ChatView({ theme }) {
             if (last && last.role === m.role) { last.content += '\n' + m.content }
             else { merged.push({ role: m.role, content: m.content }) }
           }
-          // === Frozen/Active 上下文管理（提高 prompt cache 命中率）===
-          const ROTATION_THRESHOLD = 6 // 每6轮对话轮换一次
-          // 读取 frozen 区（稳定前缀，不变）
-          let frozen = []
-          try { frozen = JSON.parse(localStorage.getItem('pool_ctx_frozen') || '[]') } catch {}
-          // 计算 active 区：merged 中 frozen 之后的部分
-          const frozenLen = frozen.length
-          const active = merged.slice(frozenLen)
-          // 组装：system → frozen（稳定前缀）→ 动态注入 → active（当前对话）
-          // 处理图片标签
+          // === 直接发送完整消息历史 ===
           function processImgs(msgs) {
             return msgs.map(m => {
               if (m.content && m.content.includes('[img]')) {
@@ -421,19 +412,12 @@ function ChatView({ theme }) {
               return m
             })
           }
-          const processedFrozen = processImgs(frozen)
-          const processedActive = processImgs(active)
-          // 读取 summary 区（旧 frozen 的摘要，最多3块）
-          let summaryBlocks = []
-          try { summaryBlocks = JSON.parse(localStorage.getItem('pool_ctx_summary') || '[]') } catch {}
-          const summaryMsgs = summaryBlocks.length ? [{ role: 'system', content: '[历史摘要]\n' + summaryBlocks.join('\n---\n') }] : []
-          // 请求顺序：[稳定 system_prompt] → [summary] → [frozen] → [动态注入] → [active]
+          const processedMerged = processImgs(merged)
           const sysParts = await buildSystemMessages(newMessages)
-          const stableSystem = sysParts.slice(0, 1) // 角色设定，稳定
-          const dynamicSystem = sysParts.slice(1)   // 时间/记忆/情绪，动态
-          // 日志：上下文分区状态
-          console.log(`[ctx-mgr] summary=${summaryBlocks.length}blocks frozen=${frozen.length}msgs active=${active.length}msgs`)
-          return [...stableSystem, ...summaryMsgs, ...processedFrozen, ...dynamicSystem, ...processedActive]
+          const stableSystem = sysParts.slice(0, 1)
+          const dynamicSystem = sysParts.slice(1)
+          console.log(`[ctx] system=${stableSystem.length} dynamic=${dynamicSystem.length} msgs=${processedMerged.length}`)
+          return [...stableSystem, ...dynamicSystem, ...processedMerged]
         })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
       })
       const data = await res.json()
@@ -512,69 +496,8 @@ function ChatView({ theme }) {
     }
     
     // === 异步摘要生成 ===
-    async function generateSummaryAsync(frozenMsgs) {
-      try {
-        const cfg = getApiConfig('tools') || getApiConfig('chat')
-        if (!cfg || !cfg.apiKey) return
-        const summaryPrompt = '请用2-3句话简洁总结以下对话的要点（人物、事件、情感、决定）：\n\n' + frozenMsgs.map(m => (m.role === 'user' ? '用户: ' : 'AI: ') + m.content).join('\n')
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [{ role: 'user', content: summaryPrompt }],
-            apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model
-          })
-        })
-        const data = await res.json()
-        if (data.reply) {
-          localStorage.setItem('pool_ctx_pending_summary', data.reply)
-          console.log('[ctx-mgr] 异步摘要完成，已存为pending')
-        }
-      } catch(e) { console.warn('[ctx-mgr] 摘要生成失败:', e) }
-    }
-// === Frozen/Active 轮换检查 ===
-    try {
-      const ROTATION_THRESHOLD = 6
-      // 合并当前全部消息（和发送时一样的逻辑）
-      const allMsgs = (overrideMessages || messages).filter(m => m.role !== 'system' && m.role !== 'tool_log')
-      const mergedAll = []
-      for (const m of allMsgs) {
-        const last = mergedAll[mergedAll.length - 1]
-        if (last && last.role === m.role) { last.content += '\n' + m.content }
-        else { mergedAll.push({ role: m.role, content: m.content }) }
-      }
-      let frozen = []
-      try { frozen = JSON.parse(localStorage.getItem('pool_ctx_frozen') || '[]') } catch {}
-      const frozenLen = frozen.length
-      const active = mergedAll.slice(frozenLen)
-      // 计算 active 中的完整对话轮次（user+assistant对）
-      let rounds = 0
-      for (let i = 0; i < active.length; i++) {
-        if (active[i].role === 'assistant') rounds++
-      }
-      if (rounds >= ROTATION_THRESHOLD) {
-        // === 轮换发生 ===
-        // 1. 检查 pending summary 是否完成，如果完成则晋升到 summary 区
-        const MAX_SUMMARY_BLOCKS = 3
-        let summaryArr = []
-        try { summaryArr = JSON.parse(localStorage.getItem('pool_ctx_summary') || '[]') } catch {}
-        const pending = localStorage.getItem('pool_ctx_pending_summary')
-        if (pending) {
-          summaryArr.push(pending)
-          if (summaryArr.length > MAX_SUMMARY_BLOCKS) summaryArr = summaryArr.slice(-MAX_SUMMARY_BLOCKS)
-          localStorage.setItem('pool_ctx_summary', JSON.stringify(summaryArr))
-          localStorage.removeItem('pool_ctx_pending_summary')
-          console.log(`[ctx-mgr] 摘要晋升！summary区现有${summaryArr.length}块`)
-        }
-        // 2. 对即将被丢弃的旧 frozen 启动异步摘要
-        if (frozen.length > 0) {
-          generateSummaryAsync(frozen)
-        }
-        // 3. 整个对话历史变成新 frozen
-        localStorage.setItem('pool_ctx_frozen', JSON.stringify(mergedAll))
-        console.log(`[ctx-mgr] 轮换发生！旧frozen=${frozenLen}msgs 新frozen=${mergedAll.length}msgs`)
-      }
-    } catch(e) { console.warn('[ctx-mgr] rotation check error:', e) }
+    // generateSummaryAsync removed
+
     // Auto extract memories every 10 user messages
     try {
       const userMsgCount = messages.filter(m => m.role === 'user').length
@@ -646,7 +569,7 @@ function ChatView({ theme }) {
         // 同时存入记忆系统
         callMemory('hold', { content: '[对话摘要] ' + data.reply })
         // 去掉旧对话，只保留最近的
-        setMessages(recentMessages); localStorage.removeItem('pool_ctx_frozen')
+        setMessages(recentMessages); 
       localStorage.removeItem('pool_ctx_summary')
       localStorage.removeItem('pool_ctx_pending_summary')
         alert(`\u2705 \u538b\u7f29\u5b8c\u6210\uff01\u65e7\u5bf9\u8bdd\u5df2\u538b\u7f29\u4e3a\u8bb0\u5fc6\uff0c\u4fdd\u7559\u6700\u8fd1 ${recentMessages.length} \u6761`)
@@ -703,7 +626,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
     if (!silent) setLoading(false)
   }
 
-  function clearChat() { setMessages([]); localStorage.removeItem('pool_ctx_frozen')
+  function clearChat() { setMessages([]); 
       localStorage.removeItem('pool_ctx_summary')
       localStorage.removeItem('pool_ctx_pending_summary')
       localStorage.removeItem('pool_chat_history')
