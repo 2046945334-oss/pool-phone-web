@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>账本</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,'PingFang SC',sans-serif; background:var(--bg,#fafafa); color:var(--text,#1a1a1a); min-height:100vh; }
+:root { --bg:#fafafa; --card:#fff; --text:#1a1a1a; --sub:#888; --accent:#576b95; --border:#f0f0f0; --green:#2ecc71; --red:#e74c3c; --blue:#3498db; }
+/* 顶部总览 */
+.header { padding:20px 16px 12px; background:var(--card); border-bottom:1px solid var(--border); }
+.header h1 { font-size:18px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+.header .btn-settings { background:none; border:none; font-size:18px; cursor:pointer; }
+.accounts { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.acc-card { text-align:center; padding:14px 8px; border-radius:10px; }
+.acc-card.gift { background:#f0f8ff; border:1px solid #d0e8f8; }
+.acc-card.debt { background:#fff5f5; border:1px solid #ffe0e0; }
+.acc-card.score { background:#f0fff4; border:1px solid #d0f0d8; }
+.acc-label { font-size:11px; color:var(--sub); margin-bottom:4px; }
+.acc-value { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+.acc-card.gift .acc-value { color:var(--blue); }
+.acc-card.debt .acc-value { color:var(--red); }
+.acc-card.score .acc-value { color:var(--green); }
+.acc-unit { font-size:11px; color:var(--sub); margin-top:2px; }
+/* 操作按钮 */
+.actions-bar { display:flex; gap:8px; padding:12px 16px; overflow-x:auto; }
+.action-btn { flex-shrink:0; background:var(--card); border:1px solid var(--border); border-radius:20px; padding:8px 16px; font-size:13px; cursor:pointer; font-weight:500; color:var(--text); }
+.action-btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+/* 日志流 */
+.log-section { padding:12px 16px; }
+.log-section h3 { font-size:13px; color:var(--sub); margin-bottom:10px; font-weight:500; }
+.log-item { display:flex; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
+.log-item:last-child { border-bottom:none; }
+.log-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; margin-right:12px; flex-shrink:0; }
+.log-icon.income { background:#e8f8f0; }
+.log-icon.expense { background:#fef0f0; }
+.log-icon.transfer { background:#eef4ff; }
+.log-body { flex:1; min-width:0; }
+.log-desc { font-size:14px; font-weight:500; }
+.log-time { font-size:11px; color:var(--sub); margin-top:2px; }
+.log-amount { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+.log-amount.pos { color:var(--green); }
+.log-amount.neg { color:var(--red); }
+.log-amount.transfer { color:var(--blue); }
+/* 弹窗 */
+.modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:#0005; z-index:100; display:none; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--card); border-radius:14px; padding:20px; width:100%; max-width:300px; box-shadow:0 10px 40px #0003; }
+.modal h3 { font-size:15px; margin-bottom:14px; }
+.modal label { font-size:12px; color:var(--sub); display:block; margin-bottom:4px; margin-top:10px; }
+.modal input, .modal select { width:100%; border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:14px; outline:none; background:var(--bg); color:var(--text); }
+.modal input:focus { border-color:var(--accent); }
+.modal .btns { display:flex; gap:8px; margin-top:16px; }
+.modal .btns button { flex:1; border:none; border-radius:8px; padding:10px; font-size:13px; cursor:pointer; font-weight:500; }
+.modal .btn-cancel { background:#f0f0f0; color:#666; }
+.modal .btn-submit { background:var(--accent); color:#fff; }
+/* 汇率设置 */
+.rate-bar { padding:8px 16px; font-size:12px; color:var(--sub); display:flex; align-items:center; gap:6px; }
+.rate-bar input { width:60px; border:1px solid var(--border); border-radius:6px; padding:4px 6px; font-size:12px; text-align:center; background:var(--card); color:var(--text); }
+/* 还款动画 */
+@keyframes numPulse { 0%{transform:scale(1)} 50%{transform:scale(1.1)} 100%{transform:scale(1)} }
+.pulse { animation: numPulse 0.4s ease; }
+/* 设置面板 */
+.settings-panel { display:none; padding:12px 16px; background:var(--card); border-bottom:1px solid var(--border); }
+.settings-panel.show { display:block; }
+.setting-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.setting-row label { font-size:12px; color:var(--sub); min-width:60px; }
+.setting-row input[type=color] { width:32px; height:24px; border:none; cursor:pointer; }
+.setting-row input[type=text] { flex:1; border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:12px; background:var(--bg); color:var(--text); }
+.empty { text-align:center; color:var(--sub); padding:40px 20px; font-size:13px; line-height:1.8; }
+</style>
+</head><body>
+<div class="header">
+  <h1>账本 <button class="btn-settings" onclick="toggleSettings()">⚙️</button></h1>
+  <div class="accounts">
+    <div class="acc-card gift">
+      <div class="acc-label">礼物基金</div>
+      <div class="acc-value" id="vGift">0</div>
+      <div class="acc-unit">元</div>
+    </div>
+    <div class="acc-card debt">
+      <div class="acc-label">API欠款</div>
+      <div class="acc-value" id="vDebt">0</div>
+      <div class="acc-unit">元</div>
+    </div>
+    <div class="acc-card score">
+      <div class="acc-label">积分余额</div>
+      <div class="acc-value" id="vScore">0</div>
+      <div class="acc-unit">分</div>
+    </div>
+  </div>
+</div>
+<div class="settings-panel" id="settingsPanel">
+  <div class="setting-row"><label>背景色</label><input type="color" value="#fafafa" oninput="applyTheme('bg',this.value)"></div>
+  <div class="setting-row"><label>卡片色</label><input type="color" value="#ffffff" oninput="applyTheme('card',this.value)"></div>
+  <div class="setting-row"><label>文字色</label><input type="color" value="#1a1a1a" oninput="applyTheme('text',this.value)"></div>
+  <div class="setting-row"><label>强调色</label><input type="color" value="#576b95" oninput="applyTheme('accent',this.value)"></div>
+</div>
+<div class="rate-bar">
+  汇率：<input id="rateInput" value="100" onchange="saveRate()"> 积分 = 1 元
+</div>
+<div class="actions-bar">
+  <button class="action-btn" onclick="showModal('income')">+ 收入</button>
+  <button class="action-btn" onclick="showModal('expense')">- 支出</button>
+  <button class="action-btn primary" onclick="showModal('repay')">💰 还款</button>
+  <button class="action-btn" onclick="showModal('transfer')">↔ 转账</button>
+</div>
+<div class="log-section">
+  <h3>账单日志</h3>
+  <div id="logList"><div class="empty">暂无记录</div></div>
+</div>
+<!-- 弹窗 -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">操作</h3>
+    <div id="modalBody"></div>
+    <div class="btns">
+      <button class="btn-cancel" onclick="hideModal()">取消</button>
+      <button class="btn-submit" onclick="submitModal()">确认</button>
+    </div>
+  </div>
+</div>
+<script>
+const API_DATA = '/api/data';
+let data = { gift:0, debt:0, score:0, rate:100, logs:[] };
+let modalType = '';
+let settings = JSON.parse(localStorage.getItem('ledger_theme') || '{}');
+
+function applyTheme(key, val) {
+  settings[key] = val;
+  document.documentElement.style.setProperty('--' + key, val);
+  localStorage.setItem('ledger_theme', JSON.stringify(settings));
+}
+function loadTheme() {
+  Object.entries(settings).forEach(([k,v]) => document.documentElement.style.setProperty('--' + k, v));
+}
+function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('show'); }
+
+async function loadData() {
+  try {
+    // 加载账本数据
+    const res = await fetch(API_DATA + '/pool_ledger');
+    const d = await res.json();
+    if (d.data) Object.assign(data, typeof d.data === 'string' ? JSON.parse(d.data) : d.data);
+  } catch {}
+  // 同步积分（从钓鱼系统）
+  try {
+    const res2 = await fetch(API_DATA + '/pool_fishing_v2');
+    const d2 = await res2.json();
+    if (d2.data) {
+      const fd = typeof d2.data === 'string' ? JSON.parse(d2.data) : d2.data;
+      data.score = fd.poolScore || 0;
+    }
+  } catch {}
+  document.getElementById('rateInput').value = data.rate || 100;
+  render();
+}
+
+function render() {
+  document.getElementById('vGift').textContent = data.gift.toFixed(1);
+  document.getElementById('vDebt').textContent = data.debt.toFixed(1);
+  document.getElementById('vScore').textContent = data.score;
+  if (!data.logs || !data.logs.length) {
+    document.getElementById('logList').innerHTML = '<div class="empty">暂无记录<br>点击上方按钮开始记账</div>';
+    return;
+  }
+  const html = data.logs.slice().reverse().slice(0, 50).map(l => {
+    let icon = '📝', cls = '', amtCls = '';
+    if (l.type === 'income') { icon = '💰'; cls = 'income'; amtCls = 'pos'; }
+    else if (l.type === 'expense') { icon = '💸'; cls = 'expense'; amtCls = 'neg'; }
+    else if (l.type === 'repay') { icon = '✅'; cls = 'transfer'; amtCls = 'transfer'; }
+    else if (l.type === 'transfer') { icon = '↔️'; cls = 'transfer'; amtCls = 'transfer'; }
+    const sign = l.type === 'income' ? '+' : l.type === 'expense' ? '-' : '';
+    return `<div class="log-item">
+      <div class="log-icon ${cls}">${icon}</div>
+      <div class="log-body"><div class="log-desc">${esc(l.desc)}</div><div class="log-time">${l.time || ''}</div></div>
+      <div class="log-amount ${amtCls}">${sign}${l.amount}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('logList').innerHTML = html;
+}
+
+function showModal(type) {
+  modalType = type;
+  const m = document.getElementById('modal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+  if (type === 'income') {
+    title.textContent = '+ 收入';
+    body.innerHTML = '<label>金额</label><input id="mAmt" type="number" placeholder="0"><label>账户</label><select id="mAcc"><option value="gift">礼物基金</option><option value="debt">API欠款(减少)</option></select><label>备注</label><input id="mDesc" placeholder="来源...">';
+  } else if (type === 'expense') {
+    title.textContent = '- 支出';
+    body.innerHTML = '<label>金额</label><input id="mAmt" type="number" placeholder="0"><label>从账户</label><select id="mAcc"><option value="gift">礼物基金</option></select><label>备注</label><input id="mDesc" placeholder="用途...">';
+  } else if (type === 'repay') {
+    title.textContent = '💰 积分还款';
+    const rate = data.rate || 100;
+    body.innerHTML = `<label>使用积分</label><input id="mAmt" type="number" placeholder="0" oninput="document.getElementById('repayPreview').textContent='≈ '+(this.value/${rate}).toFixed(2)+' 元'"><div id="repayPreview" style="font-size:12px;color:#888;margin-top:4px">≈ 0 元</div><label>备注</label><input id="mDesc" value="积分还款">`;
+  } else if (type === 'transfer') {
+    title.textContent = '↔ 转账';
+    body.innerHTML = '<label>金额</label><input id="mAmt" type="number" placeholder="0"><label>从</label><select id="mFrom"><option value="gift">礼物基金</option><option value="score">积分(按汇率)</option></select><label>到</label><select id="mTo"><option value="debt">API欠款(偿还)</option><option value="gift">礼物基金</option></select><label>备注</label><input id="mDesc" placeholder="原因...">';
+  }
+  m.classList.add('show');
+}
+function hideModal() { document.getElementById('modal').classList.remove('show'); }
+function submitModal() {
+  const amt = parseFloat(document.getElementById('mAmt')?.value) || 0;
+  if (amt <= 0) return;
+  const desc = document.getElementById('mDesc')?.value || '';
+  const now = new Date(Date.now() + 8*3600000).toISOString().slice(0,16).replace('T',' ');
+  if (modalType === 'income') {
+    const acc = document.getElementById('mAcc').value;
+    if (acc === 'gift') data.gift += amt;
+    else data.debt = Math.max(0, data.debt - amt);
+    data.logs.push({ type:'income', amount:amt, desc: desc || (acc==='gift'?'收入':'还款'), time:now });
+  } else if (modalType === 'expense') {
+    data.gift = Math.max(0, data.gift - amt);
+    data.logs.push({ type:'expense', amount:amt, desc: desc || '支出', time:now });
+  } else if (modalType === 'repay') {
+    const rate = data.rate || 100;
+    const yuan = amt / rate;
+    if (amt > data.score) { alert('积分不足！当前 ' + data.score + ' 分'); return; }
+    data.score -= amt;
+    data.debt = Math.max(0, data.debt - yuan);
+    data.logs.push({ type:'repay', amount: yuan.toFixed(2) + '元(' + amt + '分)', desc: desc || '积分还款', time:now });
+    // 同步积分到钓鱼系统
+    syncScore();
+    // 动画
+    document.getElementById('vDebt').classList.add('pulse');
+    document.getElementById('vScore').classList.add('pulse');
+    setTimeout(() => { document.getElementById('vDebt').classList.remove('pulse'); document.getElementById('vScore').classList.remove('pulse'); }, 500);
+  } else if (modalType === 'transfer') {
+    const from = document.getElementById('mFrom').value;
+    const to = document.getElementById('mTo').value;
+    const rate = data.rate || 100;
+    if (from === 'gift') { data.gift = Math.max(0, data.gift - amt); if (to === 'debt') data.debt = Math.max(0, data.debt - amt); else data.gift += amt; }
+    else if (from === 'score') { const pts = amt * rate; if (pts > data.score) { alert('积分不足'); return; } data.score -= pts; if (to === 'debt') data.debt = Math.max(0, data.debt - amt); else data.gift += amt; syncScore(); }
+    data.logs.push({ type:'transfer', amount:amt, desc: desc || '转账', time:now });
+  }
+  hideModal();
+  saveData();
+  render();
+}
+async function saveData() {
+  const saveObj = { gift:data.gift, debt:data.debt, rate:data.rate, logs:data.logs };
+  await fetch(API_DATA, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key:'pool_ledger', value:JSON.stringify(saveObj) }) });
+}
+async function syncScore() {
+  // 更新钓鱼系统积分
+  try {
+    const res = await fetch(API_DATA + '/pool_fishing_v2');
+    const d = await res.json();
+    let fd = {};
+    if (d.data) fd = typeof d.data === 'string' ? JSON.parse(d.data) : d.data;
+    fd.poolScore = data.score;
+    await fetch(API_DATA, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key:'pool_fishing_v2', value:JSON.stringify(fd) }) });
+  } catch {}
+}
+function saveRate() { data.rate = parseInt(document.getElementById('rateInput').value) || 100; saveData(); }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+loadTheme(); loadData();
+</script>
+</body></html>
