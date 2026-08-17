@@ -1669,7 +1669,8 @@ export default function Home() {
       // Inject API base URL so fetch works in srcdoc iframe
       if (isHtml && typeof window !== 'undefined') {
         const baseUrl = window.location.origin
-        htmlContent = htmlContent.replace('<head>', '<head><script>window.__BASE_URL__="' + baseUrl + '";<\/script>')
+        const injectTag = '<meta name="api-base" content="' + baseUrl + '">' 
+        htmlContent = htmlContent.replace('<head>', '<head>' + injectTag)
       }
       if (isHtml && bgCfg && (bgCfg.bgImage || bgCfg.bgColor)) {
         const injectedCss = getAppBgCss(bgCfg)
