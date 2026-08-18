@@ -1564,7 +1564,7 @@ function HomeScreen({ onOpenApp, theme }) {
       <div className="home-cards-area">
         {page === 0 && (<>
         <div className="home-banner"><img src={theme?.bannerImg || '/header_bg.jpg'} alt="" className="banner-img" /></div>
-<div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?(theme.musicCardBg.startsWith('data:')||theme.musicCardBg.startsWith('http')?{backgroundImage:`url(${theme.musicCardBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.musicCardBg}):{}}>
+<div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?(theme.musicCardBg.startsWith('data:')||theme.musicCardBg.startsWith('http')||theme.musicCardBg.startsWith('/')?{backgroundImage:`url(${theme.musicCardBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.musicCardBg}):{}}>
           <div className="music-icon">{'\u266a'}</div>
           <div className="music-info" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>
             <div className="music-title" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>{'\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
@@ -1585,16 +1585,16 @@ function HomeScreen({ onOpenApp, theme }) {
         </>)}
         {page === 1 && (<>
         <div className="deco-grid">
-          <div className="deco-card" style={theme?.decoCard1Bg?(theme.decoCard1Bg.startsWith('data:')||theme.decoCard1Bg.startsWith('http')?{backgroundImage:`url(${theme.decoCard1Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard1Bg}):{}}>
+          <div className="deco-card" style={theme?.decoCard1Bg?(theme.decoCard1Bg.startsWith('data:')||theme.decoCard1Bg.startsWith('http')||theme.decoCard1Bg.startsWith('/')?{backgroundImage:`url(${theme.decoCard1Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard1Bg}):{}}>
             <div className="deco-card-icon">{"\u2601\ufe0f"}</div>
             <div className="deco-card-text">{"\u4eca\u5929\u4e5f\u8981\u5f00\u5fc3"}</div>
           </div>
-          <div className="deco-card" style={theme?.decoCard2Bg?(theme.decoCard2Bg.startsWith('data:')||theme.decoCard2Bg.startsWith('http')?{backgroundImage:`url(${theme.decoCard2Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard2Bg}):{}}>
+          <div className="deco-card" style={theme?.decoCard2Bg?(theme.decoCard2Bg.startsWith('data:')||theme.decoCard2Bg.startsWith('http')||theme.decoCard2Bg.startsWith('/')?{backgroundImage:`url(${theme.decoCard2Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard2Bg}):{}}>
             <div className="deco-card-icon">{"\u2728"}</div>
             <div className="deco-card-text">{"\u5c0f\u5c0f\u7684\u5e78\u798f"}</div>
           </div>
         </div>
-        <div className="deco-wide-card" onClick={() => onOpenApp('starmap')} style={theme?.decoWideBg?(theme.decoWideBg.startsWith('data:')||theme.decoWideBg.startsWith('http')?{backgroundImage:`url(${theme.decoWideBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoWideBg}):{}}>
+        <div className="deco-wide-card" onClick={() => onOpenApp('starmap')} style={theme?.decoWideBg?(theme.decoWideBg.startsWith('data:')||theme.decoWideBg.startsWith('http')||theme.decoWideBg.startsWith('/')?{backgroundImage:`url(${theme.decoWideBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoWideBg}):{}}>
           <div className="deco-wide-inner">
             <div className="deco-wide-title">{"\u2b50 \u661f\u56fe"}</div>
             <div className="deco-wide-sub">{"\u70b9\u51fb\u67e5\u770b\u6211\u4eec\u7684\u661f\u7a7a"}</div>
@@ -1602,7 +1602,7 @@ function HomeScreen({ onOpenApp, theme }) {
         </div>
         </>)}
         {page === 2 && (<>
-        <div className="deco-tall-card" style={theme?.decoTallBg?(theme.decoTallBg.startsWith('data:')||theme.decoTallBg.startsWith('http')?{backgroundImage:`url(${theme.decoTallBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoTallBg}):{}}>
+        <div className="deco-tall-card" style={theme?.decoTallBg?(theme.decoTallBg.startsWith('data:')||theme.decoTallBg.startsWith('http')||theme.decoTallBg.startsWith('/')?{backgroundImage:`url(${theme.decoTallBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoTallBg}):{}}>
           <div className="deco-tall-overlay">
             <div className="deco-tall-text">{"\u6211\u4eec\u7684\u5c0f\u5c4b"}</div>
           </div>
