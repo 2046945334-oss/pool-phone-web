@@ -1053,12 +1053,15 @@ function SettingsPanel() {
   // MCP state
   const [mcpTab, setMcpTab] = useState('breath')
   // MCP Connections state
-  const [mcpConns, setMcpConns] = useState(() => { try { if (typeof window === 'undefined') return []; return JSON.parse(localStorage.getItem('pool_mcp_connections') || '[]') || [] } catch { return [] } })
+  const [mcpConns, setMcpConns] = useState([])
   const [mcpNewUrl, setMcpNewUrl] = useState('')
   const [mcpNewToken, setMcpNewToken] = useState('')
   const [mcpNewName, setMcpNewName] = useState('')
   const [mcpTesting, setMcpTesting] = useState(false)
   const [mcpTestResult, setMcpTestResult] = useState('')
+  useEffect(() => {
+    try { const saved = JSON.parse(localStorage.getItem('pool_mcp_connections') || '[]'); if (saved.length) setMcpConns(saved) } catch {}
+  }, [])
   const [injectCfg, setInjectCfg] = useState(() => JSON.parse(localStorage.getItem('pool_inject_config') || '{"time":true,"battery":true,"weather":true}'))
 
   function saveAll() {
