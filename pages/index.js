@@ -1108,6 +1108,9 @@ function SettingsPanel() {
   const [saved, setSaved] = useState(false)
   // MCP state
   const [mcpTab, setMcpTab] = useState('breath')
+  const [mcpResult, setMcpResult] = useState('')
+  const [mcpLoading, setMcpLoading] = useState(false)
+  const [mcpInput, setMcpInput] = useState('')
 
 
   const [injectCfg, setInjectCfg] = useState(() => JSON.parse(localStorage.getItem('pool_inject_config') || '{"time":true,"battery":true,"weather":true}'))
