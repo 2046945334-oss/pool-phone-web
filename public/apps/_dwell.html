@@ -1595,7 +1595,9 @@ html[data-theme="dark"] .crow { border-color: rgba(255,255,255,.1); box-shadow: 
 html:not([data-theme="light"]) #newSession { background: #f5f4ef; color: #262624; }
 }
 html[data-theme="dark"] #newSession { background: #f5f4ef; color: #262624; }
-  /* Hide pin-wall and night-diary tabs */
+    /* Auto-skip lock screen */
+  #lockWrap { display: none !important; }
+/* Hide pin-wall and night-diary tabs */
   .wall-tabs [data-v="pin"], .wall-tabs [data-v="night"] { display: none !important; }
 </style>
 </head>
