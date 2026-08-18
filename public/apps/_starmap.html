@@ -169,7 +169,7 @@
   .ctrl-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75); border-top-color: rgba(255,255,255,0.35); }
 
   #legend {
-    position: fixed; bottom: 24px; right: 24px;
+    position: fixed; bottom: 24px; right: 24px; display: none;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.1); border-top-color: rgba(255,255,255,0.22);
     border-radius: 16px; padding: 13px 16px; font-size: 11px;
@@ -182,6 +182,18 @@
   .legend-row { display: flex; align-items: center; gap: 8px; }
   .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
   .legend-hint { margin-top: 6px; color: rgba(255,255,255,0.25); font-size: 10px; }
+
+  #legend-toggle {
+    position: fixed; bottom: 24px; right: 24px; z-index: 51;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.5); font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    transition: all 0.2s;
+  }
+  #legend-toggle:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
+  #legend.show { display: block; }
 </style>
 </head>
 <body>
@@ -347,7 +359,8 @@
   <button class="ctrl-btn" id="btn-reset" title="Reset view">&#x2316;</button>
 </div>
 
-<div id="legend">
+<button id="legend-toggle" onclick="document.getElementById('legend').classList.toggle('show');this.style.display=document.getElementById('legend').classList.contains('show')?  'none':'flex'">i</button>
+<div id="legend" onclick="this.classList.remove('show');document.getElementById('legend-toggle').style.display='flex'">
   <div class="legend-row"><div class="legend-dot" style="background:#ff9060"></div> feel</div>
   <div class="legend-row"><div class="legend-dot" style="background:#60c8ff"></div> diary</div>
   <div class="legend-row"><div class="legend-dot" style="background:#b07aff"></div> permanent</div>
