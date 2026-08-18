@@ -20,6 +20,7 @@ import travelHtml from '../public/apps/_travel.html'
 import gardenHtml from '../public/apps/_garden.html'
 import ledgerHtml from '../public/apps/_ledger.html'
 import cabinHtml from '../public/apps/_cabin.html'
+import dwellHtml from '../public/apps/_dwell.html'
 import starmapHtml from '../public/apps/_starmap.html'
 
 // 工具调用日志组件 - 可折叠显示
@@ -921,7 +922,17 @@ function ThemePanel() {
         </div>
       </div>
 
-      <div className="settings-section">
+            <div className="settings-section">
+        <h3 className="settings-title">{"\u2728 \u804a\u5929\u98ce\u683c"}</h3>
+        <div className="theme-color-row">
+          <label>{"\u804a\u5929\u754c\u9762"}</label>
+          <select className="settings-input" value={theme.chatStyle||"default"} onChange={e=>{setTheme(t=>({...t,chatStyle:e.target.value}));localStorage.setItem("pool_theme",JSON.stringify({...theme,chatStyle:e.target.value}));window.dispatchEvent(new Event("theme-changed"))}}>
+            <option value="default">{"\u9ed8\u8ba4"}</option>
+            <option value="dwell">{"Dwell (\u6db2\u6001\u7483\u7486)"}</option>
+          </select>
+        </div>
+      </div>
+<div className="settings-section">
         <h3 className="settings-title">{'\ud83c\udf1f \u7b2c\u4e8c\u9875\u5361\u7247'}</h3>
         <div className="theme-item">
           <label>{'\u5de6\u5361\u7247\u80cc\u666f'}</label>
@@ -1696,7 +1707,7 @@ export default function Home() {
     return () => window.removeEventListener('message', handler)
   }, [])
 
-  function handleOpenApp(id) { if (id === 'chat') { setActiveTab('chat') } else { setCurrentApp(id) } }
+  function handleOpenApp(id) { if (id === 'chat') { const cs = JSON.parse(localStorage.getItem('pool_theme')||'{}').chatStyle; if(cs==='dwell'){setCurrentApp('dwell');return} setActiveTab('chat') } else { setCurrentApp(id) } }
   function handleBack() { pushAllToBackend(); setCurrentApp(null) }
 
   function renderPhoneContent() {
@@ -1708,7 +1719,7 @@ export default function Home() {
 
     const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'小屋', starmap:'星图' }
     const reactApps = { browser: <BrowserApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
-    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml }
+    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml, dwell: dwellHtml }
 
     if (currentApp && appTitles[currentApp]) {
       const bgCfg = appBg[currentApp]
