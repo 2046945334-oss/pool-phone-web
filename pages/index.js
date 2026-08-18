@@ -20,7 +20,6 @@ import travelHtml from '../public/apps/_travel.html'
 import gardenHtml from '../public/apps/_garden.html'
 import ledgerHtml from '../public/apps/_ledger.html'
 import cabinHtml from '../public/apps/_cabin.html'
-import dwellHtml from '../public/apps/_dwell.html'
 import starmapHtml from '../public/apps/_starmap.html'
 
 // 工具调用日志组件 - 可折叠显示
@@ -922,35 +921,7 @@ function ThemePanel() {
         </div>
       </div>
 
-            <div className="settings-section">
-        <h3 className="settings-title">{"\u2728 \u804a\u5929\u98ce\u683c"}</h3>
-        <div className="theme-color-row">
-          <label>{"\u804a\u5929\u754c\u9762"}</label>
-          <select className="settings-input" value={theme.chatStyle||"default"} onChange={e=>{setTheme(t=>({...t,chatStyle:e.target.value}));localStorage.setItem("pool_theme",JSON.stringify({...theme,chatStyle:e.target.value}));window.dispatchEvent(new Event("theme-changed"))}}>
-            <option value="default">{"\u9ed8\u8ba4"}</option>
-            <option value="dwell">{"Dwell (\u6db2\u6001\u7483\u7486)"}</option>
-          </select>
-        </div>
-      </div>
-<div className="settings-section">
-        <h3 className="settings-title">{'\ud83c\udf1f \u7b2c\u4e8c\u9875\u5361\u7247'}</h3>
-        <div className="theme-item">
-          <label>{'\u5de6\u5361\u7247\u80cc\u666f'}</label>
-          <input className="settings-input" value={theme.decoCard1Bg||''} onChange={e=>handleUrlInput('decoCard1Bg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
-          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoCard1Bg',e)} hidden /></label>
-        </div>
-        <div className="theme-item">
-          <label>{'\u53f3\u5361\u7247\u80cc\u666f'}</label>
-          <input className="settings-input" value={theme.decoCard2Bg||''} onChange={e=>handleUrlInput('decoCard2Bg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
-          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoCard2Bg',e)} hidden /></label>
-        </div>
-        <div className="theme-item">
-          <label>{'\u5bbd\u5361\u7247(\u661f\u56fe)'}</label>
-          <input className="settings-input" value={theme.decoWideBg||''} onChange={e=>handleUrlInput('decoWideBg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
-          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoWideBg',e)} hidden /></label>
-        </div>
-      </div>
-      <div className="settings-section">
+                  <div className="settings-section">
         <h3 className="settings-title">{'\ud83c\udf3c \u7b2c\u4e09\u9875\u5361\u7247'}</h3>
         <div className="theme-item">
           <label>{'\u957f\u5361\u7247\u80cc\u666f'}</label>
@@ -1494,13 +1465,10 @@ function EmotionMonitor() {
 }
 
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'账本', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行', diary:'日记', garden:'庭院', cabin:'小屋', starmap:'星图', dwell:'聊天' }
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'账本', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行', diary:'日记', garden:'庭院', cabin:'小屋', starmap:'星图' }
   const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_ledger.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
-if (currentApp === 'dwell' && isHtml) {
-      return (<div style={{position:'absolute',inset:0,zIndex:100,background:'#faf9f5'}}><HtmlApp htmlContent={htmlContent} /><button onClick={handleBack} style={{position:'absolute',top:12,left:12,zIndex:101,background:'rgba(0,0,0,0.25)',color:'#fff',border:'none',borderRadius:'50%',width:36,height:36,fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{'\u2190'}</button></div>)
-    }
     return (
     <div className="app-page">
       <div className="app-page-header">
@@ -1710,7 +1678,7 @@ export default function Home() {
     return () => window.removeEventListener('message', handler)
   }, [])
 
-  function handleOpenApp(id) { if (id === 'chat') { const cs = JSON.parse(localStorage.getItem('pool_theme')||'{}').chatStyle; if(cs==='dwell'){setCurrentApp('dwell');return} setActiveTab('chat') } else { setCurrentApp(id) } }
+  function handleOpenApp(id) { if (id === 'chat') { setActiveTab('chat') } else { setCurrentApp(id) } }
   function handleBack() { pushAllToBackend(); setCurrentApp(null) }
 
   function renderPhoneContent() {
@@ -1720,9 +1688,9 @@ export default function Home() {
     if (currentApp === 'theme') return <AppContent appId="theme" onBack={handleBack} />
     if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
 
-    const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'小屋', starmap:'星图', dwell:'聊天' }
+    const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'小屋', starmap:'星图' }
     const reactApps = { browser: <BrowserApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
-    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml, dwell: dwellHtml }
+    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml }
 
     if (currentApp && appTitles[currentApp]) {
       const bgCfg = appBg[currentApp]
@@ -1808,7 +1776,7 @@ export default function Home() {
               <span className="nav-icon">{'\ud83d\udcf1'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
             </button>
-            <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { const cs=JSON.parse(localStorage.getItem('pool_theme')||'{}').chatStyle; if(cs==='dwell'){setCurrentApp('dwell');setActiveTab('phone');setLocked(false);return} setActiveTab('chat'); setLocked(false) }}>
+            <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
               <span className="nav-icon">{'\ud83d\udcac'}</span>
               <span className="nav-label">{'\u804a\u5929'}</span>
             </button>
