@@ -1805,7 +1805,7 @@ export default function Home() {
               <span className="nav-icon">{'\ud83d\udcf1'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
             </button>
-            <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
+            <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { const cs=JSON.parse(localStorage.getItem('pool_theme')||'{}').chatStyle; if(cs==='dwell'){setCurrentApp('dwell');setActiveTab('phone');setLocked(false);return} setActiveTab('chat'); setLocked(false) }}>
               <span className="nav-icon">{'\ud83d\udcac'}</span>
               <span className="nav-label">{'\u804a\u5929'}</span>
             </button>
