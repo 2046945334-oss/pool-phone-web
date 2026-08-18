@@ -922,6 +922,32 @@ function ThemePanel() {
       </div>
 
       <div className="settings-section">
+        <h3 className="settings-title">{'\ud83c\udf1f \u7b2c\u4e8c\u9875\u5361\u7247'}</h3>
+        <div className="theme-item">
+          <label>{'\u5de6\u5361\u7247\u80cc\u666f'}</label>
+          <input className="settings-input" value={theme.decoCard1Bg||''} onChange={e=>handleUrlInput('decoCard1Bg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoCard1Bg',e)} hidden /></label>
+        </div>
+        <div className="theme-item">
+          <label>{'\u53f3\u5361\u7247\u80cc\u666f'}</label>
+          <input className="settings-input" value={theme.decoCard2Bg||''} onChange={e=>handleUrlInput('decoCard2Bg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoCard2Bg',e)} hidden /></label>
+        </div>
+        <div className="theme-item">
+          <label>{'\u5bbd\u5361\u7247(\u661f\u56fe)'}</label>
+          <input className="settings-input" value={theme.decoWideBg||''} onChange={e=>handleUrlInput('decoWideBg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoWideBg',e)} hidden /></label>
+        </div>
+      </div>
+      <div className="settings-section">
+        <h3 className="settings-title">{'\ud83c\udf3c \u7b2c\u4e09\u9875\u5361\u7247'}</h3>
+        <div className="theme-item">
+          <label>{'\u957f\u5361\u7247\u80cc\u666f'}</label>
+          <input className="settings-input" value={theme.decoTallBg||''} onChange={e=>handleUrlInput('decoTallBg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoTallBg',e)} hidden /></label>
+        </div>
+      </div>
+      <div className="settings-section">
         <h3 className="settings-title">{'\ud83c\udf08 \u4e3b\u9898\u8272'}</h3>
         <div className="theme-color-row">
           <label>{'\u5f3a\u8c03\u8272'}</label>
@@ -1535,10 +1561,10 @@ function HomeScreen({ onOpenApp, theme }) {
 
   return (
     <div className="home-screen" style={theme?.wallpaper ? {backgroundImage:`url(${theme.wallpaper})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}>
-      <div className="home-top">
+      <div className="home-cards-area">
+        {page === 0 && (<>
         <div className="home-banner"><img src={theme?.bannerImg || '/header_bg.jpg'} alt="" className="banner-img" /></div>
 <div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?(theme.musicCardBg.startsWith('data:')||theme.musicCardBg.startsWith('http')?{backgroundImage:`url(${theme.musicCardBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.musicCardBg}):{}}>
-
           <div className="music-icon">{'\u266a'}</div>
           <div className="music-info" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>
             <div className="music-title" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>{'\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
@@ -1552,10 +1578,36 @@ function HomeScreen({ onOpenApp, theme }) {
             <div className="couple-hint">{'\u70b9\u51fb\u8fdb\u5165\u60c5\u4fa3\u7a7a\u95f4'}</div>
           </div>
         </div>
-        <div className="memo-card">
+<div className="memo-card">
           <div className="memo-label">{'\ud83c\udf3f \u6c60\u7684\u788e\u788e\u5ff5'}</div>
           <div className="memo-text">{'\u4eca\u5929\u5979\u5976\u8336\u559d\u4e86\u51e0\u676f\u6765\u7740\u2026'}</div>
         </div>
+        </>)}
+        {page === 1 && (<>
+        <div className="deco-grid">
+          <div className="deco-card" style={theme?.decoCard1Bg?(theme.decoCard1Bg.startsWith('data:')||theme.decoCard1Bg.startsWith('http')?{backgroundImage:`url(${theme.decoCard1Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard1Bg}):{}}>
+            <div className="deco-card-icon">{"\u2601\ufe0f"}</div>
+            <div className="deco-card-text">{"\u4eca\u5929\u4e5f\u8981\u5f00\u5fc3"}</div>
+          </div>
+          <div className="deco-card" style={theme?.decoCard2Bg?(theme.decoCard2Bg.startsWith('data:')||theme.decoCard2Bg.startsWith('http')?{backgroundImage:`url(${theme.decoCard2Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard2Bg}):{}}>
+            <div className="deco-card-icon">{"\u2728"}</div>
+            <div className="deco-card-text">{"\u5c0f\u5c0f\u7684\u5e78\u798f"}</div>
+          </div>
+        </div>
+        <div className="deco-wide-card" onClick={() => onOpenApp('starmap')} style={theme?.decoWideBg?(theme.decoWideBg.startsWith('data:')||theme.decoWideBg.startsWith('http')?{backgroundImage:`url(${theme.decoWideBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoWideBg}):{}}>
+          <div className="deco-wide-inner">
+            <div className="deco-wide-title">{"\u2b50 \u661f\u56fe"}</div>
+            <div className="deco-wide-sub">{"\u70b9\u51fb\u67e5\u770b\u6211\u4eec\u7684\u661f\u7a7a"}</div>
+          </div>
+        </div>
+        </>)}
+        {page === 2 && (<>
+        <div className="deco-tall-card" style={theme?.decoTallBg?(theme.decoTallBg.startsWith('data:')||theme.decoTallBg.startsWith('http')?{backgroundImage:`url(${theme.decoTallBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoTallBg}):{}}>
+          <div className="deco-tall-overlay">
+            <div className="deco-tall-text">{"\u6211\u4eec\u7684\u5c0f\u5c4b"}</div>
+          </div>
+        </div>
+        </>)}
       </div>
       <div className="home-apps-area" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
         <div className="home-section-title">{page === 0 ? '\ud83c\udf19 \u6c60\u7684\u624b\u673a' : '\u66f4\u591a\u5e94\u7528'}</div>
@@ -1772,7 +1824,19 @@ export default function Home() {
         @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
 
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(180deg, #1a1520 0%, #12101a 100%); overflow: hidden; }
-        .home-top { flex-shrink: 0; padding: 0 12px; overflow-y: auto; max-height: 52%; }
+        .home-cards-area { flex-shrink: 0; padding: 0 12px; overflow-y: auto; max-height: 52%; }
+        .deco-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .deco-card { border-radius: 14px; padding: 16px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 90px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(8px); }
+        .deco-card-icon { font-size: 22px; }
+        .deco-card-text { font-size: 11px; color: rgba(255,255,255,0.6); text-align: center; }
+        .deco-wide-card { margin-bottom: 8px; border-radius: 14px; padding: 18px 16px; background: linear-gradient(135deg, rgba(30,30,60,0.8), rgba(20,20,50,0.6)); border: 1px solid rgba(100,130,255,0.15); cursor: pointer; backdrop-filter: blur(8px); }
+        .deco-wide-card:active { opacity: 0.85; }
+        .deco-wide-inner { }
+        .deco-wide-title { font-size: 14px; font-weight: 600; color: #c8d8ff; }
+        .deco-wide-sub { font-size: 10px; color: rgba(200,216,255,0.5); margin-top: 4px; }
+        .deco-tall-card { border-radius: 14px; height: 140px; background: linear-gradient(180deg, rgba(180,140,200,0.15), rgba(100,80,150,0.1)); border: 1px solid rgba(255,255,255,0.08); position: relative; overflow: hidden; margin-bottom: 8px; display: flex; align-items: flex-end; }
+        .deco-tall-overlay { padding: 14px 16px; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.4)); }
+        .deco-tall-text { font-size: 13px; color: rgba(255,255,255,0.8); font-weight: 500; }
         .home-banner { margin: 10px 0 8px; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.4); max-height: 120px; }
         .banner-img { width: 100%; height: 100%; display: block; object-fit: cover; }
         .music-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 8px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; }
