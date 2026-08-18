@@ -3,6 +3,86 @@
 import { getDb } from '../../lib/db'
 import { processNewMessage, getRecentMessages, buildMemoryContext, localSearch } from '../../lib/memory'
 
+// --- MCP Integration ---
+function getMcpConnections() {
+  const db = getDb()
+  const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_mcp_connections'").get()
+  if (!row) return []
+  try { return JSON.parse(row.value) } catch { return [] }
+}
+
+async function mcpRequest(endpoint, token, method, params = {}, sessionId = null) {
+  const body = { jsonrpc: '2.0', id: Date.now(), method, params }
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  if (sessionId) headers['Mcp-Session-Id'] = sessionId
+  const resp = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) })
+  if (!resp.ok) throw new Error(`MCP ${method} failed (${resp.status})`)
+  const newSessionId = resp.headers.get('mcp-session-id') || sessionId
+  const ct = resp.headers.get('content-type') || ''
+  if (ct.includes('text/event-stream')) {
+    const text = await resp.text()
+    let result = null
+    for (const line of text.split('\n')) {
+      if (line.startsWith('data: ')) {
+        try { const p = JSON.parse(line.slice(6)); if (p.result !== undefined || p.error !== undefined) result = p } catch {}
+      }
+    }
+    return { result: result?.result || result, sessionId: newSessionId }
+  } else {
+    const data = await resp.json()
+    return { result: data.result || data, sessionId: newSessionId }
+  }
+}
+
+async function loadMcpTools() {
+  const connections = getMcpConnections()
+  const mcpTools = []
+  const mcpMeta = {} // name -> { connectionId, url, token }
+  for (const conn of connections) {
+    if (!conn.enabled) continue
+    try {
+      const initResp = await mcpRequest(conn.url, conn.token, 'initialize', {
+        protocolVersion: '2024-11-05', capabilities: {},
+        clientInfo: { name: 'pool-phone-web', version: '1.0.0' }
+      })
+      const sid = initResp.sessionId
+      const notifH = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' }
+      if (conn.token) notifH['Authorization'] = `Bearer ${conn.token}`
+      if (sid) notifH['Mcp-Session-Id'] = sid
+      await fetch(conn.url, { method: 'POST', headers: notifH, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) }).catch(() => {})
+      const toolsResp = await mcpRequest(conn.url, conn.token, 'tools/list', {}, sid)
+      const tools = toolsResp.result?.tools || []
+      for (const t of tools) {
+        const toolName = `mcp_${conn.id}_${t.name}`
+        mcpTools.push({
+          type: 'function',
+          function: {
+            name: toolName,
+            description: `[MCP:${conn.name}] ${t.description || t.name}`,
+            parameters: t.inputSchema || { type: 'object', properties: {} }
+          }
+        })
+        mcpMeta[toolName] = { url: conn.url, token: conn.token, realName: t.name, sessionId: sid }
+      }
+    } catch (e) {
+      console.log(`[MCP] Failed to load tools from ${conn.name}: ${e.message}`)
+    }
+  }
+  return { mcpTools, mcpMeta }
+}
+
+async function callMcpToolDirect(meta, args) {
+  const resp = await mcpRequest(meta.url, meta.token, 'tools/call', { name: meta.realName, arguments: args }, meta.sessionId)
+  // Extract text content from MCP response
+  const result = resp.result
+  if (result && result.content && Array.isArray(result.content)) {
+    return result.content.map(c => c.text || JSON.stringify(c)).join('\n')
+  }
+  return result
+}
+// --- End MCP Integration ---
+
 const TOOLS = [
   {
     type: 'function', function: {
@@ -1447,6 +1527,20 @@ export default async function handler(req, res) {
       return filtered
     }
     
+    // Load MCP tools dynamically
+    let mcpMeta = {}
+    let allTools = [...TOOLS]
+    try {
+      const { mcpTools, mcpMeta: meta } = await loadMcpTools()
+      if (mcpTools.length) {
+        allTools = [...TOOLS, ...mcpTools]
+        mcpMeta = meta
+        console.log(`[MCP] Loaded ${mcpTools.length} external tools`)
+      }
+    } catch (e) {
+      console.log(`[MCP] Tool loading failed: ${e.message}`)
+    }
+
     let maxRounds = 5
     let isFirstRound = true
 
@@ -1467,7 +1561,7 @@ export default async function handler(req, res) {
         stream: false,
       }
       // 只在第一轮带工具（后续轮次不带，避免无限循环）
-      if (isFirstRound) bodyObj.tools = TOOLS
+      if (isFirstRound) bodyObj.tools = allTools
 
       const response = await fetch(reqUrl, {
         method: 'POST',
@@ -1489,7 +1583,13 @@ export default async function handler(req, res) {
         for (const tc of choice.message.tool_calls) {
           let args = {}
           try { args = JSON.parse(tc.function.arguments) } catch {}
-          const result = await executeTool(tc.function.name, args)
+          let result
+          if (mcpMeta[tc.function.name]) {
+            // MCP tool - call via MCP protocol
+            result = await callMcpToolDirect(mcpMeta[tc.function.name], args)
+          } else {
+            result = await executeTool(tc.function.name, args)
+          }
           toolLogs.push({ name: tc.function.name, args, result })
           toolResults.push(`[${tc.function.name}] ${JSON.stringify(result)}`)
         }
