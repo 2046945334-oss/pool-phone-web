@@ -1052,6 +1052,8 @@ function SettingsPanel() {
   const [saved, setSaved] = useState(false)
   // MCP state
   const [mcpTab, setMcpTab] = useState('breath')
+  const [mcpResult, setMcpResult] = useState('')
+  const [mcpLoading, setMcpLoading] = useState(false)
   // MCP Connections state
   const [mcpConns, setMcpConns] = useState([])
   const [mcpNewUrl, setMcpNewUrl] = useState('')
