@@ -1037,6 +1037,62 @@ function ThemePanel() {
     </div>
   )
 }
+
+function McpPanel() {
+  const [conns, setConns] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_mcp_connections') || '[]') } catch { return [] } })
+  const [newUrl, setNewUrl] = useState('')
+  const [newToken, setNewToken] = useState('')
+  const [newName, setNewName] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState('')
+  function save(c) { setConns(c); localStorage.setItem('pool_mcp_connections', JSON.stringify(c)); syncToBackend('pool_mcp_connections', c) }
+  return (
+    <div className="settings-section" style={{marginTop:'20px'}}>
+      <h3 className="settings-title">{'🔗 MCP 连接'}</h3>
+      <p className="settings-desc">{'连接外部MCP服务，让AI获得更多工具'}</p>
+      {(Array.isArray(conns)?conns:[]).map((conn, i) => (
+        <div key={conn.id||i} style={{background:'rgba(255,255,255,0.05)',borderRadius:'8px',padding:'10px',marginTop:'8px',border:'1px solid rgba(255,255,255,0.1)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontWeight:'bold',fontSize:'13px'}}>{conn.name||conn.url}</span>
+            <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+              <label style={{fontSize:'11px',display:'flex',alignItems:'center',gap:'4px'}}>
+                <input type="checkbox" checked={conn.enabled!==false} onChange={e=>{ const nc=[...conns]; nc[i]={...nc[i],enabled:e.target.checked}; save(nc) }} />
+                {'启用'}
+              </label>
+              <button style={{background:'#c44',color:'#fff',border:'none',borderRadius:'4px',padding:'2px 8px',fontSize:'11px',cursor:'pointer'}} onClick={()=>save(conns.filter((_,j)=>j!==i))}>{'删除'}</button>
+            </div>
+          </div>
+          <div style={{fontSize:'11px',color:'#999',marginTop:'4px',wordBreak:'break-all'}}>{conn.url}</div>
+        </div>
+      ))}
+      <div style={{marginTop:'12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+        <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="名称" className="settings-input" style={{fontSize:'13px'}}/>
+        <input value={newUrl} onChange={e=>setNewUrl(e.target.value)} placeholder="MCP URL (https://...)" className="settings-input" style={{fontSize:'13px'}}/>
+        <input value={newToken} onChange={e=>setNewToken(e.target.value)} placeholder="Token" className="settings-input" type="password" style={{fontSize:'13px'}}/>
+        <div style={{display:'flex',gap:'8px'}}>
+          <button className="settings-save" style={{flex:1,fontSize:'12px',padding:'8px'}} onClick={async()=>{
+            if(!newUrl){alert('请填URL');return}
+            setTesting(true);setTestResult('')
+            try{
+              const r=await fetch('/api/mcp-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test_connection',url:newUrl,token:newToken})})
+              const d=await r.json()
+              if(d.success) setTestResult('✅ '+d.toolCount+' tools')
+              else setTestResult('❌ '+(d.error||'failed'))
+            }catch(e){setTestResult('❌ '+e.message)}
+            setTesting(false)
+          }}>{testing?'...':'测试'}</button>
+          <button className="settings-save" style={{flex:1,fontSize:'12px',padding:'8px'}} onClick={()=>{
+            if(!newUrl){alert('请填URL');return}
+            save([...conns,{id:Date.now().toString(36),name:newName||'MCP',url:newUrl,token:newToken,enabled:true}])
+            setNewUrl('');setNewToken('');setNewName('');setTestResult('')
+          }}>{'添加'}</button>
+        </div>
+        {testResult && <div style={{fontSize:'12px',padding:'6px',background:'rgba(255,255,255,0.05)',borderRadius:'4px',marginTop:'4px'}}>{testResult}</div>}
+      </div>
+    </div>
+  )
+}
+
 function SettingsPanel() {
   const FEATURES = [
     { key: 'chat', label: '\u5bf9\u8bdd\u529f\u80fd', desc: '\u4e3b\u8981\u7684AI\u5bf9\u8bdd' },
@@ -1052,27 +1108,15 @@ function SettingsPanel() {
   const [saved, setSaved] = useState(false)
   // MCP state
   const [mcpTab, setMcpTab] = useState('breath')
-  const [mcpResult, setMcpResult] = useState('')
-  const [mcpLoading, setMcpLoading] = useState(false)
-  const [mcpInput, setMcpInput] = useState('')
-  // MCP Connections state
-  const [mcpConns, setMcpConns] = useState([])
-  const [mcpNewUrl, setMcpNewUrl] = useState('')
-  const [mcpNewToken, setMcpNewToken] = useState('')
-  const [mcpNewName, setMcpNewName] = useState('')
-  const [mcpTesting, setMcpTesting] = useState(false)
-  const [mcpTestResult, setMcpTestResult] = useState('')
-  useEffect(() => {
-    try { const saved = JSON.parse(localStorage.getItem('pool_mcp_connections') || '[]'); if (saved.length) setMcpConns(saved) } catch {}
-  }, [])
+
+
   const [injectCfg, setInjectCfg] = useState(() => JSON.parse(localStorage.getItem('pool_inject_config') || '{"time":true,"battery":true,"weather":true}'))
 
   function saveAll() {
     localStorage.setItem('pool_api_config', JSON.stringify(defaultCfg))
     localStorage.setItem('pool_api_configs', JSON.stringify(configs))
     localStorage.setItem('pool_tts_config', JSON.stringify(ttsConfig))
-    localStorage.setItem('pool_mcp_connections', JSON.stringify(mcpConns))
-    syncToBackend('pool_mcp_connections', mcpConns)
+
     localStorage.setItem('pool_inject_config', JSON.stringify(injectCfg))
     syncToBackend('pool_tts_config', ttsConfig)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
@@ -1204,57 +1248,7 @@ function SettingsPanel() {
         <div className="settings-item"><label>{'\u97f3\u8272 ID (Voice ID)'}</label>
           <input value={ttsConfig.voiceId||''} onChange={e=>setTtsConfig(c=>({...c,voiceId:e.target.value}))} placeholder="音色编号" className="settings-input"/>
         </div>
-      </div>      <div className="settings-section" style={{marginTop:'20px'}}>
-        <h3 className="settings-title">{'🔗 MCP 连接'}</h3>
-        <p className="settings-desc">{'连接外部MCP服务，让前端AI获得更多工具'}</p>
-        {(Array.isArray(mcpConns) ? mcpConns : []).map((conn, i) => (
-          <div key={conn.id} style={{background:'rgba(255,255,255,0.05)',borderRadius:'8px',padding:'10px',marginTop:'8px',border:'1px solid rgba(255,255,255,0.1)'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{fontWeight:'bold',fontSize:'13px'}}>{conn.name || conn.url}</span>
-              <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-                <label style={{fontSize:'11px',display:'flex',alignItems:'center',gap:'4px'}}>
-                  <input type="checkbox" checked={conn.enabled!==false} onChange={e=>{
-                    const newConns=[...mcpConns]; newConns[i]={...newConns[i],enabled:e.target.checked}; setMcpConns(newConns)
-                  }} />
-                  {'启用'}
-                </label>
-                <button style={{background:'#c44',color:'#fff',border:'none',borderRadius:'4px',padding:'2px 8px',fontSize:'11px',cursor:'pointer'}} onClick={()=>{
-                  setMcpConns(mcpConns.filter((_,j)=>j!==i))
-                }}>{'删除'}</button>
-              </div>
-            </div>
-            <div style={{fontSize:'11px',color:'#999',marginTop:'4px',wordBreak:'break-all'}}>{conn.url}</div>
-          </div>
-        ))}
-        <div style={{marginTop:'12px',display:'flex',flexDirection:'column',gap:'8px'}}>
-          <input value={mcpNewName} onChange={e=>setMcpNewName(e.target.value)} placeholder="名称" className="settings-input" style={{fontSize:'13px'}}/>
-          <input value={mcpNewUrl} onChange={e=>setMcpNewUrl(e.target.value)} placeholder="MCP URL (https://...)" className="settings-input" style={{fontSize:'13px'}}/>
-          <input value={mcpNewToken} onChange={e=>setMcpNewToken(e.target.value)} placeholder="Token / JWT" className="settings-input" type="password" style={{fontSize:'13px'}}/>
-          <div style={{display:'flex',gap:'8px'}}>
-            <button className="settings-save" style={{flex:1,fontSize:'12px',padding:'8px'}} onClick={async()=>{
-              if(!mcpNewUrl){alert('请填URL');return}
-              setMcpTesting(true);setMcpTestResult('')
-              try{
-                const r=await fetch('/api/mcp-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test_connection',url:mcpNewUrl,token:mcpNewToken})})
-                const d=await r.json()
-                if(d.success){
-                  setMcpTestResult('✅ 连接成功! '+d.toolCount+' 个工具')
-                } else {
-                  setMcpTestResult('❌ '+(d.error||'失败'))
-                }
-              }catch(e){setMcpTestResult('❌ '+e.message)}
-              setMcpTesting(false)
-            }}>{mcpTesting?'测试中...':'🔍 测试'}</button>
-            <button className="settings-save" style={{flex:1,fontSize:'12px',padding:'8px'}} onClick={()=>{
-              if(!mcpNewUrl){alert('请填URL');return}
-              const newConn={id:Date.now().toString(36),name:mcpNewName||'MCP',url:mcpNewUrl,token:mcpNewToken,enabled:true}
-              setMcpConns([...mcpConns,newConn])
-              setMcpNewUrl('');setMcpNewToken('');setMcpNewName('');setMcpTestResult('')
-            }}>{'➕ 添加'}</button>
-          </div>
-          {mcpTestResult && <div style={{fontSize:'12px',padding:'6px',background:'rgba(255,255,255,0.05)',borderRadius:'4px',marginTop:'4px'}}>{mcpTestResult}</div>}
-        </div>
-      </div>
+      </div>            <McpPanel />
 
 
       <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
