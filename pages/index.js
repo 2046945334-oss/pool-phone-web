@@ -1498,10 +1498,10 @@ function AppContent({ appId, onBack }) {
   const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_ledger.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
-  if (currentApp === 'dwell' && isHtml) {
-    return (<div style={{position:'absolute',inset:0,zIndex:100}}><HtmlApp htmlContent={htmlContent} /><button onClick={handleBack} style={{position:'absolute',top:8,left:8,zIndex:101,background:'rgba(0,0,0,0.3)',color:'#fff',border:'none',borderRadius:'50%',width:32,height:32,fontSize:16,cursor:'pointer'}}>{'\u2190'}</button></div>)
-  }
-  return (
+if (currentApp === 'dwell' && isHtml) {
+      return (<div style={{position:'absolute',inset:0,zIndex:100,background:'#faf9f5'}}><HtmlApp htmlContent={htmlContent} /><button onClick={handleBack} style={{position:'absolute',top:12,left:12,zIndex:101,background:'rgba(0,0,0,0.25)',color:'#fff',border:'none',borderRadius:'50%',width:36,height:36,fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{'\u2190'}</button></div>)
+    }
+    return (
     <div className="app-page">
       <div className="app-page-header">
         <button className="back-btn" onClick={onBack}>{'←'}</button>
