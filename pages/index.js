@@ -22,6 +22,17 @@ import ledgerHtml from '../public/apps/_ledger.html'
 import cabinHtml from '../public/apps/_cabin.html'
 import starmapHtml from '../public/apps/_starmap.html'
 
+// Global error reporter
+if (typeof window !== 'undefined') {
+  window.onerror = function(msg, url, line, col, err) {
+    fetch('/api/client-error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'onerror', msg, url, line, col, stack: err&&err.stack}) }).catch(()=>{})
+  }
+  window.addEventListener('unhandledrejection', function(e) {
+    fetch('/api/client-error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'unhandledrejection', reason: String(e.reason), stack: e.reason&&e.reason.stack}) }).catch(()=>{})
+  })
+}
+
+
 // 工具调用日志组件 - 可折叠显示
 function ToolLogBubble({ logs }) {
   const [open, setOpen] = useState(false)
