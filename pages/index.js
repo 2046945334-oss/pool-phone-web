@@ -1041,7 +1041,7 @@ function SettingsPanel() {
   // MCP state
   const [mcpTab, setMcpTab] = useState('breath')
   // MCP Connections state
-  const [mcpConns, setMcpConns] = useState(() => JSON.parse(localStorage.getItem('pool_mcp_connections') || '[]'))
+  const [mcpConns, setMcpConns] = useState(() => { try { if (typeof window === 'undefined') return []; return JSON.parse(localStorage.getItem('pool_mcp_connections') || '[]') || [] } catch { return [] } })
   const [mcpNewUrl, setMcpNewUrl] = useState('')
   const [mcpNewToken, setMcpNewToken] = useState('')
   const [mcpNewName, setMcpNewName] = useState('')
