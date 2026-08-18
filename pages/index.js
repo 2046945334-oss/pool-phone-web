@@ -1200,7 +1200,7 @@ function SettingsPanel() {
       </div>      <div className="settings-section" style={{marginTop:'20px'}}>
         <h3 className="settings-title">{'🔗 MCP 连接'}</h3>
         <p className="settings-desc">{'连接外部MCP服务，让前端AI获得更多工具'}</p>
-        {mcpConns.map((conn, i) => (
+        {(Array.isArray(mcpConns) ? mcpConns : []).map((conn, i) => (
           <div key={conn.id} style={{background:'rgba(255,255,255,0.05)',borderRadius:'8px',padding:'10px',marginTop:'8px',border:'1px solid rgba(255,255,255,0.1)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <span style={{fontWeight:'bold',fontSize:'13px'}}>{conn.name || conn.url}</span>
