@@ -26,8 +26,7 @@ import starmapHtml from '../public/apps/_starmap.html'
 if (typeof window !== 'undefined') {
   window.onerror = function(msg, url, line, col, err) {
     fetch('/api/client-error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'onerror', msg, url, line, col, stack: err&&err.stack}) }).catch(()=>{})
-    try { document.body.innerHTML = '<pre style="color:red;padding:20px;font-size:12px;word-break:break-all">' + msg + '
-' + (err&&err.stack||'') + '</pre>' } catch{}
+    try { document.body.innerHTML = '<pre style="color:red;padding:20px;font-size:12px;word-break:break-all">' + msg + '\n' + (err&&err.stack||'') + '</pre>' } catch{}
   }
   window.addEventListener('unhandledrejection', function(e) {
     fetch('/api/client-error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'unhandledrejection', reason: String(e.reason), stack: e.reason&&e.reason.stack}) }).catch(()=>{})
