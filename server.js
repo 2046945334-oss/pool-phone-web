@@ -8,40 +8,38 @@ const app = next({ dev })
 const handle = app.getRequestHandler()
 
 app.prepare().then(async () => {
-  createServer((req, res) => {
+  const server = createServer((req, res) => {
     const parsedUrl = parse(req.url, true)
     handle(req, res, parsedUrl)
-  }).listen(3000, '0.0.0.0', async (err) => {
+  })
+
+  server.listen(3000, '0.0.0.0', async (err) => {
     if (err) throw err
     console.log('> Ready on http://0.0.0.0:3000')
 
     // --- Start autonomous wakeup scheduler ---
     try {
-      // Dynamic import ESM module
       const { startWakeupScheduler, setExecuteTool } = await import('./lib/wakeup.js')
 
-      // Import executeToolFn from chat.js (the tool execution logic)
-      // We need to dynamically import it
-      const chatModule = await import('./pages/api/chat.js')
-      if (chatModule.executeTool) {
-        setExecuteTool(chatModule.executeTool)
-      } else {
-        // Create a wrapper that imports and calls executeTool
-        const { getDb } = await import('./lib/db.js')
-        // We'll use a simpler approach: import executeTool at wakeup time
-        setExecuteTool(async (name, args) => {
-          // Re-import to get fresh executeTool
-          const mod = await import('./pages/api/chat.js')
-          if (mod.executeTool) return await mod.executeTool(name, args)
-          return { error: 'executeTool not available' }
-        })
-      }
+      // executeTool: call local /api/wakeup-exec endpoint
+      setExecuteTool(async (name, args) => {
+        try {
+          const resp = await fetch('http://127.0.0.1:3000/api/wakeup-exec', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tool: name, args })
+          })
+          if (!resp.ok) return { error: `HTTP ${resp.status}` }
+          return await resp.json()
+        } catch (e) {
+          return { error: e.message }
+        }
+      })
 
       startWakeupScheduler()
       console.log('> Wakeup scheduler started')
     } catch (e) {
       console.error('> Failed to start wakeup scheduler:', e.message)
-      // Non-fatal: server still works for regular requests
     }
   })
 })
