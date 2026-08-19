@@ -4,6 +4,7 @@ const { parse } = require('url')
 const next = require('next')
 
 const dev = process.env.NODE_ENV !== 'production'
+const port = parseInt(process.env.PORT, 10) || 3000
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
@@ -13,18 +14,18 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl)
   })
 
-  server.listen(3000, '0.0.0.0', (err) => {
+  server.listen(port, '0.0.0.0', (err) => {
     if (err) throw err
-    console.log('> Ready on http://0.0.0.0:3000')
+    console.log('> Ready on http://0.0.0.0:' + port)
 
     // --- Start autonomous wakeup scheduler ---
     try {
       const { startWakeupScheduler, setExecuteTool } = require('./lib/wakeup')
 
-      // Tool execution via internal HTTP call to /api/wakeup-exec
+      // Tool execution via internal HTTP call
       setExecuteTool(async (name, args) => {
         try {
-          const resp = await fetch('http://127.0.0.1:3000/api/wakeup-exec', {
+          const resp = await fetch('http://127.0.0.1:' + port + '/api/wakeup-exec', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tool: name, args })
