@@ -1025,62 +1025,6 @@ function ThemePanel() {
     </div>
   )
 }
-
-function McpPanel() {
-  const [conns, setConns] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_mcp_connections') || '[]') } catch { return [] } })
-  const [newUrl, setNewUrl] = useState('')
-  const [newToken, setNewToken] = useState('')
-  const [newName, setNewName] = useState('')
-  const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState('')
-  function save(c) { setConns(c); localStorage.setItem('pool_mcp_connections', JSON.stringify(c)); syncToBackend('pool_mcp_connections', c) }
-  return (
-    <div className="settings-section" style={{marginTop:'20px'}}>
-      <h3 className="settings-title">{'🔗 MCP 连接'}</h3>
-      <p className="settings-desc">{'连接外部MCP服务，让AI获得更多工具'}</p>
-      {(Array.isArray(conns)?conns:[]).map((conn, i) => (
-        <div key={conn.id||i} style={{background:'rgba(255,255,255,0.05)',borderRadius:'8px',padding:'10px',marginTop:'8px',border:'1px solid rgba(255,255,255,0.1)'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span style={{fontWeight:'bold',fontSize:'13px'}}>{conn.name||conn.url}</span>
-            <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-              <label style={{fontSize:'11px',display:'flex',alignItems:'center',gap:'4px'}}>
-                <input type="checkbox" checked={conn.enabled!==false} onChange={e=>{ const nc=[...conns]; nc[i]={...nc[i],enabled:e.target.checked}; save(nc) }} />
-                {'启用'}
-              </label>
-              <button style={{background:'#c44',color:'#fff',border:'none',borderRadius:'4px',padding:'2px 8px',fontSize:'11px',cursor:'pointer'}} onClick={()=>save(conns.filter((_,j)=>j!==i))}>{'删除'}</button>
-            </div>
-          </div>
-          <div style={{fontSize:'11px',color:'#999',marginTop:'4px',wordBreak:'break-all'}}>{conn.url}</div>
-        </div>
-      ))}
-      <div style={{marginTop:'12px',display:'flex',flexDirection:'column',gap:'8px'}}>
-        <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="名称" className="settings-input" style={{fontSize:'13px'}}/>
-        <input value={newUrl} onChange={e=>setNewUrl(e.target.value)} placeholder="MCP URL (https://...)" className="settings-input" style={{fontSize:'13px'}}/>
-        <input value={newToken} onChange={e=>setNewToken(e.target.value)} placeholder="Token" className="settings-input" type="password" style={{fontSize:'13px'}}/>
-        <div style={{display:'flex',gap:'8px'}}>
-          <button className="settings-save" style={{flex:1,fontSize:'12px',padding:'8px'}} onClick={async()=>{
-            if(!newUrl){alert('请填URL');return}
-            setTesting(true);setTestResult('')
-            try{
-              const r=await fetch('/api/mcp-proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test_connection',url:newUrl,token:newToken})})
-              const d=await r.json()
-              if(d.success) setTestResult('✅ '+d.toolCount+' tools')
-              else setTestResult('❌ '+(d.error||'failed'))
-            }catch(e){setTestResult('❌ '+e.message)}
-            setTesting(false)
-          }}>{testing?'...':'测试'}</button>
-          <button className="settings-save" style={{flex:1,fontSize:'12px',padding:'8px'}} onClick={()=>{
-            if(!newUrl){alert('请填URL');return}
-            save([...conns,{id:Date.now().toString(36),name:newName||'MCP',url:newUrl,token:newToken,enabled:true}])
-            setNewUrl('');setNewToken('');setNewName('');setTestResult('')
-          }}>{'添加'}</button>
-        </div>
-        {testResult && <div style={{fontSize:'12px',padding:'6px',background:'rgba(255,255,255,0.05)',borderRadius:'4px',marginTop:'4px'}}>{testResult}</div>}
-      </div>
-    </div>
-  )
-}
-
 function SettingsPanel() {
   const FEATURES = [
     { key: 'chat', label: '\u5bf9\u8bdd\u529f\u80fd', desc: '\u4e3b\u8981\u7684AI\u5bf9\u8bdd' },
@@ -1099,15 +1043,12 @@ function SettingsPanel() {
   const [mcpResult, setMcpResult] = useState('')
   const [mcpLoading, setMcpLoading] = useState(false)
   const [mcpInput, setMcpInput] = useState('')
-
-
   const [injectCfg, setInjectCfg] = useState(() => JSON.parse(localStorage.getItem('pool_inject_config') || '{"time":true,"battery":true,"weather":true}'))
 
   function saveAll() {
     localStorage.setItem('pool_api_config', JSON.stringify(defaultCfg))
     localStorage.setItem('pool_api_configs', JSON.stringify(configs))
     localStorage.setItem('pool_tts_config', JSON.stringify(ttsConfig))
-
     localStorage.setItem('pool_inject_config', JSON.stringify(injectCfg))
     syncToBackend('pool_tts_config', ttsConfig)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
@@ -1239,8 +1180,7 @@ function SettingsPanel() {
         <div className="settings-item"><label>{'\u97f3\u8272 ID (Voice ID)'}</label>
           <input value={ttsConfig.voiceId||''} onChange={e=>setTtsConfig(c=>({...c,voiceId:e.target.value}))} placeholder="音色编号" className="settings-input"/>
         </div>
-      </div>            <McpPanel />
-
+      </div>
 
       <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
 
@@ -1919,32 +1859,31 @@ export default function Home() {
         .app-content-list { display: flex; flex-direction: column; gap: 10px; }
         .app-content-item { padding: 12px 16px; background: #fff; border-radius: 12px; color: #444; font-size: 14px; border: 1px solid #e8dce8; }
 
-        .chat-view { width: 100%; height: 100%; display: flex; flex-direction: column; background: #e5ddd5; position: relative; }
-        .chat-view::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.28), transparent 30%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.18), transparent 24%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02)); pointer-events: none; opacity: 0.75; }
-        .chat-header { display: flex; align-items: center; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; border-bottom: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.95); backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; }
-        .chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #666; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-        .chat-header-info { margin-left: 10px; flex: 1; min-width: 0; }
-        .chat-name { font-size: 15px; font-weight: 600; color: #111; line-height: 1.2; }
-        .chat-status { font-size: 11px; color: #6b7280; margin-top: 2px; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 14px 12px 10px; position: relative; z-index: 1; }
-        .chat-empty { text-align: center; color: rgba(17,17,17,0.45); margin-top: 40%; font-size: 14px; }
-        .msg-row { display: flex; align-items: flex-end; margin-bottom: 12px; gap: 8px; }
+        .chat-view { width: 100%; height: 100%; display: flex; flex-direction: column; }
+        .chat-header { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #1a1a1a; background: #111; flex-shrink: 0; }
+        .chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #e8a0bf, #c77dba); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; font-weight: 600; }
+        .chat-header-info { margin-left: 10px; }
+        .chat-name { font-size: 15px; font-weight: 600; color: #f0f0f0; }
+        .chat-status { font-size: 11px; color: #6b7280; margin-top: 1px; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 14px 14px 8px; }
+        .chat-empty { text-align: center; color: #4b5563; margin-top: 40%; font-size: 14px; }
+        .msg-row { display: flex; align-items: flex-end; margin-bottom: 10px; gap: 8px; }
         .msg-row.user { flex-direction: row-reverse; }
         .msg-row.assistant { justify-content: flex-start; }
-        .msg-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-        .msg-bubble { max-width: 74%; padding: 10px 13px; border-radius: 18px; font-size: 14px; line-height: 1.55; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 1px rgba(0,0,0,0.08); }
-        .msg-bubble.user { background: #95ec69; color: #111; border-bottom-right-radius: 6px; }
-        .msg-bubble.assistant { background: #fff; color: #111; border-bottom-left-radius: 6px; border: 1px solid rgba(0,0,0,0.06); }
-        .chat-input-area { display: flex; align-items: flex-end; gap: 8px; padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(0,0,0,0.08); background: rgba(246,246,246,0.96); backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; }
-        .chat-plus-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
+        .msg-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #e8a0bf, #c77dba); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; flex-shrink: 0; }
+        .msg-bubble { max-width: 72%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
+        .msg-bubble.user { background: #c77dba; color: #fff; border-bottom-right-radius: 4px; }
+        .msg-bubble.assistant { background: #1f1f1f; color: #e0e0e0; border-bottom-left-radius: 4px; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid rgba(200,125,186,0.2); background: rgba(255,240,248,0.92); flex-shrink: 0; }
+        .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(200,125,186,0.15); color: #c77dba; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; border: 1px solid rgba(200,125,186,0.3); }
+        .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: rgba(255,240,248,0.95); border-top: 1px solid rgba(200,125,186,0.2); }
         .emoji-item { font-size: 22px; cursor: pointer; padding: 4px; border-radius: 6px; }
-        .emoji-item:hover { background: rgba(0,0,0,0.06); }
-        .fetch-models-btn { padding: 6px 10px; background: #07c160; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-        .chat-input { flex: 1; background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 18px; padding: 10px 14px; color: #111; font-size: 14px; outline: none; font-family: inherit; min-height: 32px; max-height: 96px; }
-        .chat-input:focus { border-color: rgba(7,193,96,0.55); box-shadow: 0 0 0 3px rgba(7,193,96,0.12); }
-        .chat-send { width: 34px; height: 34px; border-radius: 50%; background: #07c160; color: #fff; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-        .chat-send:disabled { opacity: 0.45; background: #a3a3a3; }
+        .emoji-item:hover { background: rgba(200,125,186,0.15); }
+        .fetch-models-btn { padding: 6px 10px; background: #c77dba; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.8); border: 1px solid rgba(200,125,186,0.25); border-radius: 20px; padding: 9px 14px; color: #333; font-size: 14px; outline: none; font-family: inherit; }
+        .chat-input:focus { border-color: #e8a0bf; }
+        .chat-send { width: 30px; height: 30px; border-radius: 50%; background: #c77dba; color: #fff; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .chat-send:disabled { opacity: 0.4; }
       
         .app-full { width: 100%; height: 100%; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
         .notes-input-area { display: flex; gap: 8px; margin-bottom: 12px; flex-shrink: 0; }
