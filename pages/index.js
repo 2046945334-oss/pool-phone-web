@@ -921,12 +921,47 @@ function ThemePanel() {
         </div>
       </div>
 
-                  <div className="settings-section">
+      <div className="settings-section">
         <h3 className="settings-title">{'\ud83c\udf3c \u7b2c\u4e09\u9875\u5361\u7247'}</h3>
         <div className="theme-item">
           <label>{'\u957f\u5361\u7247\u80cc\u666f'}</label>
           <input className="settings-input" value={theme.decoTallBg||''} onChange={e=>handleUrlInput('decoTallBg',e.target.value)} placeholder={'\u989c\u8272\u6216URL...'} />
           <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('decoTallBg',e)} hidden /></label>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-title">{'\ud83d\udcf7 \u7167\u7247\u5899'}</h3>
+        <p className="settings-desc">{'\u7b2c\u4e8c\u9875\u5e95\u90e8\u7684\u62cd\u7acb\u5f97\u7167\u7247\u5899\uff0c\u53ef\u653e3\u5f20\u56fe\u7247'}</p>
+        <div className="theme-item">
+          <label>{'\u7167\u72471'}</label>
+          <input className="settings-input" value={theme.polaroid1||''} onChange={e=>handleUrlInput('polaroid1',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('polaroid1',e)} hidden /></label>
+          {theme.polaroid1 && <img src={theme.polaroid1} className="theme-preview-sm" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\u6807\u98981'}</label>
+          <input className="settings-input" value={theme.polaroidCaption1||''} onChange={e=>handleUrlInput('polaroidCaption1',e.target.value)} placeholder={'\u5199\u70b9\u4ec0\u4e48...'} />
+        </div>
+        <div className="theme-item">
+          <label>{'\u7167\u72472'}</label>
+          <input className="settings-input" value={theme.polaroid2||''} onChange={e=>handleUrlInput('polaroid2',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('polaroid2',e)} hidden /></label>
+          {theme.polaroid2 && <img src={theme.polaroid2} className="theme-preview-sm" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\u6807\u98982'}</label>
+          <input className="settings-input" value={theme.polaroidCaption2||''} onChange={e=>handleUrlInput('polaroidCaption2',e.target.value)} placeholder={'\u5199\u70b9\u4ec0\u4e48...'} />
+        </div>
+        <div className="theme-item">
+          <label>{'\u7167\u72473'}</label>
+          <input className="settings-input" value={theme.polaroid3||''} onChange={e=>handleUrlInput('polaroid3',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('polaroid3',e)} hidden /></label>
+          {theme.polaroid3 && <img src={theme.polaroid3} className="theme-preview-sm" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\u6807\u98983'}</label>
+          <input className="settings-input" value={theme.polaroidCaption3||''} onChange={e=>handleUrlInput('polaroidCaption3',e.target.value)} placeholder={'\u5199\u70b9\u4ec0\u4e48...'} />
         </div>
       </div>
       <div className="settings-section">
@@ -1661,6 +1696,25 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
           ))}
         </div>
+        {page === 1 && (
+          <div className="polaroid-wall">
+            <div className="polaroid-card" style={{transform:'rotate(-4deg)'}}>
+              <div className="polaroid-tape tape-left"></div>
+              {theme?.polaroid1 ? <img src={theme.polaroid1} className="polaroid-img" /> : <div className="polaroid-empty">{'+'}</div>}
+              <div className="polaroid-caption">{theme?.polaroidCaption1 || ''}</div>
+            </div>
+            <div className="polaroid-card" style={{transform:'rotate(2deg)',marginTop:'12px'}}>
+              <div className="polaroid-tape tape-center"></div>
+              {theme?.polaroid2 ? <img src={theme.polaroid2} className="polaroid-img" /> : <div className="polaroid-empty">{'+'}</div>}
+              <div className="polaroid-caption">{theme?.polaroidCaption2 || ''}</div>
+            </div>
+            <div className="polaroid-card" style={{transform:'rotate(-2deg)',marginTop:'-8px'}}>
+              <div className="polaroid-tape tape-right"></div>
+              {theme?.polaroid3 ? <img src={theme.polaroid3} className="polaroid-img" /> : <div className="polaroid-empty">{'+'}</div>}
+              <div className="polaroid-caption">{theme?.polaroidCaption3 || ''}</div>
+            </div>
+          </div>
+        )}
         <div className="page-dots">
           {allPages.map((_, i) => (
             <div key={i} className={`dot ${page === i ? 'active' : ''}`} onClick={() => setPage(i)} />
@@ -2086,6 +2140,17 @@ export default function Home() {
         .customizer-btn-clear { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #fff; color: #999; font-size: 13px; cursor: pointer; }
         .customizer-btn-done { flex: 1; padding: 10px; border: none; border-radius: 10px; background: #c77dba; color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
         .customizer-section-title { font-size: 14px; font-weight: 600; color: #333; margin: 4px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #f0e8f0; }
+
+        /* Polaroid Photo Wall */
+        .polaroid-wall { display: flex; justify-content: center; align-items: flex-start; gap: 6px; padding: 16px 12px 20px; flex-wrap: wrap; }
+        .polaroid-card { position: relative; width: 30%; background: #fff; border-radius: 3px; padding: 6px 6px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); transition: transform 0.3s; }
+        .polaroid-tape { position: absolute; width: 32px; height: 12px; background: rgba(200,220,240,0.6); top: -6px; border-radius: 1px; }
+        .tape-left { left: 12px; transform: rotate(-8deg); }
+        .tape-center { left: 50%; margin-left: -16px; transform: rotate(3deg); }
+        .tape-right { right: 10px; transform: rotate(6deg); }
+        .polaroid-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 2px; display: block; }
+        .polaroid-empty { width: 100%; aspect-ratio: 3/4; background: rgba(200,215,235,0.3); border: 1.5px dashed rgba(150,180,210,0.5); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: rgba(150,180,210,0.7); font-size: 20px; }
+        .polaroid-caption { text-align: center; font-size: 9px; color: #8a9bb0; margin-top: 6px; font-family: 'Georgia', serif; letter-spacing: 0.3px; min-height: 12px; }
       `}</style>
     </>
   )
