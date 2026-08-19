@@ -160,6 +160,26 @@ async function executeTool(name, args) {
     } catch { return { items: [], error: 'pocket table may not exist' } }
   }
 
+  if (name === 'update_pocket') {
+    // AI处理投递箱条目：更新状态、写处理结果
+    const id = parseInt(args.id)
+    if (!id) return { error: 'missing id' }
+    try {
+      const row = db.prepare('SELECT * FROM pocket WHERE id = ?').get(id)
+      if (!row) return { error: 'item not found: ' + id }
+      const updates = []
+      const params = []
+      if (args.status) { updates.push('status = ?'); params.push(args.status) }
+      if (args.result) { updates.push('result = ?'); params.push(args.result) }
+      if (args.result_type) { updates.push('result_type = ?'); params.push(args.result_type) }
+      if (updates.length === 0) return { error: 'nothing to update' }
+      updates.push('updated_at = unixepoch()')
+      params.push(id)
+      db.prepare('UPDATE pocket SET ' + updates.join(', ') + ' WHERE id = ?').run(...params)
+      return { success: true, message: '投递箱 #' + id + ' 已更新为 ' + (args.status || row.status) }
+    } catch (e) { return { error: e.message } }
+  }
+
   if (name === 'read_moments') {
     const key = 'pool_moments'
     try {
