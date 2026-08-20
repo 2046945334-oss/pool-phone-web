@@ -1122,6 +1122,7 @@ function SettingsPanel() {
     { key: 'tools', label: '\u5de5\u5177\u8c03\u7528', desc: '\u5de5\u5177\u6267\u884c\u65f6\u7684AI\u5224\u65ad\uff08\u53ef\u7528\u66f4\u4fbf\u5b9c\u7684\u6a21\u578b\uff09' },
     { key: 'summary', label: '\u4e0a\u4e0b\u6587\u603b\u7ed3', desc: '\u538b\u7f29\u4e0a\u4e0b\u6587\uff0c\u751f\u6210\u6458\u8981' },
     { key: 'memory', label: '\u8bb0\u5fc6\u63d0\u53d6', desc: '\u4ece\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u5173\u952e\u4fe1\u606f' },
+    { key: 'wakeup', label: '\u5524\u9192\u6a21\u578b', desc: '\u81ea\u4e3b\u5524\u9192\u65f6\u4f7f\u7528\uff08\u9700\u652f\u6301tools\uff09' },
   ]
   const [configs, setConfigs] = useState(() => JSON.parse(localStorage.getItem('pool_api_configs') || '{}'))
   const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
@@ -1150,11 +1151,12 @@ function SettingsPanel() {
     syncToBackend('pool_tts_config', ttsConfig)
     syncToBackend('pool_inject_config', injectCfg)
     // Sync wakeup-compatible config (wakeup.js reads baseUrl, frontend stores apiBase)
+    const wkCfg = configs['wakeup'] || {}
     const chatCfg = configs['chat'] || {}
     const wakeupCfg = {
-      baseUrl: chatCfg.apiBase || defaultCfg.apiBase || '',
-      apiKey: chatCfg.apiKey || defaultCfg.apiKey || '',
-      model: chatCfg.model || defaultCfg.model || ''
+      baseUrl: wkCfg.apiBase || chatCfg.apiBase || defaultCfg.apiBase || '',
+      apiKey: wkCfg.apiKey || chatCfg.apiKey || defaultCfg.apiKey || '',
+      model: wkCfg.model || chatCfg.model || defaultCfg.model || ''
     }
     syncToBackend('pool_api_config_chat', wakeupCfg)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
