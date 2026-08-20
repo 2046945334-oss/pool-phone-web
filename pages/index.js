@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
+import SplashScreen from '../components/SplashScreen'
 import { pullAllFromBackend, pushAllToBackend } from '../lib/appSync'
 import BrowserApp from '../components/apps/BrowserApp'
 import FortuneApp from '../components/apps/FortuneApp'
@@ -1744,6 +1745,7 @@ function HomeScreen({ onOpenApp, theme }) {
 }
 
 export default function Home() {
+  const [showSplash, setShowSplash] = useState(true)
   const [locked, setLocked] = useState(true)
   const [currentApp, setCurrentApp] = useState(null)
   const [activeTab, setActiveTab] = useState('phone')
@@ -1889,9 +1891,10 @@ export default function Home() {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content={'\u5c0f\u624b\u673a'} />
-      </Head>
+       </Head>
       <div className="shell">
         <div className="phone-frame">
+          {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
           <div className="status-bar">
             <span className="status-time">{new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
             <span className="status-icons">{'\ud83d\udcf6 \ud83d\udd0b'}</span>
