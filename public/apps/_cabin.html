@@ -121,7 +121,7 @@ async function loadLogs() {
 function render(logs) {
   const el = document.getElementById('cards')
   if (!logs.length) { el.innerHTML = '<div class="empty">还没有唤醒记录</div>'; return }
-  const sorted = [...logs].reverse()
+  const sorted = [...logs].sort((a, b) => new Date(b.time) - new Date(a.time))
   el.innerHTML = sorted.map(log => {
     const time = fmtTime(log.time)
     if (log.error) return `<div class="stamp-card"><div class="card-time">${time}</div><div class="card-error">⚠ ${esc(log.error)}</div></div>`
