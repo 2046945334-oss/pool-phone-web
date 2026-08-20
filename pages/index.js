@@ -1153,8 +1153,9 @@ function SettingsPanel() {
     // Sync wakeup-compatible config (wakeup.js reads baseUrl, frontend stores apiBase)
     const wkCfg = configs['wakeup'] || {}
     const chatCfg = configs['chat'] || {}
+    const rawBase = wkCfg.apiBase || chatCfg.apiBase || defaultCfg.apiBase || ''
     const wakeupCfg = {
-      baseUrl: wkCfg.apiBase || chatCfg.apiBase || defaultCfg.apiBase || '',
+      baseUrl: rawBase && !rawBase.endsWith('/v1') ? rawBase.replace(/\/$/, '') + '/v1' : rawBase,
       apiKey: wkCfg.apiKey || chatCfg.apiKey || defaultCfg.apiKey || '',
       model: wkCfg.model || chatCfg.model || defaultCfg.model || ''
     }
