@@ -759,7 +759,7 @@ async function executeTool(name, args) {
       jsonrpc: '2.0',
       id: Date.now(),
       method: 'tools/call',
-      params: { name: args.action, arguments: args.params || {} }
+      params: { name: args.action, arguments: args.action === 'breath' ? {} : (args.params || {}) }
     }
     try {
       const resp = await fetch(OMBRE_URL, {

@@ -196,7 +196,7 @@ async function executeTool(name, args) {
       const resp = await fetch(OMBRE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + OMBRE_TOKEN },
-        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: args.action, arguments: args.params || {} } })
+        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: args.action, arguments: args.action === 'breath' ? {} : (args.params || {}) } })
       })
       if (!resp.ok) return { error: 'MCP ' + resp.status }
       const data = await resp.json()
