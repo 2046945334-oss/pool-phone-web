@@ -108,7 +108,7 @@ body {
   <div class="loading">加载中...</div>
 </div>
 <script>
-const BASE = location.origin
+const BASE = 'https://chi.zeabur.app'
 async function loadLogs() {
   try {
     const resp = await fetch(BASE + '/api/wakeup-status')
