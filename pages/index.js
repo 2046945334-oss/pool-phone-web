@@ -159,26 +159,25 @@ function getApiConfig(feature) {
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); syncToBackend('pool_chat_history', saveMsgs) } catch {} }, [messages])
-  // 定时轮询后端新消息（唤醒消息 + 留言），每30秒一次
+  // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
   useEffect(() => {
-    const pollBackend = async () => {
+    const pollInbox = async () => {
       try {
-        const res = await fetch('/api/data/pool_chat_history')
+        const res = await fetch('/api/wake-inbox')
         if (!res.ok) return
         const data = await res.json()
-        const backendMsgs = Array.isArray(data.value) ? data.value : (typeof data.value === 'string' ? JSON.parse(data.value) : [])
-        if (!backendMsgs.length) return
+        const inboxMsgs = data.messages || []
+        if (!inboxMsgs.length) return
         setMessages(prev => {
           const prevSet = new Set(prev.map(m => m.content))
-          // 找后端有但前端没有的 assistant 消息
-          const newMsgs = backendMsgs.filter(m => m.role === 'assistant' && m.content && !prevSet.has(m.content))
+          const newMsgs = inboxMsgs.filter(m => m.content && !prevSet.has(m.content))
           if (newMsgs.length > 0) return [...prev, ...newMsgs]
           return prev
         })
       } catch {}
     }
-    pollBackend()
-    const timer = setInterval(pollBackend, 30000)
+    pollInbox()
+    const timer = setInterval(pollInbox, 30000)
     return () => clearInterval(timer)
   }, [])
   const [input, setInput] = useState('')

@@ -420,9 +420,10 @@ const TOOLS = [
     }
   }
 ]
-
 async function executeTool(name, args) {
   const db = getDb()
+  try {
+
 
   if (name === 'write_note') {
     const key = 'pool_notes_v3'
@@ -1412,6 +1413,9 @@ async function executeTool(name, args) {
     }
   }
   return { error: 'Unknown tool: ' + name }
+  } finally {
+    try { db.close() } catch {}
+  }
 }
 
 export default async function handler(req, res) {
