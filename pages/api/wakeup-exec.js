@@ -95,6 +95,7 @@ async function executeTool(name, args) {
     const RARITY_W = {common:35,uncommon:25,rare:12,epic:4,junk:12}
     let gd = {score:0,poolScore:0,catchCount:0,catches:[],dex:[],spot:'dongchong',bait:'basic',baitCount:{basic:99}}
     try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key); if (row) Object.assign(gd, JSON.parse(row.value)) } catch {}
+    const prevScore = gd.poolScore
     const catches = []
     for (let rod = 0; rod < 5; rod++) {
       if (Math.random() < 0.25) continue
@@ -109,6 +110,7 @@ async function executeTool(name, args) {
       if (pk.rarity !== 'junk' && (gd.dex||[]).indexOf(pk.name) < 0) { if(!gd.dex) gd.dex=[]; gd.dex.push(pk.name) }
     }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(gd))
+    console.log('[do_fishing] score', prevScore, '->', gd.poolScore, 'catches:', catches.length)
     return { success: true, catches, totalScore: gd.poolScore, message: '钓了' + catches.length + '条鱼' }
   }
 
