@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>唤醒日志</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+  background: #f5f3ef;
+  min-height: 100vh;
+  padding: 20px 16px 40px;
+  overflow-x: hidden;
+}
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #8a7e72;
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+.header h1 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #5a5249;
+  margin-bottom: 4px;
+}
+.cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.stamp-card {
+  position: relative;
+  background: #fff;
+  padding: 16px 18px;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  outline: 1.5px dashed #d4cfc8;
+  outline-offset: 4px;
+  border: 7px solid #f5f3ef;
+  background-clip: padding-box;
+}
+.stamp-card::before {
+  content: '';
+  position: absolute;
+  top: -7px; left: -7px; right: -7px; bottom: -7px;
+  background:
+    radial-gradient(circle, #f5f3ef 3px, transparent 3.5px) top left / 14px 14px repeat-x,
+    radial-gradient(circle, #f5f3ef 3px, transparent 3.5px) bottom left / 14px 14px repeat-x,
+    radial-gradient(circle, #f5f3ef 3px, transparent 3.5px) left top / 14px 14px repeat-y,
+    radial-gradient(circle, #f5f3ef 3px, transparent 3.5px) right top / 14px 14px repeat-y;
+  pointer-events: none;
+}
+/* scattered feel */
+.stamp-card:nth-child(odd) { transform: rotate(-1.2deg); margin-left: 4px; }
+.stamp-card:nth-child(even) { transform: rotate(0.8deg); margin-left: 20px; }
+.stamp-card:nth-child(3n) { transform: rotate(-0.5deg); margin-left: 10px; }
+.stamp-card:nth-child(4n+1) { transform: rotate(1.5deg); margin-left: 2px; }
+
+.card-time {
+  font-size: 11px;
+  color: #b0a89e;
+  margin-bottom: 8px;
+  font-family: 'Courier New', monospace;
+}
+.card-msg {
+  font-size: 13px;
+  color: #4a4540;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+.card-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tool-tag {
+  font-size: 10px;
+  background: #f0ebe4;
+  color: #8a7e72;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.card-error {
+  color: #c75a5a;
+  font-size: 12px;
+}
+.empty, .loading {
+  text-align: center;
+  color: #b0a89e;
+  margin-top: 60px;
+  font-size: 13px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>唤醒日志</h1>
+  <span>每次醒来的痕迹</span>
+</div>
+<div class="cards-container" id="cards">
+  <div class="loading">加载中...</div>
+</div>
+<script>
+const BASE = location.origin
+async function loadLogs() {
+  try {
+    const resp = await fetch(BASE + '/api/wakeup-status')
+    const data = await resp.json()
+    render(data.recentLogs || [])
+  } catch (e) {
+    document.getElementById('cards').innerHTML = '<div class="empty">无法加载日志</div>'
+  }
+}
+function render(logs) {
+  const el = document.getElementById('cards')
+  if (!logs.length) { el.innerHTML = '<div class="empty">还没有唤醒记录</div>'; return }
+  const sorted = [...logs].reverse()
+  el.innerHTML = sorted.map(log => {
+    const time = fmtTime(log.time)
+    if (log.error) return `<div class="stamp-card"><div class="card-time">${time}</div><div class="card-error">⚠ ${esc(log.error)}</div></div>`
+    const msg = log.msg || log.reply || ''
+    const tools = log.tools || (log.actions || []).map(a => a.tool || a.name || '').filter(Boolean)
+    return `<div class="stamp-card"><div class="card-time">${time}</div>${msg ? `<div class="card-msg">${esc(msg)}</div>` : ''}${tools.length ? `<div class="card-tools">${tools.map(t=>`<span class="tool-tag">${esc(t)}</span>`).join('')}</div>` : ''}</div>`
+  }).join('')
+}
+function fmtTime(iso) {
+  if (!iso) return '??'
+  try { const d = new Date(iso); if(isNaN(d)) return iso; return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` } catch { return iso }
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+loadLogs()
+</script>
+</body>
+</html>
