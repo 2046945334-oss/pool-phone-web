@@ -159,9 +159,9 @@ function getApiConfig(feature) {
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); syncToBackend('pool_chat_history', saveMsgs) } catch {} }, [messages])
-  // 页面加载时从后端拉取唤醒消息并合并
+  // 定时轮询后端新消息（唤醒消息 + 留言），每30秒一次
   useEffect(() => {
-    (async () => {
+    const pollBackend = async () => {
       try {
         const res = await fetch('/api/data/pool_chat_history')
         if (!res.ok) return
@@ -170,12 +170,16 @@ function ChatView({ theme }) {
         if (!backendMsgs.length) return
         setMessages(prev => {
           const prevSet = new Set(prev.map(m => m.content))
-          const wakeMsgs = backendMsgs.filter(m => m.content && m.content.startsWith('[自主唤醒]') && !prevSet.has(m.content))
-          if (wakeMsgs.length > 0) return [...prev, ...wakeMsgs]
+          // 找后端有但前端没有的 assistant 消息
+          const newMsgs = backendMsgs.filter(m => m.role === 'assistant' && m.content && !prevSet.has(m.content))
+          if (newMsgs.length > 0) return [...prev, ...newMsgs]
           return prev
         })
       } catch {}
-    })()
+    }
+    pollBackend()
+    const timer = setInterval(pollBackend, 30000)
+    return () => clearInterval(timer)
   }, [])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
