@@ -1607,11 +1607,12 @@ export default async function handler(req, res) {
       }
 
       const reply = (choice && choice.message && choice.message.content) || '无响应'
+      const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
 
       // 5. 存储AI回复到数据库
       await processNewMessage(sessionId, 'assistant', reply, apiConfig)
 
-      return res.status(200).json({ reply, toolLogs: toolLogs.length ? toolLogs : undefined })
+      return res.status(200).json({ reply, reasoning, toolLogs: toolLogs.length ? toolLogs : undefined })
     }
 
     return res.status(200).json({ reply: '工具调用次数过多，已停止', toolLogs: toolLogs.length ? toolLogs : undefined })

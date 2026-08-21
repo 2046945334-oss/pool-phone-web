@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 import SplashScreen from '../components/SplashScreen'
 import { pullAllFromBackend, pushAllToBackend } from '../lib/appSync'
@@ -23,6 +23,42 @@ import ledgerHtml from '../public/apps/_ledger.html'
 import cabinHtml from '../public/apps/_cabin.html'
 import starmapHtml from '../public/apps/_starmap.html'
 
+
+// 思考过程组件 - 可折叠
+function ThinkingToggle({ reasoning }) {
+  const [open, setOpen] = useState(false)
+  if (!reasoning) return null
+  return (
+    <div className="thinking-wrap" onClick={() => setOpen(!open)}>
+      <div className="thinking-header">
+        <span>{'\ud83d\udcad \u67e5\u770b\u601d\u8003\u8fc7\u7a0b'}</span>
+        <span className="thinking-arrow">{open ? '\u25b2' : '\u25bc'}</span>
+      </div>
+      {open && (
+        <div className="thinking-body">{reasoning}</div>
+      )}
+    </div>
+  )
+}
+// time helpers
+function formatMsgTime(ts) {
+  if (!ts) return null
+  const d = new Date(ts)
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return h + ':' + m
+}
+function shouldShowTime(msgs, idx) {
+  if (idx === 0) return true
+  const cur = msgs[idx]
+  if (!cur.ts) return false
+  for (let j = idx - 1; j >= 0; j--) {
+    if (msgs[j].ts) {
+      return (cur.ts - msgs[j].ts) > 5 * 60 * 1000
+    }
+  }
+  return true
+}
 // 工具调用日志组件 - 可折叠显示
 function ToolLogBubble({ logs }) {
   const [open, setOpen] = useState(false)
@@ -365,7 +401,7 @@ function ChatView({ theme }) {
     const msgToSend = overrideMessages || messages
     const userText = overrideMessages ? null : input.trim()
     if (!overrideMessages && !userText) return
-    const newMessages = overrideMessages || [...messages, { role: 'user', content: userText }]
+    const newMessages = overrideMessages || [...messages, { role: 'user', content: userText, ts: Date.now() }]
     if (!overrideMessages) { setMessages(newMessages); setInput(''); return }
     // Only trigger AI when explicitly called with overrideMessages
     setLoading(true)
@@ -446,7 +482,7 @@ function ChatView({ theme }) {
       const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]))
       let current = [...newMessages]
       for (let i = 0; i < restored.length; i++) {
-        current = [...current, { role: 'assistant', content: restored[i].trim() }]
+        current = [...current, { role: 'assistant', content: restored[i].trim(), ts: i === 0 ? Date.now() : undefined, ...(i === 0 && data.reasoning ? { reasoning: data.reasoning } : {}) }]
         setMessages([...current])
         if (i < restored.length - 1) await new Promise(r => setTimeout(r, 600))
       }
@@ -654,7 +690,9 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         {messages.slice(visibleStart).map((msg, idx) => {
           const i = visibleStart + idx
           return (
-          <div key={i} className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
+          <React.Fragment key={i}>
+            {shouldShowTime(messages, i) && msg.ts && <div className="msg-time-divider">{formatMsgTime(msg.ts)}</div>}
+          <div className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
             {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
             {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
             {msg.role === 'tool_log' ? (
@@ -683,6 +721,8 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
               </div>
             )}
           </div>
+          {msg.role === 'assistant' && msg.reasoning && <ThinkingToggle reasoning={msg.reasoning} />}
+          </React.Fragment>
         )})}
         <div ref={bottomRef} />
       </div>
@@ -2097,6 +2137,11 @@ export default function Home() {
         .tool-log-args { font-size: 10px; color: #7a7a7a; white-space: pre-wrap; word-break: break-all; margin-top: 2px; }
         .tool-log-result { font-size: 10px; color: #6a9a6a; white-space: pre-wrap; word-break: break-all; margin-top: 2px; }
         .msg-row.tool_log { justify-content: center; }
+        .msg-time-divider { text-align: center; padding: 10px 0 6px; font-size: 11px; color: #8a8a8a; letter-spacing: 1px; }
+        .thinking-wrap { width: 90%; margin: 2px auto 6px; background: rgba(199,125,186,.06); border-radius: 8px; border: 1px solid rgba(199,125,186,.15); cursor: pointer; overflow: hidden; }
+        .thinking-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; font-size: 11px; color: #9a8a99; }
+        .thinking-arrow { font-size: 10px; color: #666; }
+        .thinking-body { padding: 6px 12px 10px; border-top: 1px solid rgba(199,125,186,.12); font-size: 12px; color: #8a8a8a; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto; }
         .msg-edit-wrap { max-width: 72%; }
         .msg-edit-input { width: 100%; min-height: 60px; background: #1a1a1a; border: 1px solid #e8a0bf; border-radius: 12px; padding: 8px 12px; color: #e0e0e0; font-size: 14px; resize: none; outline: none; }
         .msg-edit-btns { display: flex; gap: 8px; margin-top: 4px; }
