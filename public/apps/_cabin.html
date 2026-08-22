@@ -106,13 +106,12 @@ body {
   <div class="loading">加载中...</div>
 </div>
 <script>
-// Detect base URL: if inside srcdoc iframe, use parent origin; otherwise use current origin
+// Get BASE from injected meta tag (index.js injects <meta name="api-base"> into srcdoc)
 const BASE = (function() {
-  try {
-    if (window.location.protocol === 'about:' || window.location.href === 'about:srcdoc') {
-      return window.parent.location.origin
-    }
-  } catch(e) {}
+  const meta = document.querySelector('meta[name="api-base"]')
+  if (meta && meta.content) return meta.content
+  // Fallback: try parent origin, then current origin
+  try { if (window.parent && window.parent.location && window.parent.location.origin !== 'null') return window.parent.location.origin } catch(e) {}
   if (window.location.origin && window.location.origin !== 'null') return window.location.origin
   return 'https://chi.zeabur.app'
 })()
@@ -141,7 +140,7 @@ async function loadLogs() {
     error: log.error || null
   })) : []
 
-  // Source 2: pool_wake_log KV (new Operit workflow wakeup system)
+  // Source 2: pool_wake_log KV (new wakeup system)
   let kvLogs = []
   try {
     const raw = kvData && kvData.value
@@ -175,7 +174,7 @@ async function loadLogs() {
   const all = []
   const msgSet = new Set()
 
-  // Priority: KV logs first (newest data), then wakeup-status logs, then chat logs
+  // Priority: KV logs first, then wakeup-status, then chat
   for (const log of [...kvLogs, ...wakeLogs]) {
     const k = (log.msg || '').slice(0, 30)
     if (k && msgSet.has(k)) continue
