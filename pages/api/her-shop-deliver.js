@@ -1,16 +1,17 @@
-// pages/api/her-shop-deliver.js - 用户（店主）给待发货订单发货
+// pages/api/her-shop-deliver.js - 用户（店主）给待发货订单发货 + AI查看收货
 import { getDb } from '../../lib/db'
 
 export default function handler(req, res) {
   const db = getDb()
 
   if (req.method === 'GET') {
-    // 获取所有待发货订单
+    // 获取所有订单（pending + delivered）
     try {
       const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_her_shop_orders'").get()
       const orders = row ? JSON.parse(row.value) : []
       const pending = orders.filter(o => o.status === 'pending')
-      return res.json({ pending })
+      const delivered = orders.filter(o => o.status === 'delivered')
+      return res.json({ pending, delivered, all: orders })
     } catch (e) {
       return res.status(500).json({ error: e.message })
     }
