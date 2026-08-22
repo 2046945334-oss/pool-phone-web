@@ -26,3 +26,19 @@ function syncFromBackend(keys, callback) {
   // 安全兜底：3秒后强制回调
   setTimeout(function() { if (done < total && callback) callback(); }, 3000);
 }
+
+/**
+ * 写回后端（防抖）
+ * 用法: syncToBackend(key, value)
+ */
+var _syncTimers = {};
+function syncToBackend(key, value) {
+  if (_syncTimers[key]) clearTimeout(_syncTimers[key]);
+  _syncTimers[key] = setTimeout(function() {
+    fetch('/api/data/' + key, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: value })
+    }).catch(function() {});
+  }, 800);
+}
