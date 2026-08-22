@@ -57,8 +57,9 @@ async function executeTool(name, args) {
     let state = { pages: [{ notes: [], decos: [] }], currentPage: 0 }
     try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key); if (row) state = JSON.parse(row.value) } catch {}
     if (!state.pages) state = { pages: [{ notes: [], decos: [] }], currentPage: 0 }
-    const page = state.pages[state.currentPage || 0] || state.pages[0]
+    const page = state.pages[state.pages.length - 1]
     page.notes.push({ id: 'n_' + Date.now(), text: args.text, paper: args.paper !== undefined ? args.paper : Math.floor(Math.random() * 6), x: 20 + Math.random() * 100, y: 20 + Math.random() * 100, rot: (Math.random() - 0.5) * 8 })
+    state.currentPage = state.pages.length - 1
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(state))
     return { success: true, message: '便签已写入: "' + args.text + '"' }
   }
@@ -163,7 +164,6 @@ async function executeTool(name, args) {
   }
 
   if (name === 'update_pocket') {
-    // AI处理投递箱条目：更新状态、写处理结果
     const id = parseInt(args.id)
     if (!id) return { error: 'missing id' }
     try {
