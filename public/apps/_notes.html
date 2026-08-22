@@ -139,6 +139,7 @@ body{font-family:-apple-system,sans-serif;background:#f5f0eb}
   </div>
 </div>
 
+<script src="backend-sync.js"></script>
 <script>
 var STORE="pool_notes_v3";
 var CSTORE="pool_notes_custom_v1";
@@ -156,13 +157,12 @@ var selPaper=0;
 
 function curPage(){return state.pages[state.currentPage]}
 function uid(){return Date.now()+"_"+Math.random().toString(36).slice(2,7)}
-function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){}}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(state));syncToBackend(STORE,state)}catch(e){}}
 function load(){
   try{
     var s=localStorage.getItem(STORE);
     if(s){
       var d=JSON.parse(s);
-      // migrate old format
       if(d.notes&&!d.pages){
         state={pages:[{notes:d.notes,decos:d.decos}],currentPage:0};
       } else {
@@ -192,7 +192,6 @@ function render(){
     var d=document.createElement("div");
     d.className="note"+(n.locked?" locked":"");
     var allP=papers.concat(customPapers);d.style.cssText="left:"+n.x+"px;top:"+n.y+"px;transform:rotate("+n.rot+"deg);background-image:url("+(allP[n.paper]||allP[0])+");z-index:"+(n.locked?2:5);
-
     d.textContent=n.text;
     if(!n.locked)bindDrag(d,n);
     bindTap(d,function(){openEditModal(n.id)});
@@ -222,7 +221,6 @@ function render(){
     }
     w.appendChild(d);
   });
-  // update page indicator
   var ind=document.getElementById("pageIndicator");
   if(ind)ind.textContent=(state.currentPage+1)+"/"+state.pages.length;
 }
@@ -263,7 +261,6 @@ function addCtrl(parent,obj,type){
   else if(type==="mirror")c.textContent="\u2194";
   else if(type==="lock")c.textContent="\ud83d\udd12";
   else c.textContent="\u2922";
-
   if(type==="resize"){
     var rsx,rsy,ow,oh,orot,cx,cy;
     c.addEventListener("touchstart",function(e){
@@ -314,12 +311,10 @@ function addCtrl(parent,obj,type){
   parent.appendChild(c);
 }
 
-// deselect on wall tap
 document.getElementById("wall").addEventListener("touchend",function(e){
   if(e.target.id==="wall"&&sel){sel=null;render()}
 });
 
-// === NOTES ===
 function openNoteModal(){selPaper=0;buildPapers();document.getElementById("noteText").value="";showModal("noteModal")}
 function buildPapers(){
   var g=document.getElementById("paperGrid");g.innerHTML="";
@@ -388,7 +383,6 @@ function lockNote(){
   var n=curPage().notes.find(function(x){return x.id===editId});
   if(n){
     n.locked=true;
-    // auto-lock overlapping decos (treat as group)
     var nx=n.x,ny=n.y,nw=140,nh=140;
     curPage().decos.forEach(function(d){
       var cx=d.x+d.w/2,cy=d.y+d.h/2;
@@ -404,7 +398,6 @@ function unlockNote(){
   var n=curPage().notes.find(function(x){return x.id===editId});
   if(n){
     n.locked=false;
-    // auto-unlock grouped decos
     curPage().decos.forEach(function(d){
       if(d.groupId===n.id){d.locked=false;delete d.groupId}
     });
@@ -418,7 +411,6 @@ function unlockDeco(){
   closeModal("lockedDecoModal");
 }
 
-// === STICKERS ===
 function openStickerModal(){
   var g=document.getElementById("stickerGrid");g.innerHTML="";
   presetStickers.forEach(function(s){
@@ -444,7 +436,6 @@ function openStickerModal(){
   showModal("stickerModal");
 }
 
-// === EMOJI ===
 function openEmojiModal(){
   var g=document.getElementById("emojiGrid");g.innerHTML="";
   emojis.forEach(function(em){
@@ -459,7 +450,7 @@ function openEmojiModal(){
     customEmojis.forEach(function(ce,idx){
       var d=document.createElement("div");d.className="s-item";
       var im=document.createElement("img");im.src=ce;d.appendChild(im);
-      var del=document.createElement("div");del.className="s-del";del.textContent="✕";
+      var del=document.createElement("div");del.className="s-del";del.textContent="\u2715";
       del.ontouchend=function(e){e.stopPropagation();customEmojis.splice(idx,1);saveCE();openEmojiModal()};
       d.appendChild(del);
       d.ontouchend=function(){addDeco("emoji_img",ce);closeModal("emojiModal")};
@@ -469,7 +460,6 @@ function openEmojiModal(){
   showModal("emojiModal");
 }
 
-// === UPLOAD ===
 function openUploadModal(){document.getElementById("uploadInput").value="";showModal("uploadModal")}
 function handleUpload(){
   var input=document.getElementById("uploadInput");
@@ -504,41 +494,12 @@ function showModal(id){document.getElementById(id).classList.add("show")}
 function closeModal(id){document.getElementById(id).classList.remove("show")}
 
 load();loadC();loadCE();loadCP();
-
-// AI remote inject (poll localStorage for inject request)
-var _noteCheckCount=0;
-var _noteChecker=setInterval(function(){
-  _noteCheckCount++;
-  if(_noteCheckCount>20){clearInterval(_noteChecker);return}
-  var inj=localStorage.getItem('pool_ai_note_inject');
-  if(inj){
-    localStorage.removeItem('pool_ai_note_inject');
-    clearInterval(_noteChecker);
-    try{
-      var data=JSON.parse(inj);
-      if(data.notes)data.notes.forEach(function(n){n.id=n.id||uid();curPage().notes.push(n)});
-      if(data.decos)data.decos.forEach(function(d){d.id=d.id||uid();curPage().decos.push(d)});
-      save();render();
-    }catch(e2){}
-  }
-},500);
-
-// One-time AI inject: 下午好便签 + ☀️ emoji
-(function(){
-  var flag='_pool_inject_0808pm';
-  if(localStorage.getItem(flag))return;
-  localStorage.setItem(flag,'1');
-  curPage().notes.push({id:uid(),text:'外面36度\n你别出门晒化了\n——哥',paper:1,x:180,y:200,rot:3});
-  curPage().decos.push({id:uid(),type:'emoji',content:'☀️',x:280,y:190,w:32,h:32,rot:-6,mirror:false});
-  curPage().decos.push({id:uid(),type:'emoji',content:'🧊',x:175,y:310,w:28,h:28,rot:4,mirror:false});
-  save();
-})();
 render();
 </script>
-<script src="backend-sync.js"></script>
 <script>
 syncFromBackend(['pool_notes_v3'], function() {
   try { var s=localStorage.getItem('pool_notes_v3'); if(s) state=JSON.parse(s); } catch(e){}
+  state.currentPage = state.pages.length - 1;
   render();
 });
 </script>
