@@ -52,6 +52,22 @@ async function executeTool(name, args) {
     return { poolScore: 0, score: 0 }
   }
 
+  if (name === 'check_her_deliveries') {
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop_orders')
+      if (!row) return { orders: [], message: '暂无订单' }
+      const orders = JSON.parse(row.value)
+      const delivered = orders.filter(o => o.status === 'delivered')
+      const pending = orders.filter(o => o.status === 'pending')
+      return {
+        delivered: delivered.map(o => ({ name: o.name, content: o.content, deliveredAt: o.deliveredAt, price: o.price })),
+        pending: pending.map(o => ({ name: o.name, price: o.price, time: o.time })),
+        message: delivered.length > 0 ? '有' + delivered.length + '个已发货订单' : '暂无已发货订单',
+        pendingCount: pending.length
+      }
+    } catch (e) { return { error: e.message } }
+  }
+
   if (name === 'write_note') {
     const key = 'pool_notes_v3'
     let state = { pages: [{ notes: [], decos: [] }], currentPage: 0 }
