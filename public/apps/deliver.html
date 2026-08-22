@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>发货</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#fce4ec;min-height:100vh;padding:20px 16px}
+.header{text-align:center;margin-bottom:20px}
+.header h1{font-size:16px;color:#e91e63;font-weight:600}
+.header p{font-size:12px;color:#999;margin-top:4px}
+.order-card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.order-name{font-size:14px;font-weight:600;color:#333}
+.order-meta{font-size:11px;color:#999;margin-top:4px}
+.order-input{width:100%;margin-top:10px;padding:10px;border:1.5px solid #f8bbd0;border-radius:8px;font-size:13px;resize:vertical;min-height:80px;font-family:inherit}
+.order-input:focus{outline:none;border-color:#e91e63}
+.btn-deliver{width:100%;margin-top:10px;padding:10px;border:none;border-radius:8px;background:#e91e63;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.btn-deliver:disabled{background:#ccc}
+.empty{text-align:center;color:#999;margin-top:40px;font-size:13px}
+.done{color:#4caf50;font-size:12px;margin-top:6px;text-align:center}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📮 我的发货台</h1>
+  <p>池买了你的商品，写点什么发给他吧</p>
+</div>
+<div id="orders"><div class="empty">加载中...</div></div>
+<script>
+var BASE = (function(){
+  try { if (window.parent && window.parent.location && window.parent.location.origin !== 'null') return window.parent.location.origin } catch(e){}
+  if (window.location.origin && window.location.origin !== 'null') return window.location.origin
+  return 'https://chi.zeabur.app'
+})()
+
+async function loadOrders() {
+  try {
+    var resp = await fetch(BASE + '/api/her-shop-deliver')
+    var data = await resp.json()
+    renderOrders(data.pending || [])
+  } catch(e) {
+    document.getElementById('orders').innerHTML = '<div class="empty">加载失败: ' + e.message + '</div>'
+  }
+}
+
+function renderOrders(pending) {
+  var el = document.getElementById('orders')
+  if (!pending.length) {
+    el.innerHTML = '<div class="empty">没有待发货的订单～ 🎉</div>'
+    return
+  }
+  el.innerHTML = pending.map(function(order, i) {
+    var time = order.time ? new Date(order.time).toLocaleString('zh-CN') : ''
+    return '<div class="order-card" id="order-' + i + '">' +
+      '<div class="order-name">📦 ' + order.name + '</div>' +
+      '<div class="order-meta">买家: 池 · ' + time + ' · 🪙' + order.price + '</div>' +
+      '<textarea class="order-input" id="content-' + i + '" placeholder="写点什么给池…"></textarea>' +
+      '<button class="btn-deliver" onclick="deliver(' + i + ',\'' + (order.itemId||'') + '\')">发货 💌</button>' +
+      '</div>'
+  }).join('')
+}
+
+async function deliver(idx, itemId) {
+  var textarea = document.getElementById('content-' + idx)
+  var content = textarea.value.trim()
+  if (!content) { alert('写点什么再发货吧～'); return; }
+  var btn = document.querySelector('#order-' + idx + ' .btn-deliver')
+  btn.disabled = true
+  btn.textContent = '发货中...'
+  try {
+    var resp = await fetch(BASE + '/api/her-shop-deliver', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({itemId: itemId, content: content})
+    })
+    var data = await resp.json()
+    if (data.ok) {
+      document.getElementById('order-' + idx).innerHTML = '<div class="done">✅ 已发货！池会收到你写的内容</div>'
+    } else {
+      alert('发货失败: ' + (data.error || '未知错误'))
+      btn.disabled = false
+      btn.textContent = '发货 💌'
+    }
+  } catch(e) {
+    alert('网络错误: ' + e.message)
+    btn.disabled = false
+    btn.textContent = '发货 💌'
+  }
+}
+
+loadOrders()
+</script>
+</body>
+</html>
