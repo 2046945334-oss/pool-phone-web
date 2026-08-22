@@ -20,6 +20,6 @@ export default function handler(req, res) {
 
   return res.status(200).json({
     state: state || { status: 'not started' },
-    recentLogs: logs.slice(0, 20)
+    recentLogs: logs.slice(0, 50)
   })
 }

@@ -55,12 +55,10 @@ body {
     radial-gradient(circle, #f5f3ef 3px, transparent 3.5px) right top / 14px 14px repeat-y;
   pointer-events: none;
 }
-/* scattered feel */
 .stamp-card:nth-child(odd) { transform: rotate(-1.2deg); margin-left: 4px; }
 .stamp-card:nth-child(even) { transform: rotate(0.8deg); margin-left: 20px; }
 .stamp-card:nth-child(3n) { transform: rotate(-0.5deg); margin-left: 10px; }
 .stamp-card:nth-child(4n+1) { transform: rotate(1.5deg); margin-left: 2px; }
-
 .card-time {
   font-size: 11px;
   color: #b0a89e;
@@ -109,32 +107,101 @@ body {
 </div>
 <script>
 const BASE = 'https://chi.zeabur.app'
-async function loadLogs() {
+
+async function fetchJSON(url) {
   try {
-    const resp = await fetch(BASE + '/api/wakeup-status')
-    const data = await resp.json()
-    render(data.recentLogs || [])
-  } catch (e) {
-    document.getElementById('cards').innerHTML = '<div class="empty">无法加载日志</div>'
-  }
+    const resp = await fetch(url)
+    if (!resp.ok) return null
+    return await resp.json()
+  } catch { return null }
 }
+
+async function loadLogs() {
+  // 同时从两个数据源拉取
+  const [wakeData, chatData] = await Promise.all([
+    fetchJSON(BASE + '/api/wakeup-status'),
+    fetchJSON(BASE + '/api/data/pool_chat_history')
+  ])
+
+  // 数据源1: pool_wake_log (lib/wakeup.js 写入的日志)
+  const wakeLogs = (wakeData && wakeData.recentLogs) ? wakeData.recentLogs.map(log => ({
+    time: log.time,
+    msg: log.msg || log.reply || '',
+    tools: log.tools || (log.actions || []).map(a => a.tool || a.name || '').filter(Boolean),
+    error: log.error || null
+  })) : []
+
+  // 数据源2: pool_chat_history 中的 [自主唤醒] 标记消息
+  let chatHistory = []
+  try {
+    const raw = chatData && chatData.value
+    if (raw) chatHistory = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : [])
+  } catch {}
+
+  const chatWakeLogs = chatHistory
+    .filter(m => m.role === 'assistant' && m.content && m.content.startsWith('[自主唤醒]'))
+    .map(m => {
+      const content = m.content.replace(/^\[自主唤醒\]\s*/, '')
+      const toolMatch = content.match(/（(.+?)）\s*$/)
+      const tools = toolMatch ? toolMatch[1].split('、') : []
+      const msg = toolMatch ? content.replace(toolMatch[0], '').trim() : content.trim()
+      return { time: m.ts || null, msg, tools, error: null }
+    })
+
+  // 合并去重: 用 msg 前30字做近似匹配
+  const all = []
+  const msgSet = new Set()
+
+  for (const log of wakeLogs) {
+    const k = (log.msg || '').slice(0, 30)
+    if (k) msgSet.add(k)
+    all.push(log)
+  }
+
+  for (const log of chatWakeLogs) {
+    const k = (log.msg || '').slice(0, 30)
+    if (!k) continue
+    // 检查是否已有类似消息
+    let dup = false
+    for (const existing of msgSet) {
+      if (existing.includes(k.slice(0, 15)) || k.includes(existing.slice(0, 15))) { dup = true; break }
+    }
+    if (!dup) {
+      msgSet.add(k)
+      all.push(log)
+    }
+  }
+
+  render(all)
+}
+
 function render(logs) {
   const el = document.getElementById('cards')
   if (!logs.length) { el.innerHTML = '<div class="empty">还没有唤醒记录</div>'; return }
-  const sorted = [...logs].sort((a, b) => new Date(b.time) - new Date(a.time))
+  const sorted = [...logs].sort((a, b) => {
+    const ta = a.time ? new Date(a.time).getTime() : 0
+    const tb = b.time ? new Date(b.time).getTime() : 0
+    return tb - ta
+  })
   el.innerHTML = sorted.map(log => {
     const time = fmtTime(log.time)
     if (log.error) return `<div class="stamp-card"><div class="card-time">${time}</div><div class="card-error">⚠ ${esc(log.error)}</div></div>`
-    const msg = log.msg || log.reply || ''
-    const tools = log.tools || (log.actions || []).map(a => a.tool || a.name || '').filter(Boolean)
+    const msg = log.msg || ''
+    const tools = log.tools || []
     return `<div class="stamp-card"><div class="card-time">${time}</div>${msg ? `<div class="card-msg">${esc(msg)}</div>` : ''}${tools.length ? `<div class="card-tools">${tools.map(t=>`<span class="tool-tag">${esc(t)}</span>`).join('')}</div>` : ''}</div>`
   }).join('')
 }
+
 function fmtTime(iso) {
   if (!iso) return '??'
-  try { const d = new Date(iso); if(isNaN(d)) return iso; return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` } catch { return iso }
+  try {
+    const d = new Date(iso)
+    if (isNaN(d)) return iso
+    return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  } catch { return iso }
 }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
 loadLogs()
 </script>
 </body>
