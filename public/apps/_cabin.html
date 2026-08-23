@@ -118,83 +118,64 @@ const BASE = (function() {
 
 async function fetchJSON(url) {
   try {
-    const resp = await fetch(url)
+    const sep = url.indexOf('?') >= 0 ? '&' : '?'
+    const resp = await fetch(url + sep + 't=' + Date.now(), { cache: 'no-store' })
     if (!resp.ok) return null
     return await resp.json()
   } catch { return null }
 }
 
-async function loadLogs() {
-  // Fetch from three data sources in parallel
-  const [wakeData, kvData, chatData] = await Promise.all([
+async function loadLogs()
+setInterval(loadLogs, 30000) {
+  // 唤醒日志有三种来源：正式日志、旧接口日志、聊天历史；留言型唤醒还要读取 wake_inbox
+  const [wakeData, kvData, chatData, inboxData] = await Promise.all([
     fetchJSON(BASE + '/api/wakeup-status'),
     fetchJSON(BASE + '/api/data/pool_wake_log'),
-    fetchJSON(BASE + '/api/data/pool_chat_history')
+    fetchJSON(BASE + '/api/data/pool_chat_history'),
+    fetchJSON(BASE + '/api/data/pool_wake_inbox')
   ])
 
-  // Source 1: /api/wakeup-status recentLogs (legacy cron wakeup system)
-  const wakeLogs = (wakeData && wakeData.recentLogs) ? wakeData.recentLogs.map(log => ({
-    time: log.time,
-    msg: log.msg || log.reply || '',
+  const normalize = log => ({
+    time: log.time || log.ts || null,
+    msg: log.msg || log.reply || log.content || '',
     tools: log.tools || (log.actions || []).map(a => a.tool || a.name || '').filter(Boolean),
     error: log.error || null
-  })) : []
+  })
 
-  // Source 2: pool_wake_log KV (new wakeup system)
+  const wakeLogs = (wakeData && wakeData.recentLogs) ? wakeData.recentLogs.map(normalize) : []
   let kvLogs = []
-  try {
-    const raw = kvData && kvData.value
-    const arr = Array.isArray(raw) ? raw : []
-    kvLogs = arr.map(log => ({
-      time: log.time,
-      msg: log.msg || log.reply || '',
-      tools: log.tools || (log.actions || []).map(a => a.tool || a.name || '').filter(Boolean),
-      error: log.error || null
-    }))
-  } catch {}
+  try { kvLogs = Array.isArray(kvData && kvData.value) ? kvData.value.map(normalize) : [] } catch {}
 
-  // Source 3: pool_chat_history [自主唤醒] messages
   let chatHistory = []
   try {
     const raw = chatData && chatData.value
     if (raw) chatHistory = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : [])
   } catch {}
-
   const chatWakeLogs = chatHistory
     .filter(m => m.role === 'assistant' && m.content && m.content.startsWith('[自主唤醒]'))
     .map(m => {
       const content = m.content.replace(/^\[自主唤醒\]\s*/, '')
       const toolMatch = content.match(/（(.+?)）\s*$/)
-      const tools = toolMatch ? toolMatch[1].split('、') : []
-      const msg = toolMatch ? content.replace(toolMatch[0], '').trim() : content.trim()
-      return { time: m.ts || null, msg, tools, error: null }
+      return { time: m.ts || m.time || null, msg: toolMatch ? content.replace(toolMatch[0], '').trim() : content.trim(), tools: toolMatch ? toolMatch[1].split('、') : [], error: null }
     })
 
-  // Merge and deduplicate using msg first 30 chars
+  let inboxLogs = []
+  try {
+    const raw = inboxData && inboxData.value
+    const inbox = Array.isArray(raw) ? raw : []
+    inboxLogs = inbox.map(m => ({ time: m.ts || m.time || null, msg: m.content || m.msg || '', tools: ['leave_message'], error: null }))
+  } catch {}
+
   const all = []
-  const msgSet = new Set()
-
-  // Priority: KV logs first, then wakeup-status, then chat
-  for (const log of [...kvLogs, ...wakeLogs]) {
-    const k = (log.msg || '').slice(0, 30)
-    if (k && msgSet.has(k)) continue
-    if (k) msgSet.add(k)
-    all.push(log)
+  const seen = []
+  const add = log => {
+    const key = (log.msg || '').slice(0, 40)
+    if (key && seen.some(x => x === key || x.includes(key.slice(0, 20)) || key.includes(x.slice(0, 20)))) return
+    if (key) seen.push(key)
+    if (log.msg || log.error || (log.tools && log.tools.length)) all.push(log)
   }
-
-  for (const log of chatWakeLogs) {
-    const k = (log.msg || '').slice(0, 30)
-    if (!k) continue
-    let dup = false
-    for (const existing of msgSet) {
-      if (existing.includes(k.slice(0, 15)) || k.includes(existing.slice(0, 15))) { dup = true; break }
-    }
-    if (!dup) {
-      msgSet.add(k)
-      all.push(log)
-    }
-  }
-
+  // 正式日志优先，留言收件箱作为缺失日志的补充
+  ;[...kvLogs, ...wakeLogs, ...inboxLogs, ...chatWakeLogs].forEach(add)
   render(all)
 }
 
