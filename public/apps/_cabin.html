@@ -125,8 +125,7 @@ async function fetchJSON(url) {
   } catch { return null }
 }
 
-async function loadLogs()
-setInterval(loadLogs, 30000) {
+async function loadLogs() {
   // 唤醒日志有三种来源：正式日志、旧接口日志、聊天历史；留言型唤醒还要读取 wake_inbox
   const [wakeData, kvData, chatData, inboxData] = await Promise.all([
     fetchJSON(BASE + '/api/wakeup-status'),
@@ -207,6 +206,7 @@ function fmtTime(iso) {
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
 loadLogs()
+setInterval(loadLogs, 30000)
 </script>
 </body>
 </html>
