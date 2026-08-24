@@ -118,6 +118,15 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 .modal .modal-btns .btn-confirm{background:#d4764e;color:#fff}
 .modal .modal-btns .btn-cancel{background:#f5f5f5;color:#666}
 .empty{text-align:center;padding:40px 20px;color:#bbb;font-size:13px}
+/* Tool log collapsible */
+.tool-log-wrap{background:#f8f8f8;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;margin:6px 0;cursor:pointer}
+.tool-log-header{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#555}
+.tool-log-arrow{font-size:11px;color:#999}
+.tool-log-body{margin-top:8px;font-size:12px;color:#666;white-space:pre-wrap;word-break:break-all}
+.tool-log-item{margin-bottom:8px;padding:6px 8px;background:#fff;border-radius:6px;border:1px solid #eee}
+.tool-log-name{color:#4a9;font-weight:600;margin-bottom:2px}
+.tool-log-args{color:#888;margin:2px 0}
+.tool-log-result{color:#666}
 </style>
 </head>
 <body>
@@ -355,7 +364,22 @@ function renderMessages() {
         '<div class="node-card-footer" onclick="openLightbox(\''+m.imageUrl.replace(/'/g,"\\'")+'\')">' +
         '点击查看大图 ></div></div>';
     }
-    var cls = m.from === 'system' ? 'system' : (m.from === 'ai' ? 'ai' : 'user');
+    var cls = m.from === 'system' ? 'system' : (m.from === 'ai' ? 'ai' : (m.from === 'tool_log' ? 'tool-log' : 'user'));
+    // Tool call log - collapsible
+    if (m.from === 'tool_log' && m.toolLogs) {
+      var logs = m.toolLogs;
+      var logId = 'tlog_' + m.id;
+      var html = '<div class="msg-item tool-log-wrap" onclick="toggleToolLog(\''+logId+'\')">' +
+        '<div class="tool-log-header"><span>🔧 '+logs.length+'个工具调用</span><span class="tool-log-arrow" id="arrow_'+logId+'">▼</span></div>' +
+        '<div class="tool-log-body" id="'+logId+'" style="display:none">';
+      logs.forEach(function(log) {
+        html += '<div class="tool-log-item"><div class="tool-log-name">▸ '+log.name+'</div>';
+        if (log.args && Object.keys(log.args).length) html += '<div class="tool-log-args">参数: '+JSON.stringify(log.args,null,1)+'</div>';
+        html += '<div class="tool-log-result">结果: '+(typeof log.result==='object'?JSON.stringify(log.result,null,1):String(log.result||''))+'</div></div>';
+      });
+      html += '</div></div>';
+      return html;
+    }
     return '<div class="msg-item '+cls+'">'+m.text+'<div class="time">'+timeStr+'</div></div>';
   }).join('');
   area.scrollTop = area.scrollHeight;
@@ -378,6 +402,9 @@ function triggerAiReply() {
   var fc = all.chat || {};
   var config = { baseUrl: fc.apiBase||def.baseUrl||def.apiBase||'', apiKey: fc.apiKey||def.apiKey||'', model: fc.model||def.model||'' };
   if (!config.baseUrl) return;
+  // Tools config (separate API for function calling)
+  var tc = all.tools || {};
+  var toolsConfig = { apiBase: tc.apiBase||def.apiBase||def.baseUrl||'', apiKey: tc.apiKey||def.apiKey||'', model: tc.model||'' };
   // Read the same system prompt as main chat
   var sysPrompt = localStorage.getItem('pool_system_prompt') || '';
   // Build messages in OpenAI format from commission chat history
@@ -407,11 +434,15 @@ function triggerAiReply() {
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: msgs, apiBase: config.baseUrl, apiKey: config.apiKey, model: config.model })
+    body: JSON.stringify({ messages: msgs, apiBase: config.baseUrl, apiKey: config.apiKey, model: config.model, toolsConfig: toolsConfig })
   }).then(function(r) { return r.json(); })
   .then(function(d) {
     // Remove typing indicator
     gd.messages = gd.messages.filter(function(m){ return m.id !== 'typing'; });
+    // Show tool call logs as collapsible block (before reply)
+    if (d.toolLogs && d.toolLogs.length) {
+      gd.messages.push({ id: 'tl_'+Date.now(), text: '', time: Date.now(), from: 'tool_log', toolLogs: d.toolLogs });
+    }
     var reply = (d.reply || d.content || d.message || '').trim();
     if (reply) {
       gd.messages.push({ id: Date.now(), text: reply, time: Date.now(), from: 'ai' });
@@ -428,6 +459,12 @@ function triggerAiReply() {
 }
 function pushSystemMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'system' });
+}
+function toggleToolLog(id) {
+  var el = document.getElementById(id);
+  var arrow = document.getElementById('arrow_' + id);
+  if (el.style.display === 'none') { el.style.display = 'block'; if(arrow) arrow.textContent = '▲'; }
+  else { el.style.display = 'none'; if(arrow) arrow.textContent = '▼'; }
 }
 function pushAiMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'ai' });
