@@ -219,7 +219,7 @@ localStorage.setItem('pool_fish_last_result',JSON.stringify(catches));
 }
 },1000);
 }
-function save(){var data=JSON.stringify(gd);localStorage.setItem("pool_fishing_v2",data);fetch('/api/data/pool_fishing_v2',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:data})}).catch(function(){});}
+function save(){var data=JSON.stringify(gd);localStorage.setItem("pool_fishing_v2",data);localStorage.setItem("pool_fishing_v2_ts",String(Date.now()));fetch('/api/data/pool_fishing_v2',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:data})}).catch(function(){});}
 function render(){
 document.getElementById("scoreNum").textContent=gd.score||0;
 document.getElementById("poolScoreNum").textContent=gd.poolScore||0;

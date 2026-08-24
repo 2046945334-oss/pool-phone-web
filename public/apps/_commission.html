@@ -222,6 +222,16 @@ function load() {
   render();
   // 2. Pull from backend (single source of truth) and overwrite
   fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
+    if (r.status === 404) {
+      // Backend empty - push local to backend (one-time migration)
+      var local = JSON.stringify(gd);
+      fetch('/api/data/' + DATA_KEY, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: local })
+      }).catch(function(){});
+      return null;
+    }
     return r.ok ? r.json() : null;
   }).then(function(d) {
     if (d && d.value) {
@@ -878,7 +888,6 @@ setInterval(function() {
     }
   });
 }, 15000);
-syncFromBackend([DATA_KEY], function() { load(); lastOrderCount = gd.orders.length; });
 </script>
 </body>
 </html>
