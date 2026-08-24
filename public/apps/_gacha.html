@@ -624,16 +624,16 @@ load();
 </script>
 <script src="backend-sync.js"></script>
 <script>
-// 从后端拉最新卡池和积分数据
-syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi', 'pool_fishing_v2'], function() {
+// 从后端拉最新卡池数据（不拉fishing，避免覆盖本地新数据）
+syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi'], function() {
   load();
   render();
   // 确保后端也有卡面列表（供AI抽卡用）
   syncCardList();
 });
-// 每10秒自动从后端拉取最新数据（AI抽卡后前端能及时刷新）
+// 每10秒自动从后端拉取最新卡池数据
 setInterval(function() {
-  syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi', 'pool_fishing_v2'], function() {
+  syncFromBackend(['pool_gacha_v1', 'pool_gacha_v2_chi'], function() {
     load();
     render();
   });
