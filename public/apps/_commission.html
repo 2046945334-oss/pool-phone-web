@@ -214,131 +214,42 @@ var currentDetailOrder = -1;
 var currentDetailTab = 0;
 
 function load() {
-  // First try localStorage for instant render
+  // 1. Instant render from localStorage cache
   try {
     var s = localStorage.getItem(DATA_KEY);
-    if (s) {
-      var parsed = JSON.parse(s);
-      Object.assign(gd, parsed);
-    }
+    if (s) { var p = JSON.parse(s); Object.assign(gd, p); }
   } catch(e) {}
   render();
-  // Then pull latest from backend (AI writes there directly)
-  syncFromBackend([DATA_KEY], function() {
-    try {
-      var s2 = localStorage.getItem(DATA_KEY);
-      if (s2) {
-        var parsed2 = JSON.parse(s2);
-        Object.assign(gd, parsed2);
-      }
-    } catch(e2) {}
-    render();
-  });
-}
-// Direct save without merging messages - used after user explicitly deletes/rollbacks
-var _skipMergeOnce = false;
-function forceSave() {
-  _skipMergeOnce = true;
-  // Still need to merge orders status from backend before overwriting
+  // 2. Pull from backend (single source of truth) and overwrite
   fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
     return r.ok ? r.json() : null;
   }).then(function(d) {
     if (d && d.value) {
       var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
-      // Merge order status/timeline from backend (don't lose AI confirmations)
-      if (remote.orders && remote.orders.length) {
-        (gd.orders || []).forEach(function(lo) {
-          for (var i = 0; i < remote.orders.length; i++) {
-            if (remote.orders[i].id === lo.id) {
-              lo.status = remote.orders[i].status || lo.status;
-              lo.timeline = remote.orders[i].timeline || lo.timeline;
-              break;
-            }
-          }
-        });
-      }
-      if ((remote.earned || 0) > (gd.earned || 0)) gd.earned = remote.earned;
+      // Backend is truth - overwrite local gd completely
+      gd.orders = remote.orders || gd.orders || [];
+      gd.messages = remote.messages || gd.messages || [];
+      gd.shop = remote.shop || gd.shop || [];
+      gd.works = remote.works || gd.works || [];
+      gd.earned = remote.earned || gd.earned || 0;
+      if (remote.profile) gd.profile = remote.profile;
+      // Update localStorage cache
+      localStorage.setItem(DATA_KEY, JSON.stringify(gd));
+      render();
     }
-    doForceSave();
-  }).catch(function() { doForceSave(); });
-  function doForceSave() {
-    try {
-      var data = JSON.stringify(gd);
-      localStorage.setItem(DATA_KEY, data);
-      fetch('/api/data/' + DATA_KEY, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: data })
-      }).catch(function(e) { console.error('sync error:', e); });
-    } catch(e) { console.error('forceSave error:', e); }
-  }
+  }).catch(function() {});
 }
+// Simple save: write gd to localStorage + backend immediately. No merge.
 function save() {
-  // Helper: merge orders from remote (always, to keep status/timeline in sync)
-  function mergeOrders(remote) {
-    if (remote.orders && remote.orders.length) {
-      var localIds = {};
-      (gd.orders || []).forEach(function(o) { localIds[o.id] = true; });
-      remote.orders.forEach(function(o) {
-        if (!localIds[o.id]) gd.orders.push(o);
-        else {
-          for (var i = 0; i < gd.orders.length; i++) {
-            if (gd.orders[i].id === o.id) {
-              gd.orders[i].timeline = o.timeline || gd.orders[i].timeline;
-              gd.orders[i].status = o.status || gd.orders[i].status;
-              gd.orders[i]._notified = o._notified;
-              break;
-            }
-          }
-        }
-      });
-    }
-    if ((remote.earned || 0) > (gd.earned || 0)) gd.earned = remote.earned;
-  }
-  // If user just did a rollback/delete, skip MESSAGE merge but still merge orders
-  if (_skipMergeOnce) {
-    _skipMergeOnce = false;
-    fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
-      return r.ok ? r.json() : null;
-    }).then(function(d) {
-      if (d && d.value) {
-        var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
-        mergeOrders(remote);
-      }
-      doSave();
-    }).catch(function() { doSave(); });
-    return;
-  }
-  // Before saving, merge AI-side data (orders/messages) from backend to avoid overwrite
-  fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
-    return r.ok ? r.json() : null;
-  }).then(function(d) {
-    if (d && d.value) {
-      var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
-      mergeOrders(remote);
-      // Merge messages
-      if (remote.messages && remote.messages.length) {
-        var localMsgIds = {};
-        (gd.messages || []).forEach(function(m) { localMsgIds[m.id] = true; });
-        remote.messages.forEach(function(m) {
-          if (!localMsgIds[m.id]) gd.messages.push(m);
-        });
-      }
-    }
-    doSave();
-  }).catch(function() { doSave(); });
-  function doSave() {
-    try {
-      var data = JSON.stringify(gd);
-      localStorage.setItem(DATA_KEY, data);
-      // Immediate sync (no debounce) for data integrity
-      fetch('/api/data/' + DATA_KEY, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: data })
-      }).catch(function(e) { console.error('sync error:', e); });
-    } catch(e) { console.error('save error:', e); }
-  }
+  try {
+    var data = JSON.stringify(gd);
+    localStorage.setItem(DATA_KEY, data);
+    fetch('/api/data/' + DATA_KEY, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: data })
+    }).catch(function(e) { console.error('save sync error:', e); });
+  } catch(e) { console.error('save error:', e); }
 }
 function render() {
   renderShop();
@@ -574,14 +485,14 @@ function ctxRollback() {
   if (_ctxIdx < 0) { hideCtxMenu(); return; }
   if (confirm('删除此消息之后的所有消息？')) {
     gd.messages = gd.messages.slice(0, _ctxIdx + 1);
-    forceSave(); renderMessages();
+    save(); renderMessages();
   }
   hideCtxMenu();
 }
 function ctxDelete() {
   if (_ctxIdx < 0) { hideCtxMenu(); return; }
   gd.messages.splice(_ctxIdx, 1);
-  forceSave(); renderMessages();
+  save(); renderMessages();
   hideCtxMenu();
 }
 function pushAiMsg(text) {
