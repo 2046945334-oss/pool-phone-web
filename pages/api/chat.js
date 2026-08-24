@@ -220,12 +220,12 @@ const TOOLS = [
     type: 'function', function: {
       name: 'confirm_commission', description: '确认画师提交的成图，完成交易。画师earned增加。只有status=review的订单才能确认。',
       parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单索引(从0开始)' }, note: { type: 'string', description: '确认评价（可选）' } }, required: ['order_index'] }
+    }
+  },
   {
     type: 'function', function: {
       name: 'deliver_pool_shop_order', description: '给"池的小铺"中用户购买的订单发货（附上内容/寄语）',
       parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单序号(从0开始)' }, content: { type: 'string', description: '发货内容/寄语' } }, required: ['order_index', 'content'] }
-    }
-  },
     }
   },
   {
