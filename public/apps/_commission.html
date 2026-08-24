@@ -381,7 +381,7 @@ function triggerAiReply() {
     msgs.push({ role: 'system', content: sysPrompt });
   }
   // Add scene context
-  msgs.push({ role: 'system', content: '[当前场景] 你正在接稿App的交流频道里和画师（就是她）聊天。这里是你们关于约稿的对话。请像平时一样回复，保持你的性格和记忆。不要用markdown。简短回复即可。' });
+  msgs.push({ role: 'system', content: '[当前场景] 你正在接稿App的交流频道里和画师（就是她）聊天。这里是你们关于约稿的对话。请像平时一样回复，保持你的性格和记忆。不要用markdown。简短回复即可。\n\n[接稿工具 - 必须在合适时机调用]\n- confirm_commission(order_index) — 画师提交成图后，你确认验收（status必须是review才能确认）\n- comment_commission_node(order_index, node_index, comment) — 对画师上传的节点稿件发表评论/修改意见\n- request_commission_revision(order_index, reason) — 打回修改\n- view_commission_orders() — 查看所有订单状态和节点进度\n- place_commission_order(title, description, price, deadline) — 下新订单\n\n当画师说"成图""交稿""完成了"等，你应该先view_commission_orders看状态，如果是review就confirm_commission确认。不要只嘴上说"验收通过"而不调工具。' });
   // Add recent messages as conversation
   var recent = (gd.messages || []).slice(-20);
   recent.forEach(function(m) {
