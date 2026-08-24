@@ -445,7 +445,25 @@ load();
 </script>
 <script src="backend-sync.js"></script>
 <script>
-syncFromBackend(['pool_fishing_v2'], function() { load(); });
+// Smart sync: only overwrite local if backend is newer
+(function(){
+  var localTs = parseInt(localStorage.getItem('pool_fishing_v2_ts') || '0');
+  fetch('/api/data/pool_fishing_v2?t=' + Date.now()).then(function(r){
+    if(!r.ok) return;
+    return r.json();
+  }).then(function(d){
+    if(!d || !d.value) return;
+    var backendTs = (d.updated_at || 0) * 1000; // backend uses seconds
+    if(backendTs > localTs) {
+      // Backend is newer, use it
+      var str = typeof d.value === 'string' ? d.value : JSON.stringify(d.value);
+      localStorage.setItem('pool_fishing_v2', str);
+      localStorage.setItem('pool_fishing_v2_ts', String(backendTs));
+      load();
+    }
+    // else: local is newer or same, keep local (save will push to backend)
+  }).catch(function(){});
+})();
 </script>
 </body>
 </html>
