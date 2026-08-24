@@ -262,7 +262,12 @@ function save() {
     try {
       var data = JSON.stringify(gd);
       localStorage.setItem(DATA_KEY, data);
-      syncToBackend(DATA_KEY, data);
+      // Immediate sync (no debounce) for data integrity
+      fetch('/api/data/' + DATA_KEY, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: data })
+      }).catch(function(e) { console.error('sync error:', e); });
     } catch(e) { console.error('save error:', e); }
   }
 }
@@ -473,11 +478,19 @@ function fileToDataUrl(file, cb) {
       if (w > maxW || h > maxH) {
         var ratio = Math.min(maxW/w, maxH/h);
         w = Math.round(w*ratio); h = Math.round(h*ratio);
-      }
+}
       var canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      cb(canvas.toDataURL("image/jpeg", 0.75));
+      var dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+      // Upload to backend for persistence, fallback to dataUrl
+      fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: dataUrl, filename: file.name || 'node.jpg' })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        cb(d.url || dataUrl);
+      }).catch(function(){ cb(dataUrl); });
     };
     img.src = e.target.result;
   };
