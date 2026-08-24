@@ -70,3 +70,34 @@ function syncToBackend(key, value) {
     body: JSON.stringify({ value: str })
   }).catch(function() {});
 }
+
+/**
+ * 自动迁移：页面加载时，扫描 localStorage 所有 pool_ 开头的 key，
+ * 检查后端是否存在。如果后端 404 且本地有数据 → 推到后端。
+ * 只在第一次加载时执行一次（用 flag 防重复）。
+ */
+(function autoMigrate() {
+  if (sessionStorage.getItem('_pool_migrated')) return;
+  sessionStorage.setItem('_pool_migrated', '1');
+  var keys = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && k.indexOf('pool_') === 0 && k.indexOf('_ts') === -1) {
+      keys.push(k);
+    }
+  }
+  keys.forEach(function(key) {
+    fetch('/api/data/' + key + '?t=' + Date.now()).then(function(r) {
+      if (r.status === 404) {
+        var local = localStorage.getItem(key);
+        if (local && local.length > 2) {
+          fetch('/api/data/' + key, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: local })
+          }).catch(function(){});
+        }
+      }
+    }).catch(function(){});
+  });
+})();
