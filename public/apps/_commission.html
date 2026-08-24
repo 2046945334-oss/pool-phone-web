@@ -33,7 +33,9 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;co
 .msg-input-bar button{border:none;background:#d4764e;color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
 /* 画师主页 */
 .profile-header{text-align:center;padding:30px 20px 20px;background:linear-gradient(180deg,#efe8e0 0%,#f8f5f1 100%)}
-.profile-header .avatar{width:72px;height:72px;border-radius:50%;background:#d4764e;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff}
+.profile-header .banner{width:100%;height:100px;border-radius:12px;margin-bottom:12px;background:#d4764e33;background-size:cover;background-position:center;cursor:pointer}
+.profile-header .avatar{width:72px;height:72px;border-radius:50%;background:#d4764e;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;overflow:hidden;cursor:pointer;background-size:cover;background-position:center}
+.profile-header .avatar img{width:100%;height:100%;object-fit:cover}
 .profile-header .name{font-size:18px;font-weight:700;color:#3d3d3d}
 .profile-header .bio{font-size:12px;color:#888;margin-top:6px;line-height:1.5}
 .profile-stats{display:flex;justify-content:center;gap:30px;padding:16px}
@@ -103,7 +105,8 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;co
 
 <div id="page2" style="display:none">
   <div class="profile-header">
-    <div class="avatar" id="profileAvatar">🎨</div>
+    <div class="banner" id="profileBanner" onclick="pickBanner()" title="点击更换背景"></div>
+    <div class="avatar" id="profileAvatar" onclick="pickAvatar()" title="点击更换头像">🎨</div>
     <div class="name" id="profileName">画师</div>
     <div class="bio" id="profileBio">还没有填写简介</div>
   </div>
@@ -129,7 +132,7 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;co
 <script>
 var DATA_KEY = 'pool_commission';
 var gd = {
-  profile: { name: '画师', bio: '还没有填写简介', avatar: '🎨' },
+  profile: { name: '画师', bio: '还没有填写简介', avatar: '', avatarUrl: '', bannerUrl: '' },
   shop: [],      // [{id,title,desc,price,emoji,category,slots}]
   orders: [],    // [{id,shopItemId,title,price,status,deadline,nodes:[{text,time,type}],createdAt}]
   messages: [],  // [{id,text,time,from,type}]  from: 'system'|'ai'|'user'
@@ -248,7 +251,12 @@ function pushAiMsg(text) {
 
 // ===== 画师主页 =====
 function renderProfile() {
-  document.getElementById('profileAvatar').textContent = gd.profile.avatar || '🎨';
+  var avatarEl = document.getElementById('profileAvatar');
+  if (gd.profile.avatarUrl) { avatarEl.innerHTML = '<img src="'+gd.profile.avatarUrl+'">'; avatarEl.style.background = 'none'; }
+  else { avatarEl.textContent = gd.profile.avatar || '🎨'; avatarEl.style.background = '#d4764e'; }
+  var bannerEl = document.getElementById('profileBanner');
+  if (gd.profile.bannerUrl) { bannerEl.style.backgroundImage = 'url('+gd.profile.bannerUrl+')'; }
+  else { bannerEl.style.backgroundImage = ''; }
   document.getElementById('profileName').textContent = gd.profile.name || '画师';
   document.getElementById('profileBio').textContent = gd.profile.bio || '还没有填写简介';
   var doneOrders = gd.orders.filter(function(o) { return o.status === 'done'; });
@@ -265,10 +273,57 @@ function renderProfile() {
   }
 }
 
+
+function fileToDataUrl(file, cb) {
+  var reader = new FileReader();
+  reader.onload = function(e) { cb(e.target.result); };
+  reader.readAsDataURL(file);
+}
+function previewAvatar(input) {
+  if (!input.files[0]) return;
+  fileToDataUrl(input.files[0], function(url) {
+    window._pendingAvatarUrl = url;
+    document.getElementById('m_avatar_preview').textContent = '✓ 已选择';
+  });
+}
+function previewBanner(input) {
+  if (!input.files[0]) return;
+  fileToDataUrl(input.files[0], function(url) {
+    window._pendingBannerUrl = url;
+    document.getElementById('m_banner_preview').textContent = '✓ 已选择';
+  });
+}
+function pickAvatar() { editProfile(); }
+function pickBanner() { editProfile(); }
+
+function fileToDataUrl(file, cb) {
+  var reader = new FileReader();
+  reader.onload = function(e) { cb(e.target.result); };
+  reader.readAsDataURL(file);
+}
+function previewAvatar(input) {
+  if (!input.files[0]) return;
+  fileToDataUrl(input.files[0], function(url) {
+    window._pendingAvatarUrl = url;
+    document.getElementById('m_avatar_preview').textContent = '✓ 已选择';
+  });
+}
+function previewBanner(input) {
+  if (!input.files[0]) return;
+  fileToDataUrl(input.files[0], function(url) {
+    window._pendingBannerUrl = url;
+    document.getElementById('m_banner_preview').textContent = '✓ 已选择';
+  });
+}
+function pickAvatar() { editProfile(); }
+function pickBanner() { editProfile(); }
 function editProfile() {
+  window._pendingAvatarUrl = null; window._pendingBannerUrl = null;
+  window._pendingAvatarUrl = null; window._pendingBannerUrl = null;
   showModal('<h3>编辑画师资料</h3>' +
     '<label>昵称</label><input id="m_name" value="'+gd.profile.name+'">' +
-    '<label>头像 emoji</label><input id="m_avatar" value="'+(gd.profile.avatar||'🎨')+'" maxlength="4">' +
+    '<label>头像</label><div style="display:flex;gap:8px;align-items:center"><input id="m_avatar_file" type="file" accept="image/*" onchange="previewAvatar(this)" style="font-size:12px;flex:1"><span id="m_avatar_preview" style="font-size:12px;color:#888">'+(gd.profile.avatarUrl?'已设置':'未设置')+'</span></div>' +
+    '<label>主页背景</label><div style="display:flex;gap:8px;align-items:center"><input id="m_banner_file" type="file" accept="image/*" onchange="previewBanner(this)" style="font-size:12px;flex:1"><span id="m_banner_preview" style="font-size:12px;color:#888">'+(gd.profile.bannerUrl?'已设置':'未设置')+'</span></div>' +
     '<label>简介</label><textarea id="m_bio">'+gd.profile.bio+'</textarea>' +
     '<div class="modal-btns"><button class="btn-cancel" onclick="hideModal()">取消</button>' +
     '<button class="btn-confirm" onclick="confirmEditProfile()">保存</button></div>');
@@ -276,7 +331,8 @@ function editProfile() {
 
 function confirmEditProfile() {
   gd.profile.name = document.getElementById('m_name').value.trim() || '画师';
-  gd.profile.avatar = document.getElementById('m_avatar').value.trim() || '🎨';
+  if (window._pendingAvatarUrl) { gd.profile.avatarUrl = window._pendingAvatarUrl; }
+  if (window._pendingBannerUrl) { gd.profile.bannerUrl = window._pendingBannerUrl; }
   gd.profile.bio = document.getElementById('m_bio').value.trim();
   save(); render(); hideModal();
 }
