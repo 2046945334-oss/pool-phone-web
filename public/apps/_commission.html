@@ -235,7 +235,35 @@ function load() {
     render();
   });
 }
+// Direct save without merging - used after user explicitly deletes/rollbacks messages
+var _skipMergeOnce = false;
+function forceSave() {
+  _skipMergeOnce = true;
+  try {
+    var data = JSON.stringify(gd);
+    localStorage.setItem(DATA_KEY, data);
+    fetch('/api/data/' + DATA_KEY, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: data })
+    }).catch(function(e) { console.error('sync error:', e); });
+  } catch(e) { console.error('forceSave error:', e); }
+}
 function save() {
+  // If user just did a rollback/delete, skip merge to avoid re-adding deleted messages
+  if (_skipMergeOnce) {
+    _skipMergeOnce = false;
+    try {
+      var data = JSON.stringify(gd);
+      localStorage.setItem(DATA_KEY, data);
+      fetch('/api/data/' + DATA_KEY, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: data })
+      }).catch(function(e) { console.error('sync error:', e); });
+    } catch(e) { console.error('save error:', e); }
+    return;
+  }
   // Before saving, merge AI-side data (orders/messages) from backend to avoid overwrite
   fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
     return r.ok ? r.json() : null;
@@ -519,14 +547,14 @@ function ctxRollback() {
   if (_ctxIdx < 0) { hideCtxMenu(); return; }
   if (confirm('删除此消息之后的所有消息？')) {
     gd.messages = gd.messages.slice(0, _ctxIdx + 1);
-    save(); renderMessages();
+    forceSave(); renderMessages();
   }
   hideCtxMenu();
 }
 function ctxDelete() {
   if (_ctxIdx < 0) { hideCtxMenu(); return; }
   gd.messages.splice(_ctxIdx, 1);
-  save(); renderMessages();
+  forceSave(); renderMessages();
   hideCtxMenu();
 }
 function pushAiMsg(text) {
