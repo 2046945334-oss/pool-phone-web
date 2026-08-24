@@ -33,7 +33,7 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 .node-card-stage{padding:0 14px;font-size:11px;color:#888;margin-bottom:8px}
 .node-card-img{width:100%;aspect-ratio:1;object-fit:cover;border-top:1px solid #f0f0f0}
 .node-card-footer{padding:10px 14px;text-align:center;font-size:12px;color:#1976d2;cursor:pointer}
-.msg-input-bar{position:sticky;bottom:0;display:flex;gap:8px;padding:10px 16px;background:#f8f5f1;border-top:1px solid #e8e0d8}
+.msg-input-bar{display:flex;gap:8px;padding:10px 16px;background:#f8f5f1;border-top:1px solid #e8e0d8;flex-shrink:0}
 .msg-input-bar input{flex:1;border:1px solid #ddd;border-radius:20px;padding:8px 14px;font-size:13px;outline:none}
 .msg-input-bar input:focus{border-color:#d4764e}
 .msg-input-bar button{border:none;background:#d4764e;color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
@@ -129,7 +129,7 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 <div id="page0">
 <div class="shop-grid" id="shopGrid"></div>
 </div>
-<div id="page1" style="display:none;flex-direction:column;height:calc(100vh - 44px)">
+<div id="page1" style="display:none;flex-direction:column;height:calc(100vh - 96px)">
   <div class="msg-area" id="msgArea"></div>
   <div class="msg-input-bar">
     <input id="msgInput" placeholder="说点什么…" onkeydown="if(event.key==='Enter')sendMsg()">
@@ -360,6 +360,33 @@ function sendMsg() {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'user' });
   input.value = '';
   save(); renderMessages();
+  triggerAiReply(text);
+}
+function triggerAiReply(userText) {
+  var recent = (gd.messages || []).slice(-10);
+  var context = recent.map(function(m) {
+    var role = m.from === 'user' ? '画师' : (m.from === 'ai' ? '池(买家)' : '系统');
+    return role + ': ' + m.text;
+  }).join('\n');
+  var prompt = '你是"池"，一个下了约稿单的买家。画师刚给你发消息。请用1-2句话简短回复，语气随意亲切。不要用markdown格式。\n\n最近对话:\n' + context;
+  var config = null;
+  try { config = JSON.parse(localStorage.getItem('pool_api_config')); } catch(e) {}
+  if (!config || !config.baseUrl) return;
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [{ role: 'system', content: prompt }, { role: 'user', content: userText }],
+      config: config
+    })
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    var reply = (d.reply || d.content || d.message || '').trim();
+    if (reply) {
+      gd.messages.push({ id: Date.now(), text: reply, time: Date.now(), from: 'ai' });
+      save(); renderMessages();
+    }
+  }).catch(function() {});
 }
 function pushSystemMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'system' });
