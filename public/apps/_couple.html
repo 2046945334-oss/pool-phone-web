@@ -406,7 +406,7 @@ body{font-family:-apple-system,sans-serif;background:url('reader_bg.png') center
 <script>
 var COUPLE_KEY='pool_couple_space_v2';
 function loadState(){try{return JSON.parse(localStorage.getItem(COUPLE_KEY))||{};}catch(e){return {};}}
-function saveState(s){localStorage.setItem(COUPLE_KEY,JSON.stringify(s));}
+function saveState(s){var str=JSON.stringify(s);localStorage.setItem(COUPLE_KEY,str);fetch('/api/data/'+COUPLE_KEY,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:str})}).catch(function(){});}
 var state=loadState();
 
 // === Days (removed from UI but kept for data) ===

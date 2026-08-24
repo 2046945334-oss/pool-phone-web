@@ -587,7 +587,9 @@ function loadData() {
   return { status: 'home', trips: [], stamps: [] };
 }
 function saveData(data) {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  var str = JSON.stringify(data);
+  localStorage.setItem(SAVE_KEY, str);
+  fetch('/api/data/' + SAVE_KEY, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:str})}).catch(function(){});
 }
 
 var data = loadData();
@@ -1081,7 +1083,7 @@ function renderShopArea() {
 function getPoolShopItems() {
   try { var s = localStorage.getItem('pool_pool_shop'); return s ? JSON.parse(s) : []; } catch(e) { return []; }
 }
-function savePoolShopItems(items) { localStorage.setItem('pool_pool_shop', JSON.stringify(items)); }
+function savePoolShopItems(items) { var str=JSON.stringify(items);localStorage.setItem('pool_pool_shop', str);fetch('/api/data/pool_pool_shop',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:str})}).catch(function(){}); }
 
 // AI远程上架：从文件加载池的小铺商品
 (function(){try{
@@ -1130,14 +1132,10 @@ function getPoolShopOrders() {
   try { var s = localStorage.getItem('pool_pool_shop_orders'); return s ? JSON.parse(s) : []; } catch(e) { return []; }
 }
 function savePoolShopOrders(orders) {
-  localStorage.setItem('pool_pool_shop_orders', JSON.stringify(orders));
-  // 同步到后端数据库
-  try {
-    fetch('/api/data/pool_pool_shop_orders', { method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ value: orders })
-    }).catch(function(){});
-  } catch(e) {}
-  try {
+  var str = JSON.stringify(orders);
+  localStorage.setItem('pool_pool_shop_orders', str);
+  fetch('/api/data/pool_pool_shop_orders',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:str})}).catch(function(){});
+try {
     var pending = orders.filter(function(o){ return o.status === 'pending'; });
     if (pending.length > 0) {
       var a = document.createElement('a');
