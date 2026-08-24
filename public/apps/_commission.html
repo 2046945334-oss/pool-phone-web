@@ -20,7 +20,7 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 .shop-card .info .meta{font-size:10px;color:#aaa;margin-top:2px}
 .add-btn{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#ccc;min-height:100px;cursor:pointer;border:2px dashed #e0e0e0}
 /* 交流 */
-.msg-area{padding:12px;flex:1;overflow-y:auto;min-height:0}
+.msg-area{padding:12px;padding-bottom:64px;flex:1;overflow-y:auto;min-height:0}
 .msg-item{margin-bottom:10px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.6;max-width:85%}
 .msg-item.system{background:#f0ebe5;color:#666;margin:0 auto;text-align:center;max-width:90%;font-size:11px;border-radius:20px;padding:6px 14px}
 .msg-item.ai{background:#fff;color:#3d3d3d;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -33,10 +33,11 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 .node-card-stage{padding:0 14px;font-size:11px;color:#888;margin-bottom:8px}
 .node-card-img{width:100%;aspect-ratio:1;object-fit:cover;border-top:1px solid #f0f0f0}
 .node-card-footer{padding:10px 14px;text-align:center;font-size:12px;color:#1976d2;cursor:pointer}
-.msg-input-bar{display:flex;gap:8px;padding:10px 16px;background:#f8f5f1;border-top:1px solid #e8e0d8;flex-shrink:0}
+.msg-input-bar{display:flex;gap:8px;padding:10px 12px;background:#f8f5f1;border-top:1px solid #e8e0d8;position:absolute;bottom:0;left:0;right:0;align-items:center;z-index:10}
 .msg-input-bar input{flex:1;border:1px solid #ddd;border-radius:20px;padding:8px 14px;font-size:13px;outline:none}
 .msg-input-bar input:focus{border-color:#d4764e}
-.msg-input-bar button{border:none;background:#d4764e;color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.msg-send-btn{border:none;background:#ccc;color:#fff;border-radius:50%;width:36px;height:36px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.msg-ai-btn{border:none;background:#7c4dff;color:#fff;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 /* 画师主页 */
 .profile-header{text-align:center;padding:0 20px 20px;background:linear-gradient(180deg,#efe8e0 0%,#f8f5f1 100%);position:relative}
 .profile-header .banner{width:100%;height:120px;background:#d4764e22;background-size:cover;background-position:center;cursor:pointer}
@@ -129,11 +130,12 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 <div id="page0">
 <div class="shop-grid" id="shopGrid"></div>
 </div>
-<div id="page1" style="display:none;flex-direction:column;height:calc(100vh - 96px)">
+<div id="page1" style="display:none;flex-direction:column;position:relative;height:100%;overflow:hidden">
   <div class="msg-area" id="msgArea"></div>
   <div class="msg-input-bar">
-    <input id="msgInput" placeholder="说点什么…" onkeydown="if(event.key==='Enter')sendMsg()">
-    <button onclick="sendMsg()">发送</button>
+    <input id="msgInput" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendMsg()">
+    <button class="msg-send-btn" onclick="sendMsg()">▶</button>
+    <button class="msg-ai-btn" onclick="sendMsg();triggerAiReply()" title="发送并让池回复">✨</button>
   </div>
 </div>
 <div id="page2" style="display:none">
@@ -360,9 +362,11 @@ function sendMsg() {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'user' });
   input.value = '';
   save(); renderMessages();
-  triggerAiReply(text);
 }
-function triggerAiReply(userText) {
+function triggerAiReply() {
+  var userMsgs = (gd.messages||[]).filter(function(m){return m.from==="user"});
+  var userText = userMsgs.length ? userMsgs[userMsgs.length-1].text : "";
+  if (!userText) return;
   // Use the exact same config and system prompt as main chat
   var config = null;
   try { config = JSON.parse(localStorage.getItem('pool_api_config')); } catch(e) {}
@@ -748,6 +752,7 @@ function checkOrderUpdates() {
 // ===== 通用 =====
 function switchTab(n) {
   for (var i = 0; i < 4; i++) document.getElementById('page'+i).style.display = i===n ? (i===1?'flex':'block') : 'none';
+  if (n===1) { var p1=document.getElementById('page1'); p1.style.height=(window.innerHeight - p1.offsetTop)+'px'; }
   var tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(function(t,i) { t.className = i===n ? 'tab active' : 'tab'; });
   if (n === 1) setTimeout(function(){ var a=document.getElementById('msgArea'); a.scrollTop=a.scrollHeight; }, 50);
