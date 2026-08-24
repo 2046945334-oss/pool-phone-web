@@ -34,6 +34,11 @@ async function executeTool(name, args) {
   const db = getDb()
 
   if (name === 'schedule_wakeup') {
+    // Actually reschedule the in-memory timer
+    try {
+      const { scheduleNext } = require('../../lib/wakeup')
+      scheduleNext(args.minutes || 60)
+    } catch (e) { console.log('[wakeup-exec] reschedule failed:', e.message) }
     return { success: true, message: 'acknowledged', minutes: args.minutes, reason: args.reason }
   }
 
