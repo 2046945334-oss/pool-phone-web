@@ -491,7 +491,11 @@ function ChatView({ theme }) {
         current = [...current, { role: 'tool_log', content: JSON.stringify(toolLogs) }]
         setMessages([...current])
         const wk = toolLogs.find(l => l.name === 'schedule_wakeup')
-        if (wk && wk.result && wk.result.ok) fetch('/api/wakeup-reschedule?minutes=' + (wk.args && wk.args.minutes || 60)).catch(() => {})
+        if (wk && wk.result && wk.result.ok) {
+          let mins = wk.args && wk.args.minutes
+          if (!mins && wk.result.wake_at) { try { mins = Math.max(1, Math.round((new Date(wk.result.wake_at.replace(' ','T') + '+08:00') - Date.now()) / 60000)) } catch {} }
+          fetch('/api/wakeup-reschedule?minutes=' + (mins || 60)).catch(() => {})
+        }
       }
       if (data.reply) {
         const lastUser = newMessages[newMessages.length - 1]?.content || ''
