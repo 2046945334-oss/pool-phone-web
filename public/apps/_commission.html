@@ -118,6 +118,20 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 .modal .modal-btns .btn-confirm{background:#d4764e;color:#fff}
 .modal .modal-btns .btn-cancel{background:#f5f5f5;color:#666}
 .empty{text-align:center;padding:40px 20px;color:#bbb;font-size:13px}
+/* Tool log collapsible */
+.tool-log-wrap{background:#f8f8f8;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;margin:6px 0;cursor:pointer}
+.tool-log-header{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#555}
+.tool-log-arrow{font-size:11px;color:#999}
+.tool-log-body{margin-top:8px;font-size:12px;color:#666;white-space:pre-wrap;word-break:break-all}
+.tool-log-item{margin-bottom:8px;padding:6px 8px;background:#fff;border-radius:6px;border:1px solid #eee}
+.tool-log-name{color:#4a9;font-weight:600;margin-bottom:2px}
+.tool-log-args{color:#888;margin:2px 0}
+.tool-log-result{color:#666}
+/* Long press context menu */
+.ctx-menu-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;background:rgba(0,0,0,0.3)}
+.ctx-menu{position:fixed;z-index:999;background:#222;border-radius:12px;padding:8px 0;min-width:150px;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.ctx-menu-item{display:flex;align-items:center;gap:10px;padding:12px 18px;color:#fff;font-size:15px;cursor:pointer}
+.ctx-menu-item:active{background:#333}
 </style>
 </head>
 <body>
@@ -200,71 +214,52 @@ var currentDetailOrder = -1;
 var currentDetailTab = 0;
 
 function load() {
-  // First try localStorage for instant render
+  // 1. Instant render from localStorage cache
   try {
     var s = localStorage.getItem(DATA_KEY);
-    if (s) {
-      var parsed = JSON.parse(s);
-      Object.assign(gd, parsed);
-    }
+    if (s) { var p = JSON.parse(s); Object.assign(gd, p); }
   } catch(e) {}
   render();
-  // Then pull latest from backend (AI writes there directly)
-  syncFromBackend([DATA_KEY], function() {
-    try {
-      var s2 = localStorage.getItem(DATA_KEY);
-      if (s2) {
-        var parsed2 = JSON.parse(s2);
-        Object.assign(gd, parsed2);
-      }
-    } catch(e2) {}
-    render();
-  });
-}
-function save() {
-  // Before saving, merge AI-side data (orders/messages) from backend to avoid overwrite
+  // 2. Pull from backend (single source of truth) and overwrite
   fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
+    if (r.status === 404) {
+      // Backend empty - push local to backend (one-time migration)
+      var local = JSON.stringify(gd);
+      fetch('/api/data/' + DATA_KEY, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: local })
+      }).catch(function(){});
+      return null;
+    }
     return r.ok ? r.json() : null;
   }).then(function(d) {
     if (d && d.value) {
       var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
-      // Merge orders from remote that don't exist locally (by id)
-      if (remote.orders && remote.orders.length) {
-        var localIds = {};
-        (gd.orders || []).forEach(function(o) { localIds[o.id] = true; });
-        remote.orders.forEach(function(o) {
-          if (!localIds[o.id]) gd.orders.push(o);
-          else {
-            // Update local order with remote changes (e.g. AI comments)
-            for (var i = 0; i < gd.orders.length; i++) {
-              if (gd.orders[i].id === o.id) {
-                gd.orders[i].timeline = o.timeline || gd.orders[i].timeline;
-                break;
-              }
-            }
-          }
-        });
-      }
-      // Merge messages
-      if (remote.messages && remote.messages.length) {
-        var localMsgIds = {};
-        (gd.messages || []).forEach(function(m) { localMsgIds[m.id] = true; });
-        remote.messages.forEach(function(m) {
-          if (!localMsgIds[m.id]) gd.messages.push(m);
-        });
-      }
-      // Keep remote earned if higher
-      if ((remote.earned || 0) > (gd.earned || 0)) gd.earned = remote.earned;
+      // Backend is truth - overwrite local gd completely
+      gd.orders = remote.orders || gd.orders || [];
+      gd.messages = remote.messages || gd.messages || [];
+      gd.shop = remote.shop || gd.shop || [];
+      gd.works = remote.works || gd.works || [];
+      gd.earned = remote.earned || gd.earned || 0;
+      if (remote.profile) gd.profile = remote.profile;
+      // Update localStorage cache
+      localStorage.setItem(DATA_KEY, JSON.stringify(gd));
+      render();
     }
-    doSave();
-  }).catch(function() { doSave(); });
-  function doSave() {
-    try {
-      var data = JSON.stringify(gd);
-      localStorage.setItem(DATA_KEY, data);
-      syncToBackend(DATA_KEY, data);
-    } catch(e) { console.error('save error:', e); }
-  }
+  }).catch(function() {});
+}
+// Simple save: write gd to localStorage + backend immediately. No merge.
+function save() {
+  try {
+    var data = JSON.stringify(gd);
+    localStorage.setItem(DATA_KEY, data);
+    fetch('/api/data/' + DATA_KEY, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: data })
+    }).catch(function(e) { console.error('save sync error:', e); });
+  } catch(e) { console.error('save error:', e); }
 }
 function render() {
   renderShop();
@@ -339,19 +334,34 @@ function renderMessages() {
     area.innerHTML = '<div class="empty">还没有消息<br>下单或上传节点后会自动出现在这里</div>';
     return;
   }
-  area.innerHTML = gd.messages.map(function(m) {
+  area.innerHTML = gd.messages.map(function(m, idx) {
     var timeStr = new Date(m.time).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     // 节点卡片消息
     if (m.type === 'node' && m.imageUrl) {
-      return '<div class="msg-item node-card">' +
+      return '<div class="msg-item node-card" data-idx="'+idx+'" oncontextmenu="return showCtxMenu(event,'+idx+')">' +
         '<div class="node-card-header">上传新稿件</div>' +
         '<div class="node-card-stage">当前节点：'+m.nodeType+'</div>' +
         '<img class="node-card-img" src="'+m.imageUrl+'" onclick="openLightbox(\''+m.imageUrl.replace(/'/g,"\\'")+'\')">' +
         '<div class="node-card-footer" onclick="openLightbox(\''+m.imageUrl.replace(/'/g,"\\'")+'\')">' +
         '点击查看大图 ></div></div>';
     }
-    var cls = m.from === 'system' ? 'system' : (m.from === 'ai' ? 'ai' : 'user');
-    return '<div class="msg-item '+cls+'">'+m.text+'<div class="time">'+timeStr+'</div></div>';
+    var cls = m.from === 'system' ? 'system' : (m.from === 'ai' ? 'ai' : (m.from === 'tool_log' ? 'tool-log' : 'user'));
+    // Tool call log - collapsible
+    if (m.from === 'tool_log' && m.toolLogs) {
+      var logs = m.toolLogs;
+      var logId = 'tlog_' + m.id;
+      var html = '<div class="msg-item tool-log-wrap" onclick="toggleToolLog(\''+logId+'\')">' +
+        '<div class="tool-log-header"><span>🔧 '+logs.length+'个工具调用</span><span class="tool-log-arrow" id="arrow_'+logId+'">▼</span></div>' +
+        '<div class="tool-log-body" id="'+logId+'" style="display:none">';
+      logs.forEach(function(log) {
+        html += '<div class="tool-log-item"><div class="tool-log-name">▸ '+log.name+'</div>';
+        if (log.args && Object.keys(log.args).length) html += '<div class="tool-log-args">参数: '+JSON.stringify(log.args,null,1)+'</div>';
+        html += '<div class="tool-log-result">结果: '+(typeof log.result==='object'?JSON.stringify(log.result,null,1):String(log.result||''))+'</div></div>';
+      });
+      html += '</div></div>';
+      return html;
+    }
+    return '<div class="msg-item '+cls+'" data-idx="'+idx+'" oncontextmenu="return showCtxMenu(event,'+idx+')">'+m.text+'<div class="time">'+timeStr+'</div></div>';
   }).join('');
   area.scrollTop = area.scrollHeight;
 }
@@ -373,6 +383,9 @@ function triggerAiReply() {
   var fc = all.chat || {};
   var config = { baseUrl: fc.apiBase||def.baseUrl||def.apiBase||'', apiKey: fc.apiKey||def.apiKey||'', model: fc.model||def.model||'' };
   if (!config.baseUrl) return;
+  // Tools config (separate API for function calling)
+  var tc = all.tools || {};
+  var toolsConfig = { apiBase: tc.apiBase||def.apiBase||def.baseUrl||'', apiKey: tc.apiKey||def.apiKey||'', model: tc.model||'' };
   // Read the same system prompt as main chat
   var sysPrompt = localStorage.getItem('pool_system_prompt') || '';
   // Build messages in OpenAI format from commission chat history
@@ -381,7 +394,7 @@ function triggerAiReply() {
     msgs.push({ role: 'system', content: sysPrompt });
   }
   // Add scene context
-  msgs.push({ role: 'system', content: '[当前场景] 你正在接稿App的交流频道里和画师（就是她）聊天。这里是你们关于约稿的对话。请像平时一样回复，保持你的性格和记忆。不要用markdown。简短回复即可。' });
+  msgs.push({ role: 'system', content: '[当前场景] 你正在接稿App的交流频道里和画师（就是她）聊天。这里是你们关于约稿的对话。请像平时一样回复，保持你的性格和记忆。不要用markdown。简短回复即可。\n\n[接稿工具 - 必须在合适时机调用]\n- confirm_commission(order_index) — 画师提交成图后，你确认验收（status必须是review才能确认）\n- comment_commission_node(order_index, node_index, comment) — 对画师上传的节点稿件发表评论/修改意见\n- request_commission_revision(order_index, reason) — 打回修改\n- view_commission_orders() — 查看所有订单状态和节点进度\n- place_commission_order(title, description, price, deadline) — 下新订单\n\n当画师说"成图""交稿""完成了"等，你应该先view_commission_orders看状态，如果是review就confirm_commission确认。不要只嘴上说"验收通过"而不调工具。' });
   // Add recent messages as conversation
   var recent = (gd.messages || []).slice(-20);
   recent.forEach(function(m) {
@@ -402,11 +415,15 @@ function triggerAiReply() {
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: msgs, apiBase: config.baseUrl, apiKey: config.apiKey, model: config.model })
+    body: JSON.stringify({ messages: msgs, apiBase: config.baseUrl, apiKey: config.apiKey, model: config.model, toolsConfig: toolsConfig })
   }).then(function(r) { return r.json(); })
   .then(function(d) {
     // Remove typing indicator
     gd.messages = gd.messages.filter(function(m){ return m.id !== 'typing'; });
+    // Show tool call logs as collapsible block (before reply)
+    if (d.toolLogs && d.toolLogs.length) {
+      gd.messages.push({ id: 'tl_'+Date.now(), text: '', time: Date.now(), from: 'tool_log', toolLogs: d.toolLogs });
+    }
     var reply = (d.reply || d.content || d.message || '').trim();
     if (reply) {
       gd.messages.push({ id: Date.now(), text: reply, time: Date.now(), from: 'ai' });
@@ -423,6 +440,70 @@ function triggerAiReply() {
 }
 function pushSystemMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'system' });
+}
+function toggleToolLog(id) {
+  var el = document.getElementById(id);
+  var arrow = document.getElementById('arrow_' + id);
+  if (el.style.display === 'none') { el.style.display = 'block'; if(arrow) arrow.textContent = '▲'; }
+  else { el.style.display = 'none'; if(arrow) arrow.textContent = '▼'; }
+}
+// Long press context menu
+var _ctxIdx = -1;
+function showCtxMenu(e, idx) {
+  e.preventDefault();
+  _ctxIdx = idx;
+  hideCtxMenu();
+  var overlay = document.createElement('div');
+  overlay.className = 'ctx-menu-overlay';
+  overlay.id = 'ctxOverlay';
+  overlay.onclick = hideCtxMenu;
+  var menu = document.createElement('div');
+  menu.className = 'ctx-menu';
+  menu.id = 'ctxMenu';
+  var x = e.touches ? e.touches[0].clientX : e.clientX;
+  var y = e.touches ? e.touches[0].clientY : e.clientY;
+  menu.innerHTML =
+    '<div class="ctx-menu-item" onclick="ctxCopy()">📋 复制</div>' +
+    '<div class="ctx-menu-item" onclick="ctxEdit()">✏️ 编辑</div>' +
+    '<div class="ctx-menu-item" onclick="ctxRollback()">⏪ 回滚到此</div>' +
+    '<div class="ctx-menu-item" onclick="ctxDelete()">🗑️ 删除</div>';
+  document.body.appendChild(overlay);
+  document.body.appendChild(menu);
+  // Position
+  var mw = 150, mh = 200;
+  menu.style.left = Math.min(x, window.innerWidth - mw) + 'px';
+  menu.style.top = Math.min(y, window.innerHeight - mh) + 'px';
+  return false;
+}
+function hideCtxMenu() {
+  var o = document.getElementById('ctxOverlay'); if(o) o.remove();
+  var m = document.getElementById('ctxMenu'); if(m) m.remove();
+}
+function ctxCopy() {
+  var m = gd.messages[_ctxIdx];
+  if (m) { try { navigator.clipboard.writeText(m.text); } catch(e) {} }
+  hideCtxMenu();
+}
+function ctxEdit() {
+  var m = gd.messages[_ctxIdx];
+  if (!m) { hideCtxMenu(); return; }
+  var newText = prompt('编辑消息:', m.text);
+  if (newText !== null) { m.text = newText; save(); renderMessages(); }
+  hideCtxMenu();
+}
+function ctxRollback() {
+  if (_ctxIdx < 0) { hideCtxMenu(); return; }
+  if (confirm('删除此消息之后的所有消息？')) {
+    gd.messages = gd.messages.slice(0, _ctxIdx + 1);
+    save(); renderMessages();
+  }
+  hideCtxMenu();
+}
+function ctxDelete() {
+  if (_ctxIdx < 0) { hideCtxMenu(); return; }
+  gd.messages.splice(_ctxIdx, 1);
+  save(); renderMessages();
+  hideCtxMenu();
 }
 function pushAiMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'ai' });
@@ -473,11 +554,19 @@ function fileToDataUrl(file, cb) {
       if (w > maxW || h > maxH) {
         var ratio = Math.min(maxW/w, maxH/h);
         w = Math.round(w*ratio); h = Math.round(h*ratio);
-      }
+}
       var canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      cb(canvas.toDataURL("image/jpeg", 0.75));
+      var dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+      // Upload to backend for persistence, fallback to dataUrl
+      fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: dataUrl, filename: file.name || 'node.jpg' })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        cb(d.url || dataUrl);
+      }).catch(function(){ cb(dataUrl); });
     };
     img.src = e.target.result;
   };
@@ -799,7 +888,6 @@ setInterval(function() {
     }
   });
 }, 15000);
-syncFromBackend([DATA_KEY], function() { load(); lastOrderCount = gd.orders.length; });
 </script>
 </body>
 </html>
