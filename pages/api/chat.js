@@ -188,20 +188,44 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'place_commission_order', description: '向画师(用户)下一个约稿订单。画师会在接稿App中看到并决定是否接单。下单后状态为pending，画师接单后变为working，画师上传节点稿件进行创作，最终提交成图等你确认。',
-      parameters: { type: 'object', properties: { title: { type: 'string', description: '约稿标题，如：Q版头像、半身立绘等' }, price: { type: 'number', description: '愿意支付的积分（从poolScore扣除）' }, description: { type: 'string', description: '详细描述需求：画风、尺寸、要求等' }, reference: { type: 'string', description: '参考说明（可选）' } }, required: ['title', 'price'] }
+      name: 'view_commission_shop', description: '查看画师(用户)的接稿橱窗。返回当前上架的所有稿件类型及价格列表。',
+      parameters: { type: 'object', properties: {} }
     }
   },
   {
     type: 'function', function: {
-      name: 'confirm_commission', description: '确认画师提交的成图，完成约稿订单交易。画师的积分（earned）会增加。',
-      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单在orders数组中的索引(从0开始)' }, note: { type: 'string', description: '确认时的留言/评价' } }, required: ['order_index'] }
+      name: 'place_commission_order', description: '向画师(用户)下约稿订单。扣除poolScore积分，订单进入pending状态等画师接单。',
+      parameters: { type: 'object', properties: { title: { type: 'string', description: '约稿标题，如：Q版头像、半身立绘' }, price: { type: 'number', description: '愿意支付的积分' }, description: { type: 'string', description: '需求描述：画风、尺寸、要求等' }, reference: { type: 'string', description: '参考说明（可选）' } }, required: ['title', 'price'] }
     }
   },
+  {
+    type: 'function', function: {
+      name: 'view_commission_orders', description: '查看所有约稿订单的状态列表（pending/working/review/done/cancelled），以及每个订单的节点进度。',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'comment_commission_node', description: '对画师上传的某个节点稿件发表评论/意见（如：颜色再亮一些、表情可以更开心）。评论会显示在交流区。',
+      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单索引(从0开始)' }, node_index: { type: 'number', description: '节点索引(从0开始，按上传顺序)' }, comment: { type: 'string', description: '评论/修改意见' } }, required: ['order_index', 'comment'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'request_commission_revision', description: '请求画师对当前稿件进行修改（打回修改）。状态保持working，画师会收到修改请求通知。',
+      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单索引(从0开始)' }, reason: { type: 'string', description: '修改原因和具体要求' } }, required: ['order_index', 'reason'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'confirm_commission', description: '确认画师提交的成图，完成交易。画师earned增加。只有status=review的订单才能确认。',
+      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单索引(从0开始)' }, note: { type: 'string', description: '确认评价（可选）' } }, required: ['order_index'] }
   {
     type: 'function', function: {
       name: 'deliver_pool_shop_order', description: '给"池的小铺"中用户购买的订单发货（附上内容/寄语）',
       parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单序号(从0开始)' }, content: { type: 'string', description: '发货内容/寄语' } }, required: ['order_index', 'content'] }
+    }
+  },
     }
   },
   {
@@ -758,7 +782,62 @@ async function executeTool(name, args) {
     return { success: true, message: '已发货订单#' + idx + ': ' + args.content, income: orders[idx].price }
   }
 
-    if (name === 'place_commission_order') {
+      if (name === 'view_commission_shop') {
+    let commission = { shop: [], profile: { name: '画师' } }
+    try {
+      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
+      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
+    } catch {}
+    if (commission.shop.length === 0) return { message: '画师橱窗暂时没有上架任何稿件类型' }
+    return { artist: commission.profile.name, items: commission.shop.map(s => ({ title: s.title, price: s.price, category: s.category, desc: s.desc })) }
+  }
+  if (name === 'view_commission_orders') {
+    let commission = { orders: [] }
+    try {
+      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
+      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
+    } catch {}
+    if (commission.orders.length === 0) return { message: '还没有任何约稿订单' }
+    return { orders: commission.orders.map((o, i) => ({ index: i, title: o.title, price: o.price, status: o.status, nodes: (o.nodes||[]).length, createdAt: o.createdAt, deadline: o.deadline||null })) }
+  }
+  if (name === 'comment_commission_node') {
+    let commission = { orders: [], messages: [] }
+    try {
+      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
+      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
+    } catch {}
+    const oi = args.order_index || 0
+    if (oi < 0 || oi >= commission.orders.length) return { error: '订单不存在' }
+    const o = commission.orders[oi]
+    const comment = args.comment || ''
+    if (!comment) return { error: '评论不能为空' }
+    // Add comment to messages
+    commission.messages.push({ id: Date.now(), text: '💬 池评论了「' + o.title + '」: ' + comment, time: Date.now(), from: 'ai' })
+    // Add to timeline
+    if (!o.timeline) o.timeline = []
+    o.timeline.push({ type: '买家评论', text: comment, time: Date.now() })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
+    return { success: true, message: '已对「' + o.title + '」发表评论' }
+  }
+  if (name === 'request_commission_revision') {
+    let commission = { orders: [], messages: [] }
+    try {
+      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
+      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
+    } catch {}
+    const oi = args.order_index || 0
+    if (oi < 0 || oi >= commission.orders.length) return { error: '订单不存在' }
+    const o = commission.orders[oi]
+    if (o.status !== 'review' && o.status !== 'working') return { error: '该订单状态为' + o.status + '，无法请求修改' }
+    o.status = 'working'
+    const reason = args.reason || '请修改'
+    if (!o.timeline) o.timeline = []
+    o.timeline.push({ type: '请求修改', text: reason, time: Date.now() })
+    commission.messages.push({ id: Date.now(), text: '🔄 池请求修改「' + o.title + '」: ' + reason, time: Date.now(), from: 'ai' })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
+    return { success: true, message: '已请求画师修改「' + o.title + '」' }
+  }
+  if (name === 'place_commission_order') {
     // 读池的积分
     let gd = { poolScore: 0 }
     try {
