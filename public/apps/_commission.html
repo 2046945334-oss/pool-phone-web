@@ -235,24 +235,33 @@ function load() {
     render();
   });
 }
-// Direct save without merging - used after user explicitly deletes/rollbacks messages
+// Direct save without merging messages - used after user explicitly deletes/rollbacks
 var _skipMergeOnce = false;
 function forceSave() {
   _skipMergeOnce = true;
-  try {
-    var data = JSON.stringify(gd);
-    localStorage.setItem(DATA_KEY, data);
-    fetch('/api/data/' + DATA_KEY, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: data })
-    }).catch(function(e) { console.error('sync error:', e); });
-  } catch(e) { console.error('forceSave error:', e); }
-}
-function save() {
-  // If user just did a rollback/delete, skip merge to avoid re-adding deleted messages
-  if (_skipMergeOnce) {
-    _skipMergeOnce = false;
+  // Still need to merge orders status from backend before overwriting
+  fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
+    return r.ok ? r.json() : null;
+  }).then(function(d) {
+    if (d && d.value) {
+      var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
+      // Merge order status/timeline from backend (don't lose AI confirmations)
+      if (remote.orders && remote.orders.length) {
+        (gd.orders || []).forEach(function(lo) {
+          for (var i = 0; i < remote.orders.length; i++) {
+            if (remote.orders[i].id === lo.id) {
+              lo.status = remote.orders[i].status || lo.status;
+              lo.timeline = remote.orders[i].timeline || lo.timeline;
+              break;
+            }
+          }
+        });
+      }
+      if ((remote.earned || 0) > (gd.earned || 0)) gd.earned = remote.earned;
+    }
+    doForceSave();
+  }).catch(function() { doForceSave(); });
+  function doForceSave() {
     try {
       var data = JSON.stringify(gd);
       localStorage.setItem(DATA_KEY, data);
@@ -261,7 +270,43 @@ function save() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: data })
       }).catch(function(e) { console.error('sync error:', e); });
-    } catch(e) { console.error('save error:', e); }
+    } catch(e) { console.error('forceSave error:', e); }
+  }
+}
+function save() {
+  // Helper: merge orders from remote (always, to keep status/timeline in sync)
+  function mergeOrders(remote) {
+    if (remote.orders && remote.orders.length) {
+      var localIds = {};
+      (gd.orders || []).forEach(function(o) { localIds[o.id] = true; });
+      remote.orders.forEach(function(o) {
+        if (!localIds[o.id]) gd.orders.push(o);
+        else {
+          for (var i = 0; i < gd.orders.length; i++) {
+            if (gd.orders[i].id === o.id) {
+              gd.orders[i].timeline = o.timeline || gd.orders[i].timeline;
+              gd.orders[i].status = o.status || gd.orders[i].status;
+              gd.orders[i]._notified = o._notified;
+              break;
+            }
+          }
+        }
+      });
+    }
+    if ((remote.earned || 0) > (gd.earned || 0)) gd.earned = remote.earned;
+  }
+  // If user just did a rollback/delete, skip MESSAGE merge but still merge orders
+  if (_skipMergeOnce) {
+    _skipMergeOnce = false;
+    fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
+      return r.ok ? r.json() : null;
+    }).then(function(d) {
+      if (d && d.value) {
+        var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
+        mergeOrders(remote);
+      }
+      doSave();
+    }).catch(function() { doSave(); });
     return;
   }
   // Before saving, merge AI-side data (orders/messages) from backend to avoid overwrite
@@ -270,23 +315,7 @@ function save() {
   }).then(function(d) {
     if (d && d.value) {
       var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
-      // Merge orders from remote that don't exist locally (by id)
-      if (remote.orders && remote.orders.length) {
-        var localIds = {};
-        (gd.orders || []).forEach(function(o) { localIds[o.id] = true; });
-        remote.orders.forEach(function(o) {
-          if (!localIds[o.id]) gd.orders.push(o);
-          else {
-            // Update local order with remote changes (e.g. AI comments)
-            for (var i = 0; i < gd.orders.length; i++) {
-              if (gd.orders[i].id === o.id) {
-                gd.orders[i].timeline = o.timeline || gd.orders[i].timeline;
-                break;
-              }
-            }
-          }
-        });
-      }
+      mergeOrders(remote);
       // Merge messages
       if (remote.messages && remote.messages.length) {
         var localMsgIds = {};
@@ -295,8 +324,6 @@ function save() {
           if (!localMsgIds[m.id]) gd.messages.push(m);
         });
       }
-      // Keep remote earned if higher
-      if ((remote.earned || 0) > (gd.earned || 0)) gd.earned = remote.earned;
     }
     doSave();
   }).catch(function() { doSave(); });
