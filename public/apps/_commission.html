@@ -127,6 +127,11 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 .tool-log-name{color:#4a9;font-weight:600;margin-bottom:2px}
 .tool-log-args{color:#888;margin:2px 0}
 .tool-log-result{color:#666}
+/* Long press context menu */
+.ctx-menu-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;background:rgba(0,0,0,0.3)}
+.ctx-menu{position:fixed;z-index:999;background:#222;border-radius:12px;padding:8px 0;min-width:150px;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.ctx-menu-item{display:flex;align-items:center;gap:10px;padding:12px 18px;color:#fff;font-size:15px;cursor:pointer}
+.ctx-menu-item:active{background:#333}
 </style>
 </head>
 <body>
@@ -353,11 +358,11 @@ function renderMessages() {
     area.innerHTML = '<div class="empty">还没有消息<br>下单或上传节点后会自动出现在这里</div>';
     return;
   }
-  area.innerHTML = gd.messages.map(function(m) {
+  area.innerHTML = gd.messages.map(function(m, idx) {
     var timeStr = new Date(m.time).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     // 节点卡片消息
     if (m.type === 'node' && m.imageUrl) {
-      return '<div class="msg-item node-card">' +
+      return '<div class="msg-item node-card" data-idx="'+idx+'" oncontextmenu="return showCtxMenu(event,'+idx+')">' +
         '<div class="node-card-header">上传新稿件</div>' +
         '<div class="node-card-stage">当前节点：'+m.nodeType+'</div>' +
         '<img class="node-card-img" src="'+m.imageUrl+'" onclick="openLightbox(\''+m.imageUrl.replace(/'/g,"\\'")+'\')">' +
@@ -380,7 +385,7 @@ function renderMessages() {
       html += '</div></div>';
       return html;
     }
-    return '<div class="msg-item '+cls+'">'+m.text+'<div class="time">'+timeStr+'</div></div>';
+    return '<div class="msg-item '+cls+'" data-idx="'+idx+'" oncontextmenu="return showCtxMenu(event,'+idx+')">'+m.text+'<div class="time">'+timeStr+'</div></div>';
   }).join('');
   area.scrollTop = area.scrollHeight;
 }
@@ -465,6 +470,64 @@ function toggleToolLog(id) {
   var arrow = document.getElementById('arrow_' + id);
   if (el.style.display === 'none') { el.style.display = 'block'; if(arrow) arrow.textContent = '▲'; }
   else { el.style.display = 'none'; if(arrow) arrow.textContent = '▼'; }
+}
+// Long press context menu
+var _ctxIdx = -1;
+function showCtxMenu(e, idx) {
+  e.preventDefault();
+  _ctxIdx = idx;
+  hideCtxMenu();
+  var overlay = document.createElement('div');
+  overlay.className = 'ctx-menu-overlay';
+  overlay.id = 'ctxOverlay';
+  overlay.onclick = hideCtxMenu;
+  var menu = document.createElement('div');
+  menu.className = 'ctx-menu';
+  menu.id = 'ctxMenu';
+  var x = e.touches ? e.touches[0].clientX : e.clientX;
+  var y = e.touches ? e.touches[0].clientY : e.clientY;
+  menu.innerHTML =
+    '<div class="ctx-menu-item" onclick="ctxCopy()">📋 复制</div>' +
+    '<div class="ctx-menu-item" onclick="ctxEdit()">✏️ 编辑</div>' +
+    '<div class="ctx-menu-item" onclick="ctxRollback()">⏪ 回滚到此</div>' +
+    '<div class="ctx-menu-item" onclick="ctxDelete()">🗑️ 删除</div>';
+  document.body.appendChild(overlay);
+  document.body.appendChild(menu);
+  // Position
+  var mw = 150, mh = 200;
+  menu.style.left = Math.min(x, window.innerWidth - mw) + 'px';
+  menu.style.top = Math.min(y, window.innerHeight - mh) + 'px';
+  return false;
+}
+function hideCtxMenu() {
+  var o = document.getElementById('ctxOverlay'); if(o) o.remove();
+  var m = document.getElementById('ctxMenu'); if(m) m.remove();
+}
+function ctxCopy() {
+  var m = gd.messages[_ctxIdx];
+  if (m) { try { navigator.clipboard.writeText(m.text); } catch(e) {} }
+  hideCtxMenu();
+}
+function ctxEdit() {
+  var m = gd.messages[_ctxIdx];
+  if (!m) { hideCtxMenu(); return; }
+  var newText = prompt('编辑消息:', m.text);
+  if (newText !== null) { m.text = newText; save(); renderMessages(); }
+  hideCtxMenu();
+}
+function ctxRollback() {
+  if (_ctxIdx < 0) { hideCtxMenu(); return; }
+  if (confirm('删除此消息之后的所有消息？')) {
+    gd.messages = gd.messages.slice(0, _ctxIdx + 1);
+    save(); renderMessages();
+  }
+  hideCtxMenu();
+}
+function ctxDelete() {
+  if (_ctxIdx < 0) { hideCtxMenu(); return; }
+  gd.messages.splice(_ctxIdx, 1);
+  save(); renderMessages();
+  hideCtxMenu();
 }
 function pushAiMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'ai' });
