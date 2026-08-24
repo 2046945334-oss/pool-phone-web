@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据检查</title>
+<style>
+body{font-family:system-ui;padding:20px;background:#1a1a2e;color:#eee;font-size:14px}
+h2{color:#7dd3fc}
+.key{background:#2a2a3e;padding:10px;margin:8px 0;border-radius:8px;word-break:break-all}
+.name{color:#7dd3fc;font-weight:bold}
+.size{color:#a5b4fc}
+.preview{color:#888;font-size:12px;max-height:60px;overflow:hidden;margin-top:4px}
+.ok{color:#4ade80}
+.bad{color:#f87171}
+#result{margin-top:20px}
+button{background:#3b82f6;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:16px;cursor:pointer}
+</style>
+</head>
+<body>
+<h2>📦 localStorage 数据检查</h2>
+<p>检查你浏览器里是否还存有小手机各 app 的数据：</p>
+<button onclick="check()">开始检查</button>
+<div id="result"></div>
+<script>
+function check() {
+  var el = document.getElementById('result');
+  var html = '';
+  var keys = [];
+  var totalSize = 0;
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && k.indexOf('pool_') === 0) {
+      keys.push(k);
+    }
+  }
+  if (keys.length === 0) {
+    html = '<p class="bad">⚠️ 未找到任何 pool_ 开头的数据！localStorage 可能已被清除。</p>';
+  } else {
+    html = '<p class="ok">✅ 找到 ' + keys.length + ' 个数据键：</p>';
+    keys.sort();
+    keys.forEach(function(k) {
+      var val = localStorage.getItem(k);
+      var size = val ? val.length : 0;
+      totalSize += size;
+      var preview = val ? val.substring(0, 100) : '(空)';
+      html += '<div class="key">';
+      html += '<span class="name">' + k + '</span> ';
+      html += '<span class="size">(' + (size > 1024 ? (size/1024).toFixed(1) + 'KB' : size + 'B') + ')</span>';
+      html += '<div class="preview">' + preview.replace(/</g,'&lt;') + '</div>';
+      html += '</div>';
+    });
+    html += '<p class="ok">总计: ' + (totalSize/1024).toFixed(1) + 'KB</p>';
+    html += '<p style="color:#fbbf24">✅ 数据安全。部署新版后会自动恢复到后端。</p>';
+  }
+  el.innerHTML = html;
+}
+</script>
+</body>
+</html>
