@@ -1682,11 +1682,12 @@ export default async function handler(req, res) {
 
     let maxRounds = 5
     let isFirstRound = true
+    const hasToolsConfig = tc.apiBase || tc.apiKey || tc.model
 
     while (maxRounds-- > 0) {
       // 第一轮用工具模型（gemini等，擅长function calling决定调什么工具）
       // 后续轮用主模型（opus等，基于工具结果生成高质量回复）
-      const useToolsModel = isFirstRound && toolsApiKey && toolsApiKey !== apiKey
+      const useToolsModel = isFirstRound && hasToolsConfig
       const reqUrl = useToolsModel ? toolsUrl : url
       const reqKey = useToolsModel ? toolsApiKey : apiKey
       const reqModel = useToolsModel ? toolsModel : (model || 'gpt-4o-mini')
@@ -1700,7 +1701,6 @@ export default async function handler(req, res) {
         stream: false,
       }
       // 只在第一轮且有独立工具配置时带工具（避免给不支持tools的模型发tools字段导致空回复）
-      const hasToolsConfig = tc.apiBase || tc.apiKey || tc.model
       if (isFirstRound && hasToolsConfig) bodyObj.tools = allTools
 
       const response = await fetch(reqUrl, {
