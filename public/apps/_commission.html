@@ -198,6 +198,7 @@ var currentDetailOrder = -1;
 var currentDetailTab = 0;
 
 function load() {
+  // First try localStorage for instant render
   try {
     var s = localStorage.getItem(DATA_KEY);
     if (s) {
@@ -206,6 +207,17 @@ function load() {
     }
   } catch(e) {}
   render();
+  // Then pull latest from backend (AI writes there directly)
+  syncFromBackend([DATA_KEY], function() {
+    try {
+      var s2 = localStorage.getItem(DATA_KEY);
+      if (s2) {
+        var parsed2 = JSON.parse(s2);
+        Object.assign(gd, parsed2);
+      }
+    } catch(e2) {}
+    render();
+  });
 }
 function save() {
   try {
