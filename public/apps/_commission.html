@@ -220,11 +220,49 @@ function load() {
   });
 }
 function save() {
-  try {
-    var data = JSON.stringify(gd);
-    localStorage.setItem(DATA_KEY, data);
-    syncToBackend(DATA_KEY, data);
-  } catch(e) { console.error("save error:", e); }
+  // Before saving, merge AI-side data (orders/messages) from backend to avoid overwrite
+  fetch('/api/data/' + DATA_KEY + '?t=' + Date.now()).then(function(r) {
+    return r.ok ? r.json() : null;
+  }).then(function(d) {
+    if (d && d.value) {
+      var remote = typeof d.value === 'string' ? JSON.parse(d.value) : d.value;
+      // Merge orders from remote that don't exist locally (by id)
+      if (remote.orders && remote.orders.length) {
+        var localIds = {};
+        (gd.orders || []).forEach(function(o) { localIds[o.id] = true; });
+        remote.orders.forEach(function(o) {
+          if (!localIds[o.id]) gd.orders.push(o);
+          else {
+            // Update local order with remote changes (e.g. AI comments)
+            for (var i = 0; i < gd.orders.length; i++) {
+              if (gd.orders[i].id === o.id) {
+                gd.orders[i].timeline = o.timeline || gd.orders[i].timeline;
+                break;
+              }
+            }
+          }
+        });
+      }
+      // Merge messages
+      if (remote.messages && remote.messages.length) {
+        var localMsgIds = {};
+        (gd.messages || []).forEach(function(m) { localMsgIds[m.id] = true; });
+        remote.messages.forEach(function(m) {
+          if (!localMsgIds[m.id]) gd.messages.push(m);
+        });
+      }
+      // Keep remote earned if higher
+      if ((remote.earned || 0) > (gd.earned || 0)) gd.earned = remote.earned;
+    }
+    doSave();
+  }).catch(function() { doSave(); });
+  function doSave() {
+    try {
+      var data = JSON.stringify(gd);
+      localStorage.setItem(DATA_KEY, data);
+      syncToBackend(DATA_KEY, data);
+    } catch(e) { console.error('save error:', e); }
+  }
 }
 function render() {
   renderShop();
