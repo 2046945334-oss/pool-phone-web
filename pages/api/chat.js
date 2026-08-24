@@ -875,6 +875,7 @@ async function executeTool(name, args) {
     if (o.status !== 'review') return { error: '该订单状态为' + o.status + '，只有review状态的订单才能确认' }
     o.status = 'done'
     o._notified = false
+    commission.earned = (commission.earned || 0) + (o.price || 0)
     if (!o.timeline) o.timeline = []
     o.timeline.push({ type: '买家确认', text: args.note || '确认收货', time: Date.now() })
     commission.messages.push({ id: Date.now(), text: '🎉 池确认了「' + o.title + '」的成图！', time: Date.now(), from: 'system' })
