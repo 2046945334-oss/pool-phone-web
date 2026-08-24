@@ -208,7 +208,7 @@ function ChatView({ theme }) {
         if (!inboxMsgs.length) return
         setMessages(prev => {
           const prevSet = new Set(prev.map(m => m.content))
-          const newMsgs = inboxMsgs.filter(m => m.content && !prevSet.has(m.content))
+          const newMsgs = inboxMsgs.filter(m => m.content && !prevSet.has(m.content)).map(m => ({ ...m, content: m.content.replace(/\[自主唤醒\]\s*/g,'').replace(/\s*[（(][^）)]*[）)]\s*$/g,'').trim() }))
           if (newMsgs.length > 0) return [...prev, ...newMsgs]
           return prev
         })
