@@ -363,22 +363,37 @@ function sendMsg() {
   triggerAiReply(text);
 }
 function triggerAiReply(userText) {
-  var recent = (gd.messages || []).slice(-10);
-  var context = recent.map(function(m) {
-    var role = m.from === 'user' ? '画师' : (m.from === 'ai' ? '池(买家)' : '系统');
-    return role + ': ' + m.text;
-  }).join('\n');
-  var prompt = '你是"池"，一个下了约稿单的买家。画师刚给你发消息。请用1-2句话简短回复，语气随意亲切。不要用markdown格式。\n\n最近对话:\n' + context;
+  // Use the exact same config and system prompt as main chat
   var config = null;
   try { config = JSON.parse(localStorage.getItem('pool_api_config')); } catch(e) {}
   if (!config || !config.baseUrl) return;
+  // Read the same system prompt as main chat
+  var sysPrompt = localStorage.getItem('pool_system_prompt') || '';
+  // Build messages in OpenAI format from commission chat history
+  var msgs = [];
+  if (sysPrompt) {
+    msgs.push({ role: 'system', content: sysPrompt });
+  }
+  // Add scene context
+  msgs.push({ role: 'system', content: '[当前场景] 你正在接稿App的交流频道里和画师（就是她）聊天。这里是你们关于约稿的对话。请像平时一样回复，保持你的性格和记忆。不要用markdown。简短回复即可。' });
+  // Add recent messages as conversation
+  var recent = (gd.messages || []).slice(-20);
+  recent.forEach(function(m) {
+    if (m.from === 'user') {
+      msgs.push({ role: 'user', content: m.text });
+    } else if (m.from === 'ai') {
+      msgs.push({ role: 'assistant', content: m.text });
+    }
+    // skip system messages in chat format
+  });
+  // Make sure last message is user
+  if (msgs[msgs.length - 1] && msgs[msgs.length - 1].role !== 'user') {
+    msgs.push({ role: 'user', content: userText });
+  }
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages: [{ role: 'system', content: prompt }, { role: 'user', content: userText }],
-      config: config
-    })
+    body: JSON.stringify({ messages: msgs, config: config })
   }).then(function(r) { return r.json(); })
   .then(function(d) {
     var reply = (d.reply || d.content || d.message || '').trim();
@@ -386,7 +401,7 @@ function triggerAiReply(userText) {
       gd.messages.push({ id: Date.now(), text: reply, time: Date.now(), from: 'ai' });
       save(); renderMessages();
     }
-  }).catch(function() {});
+  }).catch(function(e) { console.error('AI reply error:', e); });
 }
 function pushSystemMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'system' });
