@@ -367,10 +367,12 @@ function triggerAiReply() {
   var userMsgs = (gd.messages||[]).filter(function(m){return m.from==="user"});
   var userText = userMsgs.length ? userMsgs[userMsgs.length-1].text : "";
   if (!userText) return;
-  // Use the exact same config and system prompt as main chat
-  var config = null;
-  try { config = JSON.parse(localStorage.getItem('pool_api_config')); } catch(e) {}
-  if (!config || !config.baseUrl) return;
+  // Use the exact same config as main chat (getApiConfig('chat') logic)
+  var def = {}; try { def = JSON.parse(localStorage.getItem('pool_api_config')||'{}'); } catch(e) {}
+  var all = {}; try { all = JSON.parse(localStorage.getItem('pool_api_configs')||'{}'); } catch(e) {}
+  var fc = all.chat || {};
+  var config = { baseUrl: fc.apiBase||def.baseUrl||def.apiBase||'', apiKey: fc.apiKey||def.apiKey||'', model: fc.model||def.model||'' };
+  if (!config.baseUrl) return;
   // Read the same system prompt as main chat
   var sysPrompt = localStorage.getItem('pool_system_prompt') || '';
   // Build messages in OpenAI format from commission chat history
