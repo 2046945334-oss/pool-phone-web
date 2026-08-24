@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>接稿</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;color:#2d2d2d;overflow-x:hidden}
+.tabs{display:flex;position:sticky;top:0;z-index:50;background:#f8f5f1;border-bottom:1px solid #e8e0d8}
+.tabs .tab{flex:1;text-align:center;padding:12px 0;font-size:13px;color:#999;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tabs .tab.active{color:#d4764e;border-bottom-color:#d4764e;font-weight:600}
+/* 橱窗 */
+.shop-grid{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.shop-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.shop-card .cover{height:100px;background:#efe8e0;display:flex;align-items:center;justify-content:center;font-size:36px}
+.shop-card .info{padding:10px}
+.shop-card .title{font-size:13px;font-weight:600;color:#3d3d3d}
+.shop-card .price{font-size:12px;color:#d4764e;margin-top:4px}
+.shop-card .meta{font-size:10px;color:#aaa;margin-top:2px}
+.add-btn{background:#fff;border:2px dashed #ddd;border-radius:14px;display:flex;align-items:center;justify-content:center;min-height:140px;cursor:pointer;color:#bbb;font-size:28px}
+/* 交流页 */
+.msg-area{padding:12px 16px;min-height:calc(100vh - 90px);display:flex;flex-direction:column;gap:8px}
+.msg-item{max-width:80%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-all}
+.msg-item.system{align-self:center;max-width:90%;background:#f0ebe5;color:#888;font-size:11px;text-align:center;border-radius:8px;padding:6px 12px}
+.msg-item.ai{align-self:flex-start;background:#fff;border:1px solid #eee}
+.msg-item.user{align-self:flex-end;background:#d4764e;color:#fff}
+.msg-item .time{font-size:10px;color:#bbb;margin-top:4px}
+.msg-item.user .time{color:rgba(255,255,255,.7)}
+.msg-input-bar{position:sticky;bottom:0;display:flex;gap:8px;padding:10px 16px;background:#f8f5f1;border-top:1px solid #e8e0d8}
+.msg-input-bar input{flex:1;border:1px solid #ddd;border-radius:20px;padding:8px 14px;font-size:13px;outline:none}
+.msg-input-bar input:focus{border-color:#d4764e}
+.msg-input-bar button{border:none;background:#d4764e;color:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+/* 画师主页 */
+.profile-header{text-align:center;padding:30px 20px 20px;background:linear-gradient(180deg,#efe8e0 0%,#f8f5f1 100%)}
+.profile-header .avatar{width:72px;height:72px;border-radius:50%;background:#d4764e;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff}
+.profile-header .name{font-size:18px;font-weight:700;color:#3d3d3d}
+.profile-header .bio{font-size:12px;color:#888;margin-top:6px;line-height:1.5}
+.profile-stats{display:flex;justify-content:center;gap:30px;padding:16px}
+.profile-stats .stat{text-align:center}
+.profile-stats .stat .num{font-size:18px;font-weight:700;color:#d4764e}
+.profile-stats .stat .label{font-size:11px;color:#999}
+.works-grid{padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.works-grid .work{aspect-ratio:1;background:#efe8e0;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}
+.profile-edit-btn{display:block;margin:16px auto;padding:8px 24px;border:1px solid #d4764e;background:transparent;color:#d4764e;border-radius:20px;font-size:12px;cursor:pointer}
+/* 订单 */
+.order-list{padding:12px 16px}
+.order-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.order-card .header{display:flex;justify-content:space-between;align-items:center}
+.order-card .header .title{font-size:14px;font-weight:600}
+.order-card .header .status{font-size:11px;padding:3px 8px;border-radius:10px}
+.status-pending{background:#fff3e0;color:#f57c00}
+.status-working{background:#e3f2fd;color:#1976d2}
+.status-review{background:#fce4ec;color:#c62828}
+.status-done{background:#e8f5e9;color:#388e3c}
+.order-card .detail{margin-top:8px;font-size:12px;color:#666;line-height:1.6}
+.order-card .deadline{margin-top:6px;font-size:11px;color:#c62828}
+.order-card .nodes{margin-top:10px;border-top:1px solid #f0f0f0;padding-top:10px}
+.order-card .node{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:12px}
+.order-card .node .dot{width:8px;height:8px;border-radius:50%;background:#d4764e;margin-top:4px;flex-shrink:0}
+.order-card .node .dot.pending{background:#ddd}
+.order-card .actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.order-card .actions button{border:none;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer}
+.btn-upload{background:#d4764e;color:#fff}
+.btn-deadline{background:#fff3e0;color:#f57c00}
+.btn-finish{background:#e8f5e9;color:#388e3c}
+.btn-cancel{background:#f5f5f5;color:#999}
+/* 弹窗 */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:20px;width:85%;max-width:320px}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:12px;color:#3d3d3d}
+.modal label{display:block;font-size:12px;color:#666;margin-bottom:4px;margin-top:10px}
+.modal input,.modal textarea,.modal select{width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:13px;outline:none}
+.modal input:focus,.modal textarea:focus{border-color:#d4764e}
+.modal textarea{resize:vertical;min-height:60px}
+.modal .modal-btns{display:flex;gap:8px;margin-top:16px}
+.modal .modal-btns button{flex:1;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer}
+.modal .modal-btns .btn-confirm{background:#d4764e;color:#fff}
+.modal .modal-btns .btn-cancel{background:#f5f5f5;color:#666}
+.empty{text-align:center;padding:40px 20px;color:#bbb;font-size:13px}
+</style>
+</head>
+<body>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">🖼 橱窗</div>
+  <div class="tab" onclick="switchTab(1)">💬 交流</div>
+  <div class="tab" onclick="switchTab(2)">🎨 主页</div>
+  <div class="tab" onclick="switchTab(3)">📋 订单</div>
+</div>
+
+<div id="page0">
+  <div class="shop-grid" id="shopGrid"></div>
+</div>
+
+<div id="page1" style="display:none">
+  <div class="msg-area" id="msgArea"></div>
+  <div class="msg-input-bar">
+    <input id="msgInput" placeholder="发送消息…" onkeydown="if(event.key==='Enter')sendMsg()">
+    <button onclick="sendMsg()">发送</button>
+  </div>
+</div>
+
+<div id="page2" style="display:none">
+  <div class="profile-header">
+    <div class="avatar" id="profileAvatar">🎨</div>
+    <div class="name" id="profileName">画师</div>
+    <div class="bio" id="profileBio">还没有填写简介</div>
+  </div>
+  <div class="profile-stats">
+    <div class="stat"><div class="num" id="statOrders">0</div><div class="label">接单</div></div>
+    <div class="stat"><div class="num" id="statDone">0</div><div class="label">完成</div></div>
+    <div class="stat"><div class="num" id="statEarned">0</div><div class="label">收入</div></div>
+  </div>
+  <button class="profile-edit-btn" onclick="editProfile()">编辑资料</button>
+  <div style="padding:0 16px;font-size:13px;font-weight:600;color:#3d3d3d;margin-bottom:8px">作品集</div>
+  <div class="works-grid" id="worksGrid"></div>
+</div>
+
+<div id="page3" style="display:none">
+  <div class="order-list" id="orderList"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script src="backend-sync.js"></script>
+<script>
+var DATA_KEY = 'pool_commission';
+var gd = {
+  profile: { name: '画师', bio: '还没有填写简介', avatar: '🎨' },
+  shop: [],      // [{id,title,desc,price,emoji,category,slots}]
+  orders: [],    // [{id,shopItemId,title,price,status,deadline,nodes:[{text,time,type}],createdAt}]
+  messages: [],  // [{id,text,time,from,type}]  from: 'system'|'ai'|'user'
+  works: [],     // [{emoji,title}]
+  earned: 0
+};
+
+function load() {
+  try {
+    var s = localStorage.getItem(DATA_KEY);
+    if (s) {
+      var parsed = JSON.parse(s);
+      Object.assign(gd, parsed);
+    }
+  } catch(e) { console.error('load err', e); }
+  render();
+}
+
+function save() {
+  localStorage.setItem(DATA_KEY, JSON.stringify(gd));
+  syncToBackend(DATA_KEY, JSON.stringify(gd));
+}
+
+function render() {
+  renderShop();
+  renderMessages();
+  renderProfile();
+  renderOrders();
+}
+
+// ===== 橱窗 =====
+function renderShop() {
+  var grid = document.getElementById('shopGrid');
+  var html = gd.shop.map(function(item, i) {
+    return '<div class="shop-card" onclick="shopDetail('+i+')">' +
+      '<div class="cover">'+item.emoji+'</div>' +
+      '<div class="info"><div class="title">'+item.title+'</div>' +
+      '<div class="price">'+item.price+' 积分</div>' +
+      '<div class="meta">'+(item.category||'通用')+'</div></div></div>';
+  }).join('');
+  html += '<div class="add-btn" onclick="addShopItem()">+</div>';
+  grid.innerHTML = html;
+}
+
+function addShopItem() {
+  showModal('<h3>上架稿件</h3>' +
+    '<label>标题</label><input id="m_title" placeholder="如：半身立绘">' +
+    '<label>分类</label><input id="m_cat" placeholder="如：立绘/头像/场景">' +
+    '<label>价格（积分）</label><input id="m_price" type="number" placeholder="100">' +
+    '<label>图标 emoji</label><input id="m_emoji" placeholder="🖌️" maxlength="4">' +
+    '<label>描述</label><textarea id="m_desc" placeholder="包含内容、画风、工期等"></textarea>' +
+    '<div class="modal-btns"><button class="btn-cancel" onclick="hideModal()">取消</button>' +
+    '<button class="btn-confirm" onclick="confirmAddShop()">上架</button></div>');
+}
+
+function confirmAddShop() {
+  var title = document.getElementById('m_title').value.trim();
+  var price = parseInt(document.getElementById('m_price').value) || 0;
+  var emoji = document.getElementById('m_emoji').value.trim() || '🖌️';
+  var desc = document.getElementById('m_desc').value.trim();
+  var cat = document.getElementById('m_cat').value.trim() || '通用';
+  if (!title || !price) { alert('请填写标题和价格'); return; }
+  gd.shop.push({ id: Date.now(), title: title, desc: desc, price: price, emoji: emoji, category: cat });
+  save(); render(); hideModal();
+}
+
+function shopDetail(i) {
+  var item = gd.shop[i];
+  if (!item) return;
+  showModal('<h3>'+item.emoji+' '+item.title+'</h3>' +
+    '<div style="font-size:13px;color:#666;line-height:1.6;margin:8px 0">'+item.desc+'</div>' +
+    '<div style="font-size:14px;color:#d4764e;font-weight:600">'+item.price+' 积分</div>' +
+    '<div style="font-size:11px;color:#999;margin-top:4px">分类: '+item.category+'</div>' +
+    '<div class="modal-btns">' +
+    '<button class="btn-cancel" onclick="removeShopItem('+i+')">下架</button>' +
+    '<button class="btn-confirm" onclick="hideModal()">关闭</button></div>');
+}
+
+function removeShopItem(i) {
+  if (!confirm('确定下架？')) return;
+  gd.shop.splice(i, 1);
+  save(); render(); hideModal();
+}
+
+// ===== 交流页 =====
+function renderMessages() {
+  var area = document.getElementById('msgArea');
+  if (gd.messages.length === 0) {
+    area.innerHTML = '<div class="empty">还没有消息<br>下单或上传节点后会自动出现在这里</div>';
+    return;
+  }
+  area.innerHTML = gd.messages.map(function(m) {
+    var cls = m.from === 'system' ? 'system' : (m.from === 'ai' ? 'ai' : 'user');
+    var timeStr = new Date(m.time).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    return '<div class="msg-item '+cls+'">'+m.text+'<div class="time">'+timeStr+'</div></div>';
+  }).join('');
+  area.scrollTop = area.scrollHeight;
+}
+
+function sendMsg() {
+  var input = document.getElementById('msgInput');
+  var text = input.value.trim();
+  if (!text) return;
+  gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'user' });
+  input.value = '';
+  save(); renderMessages();
+}
+
+function pushSystemMsg(text) {
+  gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'system' });
+}
+
+function pushAiMsg(text) {
+  gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'ai' });
+}
+
+// ===== 画师主页 =====
+function renderProfile() {
+  document.getElementById('profileAvatar').textContent = gd.profile.avatar || '🎨';
+  document.getElementById('profileName').textContent = gd.profile.name || '画师';
+  document.getElementById('profileBio').textContent = gd.profile.bio || '还没有填写简介';
+  var doneOrders = gd.orders.filter(function(o) { return o.status === 'done'; });
+  document.getElementById('statOrders').textContent = gd.orders.length;
+  document.getElementById('statDone').textContent = doneOrders.length;
+  document.getElementById('statEarned').textContent = gd.earned || 0;
+  var wg = document.getElementById('worksGrid');
+  if (gd.works.length === 0) {
+    wg.innerHTML = '<div style="grid-column:1/-1" class="empty">还没有作品<br>完成订单后可添加到作品集</div>';
+  } else {
+    wg.innerHTML = gd.works.map(function(w,i) {
+      return '<div class="work" onclick="removeWork('+i+')" title="'+w.title+'">'+w.emoji+'</div>';
+    }).join('') + '<div class="work" onclick="addWork()" style="color:#bbb;border:2px dashed #ddd">+</div>';
+  }
+}
+
+function editProfile() {
+  showModal('<h3>编辑画师资料</h3>' +
+    '<label>昵称</label><input id="m_name" value="'+gd.profile.name+'">' +
+    '<label>头像 emoji</label><input id="m_avatar" value="'+(gd.profile.avatar||'🎨')+'" maxlength="4">' +
+    '<label>简介</label><textarea id="m_bio">'+gd.profile.bio+'</textarea>' +
+    '<div class="modal-btns"><button class="btn-cancel" onclick="hideModal()">取消</button>' +
+    '<button class="btn-confirm" onclick="confirmEditProfile()">保存</button></div>');
+}
+
+function confirmEditProfile() {
+  gd.profile.name = document.getElementById('m_name').value.trim() || '画师';
+  gd.profile.avatar = document.getElementById('m_avatar').value.trim() || '🎨';
+  gd.profile.bio = document.getElementById('m_bio').value.trim();
+  save(); render(); hideModal();
+}
+
+function addWork() {
+  showModal('<h3>添加作品</h3>' +
+    '<label>图标 emoji</label><input id="m_wemoji" placeholder="🎨">' +
+    '<label>标题</label><input id="m_wtitle" placeholder="作品名">' +
+    '<div class="modal-btns"><button class="btn-cancel" onclick="hideModal()">取消</button>' +
+    '<button class="btn-confirm" onclick="confirmAddWork()">添加</button></div>');
+}
+
+function confirmAddWork() {
+  var emoji = document.getElementById('m_wemoji').value.trim() || '🖼️';
+  var title = document.getElementById('m_wtitle').value.trim() || '无题';
+  gd.works.push({ emoji: emoji, title: title });
+  save(); render(); hideModal();
+}
+
+function removeWork(i) {
+  if (confirm('移除这个作品？')) {
+    gd.works.splice(i, 1);
+    save(); render();
+  }
+}
+
+// ===== 订单 =====
+function renderOrders() {
+  var list = document.getElementById('orderList');
+  if (gd.orders.length === 0) {
+    list.innerHTML = '<div class="empty">还没有订单<br>等池来下单吧~</div>';
+    return;
+  }
+  var statusLabel = { pending:'待接单', working:'绘制中', review:'待确认', done:'已完成', cancelled:'已取消' };
+  var statusClass = { pending:'status-pending', working:'status-working', review:'status-review', done:'status-done', cancelled:'btn-cancel' };
+  list.innerHTML = gd.orders.slice().reverse().map(function(o, ri) {
+    var i = gd.orders.length - 1 - ri;
+    var deadlineHtml = '';
+    if (o.deadline && o.status !== 'done' && o.status !== 'cancelled') {
+      var remain = Math.ceil((o.deadline - Date.now()) / (1000*60*60*24));
+      deadlineHtml = '<div class="deadline">⏰ 截止: '+new Date(o.deadline).toLocaleDateString('zh-CN')+' ('+( remain > 0 ? '剩'+remain+'天' : '已过期')+')</div>';
+    }
+    var nodesHtml = '';
+    if (o.nodes && o.nodes.length > 0) {
+      nodesHtml = '<div class="nodes">' + o.nodes.map(function(n) {
+        return '<div class="node"><div class="dot"></div><div><b>'+n.type+'</b> '+n.text+'<br><span style="color:#aaa;font-size:10px">'+new Date(n.time).toLocaleString('zh-CN')+'</span></div></div>';
+      }).join('') + '</div>';
+    }
+    var actions = '';
+    if (o.status === 'pending') {
+      actions = '<button class="btn-upload" onclick="acceptOrder('+i+')">接单</button><button class="btn-cancel" onclick="cancelOrder('+i+')">拒绝</button>';
+    } else if (o.status === 'working') {
+      actions = '<button class="btn-upload" onclick="uploadNode('+i+')">上传节点</button><button class="btn-deadline" onclick="setDeadline('+i+')">设截止时间</button><button class="btn-finish" onclick="submitFinal('+i+')">提交成图</button>';
+    } else if (o.status === 'review') {
+      actions = '<span style="font-size:11px;color:#888">等待池确认中…</span>';
+    }
+    return '<div class="order-card"><div class="header"><div class="title">'+o.title+'</div>' +
+      '<div class="status '+(statusClass[o.status]||'')+'">'+( statusLabel[o.status]||o.status)+'</div></div>' +
+      '<div class="detail">积分: '+o.price+' · 下单: '+new Date(o.createdAt).toLocaleDateString('zh-CN')+'</div>' +
+      deadlineHtml + nodesHtml +
+      '<div class="actions">'+actions+'</div></div>';
+  }).join('');
+}
+
+function acceptOrder(i) {
+  var o = gd.orders[i];
+  if (!o || o.status !== 'pending') return;
+  o.status = 'working';
+  pushSystemMsg('📋 订单「'+o.title+'」已接单，开始绘制');
+  save(); render();
+}
+
+function cancelOrder(i) {
+  var o = gd.orders[i];
+  if (!o) return;
+  if (!confirm('确定拒绝/取消这个订单？积分将退还给池')) return;
+  o.status = 'cancelled';
+  pushSystemMsg('❌ 订单「'+o.title+'」已取消');
+  save(); render();
+}
+
+function uploadNode(i) {
+  var o = gd.orders[i];
+  if (!o || o.status !== 'working') return;
+  showModal('<h3>上传节点</h3>' +
+    '<label>节点类型</label><select id="m_ntype"><option>草稿</option><option>线稿</option><option>上色</option><option>细化</option><option>其他</option></select>' +
+    '<label>说明</label><textarea id="m_ntext" placeholder="本次更新内容说明"></textarea>' +
+    '<div class="modal-btns"><button class="btn-cancel" onclick="hideModal()">取消</button>' +
+    '<button class="btn-confirm" onclick="confirmUploadNode('+i+')">上传</button></div>');
+}
+
+function confirmUploadNode(i) {
+  var o = gd.orders[i];
+  var type = document.getElementById('m_ntype').value;
+  var text = document.getElementById('m_ntext').value.trim() || '已更新';
+  if (!o.nodes) o.nodes = [];
+  o.nodes.push({ type: type, text: text, time: Date.now() });
+  pushSystemMsg('🎨 「'+o.title+'」上传了新节点: ['+type+'] '+text);
+  save(); render(); hideModal();
+}
+
+function setDeadline(i) {
+  var o = gd.orders[i];
+  if (!o) return;
+  showModal('<h3>设置截止时间</h3>' +
+    '<label>截止日期</label><input id="m_deadline" type="date">' +
+    '<div class="modal-btns"><button class="btn-cancel" onclick="hideModal()">取消</button>' +
+    '<button class="btn-confirm" onclick="confirmDeadline('+i+')">确定</button></div>');
+}
+
+function confirmDeadline(i) {
+  var o = gd.orders[i];
+  var dateVal = document.getElementById('m_deadline').value;
+  if (!dateVal) { alert('请选择日期'); return; }
+  o.deadline = new Date(dateVal).getTime();
+  pushSystemMsg('⏰ 「'+o.title+'」截止时间设为 '+dateVal);
+  save(); render(); hideModal();
+}
+
+function submitFinal(i) {
+  var o = gd.orders[i];
+  if (!o || o.status !== 'working') return;
+  if (!confirm('确定提交最终成图？')) return;
+  o.status = 'review';
+  if (!o.nodes) o.nodes = [];
+  o.nodes.push({ type: '成图', text: '最终稿件已提交，等待确认', time: Date.now() });
+  pushSystemMsg('✅ 「'+o.title+'」已提交成图，等待池确认');
+  save(); render();
+}
+
+// ===== AI 下单接口（供 chat.js 工具调用） =====
+// AI通过后端写入 pool_commission 中新增 order 来实现下单
+// 前端轮询检测新订单
+var lastOrderCount = 0;
+function checkNewOrders() {
+  if (gd.orders.length > lastOrderCount && lastOrderCount > 0) {
+    // 有新订单
+    var newO = gd.orders[gd.orders.length - 1];
+    if (newO.status === 'pending') {
+      pushSystemMsg('🛒 池下了新单「'+newO.title+'」，'+newO.price+'积分');
+      if (newO.aiNote) pushAiMsg(newO.aiNote);
+      save();
+    }
+  }
+  lastOrderCount = gd.orders.length;
+}
+
+// AI确认成图（后端写入 status=done）
+function checkOrderUpdates() {
+  gd.orders.forEach(function(o) {
+    if (o.status === 'done' && !o._notified) {
+      pushSystemMsg('🎉 订单「'+o.title+'」已完成交易！积分已入账');
+      gd.earned = (gd.earned || 0) + o.price;
+      o._notified = true;
+      save(); render();
+    }
+  });
+}
+
+// ===== 通用 =====
+function switchTab(n) {
+  for (var i = 0; i < 4; i++) document.getElementById('page'+i).style.display = i===n ? 'block' : 'none';
+  var tabs = document.querySelectorAll('.tab');
+  tabs.forEach(function(t,i) { t.className = i===n ? 'tab active' : 'tab'; });
+  if (n === 1) setTimeout(function(){ var a=document.getElementById('msgArea'); a.scrollTop=a.scrollHeight; }, 50);
+}
+
+function showModal(html) {
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function hideModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) hideModal();
+});
+
+// 启动
+load();
+lastOrderCount = gd.orders.length;
+
+// 轮询后端数据
+setInterval(function() {
+  syncFromBackend([DATA_KEY], function() {
+    var s = localStorage.getItem(DATA_KEY);
+    if (s) {
+      try {
+        var newData = JSON.parse(s);
+        Object.assign(gd, newData);
+        checkNewOrders();
+        checkOrderUpdates();
+        render();
+      } catch(e) {}
+    }
+  });
+}, 15000);
+
+// 首次也从后端拉一次
+syncFromBackend([DATA_KEY], function() { load(); lastOrderCount = gd.orders.length; });
+</script>
+</body>
+</html>
