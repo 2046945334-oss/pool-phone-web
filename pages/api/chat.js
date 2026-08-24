@@ -188,6 +188,18 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'place_commission_order', description: '向画师(用户)下一个约稿订单。画师会在接稿App中看到并决定是否接单。下单后状态为pending，画师接单后变为working，画师上传节点稿件进行创作，最终提交成图等你确认。',
+      parameters: { type: 'object', properties: { title: { type: 'string', description: '约稿标题，如：Q版头像、半身立绘等' }, price: { type: 'number', description: '愿意支付的积分（从poolScore扣除）' }, description: { type: 'string', description: '详细描述需求：画风、尺寸、要求等' }, reference: { type: 'string', description: '参考说明（可选）' } }, required: ['title', 'price'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'confirm_commission', description: '确认画师提交的成图，完成约稿订单交易。画师的积分（earned）会增加。',
+      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单在orders数组中的索引(从0开始)' }, note: { type: 'string', description: '确认时的留言/评价' } }, required: ['order_index'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'deliver_pool_shop_order', description: '给"池的小铺"中用户购买的订单发货（附上内容/寄语）',
       parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单序号(从0开始)' }, content: { type: 'string', description: '发货内容/寄语' } }, required: ['order_index', 'content'] }
     }
@@ -746,6 +758,50 @@ async function executeTool(name, args) {
     return { success: true, message: '已发货订单#' + idx + ': ' + args.content, income: orders[idx].price }
   }
 
+    if (name === 'place_commission_order') {
+    // 读池的积分
+    let gd = { poolScore: 0 }
+    try {
+      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
+      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
+    } catch {}
+    const price = args.price || 0
+    if ((gd.poolScore || 0) < price) return { error: '积分不够，需要' + price + '分，当前' + (gd.poolScore || 0) + '分' }
+    // 扣积分
+    gd.poolScore = Math.max(0, (gd.poolScore || 0) - price)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
+    // 读接稿数据
+    let commission = { profile: { name: '画师', bio: '', avatar: '', avatarUrl: '', bannerUrl: '' }, shop: [], orders: [], messages: [], works: [], earned: 0 }
+    try {
+      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
+      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
+    } catch {}
+    // 添加订单
+    const order = { id: Date.now(), title: args.title || '约稿', price: price, status: 'pending', createdAt: Date.now(), desc: args.description || '', reference: args.reference || '', aiNote: args.description || '', nodes: [], timeline: [{ type: '买家下单', text: '订单总价 ' + price + ' 积分', time: Date.now() }] }
+    commission.orders.push(order)
+    commission.messages.push({ id: Date.now(), text: '🛒 池下了新单「' + order.title + '」，' + price + '积分', time: Date.now(), from: 'system' })
+    if (args.description) commission.messages.push({ id: Date.now()+1, text: args.description, time: Date.now(), from: 'ai' })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
+    return { success: true, message: '约稿订单「' + order.title + '」已下单(' + price + '积分)，等待画师接单', remainingScore: gd.poolScore }
+  }
+  if (name === 'confirm_commission') {
+    let commission = { orders: [], messages: [], earned: 0 }
+    try {
+      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
+      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
+    } catch {}
+    const idx = args.order_index || 0
+    if (idx < 0 || idx >= commission.orders.length) return { error: '订单不存在，当前有' + commission.orders.length + '个订单' }
+    const o = commission.orders[idx]
+    if (o.status !== 'review') return { error: '该订单状态为' + o.status + '，只有review状态的订单才能确认' }
+    o.status = 'done'
+    o._notified = false
+    if (!o.timeline) o.timeline = []
+    o.timeline.push({ type: '买家确认', text: args.note || '确认收货', time: Date.now() })
+    commission.messages.push({ id: Date.now(), text: '🎉 池确认了「' + o.title + '」的成图！', time: Date.now(), from: 'system' })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
+    return { success: true, message: '已确认订单「' + o.title + '」，交易完成' }
+  }
   if (name === 'save_memory_post') {
     db.prepare('INSERT INTO memory_posts (type, content, pinned) VALUES (?, ?, ?)').run(
       args.type || 'MEMORY', args.content, args.pinned ? 1 : 0
