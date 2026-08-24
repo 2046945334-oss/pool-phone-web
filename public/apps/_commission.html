@@ -396,18 +396,30 @@ function triggerAiReply() {
   if (msgs[msgs.length - 1] && msgs[msgs.length - 1].role !== 'user') {
     msgs.push({ role: 'user', content: userText });
   }
+  // Show loading indicator
+  gd.messages.push({ id: 'typing', text: '回复中...', time: Date.now(), from: 'ai' });
+  renderMessages();
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: msgs, config: config })
+    body: JSON.stringify({ messages: msgs, apiBase: config.baseUrl, apiKey: config.apiKey, model: config.model })
   }).then(function(r) { return r.json(); })
   .then(function(d) {
+    // Remove typing indicator
+    gd.messages = gd.messages.filter(function(m){ return m.id !== 'typing'; });
     var reply = (d.reply || d.content || d.message || '').trim();
     if (reply) {
       gd.messages.push({ id: Date.now(), text: reply, time: Date.now(), from: 'ai' });
-      save(); renderMessages();
+    } else if (d.error) {
+      gd.messages.push({ id: Date.now(), text: '⚠️ ' + (typeof d.error === 'string' ? d.error : JSON.stringify(d.error)), time: Date.now(), from: 'system' });
     }
-  }).catch(function(e) { console.error('AI reply error:', e); });
+    save(); renderMessages();
+  }).catch(function(e) {
+    gd.messages = gd.messages.filter(function(m){ return m.id !== 'typing'; });
+    gd.messages.push({ id: Date.now(), text: '⚠️ 网络错误', time: Date.now(), from: 'system' });
+    save(); renderMessages();
+    console.error('AI reply error:', e);
+  });
 }
 function pushSystemMsg(text) {
   gd.messages.push({ id: Date.now(), text: text, time: Date.now(), from: 'system' });
