@@ -20,7 +20,7 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 .shop-card .info .meta{font-size:10px;color:#aaa;margin-top:2px}
 .add-btn{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#ccc;min-height:100px;cursor:pointer;border:2px dashed #e0e0e0}
 /* 交流 */
-.msg-area{padding:12px;max-height:calc(100vh - 160px);overflow-y:auto}
+.msg-area{padding:12px;flex:1;overflow-y:auto;min-height:0}
 .msg-item{margin-bottom:10px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.6;max-width:85%}
 .msg-item.system{background:#f0ebe5;color:#666;margin:0 auto;text-align:center;max-width:90%;font-size:11px;border-radius:20px;padding:6px 14px}
 .msg-item.ai{background:#fff;color:#3d3d3d;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -129,7 +129,7 @@ body{font-family:-apple-system,sans-serif;background:#f8f5f1;min-height:100vh;pa
 <div id="page0">
 <div class="shop-grid" id="shopGrid"></div>
 </div>
-<div id="page1" style="display:none">
+<div id="page1" style="display:none;flex-direction:column;height:calc(100vh - 44px)">
   <div class="msg-area" id="msgArea"></div>
   <div class="msg-input-bar">
     <input id="msgInput" placeholder="说点什么…" onkeydown="if(event.key==='Enter')sendMsg()">
@@ -208,8 +208,11 @@ function load() {
   render();
 }
 function save() {
-  localStorage.setItem(DATA_KEY, JSON.stringify(gd));
-  syncToBackend(DATA_KEY, JSON.stringify(gd));
+  try {
+    var data = JSON.stringify(gd);
+    localStorage.setItem(DATA_KEY, data);
+    syncToBackend(DATA_KEY, data);
+  } catch(e) { console.error("save error:", e); }
 }
 function render() {
   renderShop();
@@ -352,7 +355,22 @@ function workAction(i) {
 // 图片相关工具
 function fileToDataUrl(file, cb) {
   var reader = new FileReader();
-  reader.onload = function(e) { cb(e.target.result); };
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var maxW = 800, maxH = 800;
+      var w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        var ratio = Math.min(maxW/w, maxH/h);
+        w = Math.round(w*ratio); h = Math.round(h*ratio);
+      }
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL("image/jpeg", 0.75));
+    };
+    img.src = e.target.result;
+  };
   reader.readAsDataURL(file);
 }
 function openLightbox(url) {
@@ -637,7 +655,7 @@ function checkOrderUpdates() {
 
 // ===== 通用 =====
 function switchTab(n) {
-  for (var i = 0; i < 4; i++) document.getElementById('page'+i).style.display = i===n ? 'block' : 'none';
+  for (var i = 0; i < 4; i++) document.getElementById('page'+i).style.display = i===n ? (i===1?'flex':'block') : 'none';
   var tabs = document.querySelectorAll('.tabs .tab');
   tabs.forEach(function(t,i) { t.className = i===n ? 'tab active' : 'tab'; });
   if (n === 1) setTimeout(function(){ var a=document.getElementById('msgArea'); a.scrollTop=a.scrollHeight; }, 50);
