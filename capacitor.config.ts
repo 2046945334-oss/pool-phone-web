@@ -5,13 +5,22 @@ const config: CapacitorConfig = {
   appName: '池的小手机',
   webDir: 'out',
   server: {
-    // 开发时用远程URL，生产时注释掉用本地打包
     url: 'https://chi.zeabur.app',
-    cleartext: true
+    cleartext: true,
+    allowNavigation: ['chi.zeabur.app', '*.zeabur.app']
   },
   android: {
     allowMixedContent: true,
     backgroundColor: '#0a0a0a'
+  },
+  plugins: {
+    LocalNotifications: {
+      smallIcon: 'ic_stat_icon_config_sample',
+      iconColor: '#6366f1'
+    },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert']
+    }
   }
 };
 

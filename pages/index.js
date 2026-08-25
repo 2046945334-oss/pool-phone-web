@@ -24,6 +24,85 @@ import cabinHtml from '../public/apps/_cabin.html'
 import starmapHtml from '../public/apps/_starmap.html'
 import commissionHtml from '../public/apps/_commission.html'
 
+// ===== Capacitor 通知初始化 =====
+function initCapacitorNotifications() {
+  if (typeof window === 'undefined') return
+  // 检测 Capacitor 原生环境
+  const cap = window.Capacitor
+  if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) {
+    console.log('[通知] 非原生环境，跳过')
+    return
+  }
+  console.log('[通知] 检测到 Capacitor 原生环境，初始化通知...')
+  
+  // 本地通知
+  import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+    LocalNotifications.requestPermissions().then(p => {
+      console.log('[本地通知] 权限:', p.display)
+    })
+    LocalNotifications.addListener('localNotificationActionPerformed', (n) => {
+      console.log('[本地通知] 点击:', n)
+      if (n.notification?.extra?.app) {
+        window.dispatchEvent(new CustomEvent('chi-open-app', { detail: { app: n.notification.extra.app } }))
+      }
+    })
+    // 暴露到全局供页面内调用
+    window.ChiLocalNotifications = LocalNotifications
+    window.chiShowNotification = async (title, body, extra) => {
+      const id = Math.floor(Math.random() * 100000)
+      await LocalNotifications.schedule({ notifications: [{ id, title: title || '池的小手机', body: body || '', extra: extra || {} }] })
+      return id
+    }
+    window.chiScheduleNotification = async (title, body, atDate, extra) => {
+      const id = Math.floor(Math.random() * 100000)
+      await LocalNotifications.schedule({ notifications: [{ id, title, body, schedule: { at: new Date(atDate) }, extra: extra || {} }] })
+      return id
+    }
+    console.log('[本地通知] 初始化完成 ✓')
+  }).catch(e => console.error('[本地通知] 加载失败:', e))
+
+  // 推送通知 (FCM) - 需要 google-services.json 才能正常工作
+  import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+    PushNotifications.requestPermissions().then(p => {
+      if (p.receive === 'granted') {
+        PushNotifications.register()
+      } else {
+        console.log('[推送通知] 权限未授予')
+      }
+    })
+    PushNotifications.addListener('registration', (token) => {
+      console.log('[推送通知] FCM Token:', token.value)
+      localStorage.setItem('chi_fcm_token', token.value)
+      // 注册到后端
+      fetch('/api/push-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token.value })
+      }).catch(() => {})
+    })
+    PushNotifications.addListener('registrationError', (err) => {
+      console.warn('[推送通知] 注册失败(可能缺少google-services.json):', err)
+    })
+    PushNotifications.addListener('pushNotificationReceived', (n) => {
+      console.log('[推送通知] 收到:', n)
+      window.dispatchEvent(new CustomEvent('chi-push-received', { detail: n }))
+    })
+    PushNotifications.addListener('pushNotificationActionPerformed', (n) => {
+      console.log('[推送通知] 点击:', n)
+      if (n.notification?.data?.app) {
+        window.dispatchEvent(new CustomEvent('chi-open-app', { detail: { app: n.notification.data.app } }))
+      }
+    })
+    window.ChiPushNotifications = PushNotifications
+    console.log('[推送通知] 初始化完成 ✓')
+  }).catch(e => console.warn('[推送通知] 加载失败(FCM未配置时正常):', e))
+}
+// 执行初始化
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'complete') { initCapacitorNotifications() }
+  else { window.addEventListener('load', initCapacitorNotifications) }
+}
+
 
 // 思考过程组件 - 可折叠
 function ThinkingToggle({ reasoning }) {
