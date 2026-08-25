@@ -24,6 +24,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies and sync Capacitor
+        run: |
+          npm ci --ignore-scripts
+          mkdir -p out && echo '<html></html>' > out/index.html
+          npx cap sync android
+
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses || true
 
