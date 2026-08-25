@@ -31,7 +31,7 @@ jobs:
 
       - name: Install dependencies and sync Capacitor
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           mkdir -p out && echo '<html></html>' > out/index.html
           npx cap sync android
 
