@@ -46,7 +46,11 @@ function loadData() {
   try { const s = localStorage.getItem("pool_fishing_v2"); if (s) return JSON.parse(s) } catch {}
   return { score:0, poolScore:0, catchCount:0, catches:[], dex:[], spot:"dongchong", bait:"basic", baitCount:{basic:99,shrimp:0,glow:0,gold:0} }
 }
-function saveData(gd) { localStorage.setItem("pool_fishing_v2", JSON.stringify(gd)) }
+function saveData(gd) {
+  const data = JSON.stringify(gd)
+  localStorage.setItem("pool_fishing_v2", data)
+  fetch('/api/data/pool_fishing_v2', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value:data}) }).catch(()=>{})
+}
 
 export default function FishingApp() {
   const [gd, setGd] = useState(loadData)
@@ -63,6 +67,18 @@ export default function FishingApp() {
   const timerRef = useRef(null)
 
   useEffect(() => { saveData(gd) }, [gd])
+  // Pull from backend on mount (backend is source of truth)
+  useEffect(() => {
+    fetch('/api/data/pool_fishing_v2?t=' + Date.now()).then(r => r.ok ? r.json() : null).then(d => {
+      if (d && d.value) {
+        const val = typeof d.value === 'string' ? JSON.parse(d.value) : d.value
+        if (val && typeof val === 'object') {
+          localStorage.setItem('pool_fishing_v2', JSON.stringify(val))
+          setGd(val)
+        }
+      }
+    }).catch(() => {})
+  }, [])
 
   function pickFish() {
     const spotFish = FISH_DB.filter(f => f.spots.includes(gd.spot))
