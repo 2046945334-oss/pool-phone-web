@@ -261,6 +261,30 @@ function ChatView({ theme }) {
     const timer = setInterval(pollInbox, 30000)
     return () => clearInterval(timer)
   }, [])
+
+  // Poll notification queue from backend and trigger Capacitor LocalNotifications
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const deliveredIds = new Set()
+    const pollNotifs = async () => {
+      try {
+        const res = await fetch('/api/data/pool_notification_queue')
+        if (!res.ok) return
+        const data = await res.json()
+        const queue = data.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : []
+        for (const n of queue) {
+          if (deliveredIds.has(n.id)) continue
+          deliveredIds.add(n.id)
+          if (window.chiShowNotification) {
+            window.chiShowNotification(n.title, n.body)
+          }
+        }
+      } catch {}
+    }
+    pollNotifs()
+    const timer = setInterval(pollNotifs, 5000)
+    return () => clearInterval(timer)
+  }, [])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)

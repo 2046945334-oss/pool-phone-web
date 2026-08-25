@@ -319,6 +319,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'send_notification', description: '发送一条本地通知到用户手机（会弹出系统通知栏提醒）',
+      parameters: { type: 'object', properties: { title: { type: 'string', description: '通知标题' }, body: { type: 'string', description: '通知内容' } }, required: ['title', 'body'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'get_score', description: '获取当前积分余额（AI积分poolScore和用户积分score）',
       parameters: { type: 'object', properties: {} }
     }
@@ -1055,6 +1061,21 @@ async function executeTool(name, args) {
     return { success: true, message: '状态已设置: ' + (args.emoji || '') + args.text }
   }
 
+  if (name === 'send_notification') {
+    // Store notification request; frontend will poll and trigger Capacitor LocalNotifications
+    const notif = { id: Date.now(), title: args.title, body: args.body, time: new Date().toISOString(), delivered: false }
+    let queue = []
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_notification_queue')
+      if (row) queue = JSON.parse(row.value)
+    } catch {}
+    queue.push(notif)
+    // Keep only last 20
+    if (queue.length > 20) queue = queue.slice(-20)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_notification_queue', JSON.stringify(queue))
+    return { success: true, message: `通知已发送: ${args.title}` }
+  }
+
   if (name === 'get_score') {
     let gd = { score: 0, poolScore: 0 }
     try {
@@ -1613,6 +1634,7 @@ export default async function handler(req, res) {
 - **diary_write** — 写日记
 - **garden_plant** — 在像素庭院种物件（情绪触发时自然使用：开心种花flower、心动种心heart、期待种种子seedling、难过种雨rain等）
 - **set_status** — 设置状态/心情
+- **send_notification** — 发送本地通知到用户手机
 - **schedule_wakeup** — 设定唤醒
 - **get_current_time** — 获取当前时间
 
