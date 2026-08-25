@@ -881,10 +881,19 @@ function ThemePanel() {
     const name = presetInput.trim()
     if (!name) return
     const lite = {...theme}
-    delete lite.icons
-    // Strip all base64 data URIs to save space
+    // Keep icons in preset! Only strip large base64 wallpaper/banner data URIs
     for (const k of Object.keys(lite)) {
+      if (k === 'icons') continue // preserve app icon customizations
       if (typeof lite[k] === 'string' && lite[k].startsWith('data:')) delete lite[k]
+    }
+    // For icons object, also strip base64 but keep URL-based icons
+    if (lite.icons) {
+      const cleanIcons = {}
+      for (const [id, val] of Object.entries(lite.icons)) {
+        if (typeof val === 'string' && !val.startsWith('data:')) cleanIcons[id] = val
+        else if (typeof val === 'string' && val.startsWith('data:')) cleanIcons[id] = val // keep even base64 icons since they're small
+      }
+      lite.icons = cleanIcons
     }
     // Save to both localStorage and backend
     try {
@@ -1412,6 +1421,62 @@ function SettingsPanel() {
 
 
       <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
+
+      <div className="settings-section" style={{marginTop:'20px'}}>
+        <h3 className="settings-title">{'\ud83d\udce6 \u6570\u636e\u5907\u4efd'}</h3>
+        <p className="settings-desc">{'\u4e00\u952e\u5bfc\u51fa\u6240\u6709\u672c\u5730\u6570\u636e\uff08\u4e3b\u9898/\u914d\u7f6e/\u8bb0\u5fc6/\u804a\u5929\u8bb0\u5f55\u7b49\uff09'}</p>
+        <button className="settings-save" style={{background:'#e8d8f0',marginBottom:'8px'}} onClick={() => {
+          try {
+            const backup = {}
+            const keys = ['pool_theme','pool_theme_presets','pool_api_config','pool_api_configs','pool_tts_config','pool_inject_config','pool_memory_config','pool_memory_entries','pool_system_prompt','pool_chat_history','pool_fishing_v2','pool_gacha','pool_couple','pool_diary_entries','pool_notes','pool_drafts','pool_ledger','pool_music','pool_doodle','pool_reader','pool_garden','pool_starmap','pool_commission','pool_travel']
+            for (const k of keys) {
+              const v = localStorage.getItem(k)
+              if (v) backup[k] = v
+            }
+            // Also grab any keys starting with pool_
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i)
+              if (k && k.startsWith('pool_') && !backup[k]) {
+                backup[k] = localStorage.getItem(k)
+              }
+            }
+            backup._exportTime = new Date().toISOString()
+            backup._version = '1.0'
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `chi-backup-${new Date().toISOString().slice(0,10)}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+          } catch (e) { alert('\u5bfc\u51fa\u5931\u8d25: ' + e.message) }
+        }}>{'\ud83d\udce4 \u5bfc\u51fa\u5907\u4efd'}</button>
+        <button className="settings-save" style={{background:'#d8e8f0'}} onClick={() => {
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.accept = '.json'
+          input.onchange = (e) => {
+            const file = e.target.files[0]
+            if (!file) return
+            const reader = new FileReader()
+            reader.onload = (ev) => {
+              try {
+                const data = JSON.parse(ev.target.result)
+                if (!data._version) { alert('\u65e0\u6548\u7684\u5907\u4efd\u6587\u4ef6'); return }
+                const count = Object.keys(data).filter(k => !k.startsWith('_')).length
+                if (!confirm(`\u786e\u8ba4\u5bfc\u5165 ${count} \u9879\u6570\u636e\uff1f\u8fd9\u5c06\u8986\u76d6\u5f53\u524d\u6570\u636e\u3002`)) return
+                for (const [k, v] of Object.entries(data)) {
+                  if (!k.startsWith('_')) localStorage.setItem(k, v)
+                }
+                alert('\u2705 \u5bfc\u5165\u6210\u529f\uff01\u5237\u65b0\u9875\u9762\u751f\u6548\u3002')
+                location.reload()
+              } catch (err) { alert('\u5bfc\u5165\u5931\u8d25: ' + err.message) }
+            }
+            reader.readAsText(file)
+          }
+          input.click()
+        }}>{'\ud83d\udce5 \u5bfc\u5165\u5907\u4efd'}</button>
+      </div>
 
       <div className="settings-section" style={{marginTop:'20px'}}>
         <h3 className="settings-title">{'\ud83d\udce1 \u4fe1\u606f\u6ce8\u5165'}</h3>
