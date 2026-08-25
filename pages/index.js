@@ -60,42 +60,6 @@ function initCapacitorNotifications() {
     }
     console.log('[本地通知] 初始化完成 ✓')
   }).catch(e => console.error('[本地通知] 加载失败:', e))
-
-  // 推送通知 (FCM) - 需要 google-services.json 才能正常工作
-  import('@capacitor/push-notifications').then(({ PushNotifications }) => {
-    PushNotifications.requestPermissions().then(p => {
-      if (p.receive === 'granted') {
-        PushNotifications.register()
-      } else {
-        console.log('[推送通知] 权限未授予')
-      }
-    })
-    PushNotifications.addListener('registration', (token) => {
-      console.log('[推送通知] FCM Token:', token.value)
-      localStorage.setItem('chi_fcm_token', token.value)
-      // 注册到后端
-      fetch('/api/push-register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.value })
-      }).catch(() => {})
-    })
-    PushNotifications.addListener('registrationError', (err) => {
-      console.warn('[推送通知] 注册失败(可能缺少google-services.json):', err)
-    })
-    PushNotifications.addListener('pushNotificationReceived', (n) => {
-      console.log('[推送通知] 收到:', n)
-      window.dispatchEvent(new CustomEvent('chi-push-received', { detail: n }))
-    })
-    PushNotifications.addListener('pushNotificationActionPerformed', (n) => {
-      console.log('[推送通知] 点击:', n)
-      if (n.notification?.data?.app) {
-        window.dispatchEvent(new CustomEvent('chi-open-app', { detail: { app: n.notification.data.app } }))
-      }
-    })
-    window.ChiPushNotifications = PushNotifications
-    console.log('[推送通知] 初始化完成 ✓')
-  }).catch(e => console.warn('[推送通知] 加载失败(FCM未配置时正常):', e))
 }
 // 执行初始化
 if (typeof window !== 'undefined') {
