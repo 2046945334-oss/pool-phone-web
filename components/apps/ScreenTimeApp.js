@@ -21,9 +21,12 @@ export default function ScreenTimeApp() {
   const [hasPermission, setHasPermission] = useState(null)
   const [todayData, setTodayData] = useState(null)
   const [weeklyData, setWeeklyData] = useState(null)
-  const [view, setView] = useState('today') // 'today' | 'weekly'
+  const [view, setView] = useState('today') // 'today' | 'weekly' | 'settings'
   const [loading, setLoading] = useState(true)
   const [isNative, setIsNative] = useState(false)
+  const [bgImage, setBgImage] = useState(() => {
+    try { return localStorage.getItem('pool_screentime_bg') || '' } catch { return '' }
+  })
 
   useEffect(() => {
     const cap = typeof window !== 'undefined' && window.Capacitor
@@ -127,14 +130,46 @@ export default function ScreenTimeApp() {
     )
   }
 
+  function handleBgUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: reader.result }) })
+        const d = await res.json()
+        const url = d.url || reader.result
+        setBgImage(url)
+        localStorage.setItem('pool_screentime_bg', url)
+      } catch {
+        setBgImage(reader.result)
+        localStorage.setItem('pool_screentime_bg', reader.result)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function clearBg() {
+    setBgImage('')
+    localStorage.removeItem('pool_screentime_bg')
+  }
+
   const totalToday = todayData?.apps?.reduce((s, a) => s + a.totalTimeMs, 0) || 0
 
+  const containerBg = bgImage ? {
+    ...styles.container,
+    backgroundImage: `url(${bgImage})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  } : styles.container
+
   return (
-    <div style={styles.container}>
+    <div style={containerBg}>
       {/* Tab switcher */}
       <div style={styles.tabs}>
         <button style={{...styles.tab, ...(view === 'today' ? styles.tabActive : {})}} onClick={() => setView('today')}>今天</button>
         <button style={{...styles.tab, ...(view === 'weekly' ? styles.tabActive : {})}} onClick={() => setView('weekly')}>本周</button>
+        <button style={{...styles.tab, ...(view === 'settings' ? styles.tabActive : {})}} onClick={() => setView('settings')}>⚙️</button>
       </div>
 
       {view === 'today' && (
@@ -221,6 +256,31 @@ export default function ScreenTimeApp() {
               <div style={{color: '#666'}}>暂无本周数据</div>
             </div>
           )}
+        </div>
+      )}
+
+      {view === 'settings' && (
+        <div style={styles.scrollArea}>
+          <div style={styles.settingsCard}>
+            <div style={{color: '#ddd', fontSize: 14, fontWeight: 600, marginBottom: 12}}>🖼️ 背景壁纸</div>
+            {bgImage && (
+              <div style={{marginBottom: 12, borderRadius: 8, overflow: 'hidden'}}>
+                <img src={bgImage} style={{width: '100%', height: 120, objectFit: 'cover', borderRadius: 8}} />
+              </div>
+            )}
+            <div style={{display: 'flex', gap: 8}}>
+              <label style={styles.settingsBtn}>
+                📷 更换壁纸
+                <input type="file" accept="image/*" onChange={handleBgUpload} hidden />
+              </label>
+              {bgImage && (
+                <button style={{...styles.settingsBtn, background: 'rgba(255,100,100,0.15)', color: '#f87171'}} onClick={clearBg}>
+                  🗑️ 移除
+                </button>
+              )}
+            </div>
+            <div style={{color: '#666', fontSize: 11, marginTop: 8}}>设置屏幕时间页面的背景图片</div>
+          </div>
         </div>
       )}
     </div>
@@ -378,5 +438,23 @@ const styles = {
     textAlign: 'center',
     padding: 40,
     color: '#888',
+  },
+  settingsCard: {
+    padding: 16,
+    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  settingsBtn: {
+    padding: '8px 16px',
+    background: 'rgba(232,160,191,0.15)',
+    border: 'none',
+    borderRadius: 8,
+    color: '#e8a0bf',
+    fontSize: 13,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
   }
 }
