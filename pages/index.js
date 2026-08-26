@@ -879,8 +879,8 @@ function LockScreen({ onUnlock, theme }) {
 function ThemePanel() {
   const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
   const [saved, setSaved] = useState(false)
-  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel','memoryMgr','diary','garden','cabin','starmap','commission']
-  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u8d26\u672c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',commission:'接稿'}
+  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel','memoryMgr','diary','garden','cabin','starmap','commission','screenTime']
+  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u8d26\u672c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',commission:'接稿',screenTime:'屏幕时间'}
 
   function save() {
     try {
