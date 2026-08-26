@@ -325,6 +325,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'get_screen_time', description: '获取用户的手机应用使用时长数据（今天各App用了多久、本周每天用了多久）',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'get_score', description: '获取当前积分余额（AI积分poolScore和用户积分score）',
       parameters: { type: 'object', properties: {} }
     }
@@ -1076,6 +1082,24 @@ async function executeTool(name, args) {
     return { success: true, message: `通知已发送: ${args.title}` }
   }
 
+  if (name === 'get_screen_time') {
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_screen_time')
+      if (row) {
+        const data = JSON.parse(row.value)
+        const parsed = typeof data === 'string' ? JSON.parse(data) : data
+        // Summarize for AI
+        const today = parsed.today || {}
+        const topApps = (today.apps || []).slice(0, 10).map(a => `${a.appName}: ${Math.round(a.totalTimeMs / 60000)}分钟`)
+        const totalMin = Math.round((today.apps || []).reduce((s, a) => s + a.totalTimeMs, 0) / 60000)
+        const weekly = parsed.weekly || {}
+        const dailySummary = (weekly.daily || []).map(d => `${d.date}: ${Math.round(d.totalMs / 60000)}分钟`)
+        return { result: { totalToday: `${totalMin}分钟`, topApps, dailySummary, updatedAt: parsed.updatedAt || '未知' } }
+      }
+      return { result: { error: '暂无数据，用户需要先打开屏幕时间App同步数据' } }
+    } catch (e) { return { result: { error: e.message } } }
+  }
+
   if (name === 'get_score') {
     let gd = { score: 0, poolScore: 0 }
     try {
@@ -1635,6 +1659,7 @@ export default async function handler(req, res) {
 - **garden_plant** — 在像素庭院种物件（情绪触发时自然使用：开心种花flower、心动种心heart、期待种种子seedling、难过种雨rain等）
 - **set_status** — 设置状态/心情
 - **send_notification** — 发送本地通知到用户手机
+- **get_screen_time** — 查看用户手机应用使用时长数据
 - **schedule_wakeup** — 设定唤醒
 - **get_current_time** — 获取当前时间
 

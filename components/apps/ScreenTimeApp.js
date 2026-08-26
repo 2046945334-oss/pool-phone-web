@@ -89,6 +89,14 @@ export default function ScreenTimeApp() {
       }
       setTodayData(today)
       setWeeklyData(weekly)
+      // Sync to backend for AI access
+      try {
+        fetch('/api/data/pool_screen_time', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: JSON.stringify({ today, weekly, updatedAt: new Date().toISOString() }) })
+        })
+      } catch {}
     } catch (e) {
       console.error('UsageStats load error:', e)
     }
