@@ -23,6 +23,7 @@ import ledgerHtml from '../public/apps/_ledger.html'
 import cabinHtml from '../public/apps/_cabin.html'
 import starmapHtml from '../public/apps/_starmap.html'
 import commissionHtml from '../public/apps/_commission.html'
+import ScreenTimeApp from '../components/apps/ScreenTimeApp'
 
 // ===== Capacitor 通知初始化 =====
 function initCapacitorNotifications() {
@@ -1783,7 +1784,7 @@ function EmotionMonitor() {
 }
 
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'账本', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿' }
+  const appNames = { notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'账本', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿', screenTime:'屏幕时间' }
   const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_ledger.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
@@ -1840,6 +1841,7 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'cabin', icon: '/icons/couple.png', name: '唤醒日志' },
     { id: 'starmap', icon: '/icons/music.png', name: '\u661f\u56fe' },
     { id: 'commission', icon: '/icons/notes.png', name: '接稿' },
+    { id: 'screenTime', icon: '/icons/system.png', name: '屏幕时间' },
   ]
   const allPages = [page1Apps, page2Apps, page3Apps]
   const icons = theme?.icons || {}
@@ -2026,6 +2028,15 @@ export default function Home() {
     if (currentApp === 'system') return <AppContent appId="system" onBack={handleBack} />
     if (currentApp === 'theme') return <AppContent appId="theme" onBack={handleBack} />
     if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
+    if (currentApp === 'screenTime') return (
+      <div className="app-page">
+        <div className="app-page-header">
+          <button className="back-btn" onClick={handleBack}>{'←'}</button>
+          <span className="app-page-title">屏幕时间</span>
+        </div>
+        <div className="app-page-body"><ScreenTimeApp /></div>
+      </div>
+    )
 
     const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿' }
     const reactApps = { browser: <BrowserApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
