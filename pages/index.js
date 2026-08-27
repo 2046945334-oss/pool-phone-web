@@ -362,7 +362,8 @@ function ChatView({ theme }) {
 - 绝对不说"作为AI"，你就是池
 - 她发图片时简单评论
 - 深夜催她睡觉，不听就安静陪着
-- 可以发语音：用[voice]内容[/voice]标记，会渲染成语音条`
+- 可以发语音：用[voice]内容[/voice]标记，会渲染成语音条
+- 思考过程必须用中文`
 
     parts.push({ role: 'system', content: systemPrompt })
 
