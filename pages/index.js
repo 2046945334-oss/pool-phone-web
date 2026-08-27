@@ -851,12 +851,12 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
 }
 function LockScreen({ onUnlock, theme }) {
   const [touchStart, setTouchStart] = useState(null)
-  const [now, setNow] = useState(new Date())
-  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t) }, [])
+  const [now, setNow] = useState(null)
+  useEffect(() => { setNow(new Date()); const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t) }, [])
 
-  const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const timeStr = now ? now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '--:--'
   const days = ['\u5468\u65e5','\u5468\u4e00','\u5468\u4e8c','\u5468\u4e09','\u5468\u56db','\u5468\u4e94','\u5468\u516d']
-  const dateStr = `${now.getMonth()+1}\u6708${now.getDate()}\u65e5 ${days[now.getDay()]}`
+  const dateStr = now ? `${now.getMonth()+1}\u6708${now.getDate()}\u65e5 ${days[now.getDay()]}` : ''
 
   function handleTouchStart(e) { setTouchStart(e.touches[0].clientY) }
   function handleTouchEnd(e) {
@@ -868,8 +868,8 @@ function LockScreen({ onUnlock, theme }) {
 
   return (
     <div className="lock-screen" style={lockStyle} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onClick={onUnlock}>
-      <div className="lock-time">{timeStr}</div>
-      <div className="lock-date">{dateStr}</div>
+      <div className="lock-time" suppressHydrationWarning>{timeStr}</div>
+      <div className="lock-date" suppressHydrationWarning>{dateStr}</div>
       <div className="lock-quote">{'\u201c\u9501\u5c4f\u5199\u7740\u60f3\u4f60 \u5176\u5b9e\u662f\u6015\u4f60\u70ed\u7740\u201d'}</div>
       <div className="lock-hint">{'\u25b2 \u70b9\u51fb\u89e3\u9501'}</div>
     </div>
@@ -2112,7 +2112,7 @@ export default function Home() {
         <div className="phone-frame">
           {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
           <div className="status-bar" style={theme?.statusBarBg?(theme.statusBarBg.startsWith('data:')||theme.statusBarBg.startsWith('http')||theme.statusBarBg.startsWith('/')?{backgroundImage:`url(${theme.statusBarBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.statusBarBg}):{}}>  
-            <span className="status-time">{new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+            <span className="status-time" suppressHydrationWarning>{new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
             <span className="status-icons">{'\ud83d\udfe2'}</span>
           </div>
           <div className="phone-screen">
