@@ -153,8 +153,15 @@ function VoiceBubble({ text }) {
       })
       const data = await res.json()
       if (data?.audio) {
-        // Use data URL directly - Blob URLs often fail in Android WebView
-        const url = 'data:audio/mp3;base64,' + data.audio
+        // MiniMax may return hex or base64; detect and normalize to base64
+        let b64 = data.audio
+        if (/^[0-9a-f]+$/i.test(b64) && b64.length % 2 === 0 && !/[g-zG-Z+/=]/.test(b64)) {
+          // It's hex - convert to base64 via Uint8Array
+          const bytes = new Uint8Array(b64.length / 2)
+          for (let i = 0; i < b64.length; i += 2) bytes[i/2] = parseInt(b64.substr(i,2), 16)
+          b64 = btoa(String.fromCharCode(...bytes))
+        }
+        const url = 'data:audio/mp3;base64,' + b64
         setAudioUrl(url)
         const audio = new Audio(url)
         audioRef.current = audio
