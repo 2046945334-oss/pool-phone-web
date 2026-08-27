@@ -22,9 +22,8 @@ export default async function handler(req, res) {
   const endpoint = ttsConfig.endpoint && ttsConfig.endpoint.startsWith('http') ? ttsConfig.endpoint : null
   const base = endpoint || (region === 'global' ? 'https://api.minimaxi.chat' : 'https://api.minimax.chat')
   const rawModel = ttsConfig.model || 'speech-02-hd'
-  // Normalize model name: Speech-2.8HD -> speech-02-hd, etc
-  const MODEL_MAP = {'speech-2.8hd':'speech-02-hd','speech-2.8':'speech-02','speech2.8hd':'speech-02-hd','speech-02-hd':'speech-02-hd','speech-02':'speech-02','speech-01-hd':'speech-01-hd','speech-01':'speech-01'}
-  const model = MODEL_MAP[rawModel.toLowerCase().replace(/\s+/g,'')] || rawModel.toLowerCase().replace(/\s+/g,'-')
+  // Pass model name as-is (lowercased, trimmed). MiniMax accepts: speech-2.8-hd, speech-2.8-turbo, speech-02-hd, etc.
+  const model = rawModel.trim().toLowerCase()
   const voice = ttsConfig.voiceId || 'female-tianmei'
 
   try {
@@ -39,7 +38,10 @@ export default async function handler(req, res) {
     })
     const data = await ttsRes.json()
     if (data?.data?.audio) {
-      return res.json({ audio: data.data.audio })
+      // MiniMax returns hex-encoded audio; convert to base64 for frontend
+      const hexStr = data.data.audio
+      const buf = Buffer.from(hexStr, 'hex')
+      return res.json({ audio: buf.toString('base64') })
     }
     return res.json({ error: data?.base_resp?.status_msg || 'TTS failed', raw: data })
   } catch (err) {
