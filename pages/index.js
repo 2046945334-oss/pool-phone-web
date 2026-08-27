@@ -243,7 +243,7 @@ function getApiConfig(feature) {
 }
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
-  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)) } catch {} }, [messages])
+  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
   useEffect(() => {
     const pollInbox = async () => {
