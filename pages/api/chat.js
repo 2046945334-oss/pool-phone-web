@@ -1695,6 +1695,14 @@ export default async function handler(req, res) {
     // 第一轮用主模型（带工具，Pro能判断是否需要调工具）
     // 后续轮次（工具结果处理）用工具模型（便宜）
     const toolLogs = []
+
+    // 强制思考过程用中文
+    const sysIdxForLang = currentMessages.findIndex(m => m.role === 'system')
+    if (sysIdxForLang >= 0) {
+      currentMessages[sysIdxForLang].content += '\n\n【语言规则】思考过程（thinking/reasoning）必须使用中文。'
+    } else {
+      currentMessages.unshift({ role: 'system', content: '【语言规则】思考过程（thinking/reasoning）必须使用中文。' })
+    }
     
     // 将system role转为user消息（部分代理不支持system role）
     function convertSystemRole(msgs) {
