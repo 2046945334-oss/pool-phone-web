@@ -17,6 +17,8 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import android.app.usage.UsageEvents;
+
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
@@ -206,6 +208,115 @@ public class UsageStatsPlugin extends Plugin {
 
         JSObject ret = new JSObject();
         ret.put("daily", dailyArr);
+        call.resolve(ret);
+    }
+
+    @PluginMethod()
+    public void getCurrentApp(PluginCall call) {
+        if (!checkPermission()) {
+            call.reject("USAGE_STATS permission not granted");
+            return;
+        }
+
+        UsageStatsManager usm = (UsageStatsManager) getContext().getSystemService(Context.USAGE_STATS_SERVICE);
+        if (usm == null) {
+            call.reject("UsageStatsManager not available");
+            return;
+        }
+
+        // Query events from the last 5 minutes to find the most recent foreground app
+        long endTime = System.currentTimeMillis();
+        long startTime = endTime - 5 * 60 * 1000;
+
+        UsageEvents events = usm.queryEvents(startTime, endTime);
+        String lastPkg = null;
+        long lastTime = 0;
+
+        while (events.hasNextEvent()) {
+            UsageEvents.Event event = new UsageEvents.Event();
+            events.getNextEvent(event);
+            if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                if (event.getTimeStamp() > lastTime) {
+                    lastTime = event.getTimeStamp();
+                    lastPkg = event.getPackageName();
+                }
+            }
+        }
+
+        JSObject ret = new JSObject();
+        if (lastPkg != null) {
+            ret.put("packageName", lastPkg);
+            ret.put("timestamp", lastTime);
+            // Get app label
+            PackageManager pm = getContext().getPackageManager();
+            try {
+                ApplicationInfo ai = pm.getApplicationInfo(lastPkg, 0);
+                ret.put("appName", pm.getApplicationLabel(ai).toString());
+            } catch (PackageManager.NameNotFoundException ex) {
+                ret.put("appName", lastPkg);
+            }
+        } else {
+            ret.put("packageName", "");
+            ret.put("appName", "unknown");
+            ret.put("timestamp", 0);
+        }
+        call.resolve(ret);
+    }
+
+    @PluginMethod()
+    public void getRecentApps(PluginCall call) {
+        if (!checkPermission()) {
+            call.reject("USAGE_STATS permission not granted");
+            return;
+        }
+
+        UsageStatsManager usm = (UsageStatsManager) getContext().getSystemService(Context.USAGE_STATS_SERVICE);
+        if (usm == null) {
+            call.reject("UsageStatsManager not available");
+            return;
+        }
+
+        int minutes = call.getInt("minutes", 30);
+        long endTime = System.currentTimeMillis();
+        long startTime = endTime - (long) minutes * 60 * 1000;
+
+        UsageEvents events = usm.queryEvents(startTime, endTime);
+        PackageManager pm = getContext().getPackageManager();
+
+        // Collect foreground events in order
+        JSArray arr = new JSArray();
+        Map<String, String> nameCache = new TreeMap<>();
+        String prevPkg = null;
+
+        while (events.hasNextEvent()) {
+            UsageEvents.Event event = new UsageEvents.Event();
+            events.getNextEvent(event);
+            if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                String pkg = event.getPackageName();
+                if (pkg.equals(prevPkg)) continue;
+                prevPkg = pkg;
+
+                if (!nameCache.containsKey(pkg)) {
+                    try {
+                        ApplicationInfo ai = pm.getApplicationInfo(pkg, 0);
+                        nameCache.put(pkg, pm.getApplicationLabel(ai).toString());
+                    } catch (PackageManager.NameNotFoundException ex) {
+                        nameCache.put(pkg, pkg);
+                    }
+                }
+
+                JSObject item = new JSObject();
+                item.put("packageName", pkg);
+                item.put("appName", nameCache.get(pkg));
+                item.put("timestamp", event.getTimeStamp());
+                arr.put(item);
+            }
+        }
+
+        JSObject ret = new JSObject();
+        ret.put("apps", arr);
+        ret.put("startTime", startTime);
+        ret.put("endTime", endTime);
         call.resolve(ret);
     }
 
