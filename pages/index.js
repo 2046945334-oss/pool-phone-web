@@ -418,6 +418,27 @@ function ChatView({ theme }) {
       } catch {}
     }
 
+    // App usage stats (Capacitor native plugin)
+    try {
+      const cap = window.Capacitor
+      if (cap && cap.isNativePlatform && cap.isNativePlatform()) {
+        const { UsageStats } = cap.Plugins
+        if (UsageStats) {
+          const perm = await UsageStats.hasPermission()
+          if (perm.granted) {
+            const current = await UsageStats.getCurrentApp()
+            if (current.packageName) {
+              contextInfo += `\n她刚从: ${current.appName} 切过来`
+            }
+            const usage = await UsageStats.query({ days: 1 })
+            if (usage.apps && usage.apps.length > 0) {
+              const sorted = usage.apps.sort((a, b) => b.totalTimeMs - a.totalTimeMs).slice(0, 5)
+              contextInfo += `\n今日使用: ` + sorted.map(a => `${a.appName}(${Math.round(a.totalTimeMs/60000)}分钟)`).join(', ')
+            }
+          }
+        }
+      }
+    } catch (e) { console.log('[UsageStats] error:', e) }
     if (!contextInfo) contextInfo = `[当前环境]\n时间: ${timeStr}`
 
     // Notifications from backend (if available)
