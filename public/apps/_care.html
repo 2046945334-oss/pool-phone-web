@@ -222,8 +222,8 @@ body{font-family:'Noto Serif SC','Georgia',serif;background:#E8E0D4;color:var(--
 
 <!-- Cover -->
 <div class="cover" id="cover">
-  <div class="cover-book" id="coverBook"><span class="cover-book-title">小水养护手册</span></div>
-  <p class="cover-sub">记录我们的每一天</p>
+  <div class="cover-book" id="coverBook"><span class="cover-book-title"></span></div>
+  <p class="cover-sub"></p>
   <button class="cover-enter" onclick="openApp()">翻 开</button>
 </div>
 
@@ -307,7 +307,13 @@ let pgs={};
 let moodYear,moodMonth;
 
 let _saveTimer=null;
+const CARE_VERSION = 2;
 async function load(){
+  // Force clear old localStorage data on version bump
+  if(localStorage.getItem('xs_data_v') !== String(CARE_VERSION)){
+    localStorage.removeItem('xs_data');
+    localStorage.setItem('xs_data_v', String(CARE_VERSION));
+  }
   try{
     const res=await fetch('/api/data/xs_data');
     if(res.ok){const j=await res.json();if(j.value){const d=typeof j.value==='string'?JSON.parse(j.value):j.value;D={...JSON.parse(JSON.stringify(DEF)),...d};if(!D.itemNotes)D.itemNotes={};if(!D.theme)D.theme=DEF.theme;else{D.theme={...DEF.theme,...D.theme};if(!D.theme.books||!D.theme.books.length)D.theme.books=DEF.theme.books}}}
@@ -612,7 +618,7 @@ function filterTodo(f,el){el.parentElement.querySelectorAll('.nb-tag').forEach(t
 // --- Timeline ---
 function renderTimeline(){
   const b=document.getElementById('timelineBody'),p=pgs.timeline||{page:0};pgs.timeline.total=1;
-  b.innerHTML=`<div class="page-content"><div class="nb-tl">${D.timeline.slice().reverse().map((t,i)=>`<div class="nb-tl-item"><div class="nb-tl-dot"></div><div class="nb-tl-card"><div class="tl-date">${t.date}</div><div class="tl-text">${t.text}</div><div class="tl-avs">${(t.avs||[]).map(a=>`<div class="tl-av">${a[0]}</div>`).join('')}</div>${renderInlineNotes('timeline','item',D.timeline.length-1-i)}</div></div>`).join('')}</div><button onclick="showModal('timeline')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 记录此刻</button></div>`;
+  b.innerHTML=`<div class="page-content"><div class="nb-tl">${D.timeline.slice().reverse().map((t,i)=>`<div class="nb-tl-item"><div class="nb-tl-dot"></div><div class="nb-tl-card"><div class="tl-date">${t.date}</div><div class="tl-text">${t.text}</div><div class="tl-avs">${(t.avs||[]).map(a=>{const isMe=a==='我';const av=isMe?D.theme.avatarMe:D.theme.avatarPartner;return av?`<div class="tl-av" style="padding:0;overflow:hidden"><img src="${av}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`:`<div class="tl-av">${a[0]}</div>`}).join('')}</div>${renderInlineNotes('timeline','item',D.timeline.length-1-i)}</div></div>`).join('')}</div><button onclick="showModal('timeline')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 记录此刻</button></div>`;
 }
 
 // --- Wish ---
