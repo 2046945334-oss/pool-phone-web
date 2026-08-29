@@ -1640,6 +1640,37 @@ export default async function handler(req, res) {
       }
     }
 
+    // 2.5 自动从 Ombre Brain recall 语义记忆
+    let ombreRecall = ''
+    if (lastUserMsg) {
+      try {
+        const OMBRE_URL = 'https://obe.zeabur.app/mcp'
+        const OMBRE_TOKEN = 'NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
+        const textContent = typeof lastUserMsg.content === 'string'
+          ? lastUserMsg.content
+          : (Array.isArray(lastUserMsg.content) ? lastUserMsg.content.filter(c => c.type === 'text').map(c => c.text).join(' ') : String(lastUserMsg.content))
+        const query = textContent.slice(0, 100)
+        const rpcBody = {
+          jsonrpc: '2.0', id: Date.now(),
+          method: 'tools/call',
+          params: { name: 'recall', arguments: { query } }
+        }
+        const ombreResp = await fetch(OMBRE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + OMBRE_TOKEN },
+          body: JSON.stringify(rpcBody),
+        })
+        if (ombreResp.ok) {
+          const ombreData = await ombreResp.json()
+          if (ombreData.result && ombreData.result.content) {
+            const text = ombreData.result.content.map(c => c.text || '').join('\n')
+            if (text.trim() && text.trim() !== '[]' && text.length > 10) {
+              ombreRecall = text.slice(0, 1500)
+            }
+          }
+        }
+      } catch (e) { console.log('[OmbreRecall] auto recall error:', e.message) }
+    }
     // 3. 注入记忆到system prompt + 工具使用引导
     const toolGuidance = `
 【工具使用指引】
@@ -1676,7 +1707,7 @@ export default async function handler(req, res) {
 4. 不确定用什么工具时 → 看工具名和description选最匹配的`
 
     let currentMessages = messages.slice()
-    const memoryInjection = [memoryCtx, localResults].filter(Boolean).join('\n\n')
+    const memoryInjection = [memoryCtx, localResults, ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''].filter(Boolean).join('\n\n')
     const fullInjection = [memoryInjection, toolGuidance].filter(Boolean).join('\n\n')
     if (fullInjection) {
       // 在第一条system消息后插入记忆，或者作为新system消息
