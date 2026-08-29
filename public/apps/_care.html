@@ -60,15 +60,15 @@ body{font-family:'Noto Serif SC','Georgia',serif;background:#E8E0D4;color:var(--
 .book>*:not(.book-overlay):not(.book-badge){position:relative;z-index:1}
 
 /* Notebook */
-.nb-view{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.3);display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.notebook{width:100%;max-width:100%;height:100%;max-height:100%;background:var(--paper);border-radius:0;box-shadow:none;position:relative;overflow:hidden;animation:nbOpen 0.3s ease;display:flex;flex-direction:column}
+.nb-view{position:fixed;inset:0;z-index:200;background:var(--paper);display:none;align-items:stretch;justify-content:stretch;flex-direction:column}
 .nb-view.open{display:flex}
-.notebook{width:92%;max-width:400px;max-height:85vh;background:var(--paper);border-radius:2px 8px 8px 2px;box-shadow:12px 12px 40px rgba(0,0,0,0.25),-4px 0 16px rgba(0,0,0,0.08);position:relative;overflow:hidden;animation:nbOpen 0.5s ease}
 @keyframes nbOpen{from{transform:rotateY(-30deg) scale(0.9);opacity:0}to{transform:rotateY(0) scale(1);opacity:1}}
 .notebook::before{content:'';position:absolute;left:0;top:0;bottom:0;width:40px;background:linear-gradient(to right,rgba(0,0,0,0.03),transparent);border-right:1px solid rgba(0,0,0,0.04);z-index:1}
 .nb-header{display:flex;align-items:center;padding:16px 16px 16px 52px;border-bottom:1px solid rgba(0,0,0,0.06);position:relative}
-.nb-header .nb-back{cursor:pointer;padding:4px;color:var(--ink-light);position:absolute;left:12px}
+.nb-header .nb-back{cursor:pointer;padding:8px 12px;color:var(--ink-light);position:absolute;left:8px;z-index:10;-webkit-tap-highlight-color:transparent}
 .nb-header h2{font-size:16px;letter-spacing:4px;flex:1;text-align:center}
-.nb-body{overflow-y:auto;max-height:calc(85vh - 110px);padding:24px 20px 24px 52px;position:relative;background-image:repeating-linear-gradient(transparent,transparent 31px,rgba(0,0,0,0.04) 31px,rgba(0,0,0,0.04) 32px)}
+.nb-body{overflow-y:auto;flex:1;padding:24px 20px 24px 52px;position:relative;background-image:repeating-linear-gradient(transparent,transparent 31px,rgba(0,0,0,0.04) 31px,rgba(0,0,0,0.04) 32px)}
 .nb-body::before{content:'';position:absolute;left:40px;top:0;bottom:0;width:1px;background:rgba(196,134,122,0.15)}
 .page-turner{display:flex;justify-content:space-between;align-items:center;padding:12px 52px;border-top:1px solid rgba(0,0,0,0.04)}
 .pt-btn{background:none;border:1px solid rgba(0,0,0,0.1);padding:6px 16px;border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink-light);letter-spacing:2px;transition:all 0.2s}
@@ -289,14 +289,14 @@ const IC={check:'<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></s
 
 // ===== Data =====
 const DEF={
-  period:{dates:['2026-08-01','2026-07-04'],interval:28,remindDays:3},
-  habits:[{name:'早安问候',done:false,streak:12},{name:'晚安电话',done:true,streak:28},{name:'运动打卡',done:false,streak:5}],
-  nicknames:['小水','宝宝','老婆大人'],
-  quotes:['每天爱你多一点。','你是我最美好的意外。','想和你一起慢慢变老。'],
+  period:{dates:[],interval:28,remindDays:3},
+  habits:[],
+  nicknames:['小水'],
+  quotes:[],
   moods:{},
-  todos:[{id:1,text:'给小水买一束花',done:false},{id:2,text:'一起看一场电影',done:false},{id:3,text:'亲手做一顿晚餐',done:true},{id:4,text:'写一封情书',done:false}],
-  timeline:[{date:'2026-01-01',text:'在一起的第一天，从此世界多了一个你',avs:['我','水']},{date:'2026-02-14',text:'第一个情人节，送了一束粉色玫瑰',avs:['我']},{date:'2026-05-20',text:'520，一起看了人生中最美的日落',avs:['我','水']},{date:'2026-08-15',text:'第一次一起旅行，去了海边',avs:['我','水']}],
-  wishes:[{id:1,text:'一起去看海',note:'想在海边牵手散步',progress:60,starred:true},{id:2,text:'养一只猫',note:'名字叫小团子',progress:10,starred:false},{id:3,text:'环游世界',note:'先从国内开始',progress:8,starred:true},{id:4,text:'一起做饭',note:'点上蜡烛',progress:100,starred:true}],
+  todos:[],
+  timeline:[],
+  wishes:[],
   // itemNotes: { 'todo:1': [{text,author,time}], 'wish:2': [...], 'habit:0': [...] }
   itemNotes:{},
   theme:{coverBg:'',shelfBg:'',paperColor:'',accent:'rose',font:'serif',avatarMe:'',avatarPartner:'',wallpaper:'',coverColor:'#D4B8A0',htmlBg:'',books:[{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''}]}
@@ -443,10 +443,10 @@ function renderGreeting(){
   else if(h<18){greeting='下午好';sub='有没有想我？'}
   else if(h<21){greeting='晚上好，'+nick;sub='辛苦了一天'}
   else{greeting='晚安，'+nick;sub='今天也爱你'}
-  // Days together
+  // Days together - synced with couple space start date
   let daysText='';
-  if(D.timeline.length>0){
-    const first=new Date(D.timeline[0].date);
+  {
+    const first=new Date(2026,6,21);
     const days=Math.floor((new Date()-first)/86400000);
     if(days>0)daysText=`在一起第 <span style="color:var(--accent);font-weight:700;font-size:18px">${days}</span> 天`;
   }
