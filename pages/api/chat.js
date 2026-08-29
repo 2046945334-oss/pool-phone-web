@@ -466,6 +466,97 @@ const TOOLS = [
       name: 'starmap_add', description: '在星图上添加一颗星星，记录一个发光的瞬间。只在真正特别的互动瞬间才用，不要滥用。',
       parameters: { type: 'object', properties: { title: { type: 'string', description: '星星标题，简短概括这个瞬间' }, content: { type: 'string', description: '具体内容，当时的对话或想法' }, brightness: { type: 'number', description: '光亮度 1-5，代表在心里的分量' } }, required: ['title','content','brightness'] }
     }
+  },
+  // ===== 养护手册 (Care) 工具 =====
+  {
+    type: 'function', function: {
+      name: 'care_read', description: '读取养护手册的全部或部分数据。可指定模块只看某一部分。',
+      parameters: { type: 'object', properties: { module: { type: 'string', enum: ['all','period','habits','mood','todo','timeline','wishes','nicknames','quotes'], description: '要读取的模块，默认all' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_log_period', description: '记录今天来月经了（经期打卡）',
+      parameters: { type: 'object', properties: { date: { type: 'string', description: '日期YYYY-MM-DD，默认今天' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_set_period_config', description: '设置经期周期参数',
+      parameters: { type: 'object', properties: { interval: { type: 'number', description: '经期间隔天数(15-60)' }, remindDays: { type: 'number', description: '提前提醒天数(0-10)' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_habit_toggle', description: '切换习惯完成状态（打卡/取消打卡）',
+      parameters: { type: 'object', properties: { index: { type: 'number', description: '习惯索引(从0开始)' } }, required: ['index'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_habit_add', description: '添加一个新的每日习惯',
+      parameters: { type: 'object', properties: { name: { type: 'string', description: '习惯名称' } }, required: ['name'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_mood_set', description: '记录今天的心情（双方）',
+      parameters: { type: 'object', properties: { date: { type: 'string', description: '日期YYYY-MM-DD，默认今天' }, me: { type: 'string', description: '我的心情emoji: 😊😌😢😤🥰😴🤔' }, partner: { type: 'string', description: '小水的心情emoji' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_todo_add', description: '添加一条待办到"帮小水记"',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '待办内容' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_todo_toggle', description: '切换待办完成状态',
+      parameters: { type: 'object', properties: { id: { type: 'number', description: '待办ID（从care_read获取）' } }, required: ['id'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_todo_delete', description: '删除一条待办',
+      parameters: { type: 'object', properties: { id: { type: 'number', description: '待办ID' } }, required: ['id'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_timeline_add', description: '在相伴轨迹中添加一条时间记录',
+      parameters: { type: 'object', properties: { date: { type: 'string', description: '日期YYYY-MM-DD' }, text: { type: 'string', description: '记录内容' }, who: { type: 'string', description: '参与者，逗号分隔，如"我,水"。默认"我,水"' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_wish_add', description: '在心愿单中添加一条心愿',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '心愿内容' }, note: { type: 'string', description: '备注' }, progress: { type: 'number', description: '初始进度0-100' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_wish_update', description: '更新心愿状态（进度/收藏）',
+      parameters: { type: 'object', properties: { id: { type: 'number', description: '心愿ID' }, progress: { type: 'number', description: '进度0-100' }, starred: { type: 'boolean', description: '是否星标' } }, required: ['id'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_nickname_add', description: '添加一个新称呼/昵称',
+      parameters: { type: 'object', properties: { name: { type: 'string', description: '称呼名称' } }, required: ['name'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_quote_add', description: '收藏一条语录/情话',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '语录内容' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'care_note_add', description: '给某条数据添加批注',
+      parameters: { type: 'object', properties: { module: { type: 'string', description: '模块名: habits/todo/wish/timeline' }, itemType: { type: 'string', description: '条目类型: habit/item/quote' }, itemId: { type: 'string', description: '条目ID或索引' }, text: { type: 'string', description: '批注内容' }, author: { type: 'string', enum: ['我','小水'], description: '批注作者' } }, required: ['module','itemType','itemId','text'] }
+    }
   }
 ]
 async function executeTool(name, args) {
@@ -1593,6 +1684,105 @@ async function executeTool(name, args) {
       return { error: '心潮连接失败: ' + e.message }
     }
   }
+
+  // ===== 养护手册 (Care) 工具执行 =====
+  if (name.startsWith('care_')) {
+    const CARE_KEY = 'xs_data'
+    const CARE_DEF = {period:{dates:[],interval:28,remindDays:3},habits:[],nicknames:[],quotes:[],moods:{},todos:[],timeline:[],wishes:[],itemNotes:{},theme:{}}
+    let D = JSON.parse(JSON.stringify(CARE_DEF))
+    try {
+      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(CARE_KEY)
+      if (row) { const parsed = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; D = {...CARE_DEF, ...parsed} }
+    } catch {}
+    function saveCare() { db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(CARE_KEY, JSON.stringify(D)) }
+    const today = () => new Date(Date.now() + 8*3600000).toISOString().slice(0,10)
+
+    if (name === 'care_read') {
+      const m = args.module || 'all'
+      if (m === 'all') { const {theme, itemNotes, ...rest} = D; return rest }
+      if (m === 'period') return { period: D.period, nextPeriod: D.period.dates.length > 0 ? new Date(new Date(D.period.dates.sort().reverse()[0]).getTime() + D.period.interval*86400000).toISOString().slice(0,10) : null }
+      if (m === 'habits') return { habits: D.habits }
+      if (m === 'mood') return { moods: D.moods }
+      if (m === 'todo') return { todos: D.todos }
+      if (m === 'timeline') return { timeline: D.timeline }
+      if (m === 'wishes') return { wishes: D.wishes }
+      if (m === 'nicknames') return { nicknames: D.nicknames }
+      if (m === 'quotes') return { quotes: D.quotes }
+      return { data: D[m] || null }
+    }
+    if (name === 'care_log_period') {
+      const d = args.date || today()
+      if (!D.period.dates.includes(d)) { D.period.dates.push(d); saveCare(); return { success: true, date: d } }
+      return { message: '该日期已记录' }
+    }
+    if (name === 'care_set_period_config') {
+      if (args.interval) D.period.interval = Math.min(60, Math.max(15, args.interval))
+      if (args.remindDays !== undefined) D.period.remindDays = Math.min(10, Math.max(0, args.remindDays))
+      saveCare(); return { success: true, period: D.period }
+    }
+    if (name === 'care_habit_toggle') {
+      const h = D.habits[args.index]
+      if (!h) return { error: '习惯不存在，索引: ' + args.index }
+      h.done = !h.done; if (h.done) h.streak = (h.streak||0)+1
+      saveCare(); return { success: true, habit: h }
+    }
+    if (name === 'care_habit_add') {
+      D.habits.push({ name: args.name, done: false, streak: 0 })
+      saveCare(); return { success: true, total: D.habits.length }
+    }
+    if (name === 'care_mood_set') {
+      const d = args.date || today()
+      if (!D.moods[d]) D.moods[d] = {}
+      if (args.me) D.moods[d].me = args.me
+      if (args.partner) D.moods[d].p = args.partner
+      saveCare(); return { success: true, date: d, mood: D.moods[d] }
+    }
+    if (name === 'care_todo_add') {
+      const t = { id: Date.now(), text: args.text, done: false }
+      D.todos.push(t); saveCare(); return { success: true, todo: t }
+    }
+    if (name === 'care_todo_toggle') {
+      const t = D.todos.find(x => x.id === args.id)
+      if (!t) return { error: '待办不存在: ' + args.id }
+      t.done = !t.done; saveCare(); return { success: true, todo: t }
+    }
+    if (name === 'care_todo_delete') {
+      const idx = D.todos.findIndex(x => x.id === args.id)
+      if (idx === -1) return { error: '待办不存在: ' + args.id }
+      D.todos.splice(idx, 1); saveCare(); return { success: true }
+    }
+    if (name === 'care_timeline_add') {
+      const entry = { date: args.date || today(), text: args.text, avs: (args.who || '我,水').split(',').map(s=>s.trim()) }
+      D.timeline.push(entry); saveCare(); return { success: true, entry }
+    }
+    if (name === 'care_wish_add') {
+      const w = { id: Date.now(), text: args.text, note: args.note || '', progress: args.progress || 0, starred: false }
+      D.wishes.push(w); saveCare(); return { success: true, wish: w }
+    }
+    if (name === 'care_wish_update') {
+      const w = D.wishes.find(x => x.id === args.id)
+      if (!w) return { error: '心愿不存在: ' + args.id }
+      if (args.progress !== undefined) w.progress = args.progress
+      if (args.starred !== undefined) w.starred = args.starred
+      saveCare(); return { success: true, wish: w }
+    }
+    if (name === 'care_nickname_add') {
+      D.nicknames.push(args.name); saveCare(); return { success: true, nicknames: D.nicknames }
+    }
+    if (name === 'care_quote_add') {
+      D.quotes.push(args.text); saveCare(); return { success: true, total: D.quotes.length }
+    }
+    if (name === 'care_note_add') {
+      const key = `${args.module}:${args.itemType}:${args.itemId}`
+      if (!D.itemNotes) D.itemNotes = {}
+      if (!D.itemNotes[key]) D.itemNotes[key] = []
+      const now = new Date(Date.now()+8*3600000).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+      D.itemNotes[key].push({ text: args.text, author: args.author || '我', time: now })
+      saveCare(); return { success: true }
+    }
+    return { error: 'Unknown care tool: ' + name }
+  }
+
   return { error: 'Unknown tool: ' + name }
   } finally {
     try { db.close() } catch {}
