@@ -470,8 +470,8 @@ const TOOLS = [
   // ===== 养护手册 (Care) 工具 =====
   {
     type: 'function', function: {
-      name: 'care_read', description: '读取养护手册的全部或部分数据。可指定模块只看某一部分。',
-      parameters: { type: 'object', properties: { module: { type: 'string', enum: ['all','period','habits','mood','todo','timeline','wishes','nicknames','quotes'], description: '要读取的模块，默认all' } } }
+      name: 'care_read', description: '读取养护手册的全部或部分数据。可指定模块只看某一部分。读取all时包含批注(itemNotes)。',
+      parameters: { type: 'object', properties: { module: { type: 'string', enum: ['all','period','habits','mood','todo','timeline','wishes','nicknames','quotes','notes'], description: '要读取的模块，默认all。notes=批注' } } }
     }
   },
   {
@@ -1699,7 +1699,7 @@ async function executeTool(name, args) {
 
     if (name === 'care_read') {
       const m = args.module || 'all'
-      if (m === 'all') { const {theme, itemNotes, ...rest} = D; return rest }
+      if (m === 'all') { const {theme, ...rest} = D; return rest }
       if (m === 'period') return { period: D.period, nextPeriod: D.period.dates.length > 0 ? new Date(new Date(D.period.dates.sort().reverse()[0]).getTime() + D.period.interval*86400000).toISOString().slice(0,10) : null }
       if (m === 'habits') return { habits: D.habits }
       if (m === 'mood') return { moods: D.moods }
@@ -1708,6 +1708,7 @@ async function executeTool(name, args) {
       if (m === 'wishes') return { wishes: D.wishes }
       if (m === 'nicknames') return { nicknames: D.nicknames }
       if (m === 'quotes') return { quotes: D.quotes }
+      if (m === 'notes') return { itemNotes: D.itemNotes || {} }
       return { data: D[m] || null }
     }
     if (name === 'care_log_period') {

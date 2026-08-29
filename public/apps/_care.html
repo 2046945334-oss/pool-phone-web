@@ -562,7 +562,7 @@ function renderPeriod(){
     const dates=D.period.dates.sort().reverse();
     let daysLeft='--',sub='请先记录';
     if(dates.length>0){const l=new Date(dates[0]),nx=new Date(l.getTime()+D.period.interval*86400000);daysLeft=Math.max(0,Math.ceil((nx-new Date())/86400000));sub=`预计 ${nx.getMonth()+1}月${nx.getDate()}日 到来`}
-    b.innerHTML=`<div class="page-content"><div class="nb-status"><div class="big-num">${daysLeft}</div><div class="big-label">距离下次经期</div><div style="font-size:12px;color:var(--ink-light);margin-top:6px">${sub}</div></div><div style="display:flex;gap:10px;margin-bottom:20px"><button onclick="logPeriod()" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:2px;font-family:inherit;font-size:13px;cursor:pointer;letter-spacing:2px">记录今日</button><button onclick="toast('提醒已设置')" style="flex:1;padding:12px;background:transparent;border:1px solid var(--rose-light);border-radius:2px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--accent);letter-spacing:2px">设置提醒</button></div><div class="nb-sec"><span class="icon icon-sm">${IC.cal}</span>历史记录</div>${dates.length?dates.slice(0,5).map(d=>`<div class="nb-item"><span class="icon icon-sm" style="color:var(--accent)">${IC.heart}</span><div class="nb-text">${d}</div></div>`).join(''):'<div style="font-size:13px;color:var(--ink-light);padding:12px 0">暂无记录</div>'}</div>`;
+    b.innerHTML=`<div class="page-content"><div class="nb-status"><div class="big-num">${daysLeft}</div><div class="big-label">距离下次经期</div><div style="font-size:12px;color:var(--ink-light);margin-top:6px">${sub}</div></div><div style="display:flex;gap:10px;margin-bottom:20px"><button onclick="logPeriod()" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:2px;font-family:inherit;font-size:13px;cursor:pointer;letter-spacing:2px">记录今日</button><button onclick="toast('提醒已设置')" style="flex:1;padding:12px;background:transparent;border:1px solid var(--rose-light);border-radius:2px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--accent);letter-spacing:2px">设置提醒</button></div><div class="nb-sec"><span class="icon icon-sm">${IC.cal}</span>历史记录</div>${dates.length?dates.slice(0,5).map((d,i)=>`<div class="nb-item" style="position:relative"><span class="icon icon-sm" style="color:var(--accent)">${IC.heart}</span><div class="nb-text">${d}</div><span onclick="event.stopPropagation();deleteItem('period',${D.period.dates.indexOf(d)})" style="position:absolute;top:12px;right:8px;cursor:pointer;font-size:12px;color:#e88;opacity:0.3;padding:2px 4px" ontouchstart="this.style.opacity=1" title="删除">✕</span></div>`).join(''):'<div style="font-size:13px;color:var(--ink-light);padding:12px 0">暂无记录</div>'}</div>`;
   } else {
     b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.bell}</span>提醒设置</div><div class="nb-item"><div class="nb-text">经期间隔</div><input type="number" value="${D.period.interval}" min="15" max="60" onchange="D.period.interval=+this.value;save()" style="width:60px;padding:6px;border:1px solid rgba(0,0,0,0.1);border-radius:2px;text-align:center;font-family:inherit"></div><div class="nb-item"><div class="nb-text">提前提醒</div><input type="number" value="${D.period.remindDays}" min="0" max="10" onchange="D.period.remindDays=+this.value;save()" style="width:60px;padding:6px;border:1px solid rgba(0,0,0,0.1);border-radius:2px;text-align:center;font-family:inherit"></div></div>`;
   }
@@ -573,9 +573,9 @@ function logPeriod(){const t=new Date().toISOString().split('T')[0];if(!D.period
 function renderHabits(){
   const b=document.getElementById('habitsBody'),p=pgs.habits||{page:0};pgs.habits.total=3;
   if(p.page===0){
-    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.pen}</span>称呼记录</div>${D.nicknames.map(n=>`<div class="nb-item"><span class="icon icon-sm" style="color:var(--accent)">${IC.heart}</span><div class="nb-text">${n}</div></div>`).join('')}<button onclick="showModal('nickname')" style="margin-top:8px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 添加称呼</button><div class="nb-sec" style="margin-top:20px"><span class="icon icon-sm">${IC.book}</span>每日习惯</div>${D.habits.map((h,i)=>`<div class="nb-item" onclick="toggleHabit(${i})"><div class="nb-check ${h.done?'done':''}">${h.done?IC.check:''}</div><div style="flex:1"><div class="nb-text">${h.name}</div><div class="nb-sub">连续 ${h.streak} 天</div>${renderInlineNotes('habits','habit',i)}</div>${noteBadge('habits','habit',i)}</div>`).join('')}<button onclick="showModal('habit')" style="margin-top:8px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 添加习惯</button></div>`;
+    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.pen}</span>称呼记录</div>${D.nicknames.map((n,i)=>`<div class="nb-item" style="position:relative"><span class="icon icon-sm" style="color:var(--accent)">${IC.heart}</span><div class="nb-text">${n}</div>${itemActions('nickname',i)}</div>`).join('')}<button onclick="showModal('nickname')" style="margin-top:8px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 添加称呼</button><div class="nb-sec" style="margin-top:20px"><span class="icon icon-sm">${IC.book}</span>每日习惯</div>${D.habits.map((h,i)=>`<div class="nb-item" style="position:relative" onclick="toggleHabit(${i})"><div class="nb-check ${h.done?'done':''}">${h.done?IC.check:''}</div><div style="flex:1"><div class="nb-text">${h.name}</div><div class="nb-sub">连续 ${h.streak} 天</div>${renderInlineNotes('habits','habit',i)}</div>${itemActions('habit',i)}${noteBadge('habits','habit',i)}</div>`).join('')}<button onclick="showModal('habit')" style="margin-top:8px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 添加习惯</button></div>`;
   } else if(p.page===1){
-    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.book}</span>语录收藏</div>${D.quotes.map((q,i)=>`<div class="nb-item" style="border:none"><div class="nb-quote" style="flex:1">"${q}"</div>${noteBadge('habits','quote',i)}</div>${renderInlineNotes('habits','quote',i)}`).join('')}<button onclick="showModal('quote')" style="margin-top:12px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 收藏语录</button></div>`;
+    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.book}</span>语录收藏</div>${D.quotes.map((q,i)=>`<div class="nb-item" style="border:none"><div class="nb-quote" style="flex:1">"${q}"</div>${itemActions('quote',i)}${noteBadge('habits','quote',i)}</div>${renderInlineNotes('habits','quote',i)}`).join('')}<button onclick="showModal('quote')" style="margin-top:12px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 收藏语录</button></div>`;
   } else {
     b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.note}</span>全部批注</div>${getAllNotesFor('habits')}</div>`;
   }
@@ -607,8 +607,7 @@ function renderTodo(){
   b.innerHTML=`<div class="page-content"><div class="nb-tags"><span class="nb-tag active" onclick="filterTodo('all',this)">全部</span><span class="nb-tag" onclick="filterTodo('pending',this)">待完成</span><span class="nb-tag" onclick="filterTodo('done',this)">已完成</span></div><div id="todoInner">${todoHTML('all')}</div><div class="nb-input-bar"><input id="todoInp" placeholder="添加待办..." onkeydown="if(event.key==='Enter')addTodo()"><button onclick="addTodo()">添加</button></div></div>`;
 }
 function todoHTML(f){
-  return D.todos.filter(t=>f==='all'||(f==='pending'?!t.done:t.done)).map(t=>
-    `<div class="nb-item"><div class="nb-check ${t.done?'done':''}" onclick="toggleTodo(${t.id})">${t.done?IC.check:''}</div><div style="flex:1"><div class="nb-text ${t.done?'done-text':''}">${t.text}</div>${renderInlineNotes('todo','item',t.id)}</div>${noteBadge('todo','item',t.id)}</div>`
+  return D.todos.filter(t=>f==='all'||(f==='pending'?!t.done:t.done)).map((t,_,arr)=>{const idx=D.todos.indexOf(t);return `<div class="nb-item" style="position:relative"><div class="nb-check ${t.done?'done':''}" onclick="toggleTodo(${t.id})">${t.done?IC.check:''}</div><div style="flex:1"><div class="nb-text ${t.done?'done-text':''}">${t.text}</div>${renderInlineNotes('todo','item',t.id)}</div>${itemActions('todo',idx)}${noteBadge('todo','item',t.id)}</div>`}
   ).join('')||'<div style="font-size:13px;color:var(--ink-light);padding:12px 0">暂无内容</div>';
 }
 function addTodo(){const i=document.getElementById('todoInp');if(!i||!i.value.trim())return;D.todos.push({id:Date.now(),text:i.value.trim(),done:false});i.value='';save();renderTodo();toast('已添加')}
@@ -618,13 +617,13 @@ function filterTodo(f,el){el.parentElement.querySelectorAll('.nb-tag').forEach(t
 // --- Timeline ---
 function renderTimeline(){
   const b=document.getElementById('timelineBody'),p=pgs.timeline||{page:0};pgs.timeline.total=1;
-  b.innerHTML=`<div class="page-content"><div class="nb-tl">${D.timeline.slice().reverse().map((t,i)=>`<div class="nb-tl-item"><div class="nb-tl-dot"></div><div class="nb-tl-card"><div class="tl-date">${t.date}</div><div class="tl-text">${t.text}</div><div class="tl-avs">${(t.avs||[]).map(a=>{const isMe=a==='我';const av=isMe?D.theme.avatarMe:D.theme.avatarPartner;return av?`<div class="tl-av" style="padding:0;overflow:hidden"><img src="${av}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`:`<div class="tl-av">${a[0]}</div>`}).join('')}</div>${renderInlineNotes('timeline','item',D.timeline.length-1-i)}</div></div>`).join('')}</div><button onclick="showModal('timeline')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 记录此刻</button></div>`;
+  b.innerHTML=`<div class="page-content"><div class="nb-tl">${D.timeline.slice().reverse().map((t,i)=>`<div class="nb-tl-item"><div class="nb-tl-dot"></div><div class="nb-tl-card" style="position:relative"><div class="tl-date">${t.date}</div><div class="tl-text">${t.text}</div><div class="tl-avs">${(t.avs||[]).map(a=>{const isMe=a==='我';const av=isMe?D.theme.avatarMe:D.theme.avatarPartner;return av?`<div class="tl-av" style="padding:0;overflow:hidden"><img src="${av}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`:`<div class="tl-av">${a[0]}</div>`}).join('')}</div>${renderInlineNotes('timeline','item',D.timeline.length-1-i)}${itemActions('timeline',D.timeline.length-1-i)}</div></div>`).join('')}</div><button onclick="showModal('timeline')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 记录此刻</button></div>`;
 }
 
 // --- Wish ---
 function renderWish(){
   const b=document.getElementById('wishBody'),p=pgs.wish||{page:0};pgs.wish.total=1;
-  b.innerHTML=`<div class="page-content">${D.wishes.map(w=>`<div class="nb-wish"><span class="wish-star ${w.starred?'active':''}" onclick="toggleStar(${w.id})">${IC.star||'<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</span><div class="wish-info"><div class="wish-name">${w.text}</div>${w.note?`<div class="wish-note">${w.note}</div>`:''}<div class="wish-bar"><div class="fill" style="width:${w.progress}%"></div></div>${renderInlineNotes('wish','item',w.id)}</div>${noteBadge('wish','item',w.id)}</div>`).join('')}<button onclick="showModal('wish')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 许下心愿</button></div>`;
+  b.innerHTML=`<div class="page-content">${D.wishes.map((w,wi)=>`<div class="nb-wish" style="position:relative"><span class="wish-star ${w.starred?'active':''}" onclick="toggleStar(${w.id})">${IC.star||'<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</span><div class="wish-info"><div class="wish-name">${w.text}</div>${w.note?`<div class="wish-note">${w.note}</div>`:''}<div class="wish-bar"><div class="fill" style="width:${w.progress}%"></div></div>${renderInlineNotes('wish','item',w.id)}</div>${itemActions('wish',D.wishes.indexOf(w))}${noteBadge('wish','item',w.id)}</div>`).join('')}<button onclick="showModal('wish')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 许下心愿</button></div>`;
 }
 function toggleStar(id){const w=D.wishes.find(x=>x.id===id);if(w){w.starred=!w.starred;save();renderWish()}}
 
@@ -692,6 +691,48 @@ function getAllNotesFor(module){
     }
   }
   return html||'<div style="font-size:13px;color:var(--ink-light);padding:12px 0">暂无批注</div>';
+}
+
+// ===== Edit/Delete helpers =====
+function editItem(type, index) {
+  let currentValue = '';
+  if(type==='nickname') currentValue = D.nicknames[index] || '';
+  else if(type==='habit') currentValue = D.habits[index]?.name || '';
+  else if(type==='quote') currentValue = D.quotes[index] || '';
+  else if(type==='todo') currentValue = D.todos[index]?.text || '';
+  else if(type==='timeline') currentValue = D.timeline[index]?.text || '';
+  else if(type==='wish') currentValue = D.wishes[index]?.text || '';
+  const bg=document.getElementById('modalBg'),box=document.getElementById('modalBox');bg.classList.add('show');
+  box.innerHTML=`<h3>编辑</h3><textarea id="mEdit" style="width:100%;min-height:60px;padding:10px;border:1px solid rgba(0,0,0,0.1);border-radius:2px;font-family:inherit;font-size:13px;outline:none"></textarea><div class="modal-btns"><button class="mb-cancel" onclick="closeModal()">取消</button><button class="mb-ok" onclick="doEdit('${type}',${index})">保存</button></div>`;
+  document.getElementById('mEdit').value = currentValue;
+}
+function doEdit(type, index) {
+  const v=document.getElementById('mEdit')?.value?.trim();if(!v){closeModal();return}
+  if(type==='nickname'){D.nicknames[index]=v}
+  else if(type==='habit'){D.habits[index].name=v}
+  else if(type==='quote'){D.quotes[index]=v}
+  else if(type==='todo'){D.todos[index].text=v}
+  else if(type==='timeline'){D.timeline[index].text=v}
+  else if(type==='wish'){D.wishes[index].text=v}
+  save();closeModal();
+  const modMap={nickname:'habits',habit:'habits',quote:'habits',todo:'todo',timeline:'timeline',wish:'wish',period:'period'};
+  renderBook(modMap[type]||type);toast('已保存');
+}
+function deleteItem(type, index) {
+  if(!confirm('确定删除？'))return;
+  if(type==='nickname'){D.nicknames.splice(index,1)}
+  else if(type==='habit'){D.habits.splice(index,1)}
+  else if(type==='quote'){D.quotes.splice(index,1)}
+  else if(type==='todo'){D.todos.splice(index,1)}
+  else if(type==='timeline'){D.timeline.splice(index,1)}
+  else if(type==='wish'){D.wishes=D.wishes.filter((_,i)=>i!==index)}
+  else if(type==='period'){D.period.dates.splice(index,1)}
+  save();
+  const modMap={nickname:'habits',habit:'habits',quote:'habits',todo:'todo',timeline:'timeline',wish:'wish',period:'period'};
+  renderBook(modMap[type]||type);toast('已删除');
+}
+function itemActions(type, index) {
+  return `<span style="position:absolute;top:10px;right:28px;display:flex;gap:8px;opacity:0.3" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3" ontouchstart="this.style.opacity=1"><span onclick="event.stopPropagation();editItem('${type}',${index})" style="cursor:pointer;font-size:13px;color:var(--sky);padding:2px 4px" title="编辑">✎</span><span onclick="event.stopPropagation();deleteItem('${type}',${index})" style="cursor:pointer;font-size:13px;color:#e88;padding:2px 4px" title="删除">✕</span></span>`;
 }
 
 // ===== Modals =====

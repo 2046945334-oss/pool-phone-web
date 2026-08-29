@@ -905,8 +905,8 @@ function LockScreen({ onUnlock, theme }) {
 function ThemePanel() {
   const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
   const [saved, setSaved] = useState(false)
-  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel','memoryMgr','diary','garden','cabin','starmap','commission','screenTime']
-  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u8d26\u672c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',commission:'接稿',screenTime:'屏幕时间'}
+  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel','memoryMgr','diary','garden','cabin','starmap','commission','screenTime','care']
+  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u8d26\u672c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',commission:'接稿',screenTime:'屏幕时间',care:'养护手册'}
 
   function save() {
     try {
@@ -1868,6 +1868,7 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'starmap', icon: '/icons/music.png', name: '\u661f\u56fe' },
     { id: 'commission', icon: '/icons/notes.png', name: '接稿' },
     { id: 'screenTime', icon: '/icons/system.png', name: '屏幕时间' },
+    { id: 'care', icon: '/icons/couple.png', name: '养护' },
   ]
   const allPages = [page1Apps, page2Apps, page3Apps]
   const icons = theme?.icons || {}
@@ -1985,6 +1986,7 @@ export default function Home() {
   const [theme, setTheme] = useState({})
   const [appBg, setAppBg] = useState({})
   const [customizerApp, setCustomizerApp] = useState(null)
+  const [lazyHtmlCache, setLazyHtmlCache] = useState({})
 
   useEffect(() => {
     const load = () => setTheme(JSON.parse(localStorage.getItem('pool_theme') || '{}'))
@@ -2064,25 +2066,36 @@ export default function Home() {
       </div>
     )
 
-    const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿' }
+    const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿', care:'养护手册' }
     const reactApps = { browser: <BrowserApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
     const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml, commission: commissionHtml }
+    // Lazy-loaded HTML apps: fetched on demand to reduce initial bundle size
+    const lazyHtmlApps = { care: '/apps/_care.html' }
 
     if (currentApp && appTitles[currentApp]) {
       const bgCfg = appBg[currentApp]
       const bgStyle = getAppBgStyle(bgCfg)
       const isHtml = !!htmlApps[currentApp]
+      const isLazy = !!lazyHtmlApps[currentApp]
       const isReact = !!reactApps[currentApp]
 
+      // For lazy-loaded HTML apps, fetch on demand
+      if (isLazy && !lazyHtmlCache[currentApp]) {
+        fetch(lazyHtmlApps[currentApp]).then(r => r.text()).then(html => {
+          setLazyHtmlCache(prev => ({ ...prev, [currentApp]: html }))
+        }).catch(() => {})
+      }
+
       // For HTML apps with bg config, inject CSS into the HTML content
-      let htmlContent = htmlApps[currentApp] || ''
+      let htmlContent = htmlApps[currentApp] || lazyHtmlCache[currentApp] || ''
+      const hasHtml = !!(isHtml || (isLazy && htmlContent))
       // Inject API base URL so fetch works in srcdoc iframe
-      if (isHtml && typeof window !== 'undefined') {
+      if (hasHtml && typeof window !== 'undefined') {
         const baseUrl = window.location.origin
         const injectTag = '<meta name="api-base" content="' + baseUrl + '">' 
         htmlContent = htmlContent.replace('<head>', '<head>' + injectTag)
       }
-      if (isHtml && bgCfg && (bgCfg.bgImage || bgCfg.bgColor)) {
+      if (hasHtml && bgCfg && (bgCfg.bgImage || bgCfg.bgColor)) {
         const injectedCss = getAppBgCss(bgCfg)
         if (injectedCss) {
           htmlContent = htmlContent.replace('</head>', `<style>${injectedCss}</style></head>`)
@@ -2105,7 +2118,8 @@ export default function Home() {
           </div>
           <div className="app-page-body" style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
             {isReact && reactApps[currentApp]}
-            {isHtml && <HtmlApp htmlContent={htmlContent} />}
+            {hasHtml && <HtmlApp htmlContent={htmlContent} />}
+            {isLazy && !htmlContent && <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px'}}>加载中...</div>}
           </div>
           {customizerApp === currentApp && (
             <AppCustomizer
