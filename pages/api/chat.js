@@ -1885,6 +1885,22 @@ export default async function handler(req, res) {
 - **schedule_wakeup** — 设定唤醒
 - **get_current_time** — 获取当前时间
 
+**养护手册工具：**
+- **care_read** — 读取养护数据（module可选: period/habits/mood/todos/timeline/wishes/dashboard/all）
+- **care_log_period** — 记录经期打卡
+- **care_set_period_config** — 设置经期周期参数（间隔天数、提前提醒天数）
+- **care_habit_toggle** — 习惯打卡/取消打卡（传index）
+- **care_habit_add** — 添加新的每日习惯
+- **care_mood_set** — 记录双方今日心情（emoji）
+- **care_todo_add** — 添加待办
+- **care_todo_toggle** — 切换待办完成状态
+- **care_todo_delete** — 删除待办
+- **care_timeline_add** — 在相伴轨迹添加时间记录
+- **care_wish_add** — 添加心愿
+- **care_wish_update** — 更新心愿状态（进度/收藏）
+- **care_item_note** — 为任何条目添加批注
+  用法场景：用户聊到身体状况/习惯/心情/日程时主动调用；唤醒时可读取养护数据了解状态
+
 **记忆工具：**
 - **mcp_call (action: "recall")** — 搜索长期记忆
 - **mcp_call (action: "memorize")** — 写入长期记忆
