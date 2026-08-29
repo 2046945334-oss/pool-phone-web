@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>小水养护手册</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=ZCOOL+XiaoWei&display=swap');
+:root {
+  --ink: #2C2C2C; --ink-light: #8A8A8A; --paper: #FDF8F0; --paper-dark: #F5EDE0;
+  --cream: #FFF9F0; --rose: #C4867A; --rose-light: #E8C4BC;
+  --lavender: #A89BBF; --sage: #8FA88C; --sky: #7FA8C4; --amber: #C4A66A;
+  --shadow-book: 6px 6px 24px rgba(0,0,0,0.12), -2px -2px 8px rgba(255,255,255,0.8);
+  --accent: var(--rose);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Serif SC','Georgia',serif;background:#E8E0D4;color:var(--ink);max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden;transition:background 0.5s}
+.icon{display:inline-flex;align-items:center;justify-content:center}
+.icon svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icon-sm svg{width:18px;height:18px}
+.icon-lg svg{width:32px;height:32px}
+
+/* Cover */
+.cover{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1s,transform 1s;background-size:cover;background-position:center}
+.cover::after{content:'';position:absolute;inset:0;background:rgba(245,237,224,0.85)}
+.cover.hide{opacity:0;transform:scale(1.05);pointer-events:none}
+.cover>*{position:relative;z-index:1}
+.cover-book{width:200px;height:280px;border-radius:2px 12px 12px 2px;position:relative;box-shadow:8px 8px 30px rgba(0,0,0,0.2),-4px 0 12px rgba(0,0,0,0.05);display:flex;align-items:center;justify-content:center;animation:bookFloat 4s ease-in-out infinite;background-size:cover;background-position:center}
+.cover-book::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:linear-gradient(to right,rgba(0,0,0,0.15),transparent);z-index:1}
+.cover-book-title{writing-mode:vertical-rl;font-family:'ZCOOL XiaoWei',serif;font-size:28px;color:#F5EDE0;letter-spacing:8px;text-shadow:1px 1px 4px rgba(0,0,0,0.3);position:relative;z-index:1}
+@keyframes bookFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(1deg)}}
+.cover-sub{color:var(--ink-light);font-size:13px;margin-top:24px;letter-spacing:4px}
+.cover-enter{margin-top:40px;background:none;border:1.5px solid var(--ink-light);padding:12px 40px;border-radius:2px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink);letter-spacing:4px;transition:all 0.3s}
+.cover-enter:hover{background:var(--ink);color:var(--paper)}
+
+/* App */
+.app{display:none}.app.show{display:block}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--paper);border-bottom:1px solid rgba(0,0,0,0.06);position:sticky;top:0;z-index:100}
+.topbar-back{cursor:pointer;padding:4px;color:var(--ink);visibility:hidden}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:3px}
+.topbar-actions{display:flex;gap:12px}
+.topbar-actions span{cursor:pointer;padding:4px;color:var(--ink-light)}
+
+/* Bookshelf */
+.bookshelf{padding:24px 20px 100px}
+.bookshelf-header{text-align:center;margin-bottom:32px}
+.bookshelf-header h2{font-family:'ZCOOL XiaoWei',serif;font-size:22px;letter-spacing:6px}
+.bookshelf-header .sub{font-size:12px;color:var(--ink-light);margin-top:6px;letter-spacing:2px}
+.bookshelf-date{text-align:center;font-size:11px;color:var(--ink-light);margin-bottom:24px;letter-spacing:1px}
+.book-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;perspective:1000px}
+.book{height:180px;border-radius:2px 10px 10px 2px;position:relative;cursor:pointer;transition:transform 0.3s,box-shadow 0.3s;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background-size:cover;background-position:center}
+.book::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;background:linear-gradient(to right,rgba(0,0,0,0.12),transparent);z-index:1}
+.book::after{content:'';position:absolute;right:0;top:0;bottom:0;width:6px;background:linear-gradient(to left,rgba(0,0,0,0.06),transparent)}
+.book:active{transform:scale(0.96)}
+.book .book-icon{margin-bottom:12px;color:rgba(255,255,255,0.9)}
+.book .book-label{font-size:14px;font-weight:600;letter-spacing:3px;color:rgba(255,255,255,0.95);text-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.book .book-sub{font-size:10px;color:rgba(255,255,255,0.7);margin-top:4px;letter-spacing:1px}
+.book .book-badge{position:absolute;top:10px;right:12px;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);padding:2px 8px;border-radius:10px;font-size:10px;color:#fff}
+.book-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.15);z-index:0}
+.book>*:not(.book-overlay):not(.book-badge){position:relative;z-index:1}
+
+/* Notebook */
+.nb-view{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.3);display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.nb-view.open{display:flex}
+.notebook{width:92%;max-width:400px;max-height:85vh;background:var(--paper);border-radius:2px 8px 8px 2px;box-shadow:12px 12px 40px rgba(0,0,0,0.25),-4px 0 16px rgba(0,0,0,0.08);position:relative;overflow:hidden;animation:nbOpen 0.5s ease}
+@keyframes nbOpen{from{transform:rotateY(-30deg) scale(0.9);opacity:0}to{transform:rotateY(0) scale(1);opacity:1}}
+.notebook::before{content:'';position:absolute;left:0;top:0;bottom:0;width:40px;background:linear-gradient(to right,rgba(0,0,0,0.03),transparent);border-right:1px solid rgba(0,0,0,0.04);z-index:1}
+.nb-header{display:flex;align-items:center;padding:16px 16px 16px 52px;border-bottom:1px solid rgba(0,0,0,0.06);position:relative}
+.nb-header .nb-back{cursor:pointer;padding:4px;color:var(--ink-light);position:absolute;left:12px}
+.nb-header h2{font-size:16px;letter-spacing:4px;flex:1;text-align:center}
+.nb-body{overflow-y:auto;max-height:calc(85vh - 110px);padding:24px 20px 24px 52px;position:relative;background-image:repeating-linear-gradient(transparent,transparent 31px,rgba(0,0,0,0.04) 31px,rgba(0,0,0,0.04) 32px)}
+.nb-body::before{content:'';position:absolute;left:40px;top:0;bottom:0;width:1px;background:rgba(196,134,122,0.15)}
+.page-turner{display:flex;justify-content:space-between;align-items:center;padding:12px 52px;border-top:1px solid rgba(0,0,0,0.04)}
+.pt-btn{background:none;border:1px solid rgba(0,0,0,0.1);padding:6px 16px;border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink-light);letter-spacing:2px;transition:all 0.2s}
+.pt-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.pt-btn:disabled{opacity:0.3;cursor:default}
+.pt-btn:disabled:hover{background:none;color:var(--ink-light);border-color:rgba(0,0,0,0.1)}
+.pt-num{font-size:11px;color:var(--ink-light)}
+
+/* NB Components */
+.nb-status{text-align:center;padding:24px 0;margin-bottom:20px;border-bottom:1px dashed rgba(0,0,0,0.08)}
+.nb-status .big-num{font-size:48px;font-weight:700;color:var(--rose);font-family:'Georgia',serif}
+.nb-status .big-label{font-size:12px;color:var(--ink-light);margin-top:4px;letter-spacing:2px}
+.nb-sec{font-size:13px;font-weight:600;letter-spacing:3px;margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid rgba(0,0,0,0.06);display:flex;align-items:center;gap:8px}
+.nb-sec .icon{color:var(--ink-light)}
+.nb-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid rgba(0,0,0,0.04);cursor:pointer;position:relative}
+.nb-item:last-child{border:none}
+.nb-check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--rose-light);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.2s;margin-top:2px}
+.nb-check.done{background:var(--rose);border-color:var(--rose)}
+.nb-check.done svg{stroke:#fff}
+.nb-text{flex:1;font-size:14px;line-height:1.6}
+.nb-text.done-text{text-decoration:line-through;color:var(--ink-light)}
+.nb-sub{font-size:11px;color:var(--ink-light);margin-top:2px}
+
+/* Inline Note */
+.item-note-btn{position:absolute;top:12px;right:0;cursor:pointer;color:rgba(0,0,0,0.15);transition:color 0.2s;padding:2px}
+.item-note-btn:hover,.item-note-btn.has-note{color:var(--amber)}
+.item-notes{padding:8px 0 4px 32px;margin-bottom:4px}
+.item-note{font-size:12px;line-height:1.7;color:var(--ink-light);padding:6px 10px;background:rgba(196,166,106,0.06);border-left:2px solid var(--amber);margin-bottom:6px;border-radius:0 4px 4px 0;position:relative}
+.item-note .note-del{position:absolute;top:4px;right:6px;cursor:pointer;font-size:10px;color:rgba(0,0,0,0.2);opacity:0;transition:opacity 0.2s}
+.item-note:hover .note-del{opacity:1}
+.item-note-add{display:flex;gap:6px;margin-top:4px}
+.item-note-add input{flex:1;padding:5px 8px;border:1px solid rgba(0,0,0,0.08);border-radius:2px;font-family:inherit;font-size:11px;background:transparent;outline:none}
+.item-note-add input:focus{border-color:var(--rose-light)}
+.item-note-add button{padding:5px 10px;background:var(--amber);color:#fff;border:none;border-radius:2px;cursor:pointer;font-family:inherit;font-size:11px}
+
+/* NB Input */
+.nb-input-bar{display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px dashed rgba(0,0,0,0.06)}
+.nb-input-bar input,.nb-input-bar textarea{flex:1;padding:10px 14px;border:1px solid rgba(0,0,0,0.08);border-radius:2px;font-family:inherit;font-size:13px;background:transparent;outline:none;color:var(--ink)}
+.nb-input-bar input:focus,.nb-input-bar textarea:focus{border-color:var(--rose-light)}
+.nb-input-bar button{padding:10px 16px;background:var(--ink);color:var(--paper);border:none;border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px;letter-spacing:2px}
+
+/* Tags */
+.nb-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.nb-tag{padding:4px 12px;border-radius:2px;font-size:11px;border:1px solid rgba(0,0,0,0.1);cursor:pointer;letter-spacing:1px;transition:all 0.2s}
+.nb-tag.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* Quote */
+.nb-quote{padding:20px 16px;margin:16px 0;border-left:2px solid var(--amber);font-style:italic;font-size:14px;line-height:2;color:var(--ink-light);background:rgba(196,166,106,0.05)}
+
+/* Mood */
+.mood-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.mood-nav h3{font-size:15px;letter-spacing:3px}
+.mood-nav span{cursor:pointer;padding:4px 8px;color:var(--ink-light);font-size:18px}
+.mood-wk{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:var(--ink-light);margin-bottom:6px;letter-spacing:1px}
+.mood-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.mood-day{aspect-ratio:1;border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;cursor:pointer;background:rgba(0,0,0,0.02);transition:all 0.2s}
+.mood-day.today{box-shadow:inset 0 0 0 1.5px var(--rose)}
+.mood-day .mf{font-size:16px;line-height:1}
+.mood-day.empty{background:transparent}
+.mood-day:hover{background:rgba(196,134,122,0.08)}
+.mood-pair{display:flex;gap:12px;margin-top:16px}
+.mood-col{flex:1}
+.mood-col h4{font-size:12px;color:var(--ink-light);text-align:center;margin-bottom:10px;letter-spacing:1px}
+.mood-opts{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.mood-opt{width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:all 0.2s}
+.mood-opt:active,.mood-opt.sel{border-color:var(--rose);transform:scale(1.1);background:rgba(196,134,122,0.06)}
+
+/* Timeline */
+.nb-tl{position:relative;padding-left:28px}
+.nb-tl::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:linear-gradient(var(--rose-light),var(--lavender))}
+.nb-tl-item{position:relative;margin-bottom:24px}
+.nb-tl-dot{position:absolute;left:-24px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--paper);border:2px solid var(--rose)}
+.nb-tl-card{padding:12px 0;border-bottom:1px solid rgba(0,0,0,0.04)}
+.nb-tl-card .tl-date{font-size:11px;color:var(--ink-light);margin-bottom:4px;letter-spacing:1px}
+.nb-tl-card .tl-text{font-size:14px;line-height:1.8}
+.nb-tl-card .tl-avs{display:flex;gap:4px;margin-top:8px}
+.tl-av{width:22px;height:22px;border-radius:50%;background:var(--rose-light);display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+
+/* Wish */
+.nb-wish{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.04)}
+.wish-star{cursor:pointer;color:rgba(0,0,0,0.15);transition:color 0.2s;padding-top:2px}
+.wish-star.active{color:var(--amber)}
+.wish-info{flex:1}
+.wish-name{font-size:14px;font-weight:600}
+.wish-note{font-size:12px;color:var(--ink-light);margin-top:4px;line-height:1.6}
+.wish-bar{width:100%;height:3px;background:rgba(0,0,0,0.06);border-radius:2px;margin-top:8px;overflow:hidden}
+.wish-bar .fill{height:100%;background:var(--amber);border-radius:2px;transition:width 0.5s}
+
+/* Dashboard */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dash-card{padding:20px;text-align:center;border:1px solid rgba(0,0,0,0.06);border-radius:2px}
+.dash-num{font-size:32px;font-weight:700;font-family:'Georgia',serif}
+.dash-label{font-size:11px;color:var(--ink-light);margin-top:4px;letter-spacing:2px}
+.dash-chart{margin-top:16px;padding:16px;border:1px solid rgba(0,0,0,0.06);border-radius:2px}
+.dash-chart h3{font-size:13px;letter-spacing:2px;margin-bottom:12px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bar-day{font-size:11px;color:var(--ink-light);width:20px;text-align:center}
+.bar-track{flex:1;height:8px;background:rgba(0,0,0,0.04);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease}
+
+/* ===== Customize Module ===== */
+.cust-section{margin-bottom:20px;padding-bottom:16px;border-bottom:1px dashed rgba(0,0,0,0.06)}
+.cust-section:last-child{border:none}
+.cust-label{font-size:12px;color:var(--ink-light);letter-spacing:2px;margin-bottom:10px}
+.cust-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cust-color{width:36px;height:36px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all 0.2s;position:relative}
+.cust-color.sel{border-color:var(--ink);transform:scale(1.1)}
+.cust-color.sel::after{content:'';position:absolute;inset:3px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.6)}
+.cust-wallpaper{width:60px;height:80px;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:all 0.2s;background-size:cover;background-position:center;position:relative}
+.cust-wallpaper.sel{border-color:var(--ink);transform:scale(1.05)}
+.cust-avatar-btn{width:56px;height:56px;border-radius:50%;cursor:pointer;border:2px dashed rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;transition:all 0.2s;background:rgba(0,0,0,0.03);overflow:hidden}
+.cust-avatar-btn img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.cust-avatar-btn:hover{border-color:var(--rose-light)}
+.cust-font-btn{padding:8px 16px;border-radius:2px;border:1px solid rgba(0,0,0,0.1);cursor:pointer;font-size:12px;letter-spacing:1px;transition:all 0.2s}
+.cust-font-btn.sel{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.cust-preview{margin-top:12px;padding:16px;border-radius:4px;text-align:center;font-size:13px;letter-spacing:1px;border:1px solid rgba(0,0,0,0.06)}
+
+/* Bottom Nav */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--paper);display:flex;justify-content:space-around;padding:10px 0 14px;border-top:1px solid rgba(0,0,0,0.06);z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;cursor:pointer;font-size:10px;color:var(--ink-light);gap:3px;letter-spacing:1px;transition:color 0.2s}
+.nav-item .nav-icon{opacity:0.5;transition:opacity 0.2s}
+.nav-item.active{color:var(--ink)}
+.nav-item.active .nav-icon{opacity:1}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 24px;border-radius:2px;font-size:13px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;letter-spacing:1px}
+.toast.show{opacity:1}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-bg.show{display:flex}
+.modal-box{background:var(--paper);border-radius:2px 8px 8px 2px;padding:28px 24px;width:88%;max-width:360px;box-shadow:12px 12px 40px rgba(0,0,0,0.25)}
+.modal-box h3{font-size:16px;letter-spacing:4px;margin-bottom:20px;text-align:center}
+.modal-box input,.modal-box textarea{width:100%;padding:10px 14px;border:1px solid rgba(0,0,0,0.1);border-radius:2px;font-family:inherit;font-size:13px;background:transparent;outline:none;margin-bottom:12px;color:var(--ink)}
+.modal-box textarea{resize:vertical;min-height:80px}
+.modal-box input:focus,.modal-box textarea:focus{border-color:var(--rose-light)}
+.modal-btns{display:flex;gap:10px;margin-top:4px}
+.modal-btns button{flex:1;padding:10px;border-radius:2px;border:1px solid rgba(0,0,0,0.1);font-family:inherit;font-size:13px;cursor:pointer;letter-spacing:2px;transition:all 0.2s}
+.mb-cancel{background:transparent;color:var(--ink-light)}
+.mb-ok{background:var(--ink);color:var(--paper);border-color:var(--ink)!important}
+
+/* Scrollbar */
+.nb-body::-webkit-scrollbar{width:4px}
+.nb-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:2px}
+
+/* Hidden file input */
+.hidden-input{display:none}
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover" id="cover">
+  <div class="cover-book" id="coverBook"><span class="cover-book-title">小水养护手册</span></div>
+  <p class="cover-sub">记录我们的每一天</p>
+  <button class="cover-enter" onclick="openApp()">翻 开</button>
+</div>
+
+<!-- App -->
+<div class="app" id="app">
+  <div class="topbar">
+    <span class="topbar-back" onclick="goBack()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>
+    <span class="topbar-title">小水养护手册</span>
+    <div class="topbar-actions">
+      <span class="icon icon-sm" onclick="toggleSearch()"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>
+      <span class="icon icon-sm" onclick="openBook('customize')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+    </div>
+  </div>
+  <div id="searchBar" style="display:none;padding:0 20px 12px;background:var(--paper)">
+    <div style="display:flex;gap:8px;align-items:center;border:1px solid rgba(0,0,0,0.08);border-radius:2px;padding:8px 12px">
+      <span class="icon icon-sm" style="color:var(--ink-light)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>
+      <input type="text" id="searchInput" placeholder="搜索全部内容..." oninput="doSearch(this.value)" style="border:none;outline:none;flex:1;font-family:inherit;font-size:13px;background:transparent">
+    </div>
+    <div id="searchResults" style="max-height:300px;overflow-y:auto;margin-top:8px"></div>
+  </div>
+  <div class="bookshelf">
+    <div id="greetingBanner"></div>
+    <div class="bookshelf-header"><h2 id="coverTitle">书 架</h2><p class="sub" id="coverSub">翻开一本，开始记录</p></div>
+    <div class="bookshelf-date" id="shelfDate"></div>
+    <div id="dailyQuote" style="text-align:center;font-size:12px;color:var(--ink-light);margin-bottom:20px;font-style:italic;padding:0 20px;letter-spacing:1px"></div>
+    <div class="book-grid" id="bookGrid"></div>
+    <div id="easterArea" style="text-align:center;margin-top:24px;font-size:11px;color:rgba(0,0,0,0.15);cursor:default;user-select:none" onclick="easterClick()">.</div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav" id="bottomNav" style="display:none">
+  <div class="nav-item active" onclick="navHome(this)"><span class="nav-icon icon icon-sm"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>首页</div>
+  <div class="nav-item" onclick="navQ('mood',this)"><span class="nav-icon icon icon-sm"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span>心情</div>
+  <div class="nav-item" onclick="navQ('todo',this)"><span class="nav-icon icon icon-sm"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>待办</div>
+  <div class="nav-item" onclick="navQ('dashboard',this)"><span class="nav-icon icon icon-sm"><svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></span>看板</div>
+</div>
+
+<!-- Notebook Views -->
+<div class="nb-view" id="nb-period" onclick="if(event.target===this)closeBook('period')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('period')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>经期记录</h2></div><div class="nb-body" id="periodBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('period',-1)" id="periodPrev">上一页</button><span class="pt-num" id="periodPn">1/2</span><button class="pt-btn" onclick="turnPg('period',1)" id="periodNext">下一页</button></div></div></div>
+
+<div class="nb-view" id="nb-habits" onclick="if(event.target===this)closeBook('habits')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('habits')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>小习惯</h2></div><div class="nb-body" id="habitsBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('habits',-1)" id="habitsPrev">上一页</button><span class="pt-num" id="habitsPn">1/3</span><button class="pt-btn" onclick="turnPg('habits',1)" id="habitsNext">下一页</button></div></div></div>
+
+<div class="nb-view" id="nb-mood" onclick="if(event.target===this)closeBook('mood')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('mood')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>心情日历</h2></div><div class="nb-body" id="moodBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('mood',-1)" id="moodPrev">上一页</button><span class="pt-num" id="moodPn">1/2</span><button class="pt-btn" onclick="turnPg('mood',1)" id="moodNext">下一页</button></div></div></div>
+
+<div class="nb-view" id="nb-todo" onclick="if(event.target===this)closeBook('todo')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('todo')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>帮小水记</h2></div><div class="nb-body" id="todoBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('todo',-1)" id="todoPrev">上一页</button><span class="pt-num" id="todoPn">1/1</span><button class="pt-btn" onclick="turnPg('todo',1)" id="todoNext">下一页</button></div></div></div>
+
+<div class="nb-view" id="nb-timeline" onclick="if(event.target===this)closeBook('timeline')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('timeline')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>相伴轨迹</h2></div><div class="nb-body" id="timelineBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('timeline',-1)" id="timelinePrev">上一页</button><span class="pt-num" id="timelinePn">1/1</span><button class="pt-btn" onclick="turnPg('timeline',1)" id="timelineNext">下一页</button></div></div></div>
+
+<div class="nb-view" id="nb-wish" onclick="if(event.target===this)closeBook('wish')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('wish')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>心愿单</h2></div><div class="nb-body" id="wishBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('wish',-1)" id="wishPrev">上一页</button><span class="pt-num" id="wishPn">1/1</span><button class="pt-btn" onclick="turnPg('wish',1)" id="wishNext">下一页</button></div></div></div>
+
+<div class="nb-view" id="nb-dashboard" onclick="if(event.target===this)closeBook('dashboard')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('dashboard')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>数据看板</h2></div><div class="nb-body" id="dashboardBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('dashboard',-1)" id="dashboardPrev">上一页</button><span class="pt-num" id="dashboardPn">1/1</span><button class="pt-btn" onclick="turnPg('dashboard',1)" id="dashboardNext">下一页</button></div></div></div>
+
+<div class="nb-view" id="nb-customize" onclick="if(event.target===this)closeBook('customize')"><div class="notebook"><div class="nb-header"><span class="nb-back icon icon-sm" onclick="closeBook('customize')"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></span><h2>美化设置</h2></div><div class="nb-body" id="customizeBody"></div><div class="page-turner"><button class="pt-btn" onclick="turnPg('customize',-1)" id="customizePrev">上一页</button><span class="pt-num" id="customizePn">1/5</span><button class="pt-btn" onclick="turnPg('customize',1)" id="customizeNext">下一页</button></div></div></div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()"><div class="modal-box" id="modalBox"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" class="hidden-input" id="fileInput" accept="image/*">
+
+<script>
+// ===== SVG Icons =====
+const IC={check:'<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',heart:'<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',pen:'<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',cal:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',bell:'<svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',book:'<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',note:'<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'};
+
+// ===== Data =====
+const DEF={
+  period:{dates:['2026-08-01','2026-07-04'],interval:28,remindDays:3},
+  habits:[{name:'早安问候',done:false,streak:12},{name:'晚安电话',done:true,streak:28},{name:'运动打卡',done:false,streak:5}],
+  nicknames:['小水','宝宝','老婆大人'],
+  quotes:['每天爱你多一点。','你是我最美好的意外。','想和你一起慢慢变老。'],
+  moods:{},
+  todos:[{id:1,text:'给小水买一束花',done:false},{id:2,text:'一起看一场电影',done:false},{id:3,text:'亲手做一顿晚餐',done:true},{id:4,text:'写一封情书',done:false}],
+  timeline:[{date:'2026-01-01',text:'在一起的第一天，从此世界多了一个你',avs:['我','水']},{date:'2026-02-14',text:'第一个情人节，送了一束粉色玫瑰',avs:['我']},{date:'2026-05-20',text:'520，一起看了人生中最美的日落',avs:['我','水']},{date:'2026-08-15',text:'第一次一起旅行，去了海边',avs:['我','水']}],
+  wishes:[{id:1,text:'一起去看海',note:'想在海边牵手散步',progress:60,starred:true},{id:2,text:'养一只猫',note:'名字叫小团子',progress:10,starred:false},{id:3,text:'环游世界',note:'先从国内开始',progress:8,starred:true},{id:4,text:'一起做饭',note:'点上蜡烛',progress:100,starred:true}],
+  // itemNotes: { 'todo:1': [{text,author,time}], 'wish:2': [...], 'habit:0': [...] }
+  itemNotes:{},
+  theme:{coverBg:'',shelfBg:'',paperColor:'',accent:'rose',font:'serif',avatarMe:'',avatarPartner:'',wallpaper:'',coverColor:'#D4B8A0',htmlBg:'',books:[{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''},{color:'',bg:''}]}
+};
+
+let D=JSON.parse(JSON.stringify(DEF));
+let pgs={};
+let moodYear,moodMonth;
+
+let _saveTimer=null;
+async function load(){
+  try{
+    const res=await fetch('/api/data/xs_data');
+    if(res.ok){const j=await res.json();if(j.value){const d=typeof j.value==='string'?JSON.parse(j.value):j.value;D={...JSON.parse(JSON.stringify(DEF)),...d};if(!D.itemNotes)D.itemNotes={};if(!D.theme)D.theme=DEF.theme;else{D.theme={...DEF.theme,...D.theme};if(!D.theme.books||!D.theme.books.length)D.theme.books=DEF.theme.books}}}
+  }catch(e){
+    try{const s=localStorage.getItem('xs_data');if(s){const d=JSON.parse(s);D={...JSON.parse(JSON.stringify(DEF)),...d};if(!D.itemNotes)D.itemNotes={};if(!D.theme)D.theme=DEF.theme;else{D.theme={...DEF.theme,...D.theme};if(!D.theme.books||!D.theme.books.length)D.theme.books=DEF.theme.books}}}catch(e2){}
+  }
+}
+function save(){
+  localStorage.setItem('xs_data',JSON.stringify(D));
+  if(_saveTimer)clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(()=>{
+    fetch('/api/data/xs_data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:JSON.stringify(D)})}).catch(()=>{});
+  },800);
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+
+// ===== Theme =====
+const THEMES={
+  rose:{accent:'#C4867A',cover:'#D4B8A0',paper:'#FDF8F0'},
+  sky:{accent:'#7FA8C4',cover:'#8CB8D4',paper:'#F5FAFD'},
+  lavender:{accent:'#A89BBF',cover:'#B8AAD0',paper:'#F8F5FC'},
+  sage:{accent:'#8FA88C',cover:'#9EB89C',paper:'#F5FDF5'},
+  amber:{accent:'#C4A66A',cover:'#D4B67A',paper:'#FDF8F0'},
+  ink:{accent:'#555',cover:'#666',paper:'#F8F8F8'}
+};
+function applyTheme(){
+  const t=THEMES[D.theme.accent]||THEMES.rose;
+  document.documentElement.style.setProperty('--accent',t.accent);
+  document.documentElement.style.setProperty('--rose',t.accent);
+  document.documentElement.style.setProperty('--paper',D.theme.paperColor||t.paper);
+  if(D.theme.coverColor) document.documentElement.style.setProperty('--paper-dark',D.theme.coverColor);
+  const body=document.body;
+  if(D.theme.htmlBg){body.style.background=`url(${D.theme.htmlBg}) center/cover fixed`;body.style.backgroundBlendMode='overlay'}
+  else if(D.theme.shelfBg){body.style.background=`url(${D.theme.shelfBg}) center/cover`;body.style.backgroundBlendMode='overlay'}
+  else{body.style.background='#E8E0D4'}
+  const fonts={serif:"'Noto Serif SC','Georgia',serif",sans:"'Helvetica Neue','Arial',sans-serif",kai:"'KaiTi','STKaiti',serif",hand:"'ZCOOL XiaoWei',serif"};
+  body.style.fontFamily=fonts[D.theme.font]||fonts.serif;
+  const cb=document.getElementById('coverBook');
+  if(D.theme.coverBg){cb.style.background=`url(${D.theme.coverBg}) center/cover`}
+  else{cb.style.background=`linear-gradient(135deg, ${D.theme.coverColor||'#D4B8A0'}, ${t.cover})`}
+  const cv=document.getElementById('cover');
+  if(D.theme.wallpaper){cv.style.background=`url(${D.theme.wallpaper}) center/cover`}
+  else{cv.style.background=''}
+  renderShelf();
+}
+
+// ===== Inline Notes =====
+function getNoteKey(module,itemType,itemId){return `${module}:${itemType}:${itemId}`}
+function getItemNotes(module,itemType,itemId){return D.itemNotes[getNoteKey(module,itemType,itemId)]||[]}
+function addItemNote(module,itemType,itemId,text){
+  const key=getNoteKey(module,itemType,itemId);
+  if(!D.itemNotes[key])D.itemNotes[key]=[];
+  D.itemNotes[key].push({text,author:Math.random()>0.5?'我':'小水',time:new Date().toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})});
+  save();
+}
+function deleteItemNote(module,itemType,itemId,idx){
+  const key=getNoteKey(module,itemType,itemId);
+  if(D.itemNotes[key]){D.itemNotes[key].splice(idx,1);save()}
+}
+function renderInlineNotes(module,itemType,itemId){
+  const notes=getItemNotes(module,itemType,itemId);
+  const key=module+':'+itemType+':'+itemId;
+  let html='<div class="item-notes">';
+  notes.forEach((n,i)=>{
+    html+=`<div class="item-note"><span style="color:var(--amber)">${n.author==='我'?'我':'小水'}:</span> ${n.text}<span class="note-del" onclick="event.stopPropagation();deleteItemNote('${module}','${itemType}',${typeof itemId==='string'?`'${itemId}'`:itemId},${i});renderBook('${module}')">✕</span></div>`;
+  });
+  html+=`<div class="item-note-add"><input id="ninp_${key}" placeholder="写条批注..." onkeydown="if(event.key==='Enter'){addItemNote('${module}','${itemType}',${typeof itemId==='string'?`'${itemId}'`:itemId},this.value);this.value='';renderBook('${module}')}"><button onclick="let inp=document.getElementById('ninp_${key}');if(inp.value.trim()){addItemNote('${module}','${itemType}',${typeof itemId==='string'?`'${itemId}'`:itemId},inp.value);inp.value='';renderBook('${module}')}">+</button></div></div>`;
+  return html;
+}
+function noteBadge(module,itemType,itemId){
+  const cnt=getItemNotes(module,itemType,itemId).length;
+  return `<span class="item-note-btn ${cnt?'has-note':''}" onclick="event.stopPropagation();toggleItemNotes(this)" title="批注">${IC.note}${cnt?`<span style="position:absolute;top:-4px;right:-6px;background:var(--amber);color:#fff;font-size:9px;padding:0 4px;border-radius:6px">${cnt}</span>`:''}</span>`;
+}
+function toggleItemNotes(el){
+  const notes=el.closest('.nb-item')?.querySelector('.item-notes');
+  if(notes) notes.style.display=notes.style.display==='none'?'block':'none';
+}
+
+// ===== Cover =====
+function openApp(){document.getElementById('cover').classList.add('hide');document.getElementById('app').classList.add('show');document.getElementById('bottomNav').style.display='flex';setTimeout(()=>document.getElementById('cover').style.display='none',1000);renderShelf();renderGreeting();renderDailyQuote();checkAnniversary()}
+
+// ===== Navigation =====
+function openBook(n){document.getElementById('nb-'+n).classList.add('open');pgs[n]={page:0};renderBook(n)}
+function closeBook(n){document.getElementById('nb-'+n).classList.remove('open')}
+function goBack(){const o=document.querySelector('.nb-view.open');if(o)o.classList.remove('open')}
+function navHome(el){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.querySelectorAll('.nb-view.open').forEach(n=>n.classList.remove('open'))}
+function navQ(n,el){document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));el.classList.add('active');openBook(n)}
+function toggleSearch(){const b=document.getElementById('searchBar');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block'){document.getElementById('searchInput').focus();document.getElementById('searchResults').innerHTML=''}}
+
+// ===== Search =====
+function doSearch(q){
+  const r=document.getElementById('searchResults');
+  if(!q.trim()){r.innerHTML='';return}
+  q=q.toLowerCase();
+  let hits=[];
+  // Todos
+  D.todos.forEach(t=>{if(t.text.toLowerCase().includes(q))hits.push({type:'待办',text:t.text,module:'todo',icon:'✓'})});
+  // Wishes
+  D.wishes.forEach(w=>{if(w.text.toLowerCase().includes(q)||(w.note||'').toLowerCase().includes(q))hits.push({type:'心愿',text:w.text+(w.note?' — '+w.note:''),module:'wish',icon:'★'})});
+  // Quotes
+  D.quotes.forEach(qt=>{if(qt.toLowerCase().includes(q))hits.push({type:'语录',text:qt,module:'habits',icon:'❝'})});
+  // Nicknames
+  D.nicknames.forEach(n=>{if(n.toLowerCase().includes(q))hits.push({type:'称呼',text:n,module:'habits',icon:'♡'})});
+  // Habits
+  D.habits.forEach(h=>{if(h.name.toLowerCase().includes(q))hits.push({type:'习惯',text:h.name,module:'habits',icon:'◈'})});
+  // Timeline
+  D.timeline.forEach(t=>{if(t.text.toLowerCase().includes(q))hits.push({type:'轨迹',text:t.date+' '+t.text,module:'timeline',icon:'◎'})});
+  // Period dates
+  D.period.dates.forEach(d=>{if(d.includes(q))hits.push({type:'经期',text:d,module:'period',icon:'●'})});
+  // Item notes
+  for(const key in D.itemNotes){D.itemNotes[key].forEach(n=>{if(n.text.toLowerCase().includes(q)){const p=key.split(':');hits.push({type:'批注',text:n.text,module:p[0],icon:'✎'})}})}
+  if(hits.length===0){r.innerHTML='<div style="padding:12px;font-size:13px;color:var(--ink-light);text-align:center">没有找到相关内容</div>';return}
+  r.innerHTML=hits.slice(0,20).map(h=>`<div style="display:flex;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,0.04);cursor:pointer;align-items:flex-start" onclick="closeSearch();openBook('${h.module}')"><span style="color:var(--accent);font-size:14px;width:20px;text-align:center">${h.icon}</span><div style="flex:1"><div style="font-size:12px;color:var(--ink-light);margin-bottom:2px">${h.type}</div><div style="font-size:13px;line-height:1.5">${highlightText(h.text,q)}</div></div></div>`).join('');
+}
+function highlightText(text,q){
+  const i=text.toLowerCase().indexOf(q);
+  if(i===-1)return text;
+  return text.slice(0,i)+'<span style="background:rgba(196,134,122,0.2);padding:0 2px;border-radius:2px">'+text.slice(i,i+q.length)+'</span>'+text.slice(i+q.length);
+}
+function closeSearch(){document.getElementById('searchBar').style.display='none';document.getElementById('searchInput').value='';document.getElementById('searchResults').innerHTML=''}
+
+// ===== Greeting =====
+function renderGreeting(){
+  const n=new Date();
+  document.getElementById('shelfDate').textContent=`${n.getFullYear()}.${String(n.getMonth()+1).padStart(2,'0')}.${String(n.getDate()).padStart(2,'0')} · ${['日','一','二','三','四','五','六'][n.getDay()]}`;
+  const h=n.getHours();
+  const nick=D.nicknames[0]||'小水';
+  let greeting='',sub='';
+  if(h<6){greeting='夜深了，'+nick+'睡了吗？';sub='晚安，做个好梦'}
+  else if(h<9){greeting='早安，'+nick;sub='新的一天，想你了'}
+  else if(h<12){greeting='上午好';sub='今天也要开心呀'}
+  else if(h<14){greeting='午安，'+nick;sub='记得吃午饭'}
+  else if(h<18){greeting='下午好';sub='有没有想我？'}
+  else if(h<21){greeting='晚上好，'+nick;sub='辛苦了一天'}
+  else{greeting='晚安，'+nick;sub='今天也爱你'}
+  // Days together
+  let daysText='';
+  if(D.timeline.length>0){
+    const first=new Date(D.timeline[0].date);
+    const days=Math.floor((new Date()-first)/86400000);
+    if(days>0)daysText=`在一起第 <span style="color:var(--accent);font-weight:700;font-size:18px">${days}</span> 天`;
+  }
+  document.getElementById('greetingBanner').innerHTML=`<div style="text-align:center;padding:16px 20px 8px"><div style="font-size:16px;letter-spacing:3px;margin-bottom:4px">${greeting}</div><div style="font-size:12px;color:var(--ink-light);letter-spacing:1px">${sub}</div>${daysText?`<div style="margin-top:8px;font-size:13px;color:var(--ink-light)">${daysText}</div>`:''}</div>`;
+}
+
+// ===== Daily Quote =====
+function renderDailyQuote(){
+  const quotes=[
+    '今天也想见你。','你是我最好的选择。','想和你一起看日落。','你笑起来真好看。',
+    '有你在的地方就是家。','你是我写不完的温柔。','今天的风很舒服，像你。','想你了，就现在。',
+    '你是我所有的心动和例外。','和你在一起，每天都是晴天。','你是我最想留住的幸运。','余生请多指教。'
+  ];
+  const day=Math.floor(Date.now()/86400000);
+  document.getElementById('dailyQuote').textContent='「'+quotes[day%quotes.length]+'」';
+}
+
+// ===== Anniversary =====
+function checkAnniversary(){
+  if(D.timeline.length<1)return;
+  const first=new Date(D.timeline[0].date);
+  const today=new Date();
+  const days=Math.floor((today-first)/86400000);
+  // Check for round numbers
+  if(days>0 && (days%100===0 || days%365===0)){
+    setTimeout(()=>toast(`${days}天纪念日快乐`),2000);
+  }
+  // Check for special dates
+  const md=(today.getMonth()+1)*100+today.getDate();
+  const specials={214:'情人节快乐',520:'520快乐',77:'七夕快乐',1314:'一生一世'};
+  if(specials[md])setTimeout(()=>toast(specials[md]),1500);
+}
+
+// ===== Easter Eggs =====
+let easterCount=0;
+function easterClick(){
+  easterCount++;
+  if(easterCount===5){toast('你发现了一个小秘密');easterCount=0}
+  if(easterCount===3){
+    const msgs=['今天辛苦了','要记得喝水哦','想你了','你真好','摸摸头'];
+    toast(msgs[Math.floor(Math.random()*msgs.length)]);
+  }
+}
+// Konami code
+let konamiSeq=[];
+const konamiCode=[38,38,40,40,37,39,37,39,66,65];
+document.addEventListener('keydown',function(e){
+  konamiSeq.push(e.keyCode);
+  if(konamiSeq.length>10)konamiSeq.shift();
+  if(konamiSeq.join(',')===konamiCode.join(',')){
+    toast('发现彩蛋！');
+    document.body.style.animation='none';document.body.offsetHeight;
+    document.body.style.animation='rainbow 2s ease';
+    konamiSeq=[];
+  }
+});
+// Shake detection
+let lastShake=0;
+if(window.DeviceMotionEvent){
+  window.addEventListener('devicemotion',function(e){
+    const a=e.accelerationIncludingGravity;
+    if(!a)return;
+    const force=Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z);
+    if(force>40 && Date.now()-lastShake>3000){
+      lastShake=Date.now();
+      const msgs=['别摇了别摇了！','哎呀好晕~','摇一摇，有惊喜','再摇就要散架啦'];
+      toast(msgs[Math.floor(Math.random()*msgs.length)]);
+    }
+  });
+}
+
+// ===== Page Turn =====
+function turnPg(n,dir){const p=pgs[n];if(!p)return;const mx=(p.total||1)-1;p.page=Math.min(mx,Math.max(0,p.page+dir));renderBook(n);const b=document.getElementById(n+'Body');b.style.animation='none';b.offsetHeight;b.style.animation='pageSlideIn 0.4s ease'}
+function updatePgUI(n){const p=pgs[n]||{page:0,total:1};const pv=document.getElementById(n+'Prev'),nx=document.getElementById(n+'Next'),nm=document.getElementById(n+'Pn');if(pv)pv.disabled=p.page<=0;if(nx)nx.disabled=p.page>=p.total-1;if(nm)nm.textContent=`${p.page+1}/${p.total}`}
+
+// ===== Book Grid =====
+const BOOKS=[
+  {id:'period',label:'经期记录',sub:'关爱每一天',icon:'heart',badge:2},
+  {id:'habits',label:'小习惯',sub:'语录与称呼',icon:'book'},
+  {id:'mood',label:'心情日历',sub:'双方心情',icon:'cal'},
+  {id:'todo',label:'帮小水记',sub:'待办事项',icon:'check'},
+  {id:'timeline',label:'相伴轨迹',sub:'时间轴',icon:'bell'},
+  {id:'wish',label:'心愿单',sub:'共同愿望',icon:'pen'},
+  {id:'dashboard',label:'数据看板',sub:'统计总览',icon:'cal'},
+  {id:'customize',label:'美化设置',sub:'自由装修',icon:'pen'}
+];
+const BOOK_DEFAULTS=['linear-gradient(145deg,#C4867A,#B07068)','linear-gradient(145deg,#7FA8C4,#6A94B0)','linear-gradient(145deg,#C4A66A,#B09458)','linear-gradient(145deg,#8FA88C,#7A9478)','linear-gradient(145deg,#A89BBF,#9488AC)','linear-gradient(145deg,#C49488,#B08278)','linear-gradient(145deg,#8C9EA8,#7A8C96)','linear-gradient(145deg,#B8A898,#A89888)'];
+function getBookStyle(i){const bk=D.theme.books?.[i]||{};if(bk.bg)return `background:url(${bk.bg}) center/cover`;if(bk.color)return `background:${bk.color}`;return `background:${BOOK_DEFAULTS[i]}`}
+function renderShelf(){
+  const g=document.getElementById('bookGrid');
+  g.innerHTML=BOOKS.map((b,i)=>`<div class="book" onclick="openBook('${b.id}')" style="${getBookStyle(i)}">
+    <div class="book-overlay"></div>
+    ${b.badge?`<div class="book-badge">${b.badge}</div>`:''}
+    <div class="book-icon icon icon-lg" style="color:rgba(255,255,255,0.9)">${IC[b.icon]||''}</div>
+    <div class="book-label">${b.label}</div>
+    <div class="book-sub">${b.sub}</div>
+  </div>`).join('');
+}
+
+// ===== Render Books =====
+function renderBook(n){const r={period:renderPeriod,habits:renderHabits,mood:renderMood,todo:renderTodo,timeline:renderTimeline,wish:renderWish,dashboard:renderDashboard,customize:renderCustomize};if(r[n])r[n]();updatePgUI(n)}
+
+// --- Period ---
+function renderPeriod(){
+  const b=document.getElementById('periodBody'),p=pgs.period||{page:0};pgs.period.total=2;
+  if(p.page===0){
+    const dates=D.period.dates.sort().reverse();
+    let daysLeft='--',sub='请先记录';
+    if(dates.length>0){const l=new Date(dates[0]),nx=new Date(l.getTime()+D.period.interval*86400000);daysLeft=Math.max(0,Math.ceil((nx-new Date())/86400000));sub=`预计 ${nx.getMonth()+1}月${nx.getDate()}日 到来`}
+    b.innerHTML=`<div class="page-content"><div class="nb-status"><div class="big-num">${daysLeft}</div><div class="big-label">距离下次经期</div><div style="font-size:12px;color:var(--ink-light);margin-top:6px">${sub}</div></div><div style="display:flex;gap:10px;margin-bottom:20px"><button onclick="logPeriod()" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:2px;font-family:inherit;font-size:13px;cursor:pointer;letter-spacing:2px">记录今日</button><button onclick="toast('提醒已设置')" style="flex:1;padding:12px;background:transparent;border:1px solid var(--rose-light);border-radius:2px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--accent);letter-spacing:2px">设置提醒</button></div><div class="nb-sec"><span class="icon icon-sm">${IC.cal}</span>历史记录</div>${dates.length?dates.slice(0,5).map(d=>`<div class="nb-item"><span class="icon icon-sm" style="color:var(--accent)">${IC.heart}</span><div class="nb-text">${d}</div></div>`).join(''):'<div style="font-size:13px;color:var(--ink-light);padding:12px 0">暂无记录</div>'}</div>`;
+  } else {
+    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.bell}</span>提醒设置</div><div class="nb-item"><div class="nb-text">经期间隔</div><input type="number" value="${D.period.interval}" min="15" max="60" onchange="D.period.interval=+this.value;save()" style="width:60px;padding:6px;border:1px solid rgba(0,0,0,0.1);border-radius:2px;text-align:center;font-family:inherit"></div><div class="nb-item"><div class="nb-text">提前提醒</div><input type="number" value="${D.period.remindDays}" min="0" max="10" onchange="D.period.remindDays=+this.value;save()" style="width:60px;padding:6px;border:1px solid rgba(0,0,0,0.1);border-radius:2px;text-align:center;font-family:inherit"></div></div>`;
+  }
+}
+function logPeriod(){const t=new Date().toISOString().split('T')[0];if(!D.period.dates.includes(t)){D.period.dates.push(t);save();renderPeriod();toast('已记录')}else toast('今天已记录')}
+
+// --- Habits ---
+function renderHabits(){
+  const b=document.getElementById('habitsBody'),p=pgs.habits||{page:0};pgs.habits.total=3;
+  if(p.page===0){
+    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.pen}</span>称呼记录</div>${D.nicknames.map(n=>`<div class="nb-item"><span class="icon icon-sm" style="color:var(--accent)">${IC.heart}</span><div class="nb-text">${n}</div></div>`).join('')}<button onclick="showModal('nickname')" style="margin-top:8px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 添加称呼</button><div class="nb-sec" style="margin-top:20px"><span class="icon icon-sm">${IC.book}</span>每日习惯</div>${D.habits.map((h,i)=>`<div class="nb-item" onclick="toggleHabit(${i})"><div class="nb-check ${h.done?'done':''}">${h.done?IC.check:''}</div><div style="flex:1"><div class="nb-text">${h.name}</div><div class="nb-sub">连续 ${h.streak} 天</div>${renderInlineNotes('habits','habit',i)}</div>${noteBadge('habits','habit',i)}</div>`).join('')}<button onclick="showModal('habit')" style="margin-top:8px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 添加习惯</button></div>`;
+  } else if(p.page===1){
+    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.book}</span>语录收藏</div>${D.quotes.map((q,i)=>`<div class="nb-item" style="border:none"><div class="nb-quote" style="flex:1">"${q}"</div>${noteBadge('habits','quote',i)}</div>${renderInlineNotes('habits','quote',i)}`).join('')}<button onclick="showModal('quote')" style="margin-top:12px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 收藏语录</button></div>`;
+  } else {
+    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.note}</span>全部批注</div>${getAllNotesFor('habits')}</div>`;
+  }
+}
+function toggleHabit(i){D.habits[i].done=!D.habits[i].done;if(D.habits[i].done)D.habits[i].streak++;save();renderHabits()}
+
+// --- Mood ---
+function renderMood(){
+  if(!moodYear){const n=new Date();moodYear=n.getFullYear();moodMonth=n.getMonth()}
+  const b=document.getElementById('moodBody'),p=pgs.mood||{page:0};pgs.mood.total=2;
+  if(p.page===0){
+    const fd=new Date(moodYear,moodMonth,1).getDay(),days=new Date(moodYear,moodMonth+1,0).getDate(),today=new Date();
+    let g='';for(let i=0;i<fd;i++)g+='<div class="mood-day empty"></div>';
+    for(let d=1;d<=days;d++){const ds=`${moodYear}-${String(moodMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,m=D.moods[ds],ist=today.getFullYear()===moodYear&&today.getMonth()===moodMonth&&today.getDate()===d;g+=`<div class="mood-day ${ist?'today':''}" onclick="pickMoodDate('${ds}')"><span class="num">${d}</span><span class="mf">${m?(m.me||'')+(m.p||''):'·'}</span></div>`}
+    b.innerHTML=`<div class="page-content"><div class="mood-nav"><span onclick="chgMonth(-1)">‹</span><h3>${moodYear}年${moodMonth+1}月</h3><span onclick="chgMonth(1)">›</span></div><div class="mood-wk"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div class="mood-grid">${g}</div><div class="mood-pair"><div class="mood-col"><h4>我的心情</h4><div class="mood-opts">${moodOpts('me')}</div></div><div class="mood-col"><h4>小水的心情</h4><div class="mood-opts">${moodOpts('p')}</div></div></div></div>`;
+  } else {
+    b.innerHTML=`<div class="page-content"><div class="nb-sec"><span class="icon icon-sm">${IC.note}</span>全部批注</div>${getAllNotesFor('mood')}</div>`;
+  }
+}
+function moodOpts(w){return ['😊','😌','😢','😤','🥰','😴','🤔'].map(m=>`<div class="mood-opt" onclick="setMood('${w}','${m}',this)">${m}</div>`).join('')}
+let curMoodDate=null;
+function pickMoodDate(d){curMoodDate=d;toast('已选择 '+d)}
+function setMood(w,e,el){if(!curMoodDate)curMoodDate=new Date().toISOString().split('T')[0];if(!D.moods[curMoodDate])D.moods[curMoodDate]={};D.moods[curMoodDate][w]=e;el.parentElement.querySelectorAll('.mood-opt').forEach(o=>o.classList.remove('sel'));el.classList.add('sel');save();toast('已记录 '+e)}
+function chgMonth(d){moodMonth+=d;if(moodMonth>11){moodMonth=0;moodYear++}if(moodMonth<0){moodMonth=11;moodYear--}renderMood()}
+
+// --- Todo ---
+function renderTodo(){
+  const b=document.getElementById('todoBody'),p=pgs.todo||{page:0};pgs.todo.total=1;
+  b.innerHTML=`<div class="page-content"><div class="nb-tags"><span class="nb-tag active" onclick="filterTodo('all',this)">全部</span><span class="nb-tag" onclick="filterTodo('pending',this)">待完成</span><span class="nb-tag" onclick="filterTodo('done',this)">已完成</span></div><div id="todoInner">${todoHTML('all')}</div><div class="nb-input-bar"><input id="todoInp" placeholder="添加待办..." onkeydown="if(event.key==='Enter')addTodo()"><button onclick="addTodo()">添加</button></div></div>`;
+}
+function todoHTML(f){
+  return D.todos.filter(t=>f==='all'||(f==='pending'?!t.done:t.done)).map(t=>
+    `<div class="nb-item"><div class="nb-check ${t.done?'done':''}" onclick="toggleTodo(${t.id})">${t.done?IC.check:''}</div><div style="flex:1"><div class="nb-text ${t.done?'done-text':''}">${t.text}</div>${renderInlineNotes('todo','item',t.id)}</div>${noteBadge('todo','item',t.id)}</div>`
+  ).join('')||'<div style="font-size:13px;color:var(--ink-light);padding:12px 0">暂无内容</div>';
+}
+function addTodo(){const i=document.getElementById('todoInp');if(!i||!i.value.trim())return;D.todos.push({id:Date.now(),text:i.value.trim(),done:false});i.value='';save();renderTodo();toast('已添加')}
+function toggleTodo(id){const t=D.todos.find(x=>x.id===id);if(t){t.done=!t.done;save();renderTodo()}}
+function filterTodo(f,el){el.parentElement.querySelectorAll('.nb-tag').forEach(t=>t.classList.remove('active'));el.classList.add('active');document.getElementById('todoInner').innerHTML=todoHTML(f)}
+
+// --- Timeline ---
+function renderTimeline(){
+  const b=document.getElementById('timelineBody'),p=pgs.timeline||{page:0};pgs.timeline.total=1;
+  b.innerHTML=`<div class="page-content"><div class="nb-tl">${D.timeline.slice().reverse().map((t,i)=>`<div class="nb-tl-item"><div class="nb-tl-dot"></div><div class="nb-tl-card"><div class="tl-date">${t.date}</div><div class="tl-text">${t.text}</div><div class="tl-avs">${(t.avs||[]).map(a=>`<div class="tl-av">${a[0]}</div>`).join('')}</div>${renderInlineNotes('timeline','item',D.timeline.length-1-i)}</div></div>`).join('')}</div><button onclick="showModal('timeline')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 记录此刻</button></div>`;
+}
+
+// --- Wish ---
+function renderWish(){
+  const b=document.getElementById('wishBody'),p=pgs.wish||{page:0};pgs.wish.total=1;
+  b.innerHTML=`<div class="page-content">${D.wishes.map(w=>`<div class="nb-wish"><span class="wish-star ${w.starred?'active':''}" onclick="toggleStar(${w.id})">${IC.star||'<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</span><div class="wish-info"><div class="wish-name">${w.text}</div>${w.note?`<div class="wish-note">${w.note}</div>`:''}<div class="wish-bar"><div class="fill" style="width:${w.progress}%"></div></div>${renderInlineNotes('wish','item',w.id)}</div>${noteBadge('wish','item',w.id)}</div>`).join('')}<button onclick="showModal('wish')" style="margin-top:16px;width:100%;padding:10px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink-light);letter-spacing:1px">+ 许下心愿</button></div>`;
+}
+function toggleStar(id){const w=D.wishes.find(x=>x.id===id);if(w){w.starred=!w.starred;save();renderWish()}}
+
+// --- Dashboard ---
+function renderDashboard(){
+  const b=document.getElementById('dashboardBody'),td=Object.keys(D.moods).length,tt=D.todos.length,dt=D.todos.filter(t=>t.done).length;
+  const days=['日','一','二','三','四','五','六'],today=new Date(),mv={'😊':80,'😌':60,'🥰':100,'😢':20,'😤':20,'😴':40,'🤔':50};
+  let ch='';for(let i=6;i>=0;i--){const d=new Date(today.getTime()-i*86400000),ds=d.toISOString().split('T')[0],m=D.moods[ds],v=m&&m.me?(mv[m.me]||40):0,c=v>70?'var(--accent)':v>40?'var(--amber)':'var(--sky)';ch+=`<div class="bar-row"><span class="bar-day">${days[d.getDay()]}</span><div class="bar-track"><div class="bar-fill" style="width:${v}%;background:${c}"></div></div></div>`}
+  b.innerHTML=`<div class="page-content"><div class="dash-grid"><div class="dash-card"><div class="dash-num" style="color:var(--accent)">${D.period.dates.length}</div><div class="dash-label">经期记录</div></div><div class="dash-card"><div class="dash-num" style="color:var(--sky)">${td}</div><div class="dash-label">心情天数</div></div><div class="dash-card"><div class="dash-num" style="color:var(--sage)">${dt}/${tt}</div><div class="dash-label">待办完成</div></div><div class="dash-card"><div class="dash-num" style="color:var(--lavender)">${D.wishes.length}</div><div class="dash-label">心愿数量</div></div></div><div class="dash-chart"><h3>本周心情趋势</h3>${ch}</div></div>`;
+}
+
+// --- Customize ---
+function renderCustomize(){
+  const b=document.getElementById('customizeBody'),p=pgs.customize||{page:0};pgs.customize.total=5;
+  if(p.page===0){
+    b.innerHTML=`<div class="page-content"><div class="cust-section"><div class="cust-label">主题配色</div><div class="cust-row">${Object.keys(THEMES).map(k=>`<div class="cust-color ${D.theme.accent===k?'sel':''}" style="background:${THEMES[k].accent}" onclick="D.theme.accent='${k}';save();applyTheme();renderCustomize()"></div>`).join('')}</div></div><div class="cust-section"><div class="cust-label">字体风格</div><div class="cust-row">${[{id:'serif',name:'宋体'},{id:'sans',name:'黑体'},{id:'kai',name:'楷体'},{id:'hand',name:'手写'}].map(f=>`<div class="cust-font-btn ${D.theme.font===f.id?'sel':''}" onclick="D.theme.font='${f.id}';save();applyTheme();renderCustomize()">${f.name}</div>`).join('')}</div></div><div class="cust-section"><div class="cust-label">内页纸张颜色</div><div class="cust-row">${['#FDF8F0','#F5FAFD','#F8F5FC','#F5FDF5','#FFF8F0','#F8F8F8','#FFF5F5','#F0F8FF'].map(c=>`<div class="cust-color ${D.theme.paperColor===c?'sel':''}" style="background:${c}" onclick="D.theme.paperColor='${c}';save();applyTheme();renderCustomize()"></div>`).join('')}</div></div><div class="cust-preview" style="background:var(--paper);font-family:inherit">预览效果 · 小水养护手册</div></div>`;
+  } else if(p.page===1){
+    const wp=['https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400','https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400','https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400','https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400','https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400'];
+    const cc=['#D4B8A0','#8CB8D4','#B8AAD0','#9EB89C','#D4B67A','#C4867A','#A89098','#98A8B8'];
+    b.innerHTML=`<div class="page-content"><div class="cust-section"><div class="cust-label">封面颜色</div><div class="cust-row">${cc.map(c=>`<div class="cust-color ${D.theme.coverColor===c?'sel':''}" style="background:${c}" onclick="D.theme.coverColor='${c}';D.theme.coverBg='';save();applyTheme();renderCustomize()"></div>`).join('')}</div></div><div class="cust-section"><div class="cust-label">封面图片</div><div class="cust-row"><div class="cust-wallpaper" style="background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-light)" onclick="pickImage('coverBg')">+</div>${D.theme.coverBg?`<div class="cust-wallpaper sel" style="background:url(${D.theme.coverBg}) center/cover" onclick="D.theme.coverBg='';save();applyTheme();renderCustomize()"></div>`:''}<button onclick="pickImage('coverBg')" style="padding:8px 14px;border:1px solid rgba(0,0,0,0.1);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">上传</button></div></div><div class="cust-section"><div class="cust-label">封面壁纸（整页背景）</div><div class="cust-row"><div class="cust-wallpaper" style="background:#EDE4D6;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-light)" onclick="D.theme.wallpaper='';save();applyTheme();renderCustomize()">默认</div>${wp.slice(0,3).map(w=>`<div class="cust-wallpaper ${D.theme.wallpaper===w?'sel':''}" style="background:url(${w}) center/cover" onclick="D.theme.wallpaper='${w}';save();applyTheme();renderCustomize()"></div>`).join('')}<div class="cust-wallpaper" style="background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-light)" onclick="pickImage('wallpaper')">+</div></div></div><div class="cust-section"><div class="cust-label">全局HTML背景</div><div class="cust-row"><div class="cust-wallpaper" style="background:#E8E0D4;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-light)" onclick="D.theme.htmlBg='';save();applyTheme();renderCustomize()">默认</div>${wp.map(w=>`<div class="cust-wallpaper ${D.theme.htmlBg===w?'sel':''}" style="background:url(${w}) center/cover" onclick="D.theme.htmlBg='${w}';save();applyTheme();renderCustomize()"></div>`).join('')}<div class="cust-wallpaper" style="background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-light)" onclick="pickImage('htmlBg')">+</div></div></div><div class="cust-section"><div class="cust-label">书架背景</div><div class="cust-row"><div class="cust-wallpaper" style="background:#E8E0D4;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-light)" onclick="D.theme.shelfBg='';save();applyTheme();renderCustomize()">默认</div>${wp.map(w=>`<div class="cust-wallpaper ${D.theme.shelfBg===w?'sel':''}" style="background:url(${w}) center/cover" onclick="D.theme.shelfBg='${w}';save();applyTheme();renderCustomize()"></div>`).join('')}<div class="cust-wallpaper" style="background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-light)" onclick="pickImage('shelfBg')">+</div></div></div></div>`;
+  } else if(p.page===2){
+    const bkColors=['#C4867A,#B07068','#7FA8C4,#6A94B0','#C4A66A,#B09458','#8FA88C,#7A9478','#A89BBF,#9488AC','#C49488,#B08278','#8C9EA8,#7A8C96','#B8A898,#A89888'];
+    const bkNames=['经期记录','小习惯','心情日历','帮小水记','相伴轨迹','心愿单','数据看板','美化设置'];
+    b.innerHTML=`<div class="page-content"><div class="nb-sec">每本书封面自定义</div>${BOOKS.slice(0,7).map((book,i)=>{const bk=D.theme.books?.[i]||{};return `<div class="cust-section"><div class="cust-label">${book.label}</div><div class="cust-row" style="margin-bottom:8px">${bkColors.map(c=>`<div class="cust-color ${bk.color===`linear-gradient(145deg,${c})`?'sel':''}" style="background:linear-gradient(145deg,${c})" onclick="setBookColor(${i},'linear-gradient(145deg,${c})')"></div>`).join('')}<div class="cust-color ${!bk.color&&!bk.bg?'sel':''}" style="background:${BOOK_DEFAULTS[i]};font-size:10px;color:#fff;display:flex;align-items:center;justify-content:center" onclick="setBookColor(${i},'')">默认</div></div><div class="cust-row"><div class="cust-wallpaper" style="background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-light);width:50px;height:65px" onclick="pickBookImage(${i})">+</div>${bk.bg?`<div class="cust-wallpaper sel" style="background:url(${bk.bg}) center/cover;width:50px;height:65px" onclick="setBookBg(${i},'')"></div>`:''}<button onclick="pickBookImage(${i})" style="padding:6px 12px;border:1px solid rgba(0,0,0,0.1);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:11px">上传图片</button></div></div>`}).join('')}</div>`;
+  } else if(p.page===3){
+    b.innerHTML=`<div class="page-content"><div class="cust-section"><div class="cust-label">我的头像</div><div class="cust-row"><div class="cust-avatar-btn" onclick="pickImage('avatarMe')">${D.theme.avatarMe?`<img src="${D.theme.avatarMe}">`:'+'}</div>${D.theme.avatarMe?`<button onclick="D.theme.avatarMe='';save();renderCustomize()" style="padding:6px 12px;border:1px solid rgba(0,0,0,0.1);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:11px">移除</button>`:''}</div></div><div class="cust-section"><div class="cust-label">小水的头像</div><div class="cust-row"><div class="cust-avatar-btn" onclick="pickImage('avatarPartner')">${D.theme.avatarPartner?`<img src="${D.theme.avatarPartner}">`:'+'}</div>${D.theme.avatarPartner?`<button onclick="D.theme.avatarPartner='';save();renderCustomize()" style="padding:6px 12px;border:1px solid rgba(0,0,0,0.1);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:11px">移除</button>`:''}</div></div><div class="cust-section"><div class="cust-label">称呼自定义</div><div id="custNicknames">${D.nicknames.map((n,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input value="${n}" onchange="D.nicknames[${i}]=this.value;save()" style="flex:1;padding:8px;border:1px solid rgba(0,0,0,0.1);border-radius:2px;font-family:inherit;font-size:13px"><span onclick="D.nicknames.splice(${i},1);save();renderCustomize()" style="cursor:pointer;color:var(--ink-light);font-size:14px">✕</span></div>`).join('')}<button onclick="D.nicknames.push('新称呼');save();renderCustomize()" style="width:100%;padding:8px;border:1px dashed rgba(0,0,0,0.12);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink-light)">+ 添加称呼</button></div></div></div>`;
+  } else {
+    b.innerHTML=`<div class="page-content"><div class="cust-section"><div class="cust-label">重置所有数据</div><button onclick="if(confirm('确定要重置所有数据吗？')){localStorage.removeItem('xs_data');location.reload()}" style="padding:10px 20px;border:1px solid #e88;background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;color:#e88">重置数据</button></div><div class="cust-section"><div class="cust-label">导出数据</div><button onclick="exportData()" style="padding:10px 20px;border:1px solid rgba(0,0,0,0.1);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">导出 JSON</button></div><div class="cust-section"><div class="cust-label">导入数据</div><input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"><button onclick="document.getElementById('importFile').click()" style="padding:10px 20px;border:1px solid rgba(0,0,0,0.1);background:transparent;border-radius:2px;cursor:pointer;font-family:inherit;font-size:13px">导入 JSON</button></div></div>`;
+  }
+}
+function setBookColor(i,color){if(!D.theme.books)D.theme.books=DEF.theme.books;D.theme.books[i]={...D.theme.books[i],color};save();renderShelf();renderCustomize()}
+function setBookBg(i,bg){if(!D.theme.books)D.theme.books=DEF.theme.books;D.theme.books[i]={...D.theme.books[i],bg};save();renderShelf();renderCustomize()}
+function pickBookImage(i){const fi=document.getElementById('fileInput');fi.onchange=function(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=async function(ev){if(!D.theme.books)D.theme.books=DEF.theme.books;try{const res=await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:ev.target.result})});const d=await res.json();D.theme.books[i]={...D.theme.books[i],bg:d.url||ev.target.result}}catch{D.theme.books[i]={...D.theme.books[i],bg:ev.target.result}};save();renderShelf();renderCustomize();toast('封面已更新')};reader.readAsDataURL(file);fi.value=''};fi.click()}
+function exportData(){const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='小水养护手册数据.json';a.click();URL.revokeObjectURL(url);toast('已导出')}
+function importData(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(ev){try{const d=JSON.parse(ev.target.result);D={...JSON.parse(JSON.stringify(DEF)),...d};if(!D.theme.books)D.theme.books=DEF.theme.books;save();applyTheme();renderCustomize();toast('已导入')}catch(e){toast('导入失败')}};reader.readAsText(file);input.value=''}
+function pickImage(themeKey){
+  const fi=document.getElementById('fileInput');
+  fi.onchange=function(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async function(ev){
+      try{
+        const res=await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:ev.target.result})});
+        const d=await res.json();
+        D.theme[themeKey]=d.url||ev.target.result;
+      }catch{D.theme[themeKey]=ev.target.result;}
+      save();applyTheme();renderCustomize();toast('图片已更新');
+    };
+    reader.readAsDataURL(file);
+    fi.value='';
+  };
+  fi.click();
+}
+
+// ===== Global Notes =====
+function getAllNotesFor(module){
+  let html='';
+  for(const key in D.itemNotes){
+    if(key.startsWith(module+':') && D.itemNotes[key].length>0){
+      const parts=key.split(':');
+      const itemType=parts[1],itemId=parts[2];
+      D.itemNotes[key].forEach(n=>{
+        html+=`<div class="item-note"><span style="color:var(--amber)">${n.author==='我'?'我':'小水'}:</span> ${n.text}<div style="font-size:10px;color:var(--ink-light);margin-top:2px">${itemType}#${itemId} · ${n.time}</div></div>`;
+      });
+    }
+  }
+  return html||'<div style="font-size:13px;color:var(--ink-light);padding:12px 0">暂无批注</div>';
+}
+
+// ===== Modals =====
+function showModal(type){
+  const bg=document.getElementById('modalBg'),box=document.getElementById('modalBox');bg.classList.add('show');
+  const T={
+    nickname:`<h3>添加称呼</h3><input id="mVal" placeholder="输入称呼..."><div class="modal-btns"><button class="mb-cancel" onclick="closeModal()">取消</button><button class="mb-ok" onclick="doAdd('nickname')">添加</button></div>`,
+    habit:`<h3>添加习惯</h3><input id="mVal" placeholder="习惯名称..."><div class="modal-btns"><button class="mb-cancel" onclick="closeModal()">取消</button><button class="mb-ok" onclick="doAdd('habit')">添加</button></div>`,
+    quote:`<h3>收藏语录</h3><textarea id="mVal" placeholder="写下想收藏的话..."></textarea><div class="modal-btns"><button class="mb-cancel" onclick="closeModal()">取消</button><button class="mb-ok" onclick="doAdd('quote')">收藏</button></div>`,
+    timeline:`<h3>记录此刻</h3><input id="mDate" type="date" value="${new Date().toISOString().split('T')[0]}"><textarea id="mVal" placeholder="记录这个时刻..."></textarea><div class="modal-btns"><button class="mb-cancel" onclick="closeModal()">取消</button><button class="mb-ok" onclick="doAdd('timeline')">记录</button></div>`,
+    wish:`<h3>许下心愿</h3><input id="mVal" placeholder="心愿内容..."><textarea id="mNote" placeholder="备注..."></textarea><div class="modal-btns"><button class="mb-cancel" onclick="closeModal()">取消</button><button class="mb-ok" onclick="doAdd('wish')">许愿</button></div>`
+  };
+  box.innerHTML=T[type]||'';
+}
+function closeModal(){document.getElementById('modalBg').classList.remove('show')}
+function doAdd(type){
+  const v=document.getElementById('mVal')?.value?.trim();if(!v)return;
+  if(type==='nickname')D.nicknames.push(v);
+  else if(type==='habit')D.habits.push({name:v,done:false,streak:0});
+  else if(type==='quote')D.quotes.push(v);
+  else if(type==='timeline')D.timeline.push({date:document.getElementById('mDate').value,text:v,avs:['我','水']});
+  else if(type==='wish')D.wishes.push({id:Date.now(),text:v,note:document.getElementById('mNote')?.value||'',progress:0,starred:false});
+  save();closeModal();const mod=type==='nickname'||type==='habit'||type==='quote'?'habits':type;renderBook(mod);toast('已添加');
+}
+
+// ===== Rainbow animation for easter egg =====
+const style=document.createElement('style');
+style.textContent=`
+@keyframes rainbow{
+  0%{filter:hue-rotate(0deg)}
+  25%{filter:hue-rotate(90deg)}
+  50%{filter:hue-rotate(180deg)}
+  75%{filter:hue-rotate(270deg)}
+  100%{filter:hue-rotate(360deg)}
+}
+`;
+document.head.appendChild(style);
+
+// Init
+(async()=>{await load();applyTheme();})()
+</script>
+</body>
+</html>
