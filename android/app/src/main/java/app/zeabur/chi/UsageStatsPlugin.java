@@ -224,19 +224,20 @@ public class UsageStatsPlugin extends Plugin {
             return;
         }
 
-        // Query events from the last 5 minutes to find the most recent foreground app
+        // Query events from the last 10 minutes to find the most recent foreground app (excluding self)
         long endTime = System.currentTimeMillis();
-        long startTime = endTime - 5 * 60 * 1000;
-
+        long startTime = endTime - 10 * 60 * 1000;
         UsageEvents events = usm.queryEvents(startTime, endTime);
         String lastPkg = null;
         long lastTime = 0;
+        String selfPkg = getContext().getPackageName(); // "app.zeabur.chi"
 
         while (events.hasNextEvent()) {
             UsageEvents.Event event = new UsageEvents.Event();
             events.getNextEvent(event);
             if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                if (event.getTimeStamp() > lastTime) {
+                // Skip self - we want to know what the user was doing BEFORE opening this app
+                if (!event.getPackageName().equals(selfPkg) && event.getTimeStamp() > lastTime) {
                     lastTime = event.getTimeStamp();
                     lastPkg = event.getPackageName();
                 }
