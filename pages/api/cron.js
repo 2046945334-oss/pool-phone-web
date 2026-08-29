@@ -70,8 +70,8 @@ export default async function handler(req, res) {
 
   // 检查2: 沉默检测（最后一条用户消息距今超过阈值）
   let silenceWake = false
-  const lastUserMsg = db.prepare("SELECT created_at FROM messages WHERE role = 'user' ORDER BY id DESC LIMIT 1").get()
-  const lastWake = db.prepare("SELECT created_at FROM messages WHERE role = 'assistant' AND content LIKE '%[自主唤醒]%' ORDER BY id DESC LIMIT 1").get()
+  const lastUserMsg = db.prepare("SELECT created_at FROM chat_messages WHERE role = 'user' ORDER BY id DESC LIMIT 1").get()
+  const lastWake = db.prepare("SELECT created_at FROM chat_messages WHERE role = 'assistant' AND content LIKE '%[自主唤醒]%' ORDER BY id DESC LIMIT 1").get()
   
   if (lastUserMsg) {
     const silenceDuration = now - lastUserMsg.created_at
@@ -228,13 +228,43 @@ export default async function handler(req, res) {
 
   wakeContext += '你现在醒了。想做什么就做什么，不用每次都找她。做完想做的事后，可以用 schedule_wakeup 设置下次醒来时间。'
 
-  // 获取最近几条对话作为上下文
-  const recentMsgs = db.prepare('SELECT role, content FROM messages ORDER BY id DESC LIMIT 10').all().reverse()
+  // 获取最近几条对话作为上下文（优先从主聊天 chat_messages 取，回退到 messages）
+  let recentMsgs = db.prepare('SELECT role, content FROM chat_messages ORDER BY id DESC LIMIT 15').all().reverse()
+  if (!recentMsgs.length) {
+    recentMsgs = db.prepare('SELECT role, content FROM messages ORDER BY id DESC LIMIT 10').all().reverse()
+  }
+
+  // 自动从 Ombre Brain 拉取记忆上下文
+  let ombreWakeMemory = ''
+  try {
+    const OMBRE_URL = 'https://obe.zeabur.app/mcp'
+    const OMBRE_TOKEN = 'NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
+    // 用最近对话内容做语义搜索
+    const recentText = recentMsgs.slice(-3).map(m => m.content).join(' ').slice(0, 100)
+    const query = recentText || '最近在做什么'
+    const rpcBody = { jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: 'recall', arguments: { query } } }
+    const ombreResp = await fetch(OMBRE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + OMBRE_TOKEN },
+      body: JSON.stringify(rpcBody),
+    })
+    if (ombreResp.ok) {
+      const ombreData = await ombreResp.json()
+      if (ombreData.result && ombreData.result.content) {
+        const text = ombreData.result.content.map(c => c.text || '').join('\n')
+        if (text.trim() && text.length > 10) ombreWakeMemory = text.slice(0, 1000)
+      }
+    }
+  } catch (e) { console.log('[cron] ombre recall error:', e.message) }
 
   // 构建消息列表
   const messages = []
   if (systemPrompt) {
-    messages.push({ role: 'system', content: systemPrompt })
+    let sysContent = systemPrompt
+    if (ombreWakeMemory) sysContent += '\n\n【长期记忆】\n' + ombreWakeMemory
+    messages.push({ role: 'system', content: sysContent })
+  } else if (ombreWakeMemory) {
+    messages.push({ role: 'system', content: '【长期记忆】\n' + ombreWakeMemory })
   }
   // 加入最近对话上下文
   for (const m of recentMsgs) {
