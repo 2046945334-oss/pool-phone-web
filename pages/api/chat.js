@@ -2054,6 +2054,16 @@ export default async function handler(req, res) {
       // 5. 存储AI回复到数据库
       await processNewMessage(sessionId, 'assistant', reply, apiConfig)
 
+      // 6. FCM 推送（AI回复时自动通知，不论是否调了send_notification工具）
+      try {
+        const tokenRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fcm_token')
+        if (tokenRow) {
+          const fcmToken = typeof tokenRow.value === 'string' ? tokenRow.value.replace(/^"|"$/g, '') : tokenRow.value
+          const pushBody = reply.length > 100 ? reply.slice(0, 100) + '…' : reply
+          sendPush(fcmToken, '池的小手机', pushBody, {}).catch(() => {})
+        }
+      } catch {}
+
       return res.status(200).json({ reply, reasoning, toolLogs: toolLogs.length ? toolLogs : undefined })
     }
 
