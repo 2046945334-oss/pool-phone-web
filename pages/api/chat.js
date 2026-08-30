@@ -2064,6 +2064,7 @@ export default async function handler(req, res) {
 
       // 6. 通知推送（写入通知队列 + FCM 备用）
       try {
+        const db = getDb()
         const pushBody = reply.length > 100 ? reply.slice(0, 100) + '…' : reply
         // 写入通知队列（供 Android 轮询 Service 拉取）
         const queueRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_notification_queue')
