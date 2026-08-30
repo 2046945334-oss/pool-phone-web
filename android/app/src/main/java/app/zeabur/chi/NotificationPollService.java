@@ -32,7 +32,7 @@ public class NotificationPollService extends Service {
     private static final String MSG_CHANNEL_ID = "chi_notifications";
     private static final String PREFS_NAME = "chi_notif_prefs";
     private static final String KEY_LAST_ID = "last_poll_notif_id";
-    private static final String NOTIF_API = "https://chi.zeabur.app/api/data/pool_notification_queue";
+    private static final String NOTIF_API = "https://chi.zeabur.app/api/data/pool_notification_pending";
     private static final long POLL_INTERVAL_MS = 30_000; // 30 seconds
 
     private Handler handler;
@@ -101,53 +101,53 @@ public class NotificationPollService extends Service {
             conn.disconnect();
 
             JSONObject data = new JSONObject(sb.toString());
-            // The /api/data/[key] endpoint returns { value: "..." }
-            String valueStr = data.optString("value", "[]");
+            Object val = data.opt("value");
             JSONArray queue;
-            try {
-                queue = new JSONArray(valueStr);
-            } catch (Exception e) {
-                Object val = data.opt("value");
-                if (val instanceof JSONArray) {
-                    queue = (JSONArray) val;
-                } else {
-                    return;
-                }
+            if (val instanceof JSONArray) {
+                queue = (JSONArray) val;
+            } else if (val instanceof String) {
+                try { queue = new JSONArray((String) val); } catch (Exception e) { return; }
+            } else {
+                return;
             }
 
             if (queue.length() == 0) return;
 
-            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-            String lastId = prefs.getString(KEY_LAST_ID, "");
-
-            boolean foundLast = lastId.isEmpty();
-            String newestId = lastId;
-
+            // 弹出所有未读通知
             for (int i = 0; i < queue.length(); i++) {
                 JSONObject n = queue.getJSONObject(i);
-                String id = n.optString("id", String.valueOf(i));
-
-                if (!foundLast) {
-                    if (id.equals(lastId)) foundLast = true;
-                    continue;
-                }
-
                 String title = n.optString("title", "池的小手机");
                 String body = n.optString("body", "");
-
                 if (!body.isEmpty()) {
                     showMessageNotification(title, body, (int) (System.currentTimeMillis() % 100000));
                 }
-                newestId = id;
             }
 
-            if (!newestId.equals(lastId)) {
-                prefs.edit().putString(KEY_LAST_ID, newestId).apply();
-            }
+            // 清空队列（DELETE请求）
+            clearPendingQueue();
 
         } catch (Exception e) {
             Log.e(TAG, "Poll failed: " + e.getMessage());
         }
+    }
+
+    private void clearPendingQueue() {
+        new Thread(() -> {
+            try {
+                URL url = new URL(NOTIF_API);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                int code = conn.getResponseCode();
+                conn.disconnect();
+                if (code == 200) {
+                    Log.d(TAG, "Cleared notification queue");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Clear queue failed: " + e.getMessage());
+            }
+        }).start();
     }
 
     private void createChannels() {
