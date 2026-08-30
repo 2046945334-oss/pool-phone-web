@@ -1805,8 +1805,16 @@ async function executeTool(name, args) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, toolsConfig } = req.body
+  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, toolsConfig, fcmToken: reqFcmToken } = req.body
   if (!apiBase || !apiKey) return res.status(400).json({ error: 'Missing API configuration' })
+
+  // 顺便存 FCM token（前端每次请求都带，确保 token 始终最新）
+  if (reqFcmToken) {
+    try {
+      const db = getDb()
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fcm_token', reqFcmToken)
+    } catch {}
+  }
 
   const base = apiBase.replace(/\/+$/, '').replace(/\/v1$/, '')
   const url = base + '/v1/chat/completions'
