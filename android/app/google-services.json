@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1026611152907",
+    "project_id": "chipool",
+    "storage_bucket": "chipool.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1026611152907:android:da1a08f180def4d0c05f0e",
+        "android_client_info": {
+          "package_name": "app.zeabur.chi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4CXZHWhMlLTV0w3XEbqoBOusBJoCucbw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
