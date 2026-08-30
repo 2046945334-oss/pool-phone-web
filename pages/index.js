@@ -29,7 +29,6 @@ import ScreenTimeApp from '../components/apps/ScreenTimeApp'
 // ===== Capacitor 通知初始化 =====
 function initCapacitorNotifications() {
   if (typeof window === 'undefined') return
-  // 检测 Capacitor 原生环境
   const cap = window.Capacitor
   if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) {
     console.log('[通知] 非原生环境，跳过')
@@ -37,7 +36,7 @@ function initCapacitorNotifications() {
   }
   console.log('[通知] 检测到 Capacitor 原生环境，初始化通知...')
   
-  // 本地通知
+  // 本地通知 (保留，作为即时弹通知的备用)
   import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
     LocalNotifications.requestPermissions().then(p => {
       console.log('[本地通知] 权限:', p.display)
@@ -48,7 +47,6 @@ function initCapacitorNotifications() {
         window.dispatchEvent(new CustomEvent('chi-open-app', { detail: { app: n.notification.extra.app } }))
       }
     })
-    // 暴露到全局供页面内调用
     window.ChiLocalNotifications = LocalNotifications
     window.chiShowNotification = async (title, body, extra) => {
       const id = Math.floor(Math.random() * 100000)
@@ -62,6 +60,44 @@ function initCapacitorNotifications() {
     }
     console.log('[本地通知] 初始化完成 ✓')
   }).catch(e => console.error('[本地通知] 加载失败:', e))
+
+  // FCM 推送通知 - 后台也能收到
+  import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+    PushNotifications.requestPermissions().then(perm => {
+      console.log('[FCM] 权限:', perm.receive)
+      if (perm.receive === 'granted') {
+        PushNotifications.register()
+      }
+    })
+    PushNotifications.addListener('registration', (token) => {
+      console.log('[FCM] Token:', token.value)
+      window.__fcmToken = token.value
+      // 存到后端
+      fetch('/api/data/pool_fcm_token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: token.value })
+      }).then(() => console.log('[FCM] Token 已同步到后端'))
+        .catch(e => console.error('[FCM] Token 同步失败:', e))
+    })
+    PushNotifications.addListener('registrationError', (err) => {
+      console.error('[FCM] 注册失败:', err)
+    })
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('[FCM] 收到前台推送:', notification)
+      // 前台收到时用本地通知弹出（FCM 前台默认不弹）
+      if (window.chiShowNotification) {
+        window.chiShowNotification(notification.title, notification.body, notification.data)
+      }
+    })
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      console.log('[FCM] 用户点击推送:', action)
+      if (action.notification?.data?.app) {
+        window.dispatchEvent(new CustomEvent('chi-open-app', { detail: { app: action.notification.data.app } }))
+      }
+    })
+    console.log('[FCM] 推送初始化完成 ✓')
+  }).catch(e => console.error('[FCM] 加载失败:', e))
 }
 // 执行初始化
 if (typeof window !== 'undefined') {
