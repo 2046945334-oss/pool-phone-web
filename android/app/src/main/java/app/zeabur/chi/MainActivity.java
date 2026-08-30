@@ -31,7 +31,6 @@ public class MainActivity extends BridgeActivity {
     private void createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager mgr = getSystemService(NotificationManager.class);
-            // FCM 推送通道
             NotificationChannel pushChannel = new NotificationChannel(
                     "chi_push", "推送通知", NotificationManager.IMPORTANCE_HIGH);
             pushChannel.setDescription("来自池的小手机的推送通知");
