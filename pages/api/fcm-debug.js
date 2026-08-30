@@ -1,6 +1,7 @@
-// pages/api/fcm-debug.js - 诊断 FCM 推送状态
+// pages/api/fcm-debug.js - 诊断推送状态
 import { getDb } from '../../lib/db'
-import { sendPush } from '../../lib/fcm'
+
+const CODE_VERSION = 'v3-poll-only-20260830'
 
 export default async function handler(req, res) {
   const db = getDb()
@@ -8,12 +9,21 @@ export default async function handler(req, res) {
   // GET: 查看状态
   if (req.method === 'GET') {
     const tokenRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fcm_token')
+    const queueRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_notification_queue')
+    let queueLen = 0
+    let lastItem = null
+    try {
+      const q = queueRow ? JSON.parse(queueRow.value) : []
+      queueLen = q.length
+      lastItem = q.length > 0 ? q[q.length - 1] : null
+    } catch {}
     const hasFirebaseKey = !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY
     return res.json({
+      codeVersion: CODE_VERSION,
       hasToken: !!tokenRow,
-      tokenPreview: tokenRow ? (tokenRow.value || '').slice(0, 20) + '...' : null,
       hasFirebaseKey,
-      firebaseKeyPreview: hasFirebaseKey ? process.env.FIREBASE_SERVICE_ACCOUNT_KEY.slice(0, 30) + '...' : null
+      queueLength: queueLen,
+      lastQueueItem: lastItem
     })
   }
   
