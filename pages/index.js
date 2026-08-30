@@ -74,7 +74,7 @@ function initCapacitorNotifications() {
       window.__fcmToken = token.value
       // 存到后端
       fetch('/api/data/pool_fcm_token', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: token.value })
       }).then(() => console.log('[FCM] Token 已同步到后端'))
