@@ -98,6 +98,19 @@ function initCapacitorNotifications() {
     })
     console.log('[FCM] 推送初始化完成 ✓')
   }).catch(e => console.error('[FCM] 加载失败:', e))
+
+  // 兜底：5秒后如果有token就再同步一次
+  setTimeout(() => {
+    if (window.__fcmToken) {
+      fetch('/api/data/pool_fcm_token', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: window.__fcmToken })
+      }).then(() => console.log('[FCM] 兜底同步成功')).catch(() => {})
+    } else {
+      console.warn('[FCM] 5秒后仍无token，PushNotifications可能未注册成功')
+    }
+  }, 5000)
 }
 // 执行初始化
 if (typeof window !== 'undefined') {
