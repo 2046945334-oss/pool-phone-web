@@ -2,6 +2,7 @@
 // Supports function calling: AI can call tools, results fed back automatically
 import { getDb } from '../../lib/db'
 import { processNewMessage, getRecentMessages, buildMemoryContext, localSearch } from '../../lib/memory'
+import { sendPush } from '../../lib/fcm'
 
 // --- MCP Integration ---
 function getMcpConnections() {
@@ -1159,7 +1160,7 @@ async function executeTool(name, args) {
   }
 
   if (name === 'send_notification') {
-    // Store notification request; frontend will poll and trigger Capacitor LocalNotifications
+    // 先尝试 FCM 推送（后台也能收到），同时保留队列作为备用
     const notif = { id: Date.now(), title: args.title, body: args.body, time: new Date().toISOString(), delivered: false }
     let queue = []
     try {
@@ -1167,10 +1168,21 @@ async function executeTool(name, args) {
       if (row) queue = JSON.parse(row.value)
     } catch {}
     queue.push(notif)
-    // Keep only last 20
     if (queue.length > 20) queue = queue.slice(-20)
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_notification_queue', JSON.stringify(queue))
-    return { success: true, message: `通知已发送: ${args.title}` }
+
+    // FCM 推送
+    let fcmResult = { success: false, error: 'no token' }
+    try {
+      const tokenRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fcm_token')
+      if (tokenRow) {
+        const fcmToken = typeof tokenRow.value === 'string' ? tokenRow.value.replace(/^"|"$/g, '') : tokenRow.value
+        fcmResult = await sendPush(fcmToken, args.title || '池的小手机', args.body || '', {})
+      }
+    } catch (e) {
+      fcmResult = { success: false, error: e.message }
+    }
+    return { success: true, message: `通知已发送: ${args.title}`, fcm: fcmResult.success ? 'pushed' : `fallback(${fcmResult.error})` }
   }
 
   if (name === 'get_screen_time') {
