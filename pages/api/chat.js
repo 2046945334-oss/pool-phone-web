@@ -1805,8 +1805,16 @@ async function executeTool(name, args) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, toolsConfig } = req.body
+  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, toolsConfig, fcmToken: reqFcmToken } = req.body
   if (!apiBase || !apiKey) return res.status(400).json({ error: 'Missing API configuration' })
+
+  // 顺便存 FCM token（前端每次请求都带，确保 token 始终最新）
+  if (reqFcmToken) {
+    try {
+      const db = getDb()
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fcm_token', reqFcmToken)
+    } catch {}
+  }
 
   const base = apiBase.replace(/\/+$/, '').replace(/\/v1$/, '')
   const url = base + '/v1/chat/completions'
@@ -2053,6 +2061,25 @@ export default async function handler(req, res) {
 
       // 5. 存储AI回复到数据库
       await processNewMessage(sessionId, 'assistant', reply, apiConfig)
+
+      // 6. 通知推送（写入通知队列 + FCM 备用）
+      try {
+        const pushBody = reply.length > 100 ? reply.slice(0, 100) + '…' : reply
+        // 写入通知队列（供 Android 轮询 Service 拉取）
+        const queueRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_notification_queue')
+        let queue = []
+        try { queue = queueRow ? JSON.parse(queueRow.value) : [] } catch {}
+        queue.push({ id: Date.now().toString(), title: '池的小手机', body: pushBody, time: Date.now() })
+        if (queue.length > 50) queue = queue.slice(-50)
+        db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)').run('pool_notification_queue', JSON.stringify(queue), Date.now())
+
+        // FCM 推送（备用，国内可能不可用）
+        const tokenRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fcm_token')
+        if (tokenRow) {
+          const fcmToken = typeof tokenRow.value === 'string' ? tokenRow.value.replace(/^"|"$/g, '') : tokenRow.value
+          sendPush(fcmToken, '池的小手机', pushBody, {}).catch(() => {})
+        }
+      } catch {}
 
       return res.status(200).json({ reply, reasoning, toolLogs: toolLogs.length ? toolLogs : undefined })
     }

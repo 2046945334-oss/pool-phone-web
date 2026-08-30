@@ -74,7 +74,7 @@ function initCapacitorNotifications() {
       window.__fcmToken = token.value
       // 存到后端
       fetch('/api/data/pool_fcm_token', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: token.value })
       }).then(() => console.log('[FCM] Token 已同步到后端'))
@@ -98,6 +98,19 @@ function initCapacitorNotifications() {
     })
     console.log('[FCM] 推送初始化完成 ✓')
   }).catch(e => console.error('[FCM] 加载失败:', e))
+
+  // 兜底：5秒后如果有token就再同步一次
+  setTimeout(() => {
+    if (window.__fcmToken) {
+      fetch('/api/data/pool_fcm_token', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: window.__fcmToken })
+      }).then(() => console.log('[FCM] 兜底同步成功')).catch(() => {})
+    } else {
+      console.warn('[FCM] 5秒后仍无token，PushNotifications可能未注册成功')
+    }
+  }, 5000)
 }
 // 执行初始化
 if (typeof window !== 'undefined') {
@@ -589,7 +602,7 @@ function ChatView({ theme }) {
           const dynamicSystem = sysParts.slice(1)
           console.log(`[ctx] system=${stableSystem.length} dynamic=${dynamicSystem.length} msgs=${processedMerged.length}`)
           return [...stableSystem, ...dynamicSystem, ...processedMerged]
-        })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
+        })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools'), fcmToken: window.__fcmToken || '' }),
       })
       const data = await res.json()
       if (data.error) {
