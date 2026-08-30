@@ -589,7 +589,7 @@ function ChatView({ theme }) {
           const dynamicSystem = sysParts.slice(1)
           console.log(`[ctx] system=${stableSystem.length} dynamic=${dynamicSystem.length} msgs=${processedMerged.length}`)
           return [...stableSystem, ...dynamicSystem, ...processedMerged]
-        })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools') }),
+        })(), apiBase: cfg.apiBase, apiKey: cfg.apiKey, model: cfg.model, toolsConfig: getApiConfig('tools'), fcmToken: window.__fcmToken || '' }),
       })
       const data = await res.json()
       if (data.error) {
