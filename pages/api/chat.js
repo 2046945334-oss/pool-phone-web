@@ -2062,25 +2062,25 @@ export default async function handler(req, res) {
       // 5. 存储AI回复到数据库
       await processNewMessage(sessionId, 'assistant', reply, apiConfig)
 
-      // 6. 通知推送（写入通知队列 + FCM 备用）
+      // 6. 通知推送（写入通知队列）
       try {
         const db = getDb()
-        const pushBody = reply.length > 100 ? reply.slice(0, 100) + '…' : reply
-        // 写入通知队列（供 Android 轮询 Service 拉取）
-        const queueRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_notification_queue')
-        let queue = []
-        try { queue = queueRow ? JSON.parse(queueRow.value) : [] } catch {}
-        queue.push({ id: Date.now().toString(), title: '池的小手机', body: pushBody, time: Date.now() })
-        if (queue.length > 50) queue = queue.slice(-50)
-        db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)').run('pool_notification_queue', JSON.stringify(queue), Date.now())
-
-        // FCM 推送（备用，国内可能不可用）
-        const tokenRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fcm_token')
-        if (tokenRow) {
-          const fcmToken = typeof tokenRow.value === 'string' ? tokenRow.value.replace(/^"|"$/g, '') : tokenRow.value
-          sendPush(fcmToken, '池的小手机', pushBody, {}).catch(() => {})
+        // 跳过工具调用的 JSON 输出，只推人话
+        const trimmed = reply.trim()
+        if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('```json')) {
+          // 看起来是工具输出 JSON，不推
+        } else {
+          const pushBody = reply.length > 100 ? reply.slice(0, 100) + '…' : reply
+          // 写入待推送队列（只存未读的，Service 拉取后会清空）
+          const queueRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_notification_pending')
+          let queue = []
+          try { queue = queueRow ? JSON.parse(queueRow.value) : [] } catch {}
+          if (!Array.isArray(queue)) queue = []
+          queue.push({ id: String(Date.now()), title: '池的小手机', body: pushBody, time: Date.now() })
+          if (queue.length > 20) queue = queue.slice(-20)
+          db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)').run('pool_notification_pending', JSON.stringify(queue), Date.now())
         }
-      } catch {}
+      } catch (e) { console.log('[notif-push] error:', e.message) }
 
       return res.status(200).json({ reply, reasoning, toolLogs: toolLogs.length ? toolLogs : undefined })
     }
