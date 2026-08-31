@@ -1932,6 +1932,7 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'commission', icon: '/icons/notes.png', name: '接稿' },
     { id: 'screenTime', icon: '/icons/system.png', name: '屏幕时间' },
     { id: 'care', icon: '/icons/couple.png', name: '养护' },
+    { id: 'stickers', icon: '/icons/gallery.png', name: '表情包管理' },
   ]
   const allPages = [page1Apps, page2Apps, page3Apps]
   const icons = theme?.icons || {}
