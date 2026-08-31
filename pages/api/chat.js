@@ -575,7 +575,7 @@ async function executeTool(name, args) {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
     const stickers = row ? JSON.parse(row.value) : []
     if (stickers.length === 0) return '表情包库为空，暂无可用表情包。'
-    return stickers.map(s => s.name + ': ' + s.url).join('\n')
+    return '以下是你的表情包，直接在回复中复制对应的[img]标签即可发送：\n' + stickers.map(s => s.name + ': [img]' + s.url + '[/img]').join('\n') + '\n\n注意：回复时直接包含[img]url[/img]标签，不要加任何其他格式。'
   }
   if (name === 'write_note') {
     const key = 'pool_notes_v3'
