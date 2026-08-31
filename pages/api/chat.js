@@ -82,8 +82,20 @@ async function callMcpToolDirect(meta, args) {
 const TOOLS = [
   {
     type: 'function', function: {
-      name: 'get_stickers', description: '获取表情包库中所有可用的表情包列表。返回每个表情包的name和url。在回复中使用[img]url[/img]来发送表情包。',
+      name: 'get_stickers', description: '获取表情包库中所有可用的表情包列表。返回每个表情包的含义(meaning)和url。在回复中直接写URL即可发送表情包。',
       parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'add_sticker', description: '添加一个新表情包到表情包库。必须同时提供URL和含义(meaning)。',
+      parameters: { type: 'object', properties: { url: { type: 'string', description: '表情包图片URL' }, meaning: { type: 'string', description: '表情包的含义/情绪（如：开心、生气、委屈）' } }, required: ['url', 'meaning'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'import_stickers_batch', description: '批量导入多个表情包。接受一个数组，每项包含url和meaning。',
+      parameters: { type: 'object', properties: { list: { type: 'array', description: '表情包列表，每项为{url, meaning}对象', items: { type: 'object', properties: { url: { type: 'string' }, meaning: { type: 'string' } }, required: ['url', 'meaning'] } } }, required: ['list'] }
     }
   },
   {
@@ -568,7 +580,33 @@ async function executeTool(name, args) {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
     const stickers = row ? JSON.parse(row.value) : []
     if (stickers.length === 0) return '表情包库为空，暂无可用表情包。'
-    return '你的表情包列表（名称=含义/情绪）：\n' + stickers.map(s => s.name + ' → ' + s.url).join('\n') + '\n\n用法：在回复中直接写URL即可自动显示为图片。例如直接写 ' + stickers[0].url + ' 就行。'
+    return '你的表情包列表（含义 → URL）：\n' + stickers.map(s => `${s.meaning || s.name} → ${s.url}`).join('\n') + '\n\n用法：在回复中直接写URL即可自动显示为图片。'
+  }
+  if (name === 'add_sticker') {
+    const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+    const stickers = row ? JSON.parse(row.value) : []
+    const exists = stickers.find(s => s.url === args.url)
+    if (exists) {
+      exists.meaning = args.meaning
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_stickers', JSON.stringify(stickers))
+      return `已更新表情包含义：${args.meaning}`
+    }
+    stickers.push({ name: 'sticker_' + Date.now(), meaning: args.meaning, url: args.url })
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_stickers', JSON.stringify(stickers))
+    return `已添加表情包：${args.meaning}（共${stickers.length}个）`
+  }
+  if (name === 'import_stickers_batch') {
+    const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+    const stickers = row ? JSON.parse(row.value) : []
+    let added = 0, updated = 0
+    for (const item of (args.list || [])) {
+      if (!item.url || !item.meaning) continue
+      const exists = stickers.find(s => s.url === item.url)
+      if (exists) { exists.meaning = item.meaning; updated++ }
+      else { stickers.push({ name: 'sticker_' + Date.now() + '_' + added, meaning: item.meaning, url: item.url }); added++ }
+    }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_stickers', JSON.stringify(stickers))
+    return `批量导入完成：新增${added}个，更新${updated}个，共${stickers.length}个表情包。`
   }
   if (name === 'write_note') {
     const key = 'pool_notes_v3'
