@@ -8,7 +8,7 @@ function getStickers() {
 
 function setStickers(stickers) {
   const db = getDb()
-  db.prepare("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)").run('pool_stickers', JSON.stringify(stickers))
+  db.prepare("INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())").run('pool_stickers', JSON.stringify(stickers))
 }
 
 export default async function handler(req, res) {
