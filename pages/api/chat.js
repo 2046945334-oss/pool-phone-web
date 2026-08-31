@@ -1920,6 +1920,29 @@ export default async function handler(req, res) {
       const reqModel = model || 'gpt-4o-mini'
       const reqMessages = convertSystemRole(currentMessages.slice())
         .filter(m => m && m.role && ['user', 'assistant'].includes(m.role) && m.content)
+        .map(m => {
+          // Convert [img]url[/img] in messages to multimodal format for vision models
+          if (typeof m.content === 'string' && m.content.includes('[img]') && m.content.includes('[/img]')) {
+            const parts = m.content.split(/\[img\]([\s\S]*?)\[\/img\]/g)
+            if (parts.length > 1) {
+              const content = []
+              for (let pi = 0; pi < parts.length; pi++) {
+                if (pi % 2 === 0) {
+                  if (parts[pi].trim()) content.push({ type: 'text', text: parts[pi].trim() })
+                } else {
+                  let imgUrl = parts[pi].trim()
+                  if (imgUrl.startsWith('/')) imgUrl = 'https://chi.zeabur.app' + imgUrl
+                  content.push({ type: 'image_url', image_url: { url: imgUrl } })
+                }
+              }
+              if (content.length && !content.some(c => c.type === 'text')) {
+                content.unshift({ type: 'text', text: m.role === 'user' ? '(用户发送了表情包图片)' : '(发送了表情包)' })
+              }
+              return { ...m, content }
+            }
+          }
+          return m
+        })
       const bodyObj = {
         model: reqModel,
         messages: reqMessages,
