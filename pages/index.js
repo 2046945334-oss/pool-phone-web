@@ -704,7 +704,7 @@ function ChatView({ theme }) {
   function addUserMsg() {
     const t = input.trim()
     if (!t) return
-    setMessages([...messages, { role: 'user', content: t }])
+    setMessages([...messages, { role: 'user', content: t, ts: Date.now() }])
     setInput('')
   }
 
@@ -886,7 +886,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
             reader.onload = () => {
               const base64 = reader.result
               // First show image immediately
-              setMessages(m => [...m, {role:'user',content:`[img]${base64}[/img]`}])
+              setMessages(m => [...m, {role:'user',content:`[img]${base64}[/img]`,ts:Date.now()}])
               // Then try to upload to backend and replace with URL
               fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: base64 }) })
                 .then(r => r.json())
@@ -915,7 +915,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           <input type="file" accept="image/*" hidden onChange={e => {
             const file = e.target.files[0]; if (!file) return
             const reader = new FileReader()
-            reader.onload = () => { setMessages(m => [...m, {role:'user',content:`[img]${reader.result}[/img]`}]); setShowEmoji(false) }
+            reader.onload = () => { setMessages(m => [...m, {role:'user',content:`[img]${reader.result}[/img]`,ts:Date.now()}]); setShowEmoji(false) }
             reader.readAsDataURL(file)
             e.target.value = ''
           }} />
