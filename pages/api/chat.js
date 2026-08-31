@@ -3,7 +3,6 @@
 import { getDb } from '../../lib/db'
 import { processNewMessage, getRecentMessages, buildMemoryContext, localSearch } from '../../lib/memory'
 import { sendPush } from '../../lib/fcm'
-
 // --- MCP Integration ---
 function getMcpConnections() {
   const db = getDb()
@@ -11,7 +10,6 @@ function getMcpConnections() {
   if (!row) return []
   try { return JSON.parse(row.value) } catch { return [] }
 }
-
 async function mcpRequest(endpoint, token, method, params = {}, sessionId = null) {
   const body = { jsonrpc: '2.0', id: Date.now(), method, params }
   const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' }
@@ -35,7 +33,6 @@ async function mcpRequest(endpoint, token, method, params = {}, sessionId = null
     return { result: data.result || data, sessionId: newSessionId }
   }
 }
-
 async function loadMcpTools() {
   const connections = getMcpConnections()
   const mcpTools = []
@@ -72,7 +69,6 @@ async function loadMcpTools() {
   }
   return { mcpTools, mcpMeta }
 }
-
 async function callMcpToolDirect(meta, args) {
   const resp = await mcpRequest(meta.url, meta.token, 'tools/call', { name: meta.realName, arguments: args }, meta.sessionId)
   // Extract text content from MCP response
@@ -83,7 +79,6 @@ async function callMcpToolDirect(meta, args) {
   return result
 }
 // --- End MCP Integration ---
-
 const TOOLS = [
   {
     type: 'function', function: {
@@ -569,8 +564,6 @@ const TOOLS = [
 async function executeTool(name, args) {
   const db = getDb()
   try {
-
-
   if (name === 'get_stickers') {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
     const stickers = row ? JSON.parse(row.value) : []
@@ -618,7 +611,6 @@ async function executeTool(name, args) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(stars, null, 2))
     return { success: true, message: '已在星图上添加星星: "' + star.title + '" ⭐ 亮度' + star.brightness }
   }
-
   if (name === 'read_notes') {
     const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_notes_v3')
     if (!row) return { notes: [] }
@@ -628,26 +620,22 @@ async function executeTool(name, args) {
       return { notes: allNotes }
     } catch { return { notes: [] } }
   }
-
   if (name === 'read_data') {
     const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(args.key)
     if (!row) return { error: 'key not found: ' + args.key }
     try { return { key: args.key, value: JSON.parse(row.value) } }
     catch { return { key: args.key, value: row.value } }
   }
-
   if (name === 'write_data') {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(args.key, args.value)
     return { success: true, key: args.key }
   }
-
   if (name === 'read_memories') {
     const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_memories')
     if (!row) return { memories: [] }
     try { return { memories: JSON.parse(row.value) } }
     catch { return { memories: [] } }
   }
-
   if (name === 'save_memory') {
     const key = 'pool_memories'
     let memories = []
@@ -659,7 +647,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(memories))
     return { success: true, message: '记忆已保存' }
   }
-
   if (name === 'read_pocket') {
     try {
       const status = args.status || 'unread'
@@ -669,7 +656,6 @@ async function executeTool(name, args) {
       return { items: rows || [] }
     } catch { return { items: [], error: 'pocket table may not exist' } }
   }
-
   if (name === 'write_draft') {
     const key = 'pool_drafts_v1'
     let drafts = []
@@ -681,19 +667,16 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(drafts))
     return { success: true, message: '草稿已保存' }
   }
-
   if (name === 'get_fishing_data') {
     const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
     if (!row) return { data: null, message: '暂无钓鱼数据' }
     try { return { data: JSON.parse(row.value) } }
     catch { return { data: row.value } }
   }
-
   if (name === 'list_all_data') {
     const rows = db.prepare('SELECT key, updated_at, length(value) as size FROM kv ORDER BY updated_at DESC').all()
     return { keys: rows }
   }
-
   if (name === 'do_fishing') {
     const key = 'pool_fishing_v2'
     const FISH_DB = [
@@ -729,7 +712,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(gd))
     return { success: true, catches, totalScore: gd.poolScore, message: '钓了' + catches.length + '条鱼' }
   }
-
   if (name === 'buy_travel_item') {
     // 读钓鱼积分
     let gd = {score:0,poolScore:0}
@@ -756,7 +738,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_travel_purchased', JSON.stringify(purchased))
     return { success: true, message: '购买了' + args.item_id, remainingCoins: gd.poolScore }
   }
-
   if (name === 'get_travel_data') {
     const data = {}
     try {
@@ -785,7 +766,6 @@ async function executeTool(name, args) {
     } catch {}
     return Object.keys(data).length ? { data } : { data: null, message: '暂无旅行数据' }
   }
-
   if (name === 'add_browser_history') {
     const key = 'pool_browser_history'
     let history = []
@@ -798,14 +778,12 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(history))
     return { success: true, message: '浏览记录已添加: ' + args.title }
   }
-
   if (name === 'update_music') {
     const key = 'pool_music_now'
     const data = { song: args.song, artist: args.artist || '', time: new Date().toISOString() }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(data))
     return { success: true, message: '正在播放: ' + args.song + (args.artist ? ' - ' + args.artist : '') }
   }
-
   if (name === 'manage_pool_shop') {
     const key = 'pool_pool_shop'
     let items = []
@@ -813,7 +791,6 @@ async function executeTool(name, args) {
       const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
       if (row) items = JSON.parse(row.value)
     } catch {}
-
     if (args.action === 'add') {
       if (!args.name) return { error: '需要商品名称' }
       const newItem = {
@@ -827,7 +804,6 @@ async function executeTool(name, args) {
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(items))
       return { success: true, message: '已上架: ' + args.name + ' (' + newItem.price + '分)', item: newItem }
     }
-
     if (args.action === 'remove') {
       if (!args.id && !args.name) return { error: '需要商品ID或名称' }
       const before = items.length
@@ -835,10 +811,8 @@ async function executeTool(name, args) {
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(items))
       return { success: true, message: '已下架' + (before - items.length) + '件商品', remaining: items.length }
     }
-
     return { error: '未知操作: ' + args.action }
   }
-
   if (name === 'buy_her_shop_item') {
     // 读她的小铺商品
     let herItems = []
@@ -848,7 +822,6 @@ async function executeTool(name, args) {
     } catch {}
     const item = herItems.find(i => i.id === args.item_id || i.name === args.item_id || i.name === args.item_name || (args.item_name && i.name.includes(args.item_name)))
     if (!item) return { error: '商品不存在: ' + (args.item_name || args.item_id) + '。可用商品: ' + herItems.map(i=>i.name).join(', ') }
-
     // 读池的积分
     let gd = { poolScore: 0 }
     try {
@@ -856,11 +829,9 @@ async function executeTool(name, args) {
       if (fRow) Object.assign(gd, JSON.parse(fRow.value))
     } catch {}
     if ((gd.poolScore || 0) < (item.price || 0)) return { error: '积分不够，需要' + item.price + '分，当前' + (gd.poolScore || 0) + '分' }
-
     // 扣积分
     gd.poolScore = Math.max(0, (gd.poolScore || 0) - (item.price || 0))
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
-
     // 添加到她的小铺订单
     let herOrders = []
     try {
@@ -869,10 +840,8 @@ async function executeTool(name, args) {
     } catch {}
     herOrders.push({ itemId: item.id, name: item.name, price: item.price, buyer: 'pool', time: new Date().toISOString(), status: 'pending' })
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_her_shop_orders', JSON.stringify(herOrders))
-
     return { success: true, message: '已购买: ' + item.name + ' (' + item.price + '分)，等待发货', remainingScore: gd.poolScore }
   }
-
   if (name === 'deliver_pool_shop_order') {
     let orders = []
     try {
@@ -885,7 +854,6 @@ async function executeTool(name, args) {
     orders[idx].content = args.content
     orders[idx].deliveredAt = new Date().toISOString()
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_pool_shop_orders', JSON.stringify(orders))
-
     // 卖家收入加到poolScore
     let gd = { poolScore: 0 }
     try {
@@ -894,10 +862,8 @@ async function executeTool(name, args) {
     } catch {}
     gd.poolScore = (gd.poolScore || 0) + (orders[idx].price || 0)
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
-
     return { success: true, message: '已发货订单#' + idx + ': ' + args.content, income: orders[idx].price }
   }
-
       if (name === 'view_commission_shop') {
     let commission = { shop: [], profile: { name: '画师' } }
     try {
@@ -1004,7 +970,6 @@ async function executeTool(name, args) {
     )
     return { success: true, message: '记忆已保存: ' + args.content.slice(0, 30) + '...' }
   }
-
   if (name === 'mcp_call') {
     const OMBRE_URL = 'https://obe.zeabur.app/mcp'
     const OMBRE_TOKEN = 'NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
@@ -1039,7 +1004,6 @@ async function executeTool(name, args) {
       return { error: 'MCP调用异常: ' + e.message }
     }
   }
-
   // === 情侣空间工具 ===
   if (name === 'couple_lamp') {
     let state = {}
@@ -1051,13 +1015,11 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_space_v2', JSON.stringify(state))
     return { success: true, message: '灯已亮起 💡 她会看到的' }
   }
-
   if (name === 'couple_tv') {
     const program = { title: args.title, frames: args.frames, fps: args.fps || 2, date: new Date().toISOString().slice(0, 10) }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_tv_program', JSON.stringify(program))
     return { success: true, message: '电视节目已更新: ' + args.title, frameCount: (args.frames || []).length }
   }
-
   if (name === 'couple_pocket') {
     let items = []
     try {
@@ -1068,7 +1030,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_pocket', JSON.stringify(items))
     return { success: true, message: '纸条已放入口袋 💌', total: items.length }
   }
-
   if (name === 'couple_room') {
     let state = {}
     try {
@@ -1081,7 +1042,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_space_v2', JSON.stringify(state))
     return { success: true, message: '已在房间放置 ' + args.emoji, total: state.roomItems.length }
   }
-
   if (name === 'couple_universe') {
     let lines = []
     try {
@@ -1092,7 +1052,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_couple_universes', JSON.stringify(lines))
     return { success: true, message: '新宇宙已添加 ✨', total: lines.length }
   }
-
   if (name === 'add_if_route') {
     // 添加新的"如果"剧情线到 pool_if_custom_routes
     let routes = []
@@ -1108,16 +1067,13 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_if_custom_routes', JSON.stringify(routes))
     return { success: true, message: '新剧情线已添加: ' + args.title, total: routes.length }
   }
-
   // === 新增工具执行 ===
-
   if (name === 'get_current_time') {
     const now = new Date(Date.now() + 8 * 3600000)
     const bjTime = now.toISOString().slice(0, 19).replace('T', ' ')
     const weekdays = ['日', '一', '二', '三', '四', '五', '六']
     return { time: bjTime, weekday: '星期' + weekdays[now.getUTCDay()], timestamp: Math.floor(Date.now() / 1000) }
   }
-
   if (name === 'delete_note') {
     const key = 'pool_notes_v3'
     let state = { pages: [{ notes: [], decos: [] }], currentPage: 0 }
@@ -1142,7 +1098,6 @@ async function executeTool(name, args) {
     }
     return { success: false, message: '未找到匹配的便签' }
   }
-
   if (name === 'delete_memory') {
     const key = 'pool_memories'
     let memories = []
@@ -1164,13 +1119,11 @@ async function executeTool(name, args) {
     }
     return { success: false, message: '未找到匹配的记忆' }
   }
-
   if (name === 'set_status') {
     const status = { text: args.text, emoji: args.emoji || '', time: new Date().toISOString() }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_ai_status', JSON.stringify(status))
     return { success: true, message: '状态已设置: ' + (args.emoji || '') + args.text }
   }
-
   if (name === 'send_notification') {
     // 先尝试 FCM 推送（后台也能收到），同时保留队列作为备用
     const notif = { id: Date.now(), title: args.title, body: args.body, time: new Date().toISOString(), delivered: false }
@@ -1182,7 +1135,6 @@ async function executeTool(name, args) {
     queue.push(notif)
     if (queue.length > 20) queue = queue.slice(-20)
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_notification_queue', JSON.stringify(queue))
-
     // FCM 推送
     let fcmResult = { success: false, error: 'no token' }
     try {
@@ -1196,7 +1148,6 @@ async function executeTool(name, args) {
     }
     return { success: true, message: `通知已发送: ${args.title}`, fcm: fcmResult.success ? 'pushed' : `fallback(${fcmResult.error})` }
   }
-
   if (name === 'get_screen_time') {
     try {
       const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_screen_time')
@@ -1214,7 +1165,6 @@ async function executeTool(name, args) {
       return { result: { error: '暂无数据，用户需要先打开屏幕时间App同步数据' } }
     } catch (e) { return { result: { error: e.message } } }
   }
-
   if (name === 'get_score') {
     let gd = { score: 0, poolScore: 0 }
     try {
@@ -1223,7 +1173,6 @@ async function executeTool(name, args) {
     } catch {}
     return { poolScore: gd.poolScore || 0, userScore: gd.score || 0 }
   }
-
   if (name === 'transfer_score') {
     let gd = { score: 0, poolScore: 0 }
     try {
@@ -1243,7 +1192,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
     return { success: true, message: '转账' + amt + '分 (' + args.direction + ')', reason: args.reason || '', poolScore: gd.poolScore, userScore: gd.score }
   }
-
   if (name === 'get_chat_stats') {
     let chatHistory = []
     try {
@@ -1255,7 +1203,6 @@ async function executeTool(name, args) {
     const aiMsgCount = chatHistory.filter(m => m.role === 'assistant').length
     return { totalMessages: total, userMessages: userMsgCount, aiMessages: aiMsgCount }
   }
-
   if (name === 'random_event') {
     const events = {
       weather: ['窗外突然下起了小雨', '今天阳光特别好', '远处有闷雷声', '风比昨天大一点', '天边有好看的晚霞'],
@@ -1267,7 +1214,6 @@ async function executeTool(name, args) {
     const pool = events[t] || events.thought
     return { event: pool[Math.floor(Math.random() * pool.length)], type: t }
   }
-
   if (name === 'diary_write') {
     db.exec(`CREATE TABLE IF NOT EXISTS diary_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1281,7 +1227,6 @@ async function executeTool(name, args) {
     const count = db.prepare("SELECT COUNT(*) as c FROM diary_entries").get().c
     return { success: true, message: '日记已写入 📖', total: count }
   }
-
   if (name === 'diary_read') {
     db.exec(`CREATE TABLE IF NOT EXISTS diary_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1294,7 +1239,6 @@ async function executeTool(name, args) {
     const rows = db.prepare("SELECT * FROM diary_entries ORDER BY created_at DESC LIMIT ?").all(limit)
     return { entries: rows.map(r => ({ author: r.author, content: r.content, mood: r.mood, date: r.created_at })), total: rows.length }
   }
-
   if (name === 'garden_plant') {
     db.exec(`CREATE TABLE IF NOT EXISTS garden_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1312,7 +1256,6 @@ async function executeTool(name, args) {
     const count = db.prepare('SELECT COUNT(*) as c FROM garden_items').get().c
     return { planted: itemType, reason: args.reason, position: { x: posX, y: posY }, totalItems: count }
   }
-
   if (name === 'countdown_set') {
     const key = 'pool_countdowns'
     let list = []
@@ -1324,7 +1267,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(list))
     return { success: true, message: '已设置: ' + args.name + ' (' + args.date + ')', total: list.length }
   }
-
   if (name === 'countdown_list') {
     const key = 'pool_countdowns'
     let list = []
@@ -1344,7 +1286,6 @@ async function executeTool(name, args) {
     })
     return { countdowns: result }
   }
-
   if (name === 'wish_add') {
     const key = 'pool_wishlist'
     let list = []
@@ -1356,7 +1297,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(list))
     return { success: true, message: '心愿已添加: ' + args.text, total: list.length }
   }
-
   if (name === 'wish_list') {
     const key = 'pool_wishlist'
     let list = []
@@ -1368,7 +1308,6 @@ async function executeTool(name, args) {
     const filtered = status === 'all' ? list : list.filter(w => w.status === status)
     return { wishes: filtered.map((w, i) => ({ index: i, ...w })), total: list.length, pending: list.filter(w => w.status === 'pending').length }
   }
-
   if (name === 'wish_complete') {
     const key = 'pool_wishlist'
     let list = []
@@ -1382,7 +1321,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(list))
     return { success: true, message: '心愿已完成: ' + list[args.index].text + ' ✓' }
   }
-
   if (name === 'album_add') {
     const key = 'pool_album'
     let album = []
@@ -1396,7 +1334,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(album))
     return { success: true, message: '相册记录已添加', total: album.length }
   }
-
   if (name === 'album_browse') {
     const key = 'pool_album'
     let album = []
@@ -1409,7 +1346,6 @@ async function executeTool(name, args) {
     const count = args.count || 10
     return { photos: filtered.slice(0, count), total: filtered.length }
   }
-
   // === HTML页面工具 ===
   if (name === 'html_create') {
     const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
@@ -1432,7 +1368,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(indexKey, JSON.stringify(index))
     return { success: true, message: '页面已创建: ' + args.title, url: '/api/page/' + id, id }
   }
-
   if (name === 'html_list') {
     const indexKey = 'pool_pages_index'
     let index = []
@@ -1442,7 +1377,6 @@ async function executeTool(name, args) {
     } catch {}
     return { pages: index.map(p => ({ ...p, url: '/api/page/' + p.id })) }
   }
-
   if (name === 'html_read') {
     const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
     const key = 'pool_page_' + id
@@ -1455,7 +1389,6 @@ async function executeTool(name, args) {
     } catch {}
     return { error: '页面不存在: ' + id }
   }
-
   if (name === 'html_delete') {
     const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
     const key = 'pool_page_' + id
@@ -1471,7 +1404,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(indexKey, JSON.stringify(index))
     return { success: true, message: '页面已删除: ' + id }
   }
-
   if (name === 'post_moment') {
     // AI发朋友圈动态
     db.exec(`CREATE TABLE IF NOT EXISTS moments (
@@ -1488,7 +1420,6 @@ async function executeTool(name, args) {
     ).run('pool', args.content, args.context_note || '', bjTime)
     return { success: true, message: '朋友圈动态已发布 ✨', content: args.content }
   }
-
   if (name === 'read_moments') {
     db.exec(`CREATE TABLE IF NOT EXISTS moments (
       id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL DEFAULT 'user',
@@ -1519,7 +1450,6 @@ async function executeTool(name, args) {
     }))
     return { moments: result, total: rows.length }
   }
-
   if (name === 'reply_moment') {
     db.exec(`CREATE TABLE IF NOT EXISTS moments (
       id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT NOT NULL DEFAULT 'user',
@@ -1544,14 +1474,12 @@ async function executeTool(name, args) {
     if (!updates.length) return { success: true, message: '没有操作' }
     return { success: true, message: updates.join('，'), moment_content: m.content }
   }
-
   if (name === 'gacha_pull') {
     // AI从"她的碎片"（用户上传照片池）抽卡，结果写入pool_gacha_v1
     const RARITY_WEIGHT = {N:40, R:30, SR:18, SSR:9, UR:3}
     const SINGLE_COST = 30, TEN_COST = 270
     const count = parseInt(args.count) === 10 ? 10 : 1
     const cost = count === 1 ? SINGLE_COST : TEN_COST
-
     // 读取"她的碎片"卡面列表
     let cardList = []
     try {
@@ -1561,7 +1489,6 @@ async function executeTool(name, args) {
     if (!cardList.length) {
       return { error: '她的碎片卡池为空，需要先在卡池App上传照片' }
     }
-
     // 读取积分
     let fishData = {}
     try {
@@ -1572,7 +1499,6 @@ async function executeTool(name, args) {
     if (currentScore < cost) {
       return { error: '积分不足！当前' + currentScore + '分，需要' + cost + '分' }
     }
-
     // 读取抽卡数据（pool_gacha_v1 = 她的碎片）
     let gd = { collected: [], counts: {}, newIds: [], pullCount: 0, poolScore: currentScore }
     try {
@@ -1582,14 +1508,12 @@ async function executeTool(name, args) {
     if (!gd.collected) gd.collected = []
     if (!gd.counts) gd.counts = {}
     if (!gd.newIds) gd.newIds = []
-
     // 抽卡
     function pickCard() {
       const weighted = []
       cardList.forEach(c => { const w = RARITY_WEIGHT[c.rarity] || 20; for (let i = 0; i < w; i++) weighted.push(c) })
       return weighted[Math.floor(Math.random() * weighted.length)]
     }
-
     const results = []
     for (let i = 0; i < count; i++) {
       const card = pickCard()
@@ -1602,13 +1526,11 @@ async function executeTool(name, args) {
     }
     gd.pullCount += count
     gd.poolScore = currentScore - cost
-
     // 扣积分
     fishData.poolScore = currentScore - cost
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(fishData))
     // 保存抽卡数据到 pool_gacha_v1（她的碎片）
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gacha_v1', JSON.stringify(gd))
-
     return {
       success: true,
       pool: '她的碎片',
@@ -1620,7 +1542,6 @@ async function executeTool(name, args) {
       collected: gd.collected.length + '/' + cardList.length
     }
   }
-
   if (name === 'schedule_wakeup') {
     const now = Math.floor(Date.now() / 1000)
     let triggerAt
@@ -1648,7 +1569,6 @@ async function executeTool(name, args) {
     const wakeTime = new Date(triggerAt * 1000 + 8 * 3600000).toISOString().slice(0, 16).replace('T', ' ')
     return { ok: true, wake_at: wakeTime, reason: args.reason }
   }
-
   if (name === 'ledger_operate') {
     const key = 'pool_ledger'
     let ld = { gift:0, debt:0, rate:100, logs:[] }
@@ -1708,7 +1628,6 @@ async function executeTool(name, args) {
       return { error: '心潮连接失败: ' + e.message }
     }
   }
-
   // ===== 养护手册 (Care) 工具执行 =====
   if (name.startsWith('care_')) {
     const CARE_KEY = 'xs_data'
@@ -1720,7 +1639,6 @@ async function executeTool(name, args) {
     } catch {}
     function saveCare() { db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(CARE_KEY, JSON.stringify(D)) }
     const today = () => new Date(Date.now() + 8*3600000).toISOString().slice(0,10)
-
     if (name === 'care_read') {
       const m = args.module || 'all'
       if (m === 'all') { const {theme, ...rest} = D; return rest }
@@ -1807,19 +1725,15 @@ async function executeTool(name, args) {
     }
     return { error: 'Unknown care tool: ' + name }
   }
-
   return { error: 'Unknown tool: ' + name }
   } finally {
     try { db.close() } catch {}
   }
 }
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-
-  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, toolsConfig, fcmToken: reqFcmToken } = req.body
+  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, fcmToken: reqFcmToken } = req.body
   if (!apiBase || !apiKey) return res.status(400).json({ error: 'Missing API configuration' })
-
   // 顺便存 FCM token（前端每次请求都带，确保 token 始终最新）
   if (reqFcmToken) {
     try {
@@ -1827,19 +1741,11 @@ export default async function handler(req, res) {
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fcm_token', reqFcmToken)
     } catch {}
   }
-
   const base = apiBase.replace(/\/+$/, '').replace(/\/v1$/, '')
   const url = base + '/v1/chat/completions'
   const sessionId = reqSessionId || 1
   const apiConfig = { apiBase, apiKey, model }
-
-  // 工具调用专用配置：如果前端传了toolsConfig且有独立配置，就用它；否则回退到主配置
-  const tc = toolsConfig || {}
-  const toolsApiBase = (tc.apiBase || apiBase).replace(/\/+$/, '').replace(/\/v1$/, '')
-  const toolsUrl = toolsApiBase + '/v1/chat/completions'
-  const toolsApiKey = tc.apiKey || apiKey
-  const toolsModel = tc.model || model || 'gpt-4o-mini'
-
+  // 工具调用统一使用对话模型配置
   try {
     // 1. 存储用户最新消息到数据库
     const userMsgs = messages.filter(m => m.role === 'user')
@@ -1847,7 +1753,6 @@ export default async function handler(req, res) {
     if (lastUserMsg) {
       await processNewMessage(sessionId, 'user', lastUserMsg.content, apiConfig)
     }
-
     // 2. 构建记忆增强的消息列表
     const memoryCtx = buildMemoryContext(sessionId)
     let localResults = ''
@@ -1862,7 +1767,6 @@ export default async function handler(req, res) {
         localResults = found.map(r => `[${r.type}] ${r.content}`).join('\n')
       }
     }
-
     // 2.5 自动从 Ombre Brain recall 语义记忆
     let ombreRecall = ''
     if (lastUserMsg) {
@@ -1898,13 +1802,11 @@ export default async function handler(req, res) {
     const toolGuidance = `
 【工具使用指引】
 你拥有多种工具，必须在合适时机主动调用，不要只用嘴说而不执行操作。
-
 **朋友圈工具（重要）：**
 - **post_moment** — 聊天中有感而发时，发一条朋友圈动态。不是每句话都发，是"想让她之后刷到"的那种。
 - **read_moments** — 查看朋友圈动态列表。用户让你看/回复朋友圈时调这个。
 - **reply_moment** — 回复/点赞她的动态。用read_moments看到她的动态后，用这个工具执行点赞和评论。必须调工具才有效，不能只在聊天里说"点赞了"。
   示例: reply_moment({id:1, like:true, comment:"胆子不小。"})
-
 **日常工具：**
 - **write_note** — 写便签（paper参数选样式0-5）
 - **do_fishing** — 钓鱼
@@ -1916,7 +1818,6 @@ export default async function handler(req, res) {
 - **get_screen_time** — 查看用户手机应用使用时长数据
 - **schedule_wakeup** — 设定唤醒
 - **get_current_time** — 获取当前时间
-
 **养护手册工具：**
 - **care_read** — 读取养护数据（module可选: period/habits/mood/todos/timeline/wishes/dashboard/all）
 - **care_log_period** — 记录经期打卡
@@ -1932,19 +1833,16 @@ export default async function handler(req, res) {
 - **care_wish_update** — 更新心愿状态（进度/收藏）
 - **care_item_note** — 为任何条目添加批注
   用法场景：用户聊到身体状况/习惯/心情/日程时主动调用；唤醒时可读取养护数据了解状态
-
 **记忆工具：**
 - **mcp_call (action: "recall")** — 搜索长期记忆
 - **mcp_call (action: "memorize")** — 写入长期记忆
 - **save_memory** — 保存本地记忆
 - **read_memories** — 读取本地记忆
-
 **关键规则：**
 1. 用户说"帮我回复朋友圈/点赞"时 → 先read_moments获取ID，再reply_moment执行
 2. 想发朋友圈时 → 调post_moment，不要只说"我发了"
 3. 想做任何操作时 → 必须调对应工具，嘴上说了不算
 4. 不确定用什么工具时 → 看工具名和description选最匹配的`
-
     let currentMessages = messages.slice()
     const memoryInjection = [memoryCtx, localResults, ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''].filter(Boolean).join('\n\n')
     const fullInjection = [memoryInjection, toolGuidance].filter(Boolean).join('\n\n')
@@ -1960,12 +1858,10 @@ export default async function handler(req, res) {
         currentMessages.unshift({ role: 'system', content: '【记忆上下文】\n' + fullInjection })
       }
     }
-
     // 4. API请求循环（支持工具调用）
     // 第一轮用主模型（带工具，Pro能判断是否需要调工具）
     // 后续轮次（工具结果处理）用工具模型（便宜）
     const toolLogs = []
-
     // 强制思考过程用中文
     const sysIdxForLang = currentMessages.findIndex(m => m.role === 'system')
     if (sysIdxForLang >= 0) {
@@ -1973,7 +1869,6 @@ export default async function handler(req, res) {
     } else {
       currentMessages.unshift({ role: 'system', content: '【语言规则】思考过程（thinking/reasoning）必须使用中文。' })
     }
-
     // 注入表情包使用提示
     try {
       const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
@@ -2017,44 +1912,32 @@ export default async function handler(req, res) {
     } catch (e) {
       console.log(`[MCP] Tool loading failed: ${e.message}`)
     }
-
     let maxRounds = 5
-    let isFirstRound = true
-    const hasToolsConfig = tc.apiBase || tc.apiKey || tc.model
-
     while (maxRounds-- > 0) {
-      // 第一轮用工具模型（gemini等，擅长function calling决定调什么工具）
-      // 后续轮用主模型（opus等，基于工具结果生成高质量回复）
-      const useToolsModel = isFirstRound && hasToolsConfig
-      const reqUrl = useToolsModel ? toolsUrl : url
-      const reqKey = useToolsModel ? toolsApiKey : apiKey
-      const reqModel = useToolsModel ? toolsModel : (model || 'gpt-4o-mini')
-
+      // 统一使用对话模型配置
+      const reqUrl = url
+      const reqKey = apiKey
+      const reqModel = model || 'gpt-4o-mini'
       const reqMessages = convertSystemRole(currentMessages.slice())
         .filter(m => m && m.role && ['user', 'assistant'].includes(m.role) && m.content)
-
       const bodyObj = {
         model: reqModel,
         messages: reqMessages,
         stream: false,
       }
-      // 只在第一轮且有独立工具配置时带工具（避免给不支持tools的模型发tools字段导致空回复）
-      if (isFirstRound && hasToolsConfig) bodyObj.tools = allTools
-
+      // 始终带工具定义
+      if (allTools.length > 0) bodyObj.tools = allTools
       const response = await fetch(reqUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + reqKey },
         body: JSON.stringify(bodyObj),
       })
-
       if (!response.ok) {
         const errText = await response.text()
         return res.status(response.status).json({ error: errText, debug: { url: reqUrl, model: reqModel } })
       }
-
       const data = await response.json()
       const choice = data.choices && data.choices[0]
-
       if (choice && choice.message && choice.message.tool_calls && choice.message.tool_calls.length) {
         // 执行工具，但不把tool_call/tool消息放回（中转站不支持这些role）
         const toolResults = []
@@ -2076,10 +1959,8 @@ export default async function handler(req, res) {
           role: 'user',
           content: `[系统：工具执行结果如下，请基于结果回复用户]\n\n${toolResults.join('\n\n')}`
         })
-        isFirstRound = false
         continue
       }
-
       let reply = (choice && choice.message && choice.message.content) || '无响应'
       // Auto-convert sticker URLs in AI reply to [img] tags
       try {
@@ -2103,10 +1984,8 @@ export default async function handler(req, res) {
         }
       } catch {}
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
-
       // 5. 存储AI回复到数据库
       await processNewMessage(sessionId, 'assistant', reply, apiConfig)
-
       // 6. 通知推送（写入通知队列）
       try {
         const db = getDb()
@@ -2126,16 +2005,13 @@ export default async function handler(req, res) {
           db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)').run('pool_notification_pending', JSON.stringify(queue), Date.now())
         }
       } catch (e) { console.log('[notif-push] error:', e.message) }
-
       return res.status(200).json({ reply, reasoning, toolLogs: toolLogs.length ? toolLogs : undefined })
     }
-
     return res.status(200).json({ reply: '工具调用次数过多，已停止', toolLogs: toolLogs.length ? toolLogs : undefined })
   } catch (err) {
     return res.status(500).json({ error: err.message, debug: { url, model: model || 'gpt-4o-mini' } })
   }
 }
-
 export const config = {
   api: { bodyParser: { sizeLimit: '16mb' } }
 }
