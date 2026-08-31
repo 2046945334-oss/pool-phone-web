@@ -1,42 +1,39 @@
-import Keyv from 'keyv'
-import { KeyvFile } from 'keyv-file'
-import path from 'path'
+import { getDb } from '../../lib/db'
 
-const store = new KeyvFile({ filename: path.join(process.cwd(), '.data/kv.json') })
-const kv = new Keyv({ store })
+function getStickers() {
+  const db = getDb()
+  const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+  return row ? JSON.parse(row.value) : []
+}
+
+function setStickers(stickers) {
+  const db = getDb()
+  db.prepare("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)").run('pool_stickers', JSON.stringify(stickers))
+}
 
 export default async function handler(req, res) {
   const { method } = req
-
   try {
     if (method === 'GET') {
-      // 获取表情包列表
-      const stickers = await kv.get('pool_stickers') || []
-      return res.json({ stickers })
+      return res.json({ stickers: getStickers() })
     }
-
     if (method === 'POST') {
-      // 上传表情包
       const { name, url, data, category } = req.body
-      
       let finalUrl = url
-      
-      // 如果是base64数据，上传到后端
       if (data && data.startsWith('data:image/')) {
-        const uploadRes = await fetch(`${req.headers.origin || 'http://localhost:3000'}/api/upload`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data })
-        })
-        const uploadData = await uploadRes.json()
-        if (uploadData.url) finalUrl = uploadData.url
+        try {
+          const uploadRes = await fetch(`${req.headers.origin || 'http://localhost:3000'}/api/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data })
+          })
+          const uploadData = await uploadRes.json()
+          if (uploadData.url) finalUrl = uploadData.url
+        } catch {}
       }
-
-      // OCR识别内容（可选）
-      let detectedContent = name || '未命名'
+      let detectedContent = name || ''
       if (finalUrl && !name) {
         try {
-          // 调用vision API识别图片内容
           const visionRes = await fetch(`${req.headers.origin || 'http://localhost:3000'}/api/vision`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -46,8 +43,8 @@ export default async function handler(req, res) {
           if (visionData.description) detectedContent = visionData.description
         } catch {}
       }
-
-      const stickers = await kv.get('pool_stickers') || []
+      if (!detectedContent) detectedContent = '表情包'
+      const stickers = getStickers()
       const newSticker = {
         id: Date.now() + Math.random(),
         name: detectedContent,
@@ -56,20 +53,16 @@ export default async function handler(req, res) {
         createdAt: new Date().toISOString()
       }
       stickers.push(newSticker)
-      await kv.set('pool_stickers', stickers)
-
+      setStickers(stickers)
       return res.json({ success: true, sticker: newSticker })
     }
-
     if (method === 'DELETE') {
-      // 删除表情包
       const { id } = req.query
-      const stickers = await kv.get('pool_stickers') || []
+      const stickers = getStickers()
       const filtered = stickers.filter(s => s.id != id)
-      await kv.set('pool_stickers', filtered)
+      setStickers(filtered)
       return res.json({ success: true })
     }
-
     res.status(405).json({ error: 'Method not allowed' })
   } catch (e) {
     res.status(500).json({ error: e.message })
