@@ -1975,6 +1975,7 @@ export default async function handler(req, res) {
             result = await executeTool(tc.function.name, args)
           }
           toolLogs.push({ name: tc.function.name, args, result })
+          console.log('[TOOL]', tc.function.name, 'result:', JSON.stringify(result).substring(0, 200))
           toolResults.push(`[${tc.function.name}] ${JSON.stringify(result)}`)
         }
         // 将工具结果作为纯文本user消息注入（中转站友好）
@@ -1985,14 +1986,17 @@ export default async function handler(req, res) {
         continue
       }
       let reply = (choice && choice.message && choice.message.content) || '无响应'
+      console.log('[AI RAW]', reply.substring(0, 300))
       // Auto-convert sticker URLs in AI reply
       try {
+        const before = reply
         reply = reply.replace(/\[sticker\]\(([^)]+)\)/g, '[img]$1[/img]')
         reply = reply.replace(/!\[[^\]]*\]\((\/api\/img\/[^)]+)\)/g, '[img]$1[/img]')
         reply = reply.replace(/(\[img\])?(\/api\/img\/\S+\.(?:png|jpg|jpeg|webp|gif))/gi, function(m, pre, url) {
           if (pre) return m
           return '[img]' + url + '[/img]'
         })
+        if (before !== reply) console.log('[IMG CONV]', before, '->', reply)
       } catch {}
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
       // 5. 存储AI回复到数据库
