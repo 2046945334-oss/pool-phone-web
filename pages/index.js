@@ -703,11 +703,19 @@ function ChatView({ theme }) {
   }
 
   function triggerAI() { sendMessage(messages) }
-  function addUserMsg() {
+  async function addUserMsg() {
     const t = input.trim()
     if (!t) return
     setMessages([...messages, { role: 'user', content: t, ts: Date.now() }])
     setInput('')
+    // 同步到 chat_messages 表供唤醒系统读取
+    try {
+      await fetch('/api/chat-append', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', content: t })
+      })
+    } catch {}
   }
 
   function handleLongPress(i) { setMenuIdx(i) }
