@@ -1985,20 +1985,13 @@ export default async function handler(req, res) {
         continue
       }
       let reply = (choice && choice.message && choice.message.content) || '无响应'
-      // Auto-convert sticker URLs in AI reply to [img] tags
+      // Auto-convert sticker URLs in AI reply
       try {
-        // 1. Convert [sticker](url) format
         reply = reply.replace(/\[sticker\]\(([^)]+)\)/g, '[img]$1[/img]')
-        // 2. Convert markdown image ![...](url) where url contains /api/img/
         reply = reply.replace(/!\[[^\]]*\]\((\/api\/img\/[^)]+)\)/g, '[img]$1[/img]')
-        // 3. Convert bare /api/img/ URLs (handles AI splitting URL across lines or adding punctuation)
-        // First, rejoin broken URLs like "/api/img/img_xxx.
-png" -> "/api/img/img_xxx.png"
-        reply = reply.replace(/(\/api\/img\/[\w.-]+)\s*\n\s*(\w+)/g, '$1$2')
-        // Then wrap any bare /api/img/ URL not already in [img] tags
-        reply = reply.replace(/(\[img\])?\/api\/img\/[\w.-]+\.(?:png|jpg|jpeg|webp|gif)/gi, (match) => {
-          if (match.startsWith('[img]')) return match
-          return '[img]' + match + '[/img]'
+        reply = reply.replace(/(\[img\])?(\/api\/img\/\S+\.(?:png|jpg|jpeg|webp|gif))/gi, function(m, pre, url) {
+          if (pre) return m
+          return '[img]' + url + '[/img]'
         })
       } catch {}
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
