@@ -87,6 +87,12 @@ async function callMcpToolDirect(meta, args) {
 const TOOLS = [
   {
     type: 'function', function: {
+      name: 'get_stickers', description: '获取表情包库中所有可用的表情包列表。返回每个表情包的name和url。在回复中使用[img]url[/img]来发送表情包。',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'write_note', description: '在便签墙上写一张新便签。可选择便签纸样式。',
       parameters: { type: 'object', properties: { text: { type: 'string', description: '便签内容' }, paper: { type: 'number', description: '便签纸样式编号(0-5)：0=格子猫咪, 1=棋盘格, 2=蜘蛛网, 3=简约线框, 4=虚线粉框, 5=花朵藤蔓。不传则随机' } }, required: ['text'] }
     }
@@ -565,6 +571,12 @@ async function executeTool(name, args) {
   try {
 
 
+  if (name === 'get_stickers') {
+    const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+    const stickers = row ? JSON.parse(row.value) : []
+    if (stickers.length === 0) return '表情包库为空，暂无可用表情包。'
+    return stickers.map(s => s.name + ': ' + s.url).join('\n')
+  }
   if (name === 'write_note') {
     const key = 'pool_notes_v3'
     let state = { pages: [{ notes: [], decos: [] }], currentPage: 0 }
@@ -1961,6 +1973,18 @@ export default async function handler(req, res) {
     } else {
       currentMessages.unshift({ role: 'system', content: '【语言规则】思考过程（thinking/reasoning）必须使用中文。' })
     }
+
+    // 注入表情包使用提示
+    try {
+      const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+      const stickers = stickerRow ? JSON.parse(stickerRow.value) : []
+      if (stickers.length > 0) {
+        const stickerHint = '【表情包】你有 ' + stickers.length + ' 个表情包可用。想发表情包时调用 get_stickers 工具获取列表，然后在回复中用 [img]url[/img] 发送。适合在聊天中表达情绪时使用。'
+        const sysMsg = currentMessages.find(m => m.role === 'system')
+        if (sysMsg) sysMsg.content += '\n\n' + stickerHint
+        else currentMessages.unshift({ role: 'system', content: stickerHint })
+      }
+    } catch {}
     
     // 将system role转为user消息（部分代理不支持system role）
     function convertSystemRole(msgs) {
