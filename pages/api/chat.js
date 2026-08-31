@@ -1996,7 +1996,10 @@ export default async function handler(req, res) {
 png" -> "/api/img/img_xxx.png"
         reply = reply.replace(/(\/api\/img\/[\w.-]+)\s*\n\s*(\w+)/g, '$1$2')
         // Then wrap any bare /api/img/ URL not already in [img] tags
-        reply = reply.replace(/(?<!\[img\])(\/api\/img\/[\w.-]+\.(?:png|jpg|jpeg|webp|gif))(?!\[\/img\])/gi, '[img]$1[/img]')
+        reply = reply.replace(/(\[img\])?\/api\/img\/[\w.-]+\.(?:png|jpg|jpeg|webp|gif)/gi, (match) => {
+          if (match.startsWith('[img]')) return match
+          return '[img]' + match + '[/img]'
+        })
       } catch {}
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
       // 5. 存储AI回复到数据库
