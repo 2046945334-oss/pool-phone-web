@@ -620,12 +620,14 @@ function ChatView({ theme }) {
       const reply = data.reply || '\u65e0\u54cd\u5e94'
       const toolLogs = data.toolLogs || null
       // Split reply into sentences and show one by one
-      // Protect [voice]...[/voice] blocks from being split
+      // Protect [voice]...[/voice] and [img]...[/img] blocks from being split
       const voiceBlocks = []
-      const safeReply = reply.replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, (m) => { voiceBlocks.push(m); return `__VOICE_${voiceBlocks.length-1}__` })
+      let safeReply = reply.replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, (m) => { voiceBlocks.push(m); return `__VOICE_${voiceBlocks.length-1}__` })
+      const imgBlocks = []
+      safeReply = safeReply.replace(/\[img\]([\s\S]*?)\[\/img\]/g, (m) => { imgBlocks.push(m); return `__IMG_${imgBlocks.length-1}__` })
       const sentences = safeReply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
-      // Restore voice blocks
-      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]))
+      // Restore voice and img blocks
+      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]))
       let current = [...newMessages]
       for (let i = 0; i < restored.length; i++) {
         current = [...current, { role: 'assistant', content: restored[i].trim(), ts: i === 0 ? Date.now() : undefined, ...(i === 0 && data.reasoning ? { reasoning: data.reasoning } : {}) }]

@@ -1979,7 +1979,7 @@ export default async function handler(req, res) {
       const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
       const stickers = stickerRow ? JSON.parse(stickerRow.value) : []
       if (stickers.length > 0) {
-        const stickerHint = '【表情包】你有 ' + stickers.length + ' 个表情包可用。想发表情包时调用 get_stickers 工具获取列表，然后在回复中用 [img]url[/img] 发送。适合在聊天中表达情绪时使用。'
+        const stickerHint = '【表情包】你有 ' + stickers.length + ' 个表情包可用。想发表情包时先调用 get_stickers 工具获取列表，然后在回复正文中严格使用 [img]完整url[/img] 格式发送（例如 [img]/api/img/xxx.png[/img]）。注意：必须是[img]和[/img]标签包裹完整URL，不要用markdown图片语法，不要用[sticker]格式。'
         const sysMsg = currentMessages.find(m => m.role === 'system')
         if (sysMsg) sysMsg.content += '\n\n' + stickerHint
         else currentMessages.unshift({ role: 'system', content: stickerHint })
