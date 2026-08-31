@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 import SplashScreen from '../components/SplashScreen'
+import StickerPanel from '../components/StickerPanel'
 import { pullAllFromBackend, pushAllToBackend } from '../lib/appSync'
 import BrowserApp from '../components/apps/BrowserApp'
 import FortuneApp from '../components/apps/FortuneApp'
@@ -343,6 +344,7 @@ function ChatView({ theme }) {
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
   const [showEmoji, setShowEmoji] = useState(false)
+  const [showStickerPanel, setShowStickerPanel] = useState(false)
   const EMOJI_LIST = ['😊','😂','🥺','😭','❤️','🔥','👍','😘','🤗','😏','🙄','😴','🎉','💕','😤','🥰','😳','👀','✨','🌸','💔','🫶','😈','🤭','💋','🙈','😮','💀','🫡','🤔']
   const [editIdx, setEditIdx] = useState(-1)
   const [editText, setEditText] = useState('')
@@ -901,7 +903,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
             reader.readAsDataURL(file)
           }} />
         </label>
-        <button className="chat-plus-btn" onClick={() => setShowEmoji(!showEmoji)} style={{fontSize:'16px'}}>{'\ud83d\ude0a'}</button>
+        <button className="chat-plus-btn" onClick={() => setShowStickerPanel(!showStickerPanel)} style={{fontSize:'20px'}}>{'📦'}</button>
         <input className="chat-input" style={theme?.inputBg?{background:theme.inputBg}:{}} value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
@@ -921,6 +923,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           }} />
         </label>
       </div>}
+      {showStickerPanel && <StickerPanel onSelect={(s) => { setInput(input + s); setShowStickerPanel(false) }} onClose={() => setShowStickerPanel(false)} />}
     </div>
   )
 }
