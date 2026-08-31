@@ -575,7 +575,7 @@ async function executeTool(name, args) {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
     const stickers = row ? JSON.parse(row.value) : []
     if (stickers.length === 0) return '表情包库为空，暂无可用表情包。'
-    return '以下是你的表情包，直接在回复中复制对应的[img]标签即可发送：\n' + stickers.map(s => s.name + ': [img]' + s.url + '[/img]').join('\n') + '\n\n注意：回复时直接包含[img]url[/img]标签，不要加任何其他格式。'
+    return '你的表情包列表（名称=含义/情绪）：\n' + stickers.map(s => s.name + ' → ' + s.url).join('\n') + '\n\n用法：在回复中直接写URL即可自动显示为图片。例如直接写 ' + stickers[0].url + ' 就行。'
   }
   if (name === 'write_note') {
     const key = 'pool_notes_v3'
@@ -1979,7 +1979,7 @@ export default async function handler(req, res) {
       const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
       const stickers = stickerRow ? JSON.parse(stickerRow.value) : []
       if (stickers.length > 0) {
-        const stickerHint = '【表情包】你有 ' + stickers.length + ' 个表情包可用。想发表情包时先调用 get_stickers 工具获取列表，然后在回复正文中严格使用 [img]完整url[/img] 格式发送（例如 [img]/api/img/xxx.png[/img]）。注意：必须是[img]和[/img]标签包裹完整URL，不要用markdown图片语法，不要用[sticker]格式。'
+        const stickerHint = '【表情包】你有 ' + stickers.length + ' 个表情包可用。想发表情包时先调用 get_stickers 工具获取列表（会返回每个表情包的名称和含义），然后在回复中直接写表情包的URL路径即可，系统会自动渲染成图片。'
         const sysMsg = currentMessages.find(m => m.role === 'system')
         if (sysMsg) sysMsg.content += '\n\n' + stickerHint
         else currentMessages.unshift({ role: 'system', content: stickerHint })
@@ -2080,7 +2080,28 @@ export default async function handler(req, res) {
         continue
       }
 
-      const reply = (choice && choice.message && choice.message.content) || '无响应'
+      let reply = (choice && choice.message && choice.message.content) || '无响应'
+      // Auto-convert sticker URLs in AI reply to [img] tags
+      try {
+        const stickerRow2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+        const stickerList = stickerRow2 ? JSON.parse(stickerRow2.value) : []
+        if (stickerList.length > 0) {
+          const stickerUrls = stickerList.map(s => s.url).filter(Boolean)
+          // Convert [sticker](url) format
+          reply = reply.replace(/\[sticker\]\(([^)]+)\)/g, '[img]$1[/img]')
+          // Convert markdown image ![...](url) where url is a sticker
+          reply = reply.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) => {
+            if (stickerUrls.some(su => url.includes(su) || su.includes(url))) return '[img]' + url + '[/img]'
+            return match
+          })
+          // Convert bare sticker URLs (not already in [img] tags)
+          for (const su of stickerUrls) {
+            if (reply.includes(su) && !reply.includes('[img]' + su + '[/img]')) {
+              reply = reply.replace(new RegExp(su.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '[img]' + su + '[/img]')
+            }
+          }
+        }
+      } catch {}
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
 
       // 5. 存储AI回复到数据库
