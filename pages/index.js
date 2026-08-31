@@ -903,7 +903,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
             reader.readAsDataURL(file)
           }} />
         </label>
-        <button className="chat-plus-btn" onClick={() => setShowStickerPanel(!showStickerPanel)} style={{fontSize:'20px'}}>{'📦'}</button>
+        <button className="chat-plus-btn" onClick={() => setShowStickerPanel(!showStickerPanel)} style={{background:'none',border:'none',cursor:'pointer',padding:'4px'}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9a8a99" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
         <input className="chat-input" style={theme?.inputBg?{background:theme.inputBg}:{}} value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
