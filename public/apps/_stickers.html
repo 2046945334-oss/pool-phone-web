@@ -43,20 +43,11 @@
       text-align: center;
       cursor: pointer;
       transition: all 0.3s;
-      position: relative;
+      display: block;
     }
     .upload-area:hover {
       border-color: #764ba2;
       background: rgba(102, 126, 234, 0.05);
-    }
-    .upload-area input[type="file"] {
-      position: absolute;
-      opacity: 0;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      cursor: pointer;
     }
     .upload-icon {
       font-size: 48px;
@@ -250,11 +241,11 @@
     </div>
 
     <div class="upload-section">
-      <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-        <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+      <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)" style="display:none">
+      <label for="fileInput" class="upload-area">
         <div class="upload-icon">📤</div>
         <div class="upload-text">点击上传图片</div>
-      </div>
+      </label>
     </div>
 
     <div class="preview-section" id="previewSection">
