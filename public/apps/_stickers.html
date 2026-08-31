@@ -241,7 +241,7 @@
     </div>
 
     <div class="upload-section">
-      <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)" style="display:none">
+      <input type="file" id="fileInput" accept="image/*,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onchange="handleFileSelect(event)" style="display:none">
       <label for="fileInput" class="upload-area">
         <div class="upload-icon">📤</div>
         <div class="upload-text">点击上传图片</div>
@@ -271,6 +271,8 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
   <script>
     let currentFile = null
     let currentBase64 = null
@@ -282,9 +284,15 @@
       setTimeout(() => toast.classList.remove('show'), 2000)
     }
 
-    function handleFileSelect(e) {
+    async function handleFileSelect(e) {
       const file = e.target.files[0]
       if (!file) return
+      
+      if (file.name.endsWith('.docx') || file.type.includes('wordprocessingml')) {
+        await handleDocxUpload(file)
+        e.target.value = ''
+        return
+      }
       
       currentFile = file
       const reader = new FileReader()
@@ -296,6 +304,39 @@
         document.getElementById('meaningInput').focus()
       }
       reader.readAsDataURL(file)
+    }
+    
+    async function handleDocxUpload(file) {
+      if (!window.JSZip) { alert('加载中，请稍后再试'); return }
+      try {
+        const zip = await JSZip.loadAsync(file)
+        const files = Object.keys(zip.files).filter(n => n.startsWith('word/media/'))
+        if (!files.length) { alert('文档中未找到图片'); return }
+        alert(`找到 ${files.length} 张图片，开始批量上传...`)
+        let ok = 0
+        for (const fn of files) {
+          const fd = zip.files[fn]
+          if (fd.dir) continue
+          const blob = await fd.async('blob')
+          const ext = fn.split('.').pop().toLowerCase()
+          if (!['jpg','jpeg','png','gif','webp'].includes(ext)) continue
+          const b64 = await new Promise(r => {
+            const reader = new FileReader()
+            reader.onloadend = () => r(reader.result)
+            reader.readAsDataURL(blob)
+          })
+          const form = new FormData()
+          form.append('image', b64)
+          form.append('name', '表情包')
+          form.append('category', 'custom')
+          try {
+            const res = await fetch('/api/stickers/upload', {method:'POST', body:form})
+            if (res.ok) ok++
+          } catch(e) { console.error(e) }
+        }
+        alert(`批量上传完成！成功 ${ok} / ${files.length}`)
+        await loadStickers()
+      } catch(e) { alert('解析失败: '+e.message) }
     }
 
     function cancelUpload() {
