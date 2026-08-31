@@ -1987,24 +1987,16 @@ export default async function handler(req, res) {
       let reply = (choice && choice.message && choice.message.content) || '无响应'
       // Auto-convert sticker URLs in AI reply to [img] tags
       try {
-        const stickerRow2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
-        const stickerList = stickerRow2 ? JSON.parse(stickerRow2.value) : []
-        if (stickerList.length > 0) {
-          const stickerUrls = stickerList.map(s => s.url).filter(Boolean)
-          // Convert [sticker](url) format
-          reply = reply.replace(/\[sticker\]\(([^)]+)\)/g, '[img]$1[/img]')
-          // Convert markdown image ![...](url) where url is a sticker
-          reply = reply.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (match, url) => {
-            if (stickerUrls.some(su => url.includes(su) || su.includes(url))) return '[img]' + url + '[/img]'
-            return match
-          })
-          // Convert bare sticker URLs (not already in [img] tags)
-          for (const su of stickerUrls) {
-            if (reply.includes(su) && !reply.includes('[img]' + su + '[/img]')) {
-              reply = reply.replace(new RegExp(su.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '[img]' + su + '[/img]')
-            }
-          }
-        }
+        // 1. Convert [sticker](url) format
+        reply = reply.replace(/\[sticker\]\(([^)]+)\)/g, '[img]$1[/img]')
+        // 2. Convert markdown image ![...](url) where url contains /api/img/
+        reply = reply.replace(/!\[[^\]]*\]\((\/api\/img\/[^)]+)\)/g, '[img]$1[/img]')
+        // 3. Convert bare /api/img/ URLs (handles AI splitting URL across lines or adding punctuation)
+        // First, rejoin broken URLs like "/api/img/img_xxx.
+png" -> "/api/img/img_xxx.png"
+        reply = reply.replace(/(\/api\/img\/[\w.-]+)\s*\n\s*(\w+)/g, '$1$2')
+        // Then wrap any bare /api/img/ URL not already in [img] tags
+        reply = reply.replace(/(?<!\[img\])(\/api\/img\/[\w.-]+\.(?:png|jpg|jpeg|webp|gif))(?!\[\/img\])/gi, '[img]$1[/img]')
       } catch {}
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
       // 5. 存储AI回复到数据库
