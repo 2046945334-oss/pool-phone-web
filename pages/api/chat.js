@@ -588,10 +588,11 @@ async function executeTool(name, args) {
     const exists = stickers.find(s => s.url === args.url)
     if (exists) {
       exists.meaning = args.meaning
+      exists.name = args.meaning
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_stickers', JSON.stringify(stickers))
       return `已更新表情包含义：${args.meaning}`
     }
-    stickers.push({ name: 'sticker_' + Date.now(), meaning: args.meaning, url: args.url })
+    stickers.push({ id: Date.now() + Math.random(), name: args.meaning, meaning: args.meaning, url: args.url, category: 'custom', createdAt: new Date().toISOString() })
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_stickers', JSON.stringify(stickers))
     return `已添加表情包：${args.meaning}（共${stickers.length}个）`
   }
@@ -602,8 +603,8 @@ async function executeTool(name, args) {
     for (const item of (args.list || [])) {
       if (!item.url || !item.meaning) continue
       const exists = stickers.find(s => s.url === item.url)
-      if (exists) { exists.meaning = item.meaning; updated++ }
-      else { stickers.push({ name: 'sticker_' + Date.now() + '_' + added, meaning: item.meaning, url: item.url }); added++ }
+      if (exists) { exists.meaning = item.meaning; exists.name = item.meaning; updated++ }
+      else { stickers.push({ id: Date.now() + Math.random() + added, name: item.meaning, meaning: item.meaning, url: item.url, category: 'custom', createdAt: new Date().toISOString() }); added++ }
     }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_stickers', JSON.stringify(stickers))
     return `批量导入完成：新增${added}个，更新${updated}个，共${stickers.length}个表情包。`
