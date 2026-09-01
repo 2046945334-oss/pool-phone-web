@@ -55,21 +55,55 @@ export default function StickerPanel({ onSelect, onClose }) {
     return { name: '', url: trimmed }
   }
 
+  // 尝试在浏览器端下载图片并转为base64
+  async function urlToBase64(url) {
+    try {
+      // 方法1: 用fetch直接下载
+      const res = await fetch(url, { mode: 'cors' })
+      if (res.ok) {
+        const blob = await res.blob()
+        return await new Promise(r => { const rd = new FileReader(); rd.onloadend = () => r(rd.result); rd.readAsDataURL(blob) })
+      }
+    } catch {}
+    try {
+      // 方法2: 用Image + Canvas (绕过部分CORS)
+      return await new Promise((resolve, reject) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          const cv = document.createElement('canvas')
+          cv.width = img.naturalWidth; cv.height = img.naturalHeight
+          cv.getContext('2d').drawImage(img, 0, 0)
+          resolve(cv.toDataURL('image/png'))
+        }
+        img.onerror = reject
+        img.src = url
+        setTimeout(reject, 10000)
+      })
+    } catch {}
+    return null
+  }
+
   async function handleUrlUpload() {
     if (!urlInput.trim()) return
     setUploading(true)
     try {
-      // 支持批量：按换行分割，每行一条
       const lines = urlInput.split('\n').map(l => l.trim()).filter(Boolean)
       const added = []
       for (const line of lines) {
         const parsed = parseUrlLine(line)
         if (!parsed || !parsed.url) continue
         try {
+          let body = { name: parsed.name, url: parsed.url }
+          // 如果是外链，尝试在浏览器端下载转base64
+          if (parsed.url.startsWith('http')) {
+            const b64 = await urlToBase64(parsed.url)
+            if (b64) body = { name: parsed.name, data: b64 }
+          }
           const res = await fetch('/api/stickers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: parsed.name, url: parsed.url })
+            body: JSON.stringify(body)
           })
           const result = await res.json()
           if (result.success) added.push(result.sticker)

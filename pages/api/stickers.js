@@ -1,4 +1,5 @@
 import { getDb } from '../../lib/db'
+import crypto from 'crypto'
 
 function getStickers() {
   const db = getDb()
@@ -19,10 +20,12 @@ export default async function handler(req, res) {
     }
     if (method === 'POST') {
       const { name, url, data, category } = req.body
+      const origin = req.headers.origin || req.headers['x-forwarded-proto'] + '://' + req.headers['x-forwarded-host'] || 'http://localhost:3000'
       let finalUrl = url
+      // Case 1: base64 data upload
       if (data && data.startsWith('data:image/')) {
         try {
-          const uploadRes = await fetch(`${req.headers.origin || 'http://localhost:3000'}/api/upload`, {
+          const uploadRes = await fetch(`${origin}/api/upload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data })
@@ -31,10 +34,31 @@ export default async function handler(req, res) {
           if (uploadData.url) finalUrl = uploadData.url
         } catch {}
       }
+      // Case 2: external URL - download and re-host locally
+      if (finalUrl && finalUrl.startsWith('http') && !finalUrl.startsWith(origin)) {
+        try {
+          const imgRes = await fetch(finalUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' })
+          if (imgRes.ok) {
+            const contentType = imgRes.headers.get('content-type') || 'image/png'
+            const buffer = Buffer.from(await imgRes.arrayBuffer())
+            const base64Data = `data:${contentType};base64,${buffer.toString('base64')}`
+            const uploadRes = await fetch(`${origin}/api/upload`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: base64Data })
+            })
+            const uploadData = await uploadRes.json()
+            if (uploadData.url) finalUrl = uploadData.url
+          }
+        } catch (e) {
+          // If download fails, keep original URL as fallback
+          console.error('Failed to re-host image:', e.message)
+        }
+      }
       let detectedContent = name || ''
       if (finalUrl && !name) {
         try {
-          const visionRes = await fetch(`${req.headers.origin || 'http://localhost:3000'}/api/vision`, {
+          const visionRes = await fetch(`${origin}/api/vision`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: finalUrl, prompt: '这张图片的情绪或内容是什么？用2-4个字简短描述' })
