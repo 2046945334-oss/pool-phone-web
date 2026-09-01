@@ -580,7 +580,7 @@ async function executeTool(name, args) {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
     const stickers = row ? JSON.parse(row.value) : []
     if (stickers.length === 0) return '表情包库为空，暂无可用表情包。'
-    return '你的表情包列表（含义 → URL）：\n' + stickers.map(s => `${s.meaning || s.name} → ${s.url}`).join('\n') + '\n\n用法：在回复中直接写URL即可自动显示为图片。'
+    return '你的表情包列表（含义 → URL）：\n' + stickers.map(s => `${s.meaning || s.name} → ${s.url}`).join('\n') + '\n\n用法：在回复中用 [img]URL[/img] 格式发送，例如 [img]/api/img/xxx.jpg[/img]。不要直接写URL，必须用[img]标签包裹。'
   }
   if (name === 'add_sticker') {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
@@ -1913,7 +1913,7 @@ export default async function handler(req, res) {
       const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
       const stickers = stickerRow ? JSON.parse(stickerRow.value) : []
       if (stickers.length > 0) {
-        const stickerHint = '【表情包】你有 ' + stickers.length + ' 个表情包可用。想发表情包时先调用 get_stickers 工具获取列表（会返回每个表情包的名称和含义），然后在回复中直接写表情包的URL路径即可，系统会自动渲染成图片。'
+        const stickerHint = '【表情包】你有 ' + stickers.length + ' 个表情包可用。想发表情包时先调用 get_stickers 工具获取列表，然后在回复中用 [img]URL[/img] 格式发送（例如 [img]/api/img/xxx.jpg[/img]）。注意必须用[img][/img]包裹URL才能显示为图片。'
         const sysMsg = currentMessages.find(m => m.role === 'system')
         if (sysMsg) sysMsg.content += '\n\n' + stickerHint
         else currentMessages.unshift({ role: 'system', content: stickerHint })
@@ -2038,6 +2038,11 @@ export default async function handler(req, res) {
         reply = reply.replace(/\[sticker\]\(([^)]+)\)/g, '[img]$1[/img]')
         reply = reply.replace(/!\[[^\]]*\]\((\/api\/img\/[^)]+)\)/g, '[img]$1[/img]')
         reply = reply.replace(/(\[img\])?(\/api\/img\/\S+\.(?:png|jpg|jpeg|webp|gif))/gi, function(m, pre, url) {
+          if (pre) return m
+          return '[img]' + url + '[/img]'
+        })
+        // Also catch external image URLs not wrapped in [img]
+        reply = reply.replace(/(\[img\])?(https?:\/\/\S+\.(?:png|jpg|jpeg|webp|gif))(?!\S)/gi, function(m, pre, url) {
           if (pre) return m
           return '[img]' + url + '[/img]'
         })
