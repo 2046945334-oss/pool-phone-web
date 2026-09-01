@@ -631,9 +631,12 @@ function ChatView({ theme }) {
       let safeReply = reply.replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, (m) => { voiceBlocks.push(m); return `__VOICE_${voiceBlocks.length-1}__` })
       const imgBlocks = []
       safeReply = safeReply.replace(/\[img\]([\s\S]*?)\[\/img\]/g, (m) => { imgBlocks.push(m); return `__IMG_${imgBlocks.length-1}__` })
+      // Protect URLs from being split on dots
+      const urlBlocks = []
+      safeReply = safeReply.replace(/https?:\/\/\S+/g, (m) => { urlBlocks.push(m); return `__URL_${urlBlocks.length-1}__` })
       const sentences = safeReply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
       // Restore voice and img blocks
-      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]))
+      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]).replace(/__URL_(\d+)__/g, (_, idx) => urlBlocks[parseInt(idx)]))
       let current = [...newMessages]
       for (let i = 0; i < restored.length; i++) {
         current = [...current, { role: 'assistant', content: restored[i].trim(), ts: i === 0 ? Date.now() : undefined, ...(i === 0 && data.reasoning ? { reasoning: data.reasoning } : {}) }]
