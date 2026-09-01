@@ -1988,28 +1988,20 @@ export default async function handler(req, res) {
           }
           return m
         })
-      // Convert image_url_pending to actual base64 image blocks
+      // Convert image blocks: look up sticker meaning from DB, or fallback to URL text
+      const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+      const allStickers = stickerRow ? JSON.parse(stickerRow.value) : []
       for (const msg of reqMessages) {
         if (Array.isArray(msg.content)) {
           for (let ci = 0; ci < msg.content.length; ci++) {
             const block = msg.content[ci]
-            if (block.type === 'image_url_pending' || (block.type === 'image_url' && block.image_url && block.image_url.url)) {
-              const pendingUrl = block.url || (block.image_url && block.image_url.url)
-              if (!pendingUrl) { msg.content[ci] = { type: 'text', text: '(表情包)' }; continue }
-              try {
-                const imgResp = await fetch(pendingUrl, { timeout: 8000 })
-                if (imgResp.ok) {
-                  const buf = Buffer.from(await imgResp.arrayBuffer())
-                  const ct = imgResp.headers.get('content-type') || 'image/png'
-                  const mediaType = ct.split(';')[0].trim()
-                  const b64 = buf.toString('base64')
-                  msg.content[ci] = { type: 'image_url', image_url: { url: 'data:' + mediaType + ';base64,' + b64 } }
-                } else {
-                  msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + pendingUrl + ')' }
-                }
-              } catch (e) {
-                msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + pendingUrl + ')' }
-              }
+            if (block.type === 'image_url_pending' || (block.type === 'image_url' && block.image_url)) {
+              const imgUrl = block.url || (block.image_url && block.image_url.url) || ''
+              if (!imgUrl) { msg.content[ci] = { type: 'text', text: '(表情包)' }; continue }
+              // Try to find sticker meaning by URL
+              const matched = allStickers.find(s => imgUrl.includes(s.url) || s.url.includes(imgUrl.replace(/https?:\/\/[^\/]+/, '')))
+              const desc = matched ? (matched.meaning || matched.name || '表情包') : '表情包'
+              msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + desc + ', URL: ' + imgUrl + ')' }
             }
           }
         }
