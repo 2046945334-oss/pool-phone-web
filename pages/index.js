@@ -586,12 +586,17 @@ function ChatView({ theme }) {
           // === 直接发送完整消息历史 ===
           function processImgs(msgs) {
             return msgs.map(m => {
-              if (m.content && m.content.includes('[img]')) {
+              if (m.content && typeof m.content === 'string' && m.content.includes('[img]')) {
+                // Assistant messages: strip image tags, use text only (Claude API forbids image blocks in assistant turns)
+                if (m.role === 'assistant') {
+                  const stripped = m.content.replace(/\[img\][\s\S]*?\[\/img\]/g, '(表情包)').trim()
+                  return { ...m, content: stripped || '(发送了表情包)' }
+                }
                 const parts = m.content.split(/\[img\](.*?)\[\/img\]/g)
                 const content = []
                 for (let k = 0; k < parts.length; k++) {
                   if (k % 2 === 0) { if (parts[k].trim()) content.push({ type: 'text', text: parts[k].trim() }) }
-                  else { content.push({ type: 'image_url', image_url: { url: parts[k].startsWith('data:') ? parts[k] : parts[k].startsWith('/') ? (typeof window !== 'undefined' ? window.location.origin : '') + parts[k] : parts[k] } }) }
+                  else { content.push({ type: 'text', text: '(用户发送了表情包)' }) }
                 }
                 if (content.length === 0) content.push({ type: 'text', text: '(图片)' })
                 return { ...m, content }
