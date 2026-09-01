@@ -3,6 +3,7 @@
 import { getDb } from '../../lib/db'
 import { processNewMessage, getRecentMessages, buildMemoryContext, localSearch } from '../../lib/memory'
 import { sendPush } from '../../lib/fcm'
+import sharp from 'sharp'
 // --- MCP Integration ---
 function getMcpConnections() {
   const db = getDb()
@@ -1988,7 +1989,7 @@ export default async function handler(req, res) {
           }
           return m
         })
-      // Convert image blocks: look up sticker meaning from DB, or fallback to URL text
+      // Convert image blocks: data URIs pass through, server URLs get text description
       const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
       const allStickers = stickerRow ? JSON.parse(stickerRow.value) : []
       for (const msg of reqMessages) {
@@ -1997,11 +1998,42 @@ export default async function handler(req, res) {
             const block = msg.content[ci]
             if (block.type === 'image_url_pending' || (block.type === 'image_url' && block.image_url)) {
               const imgUrl = block.url || (block.image_url && block.image_url.url) || ''
-              if (!imgUrl) { msg.content[ci] = { type: 'text', text: '(表情包)' }; continue }
-              // Try to find sticker meaning by URL
-              const matched = allStickers.find(s => imgUrl.includes(s.url) || s.url.includes(imgUrl.replace(/https?:\/\/[^\/]+/, '')))
-              const desc = matched ? (matched.meaning || matched.name || '表情包') : '表情包'
-              msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + desc + ', URL: ' + imgUrl + ')' }
+              if (!imgUrl) { msg.content[ci] = { type: 'text', text: '(图片)' }; continue }
+              // Data URIs (base64 from camera/upload) - keep as image_url for AI to see directly
+              if (imgUrl.startsWith('data:image/')) {
+                msg.content[ci] = { type: 'image_url', image_url: { url: imgUrl } }
+                continue
+              }
+              // For latest user message images: download, convert to PNG via sharp, send as data URI
+              // This ensures MIME type matches actual bytes (proxy always sets image/png)
+              const isLatestUserMsg = msg.role === 'user' && reqMessages.filter(m => m.role === 'user').pop() === msg
+              if (isLatestUserMsg) {
+                try {
+                  let imgBuf
+                  if (imgUrl.startsWith('data:')) {
+                    const b64Part = imgUrl.split(',')[1]
+                    imgBuf = Buffer.from(b64Part, 'base64')
+                  } else {
+                    const fullUrl = imgUrl.startsWith('/') ? 'https://chi.zeabur.app' + imgUrl : imgUrl
+                    const imgResp = await fetch(fullUrl, { signal: AbortSignal.timeout(8000) })
+                    if (imgResp.ok) imgBuf = Buffer.from(await imgResp.arrayBuffer())
+                  }
+                  if (imgBuf) {
+                    // Convert any image format to PNG so MIME always matches
+                    const pngBuf = await sharp(imgBuf).png().toBuffer()
+                    const b64 = pngBuf.toString('base64')
+                    msg.content[ci] = { type: 'image_url', image_url: { url: 'data:image/png;base64,' + b64 } }
+                    continue
+                  }
+                } catch (e) { /* fall through to text */ }
+              }
+              // Fallback: text description
+              const matched = allStickers.find(s => imgUrl.includes(s.url) || (s.url && imgUrl.includes(s.url.replace(/^https?:\/\/[^\/]+/, ''))))
+              if (matched && (matched.meaning || matched.name)) {
+                msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + (matched.meaning || matched.name) + ')' }
+              } else {
+                msg.content[ci] = { type: 'text', text: '(用户分享了一张图片)' }
+              }
             }
           }
         }
