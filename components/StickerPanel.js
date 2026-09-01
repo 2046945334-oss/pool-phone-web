@@ -43,23 +43,40 @@ export default function StickerPanel({ onSelect, onClose }) {
     setUploading(false)
   }
 
+  function parseUrlLine(line) {
+    // 支持格式: "名称:https://..." 或 直接url
+    // 关键：不能简单split(':')，因为URL里有 https:// 的冒号
+    const trimmed = line.trim()
+    if (!trimmed) return null
+    // 尝试匹配 "名称:http..." 或 "名称:/" 格式
+    const match = trimmed.match(/^([^:]+?):(https?:\/\/.+|\/\/.+|\/.+)$/)
+    if (match) return { name: match[1].trim(), url: match[2].trim() }
+    // 否则整行当URL
+    return { name: '', url: trimmed }
+  }
+
   async function handleUrlUpload() {
     if (!urlInput.trim()) return
     setUploading(true)
     try {
-      // 支持格式: "名称:url" 或 直接url
-      const parts = urlInput.split(':')
-      const name = parts.length > 1 ? parts[0].trim() : ''
-      const url = (parts.length > 1 ? parts.slice(1).join(':') : parts[0]).trim()
-      
-      const res = await fetch('/api/stickers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, url })
-      })
-      const result = await res.json()
-      if (result.success) {
-        setStickers(prev => [...prev, result.sticker])
+      // 支持批量：按换行分割，每行一条
+      const lines = urlInput.split('\n').map(l => l.trim()).filter(Boolean)
+      const added = []
+      for (const line of lines) {
+        const parsed = parseUrlLine(line)
+        if (!parsed || !parsed.url) continue
+        try {
+          const res = await fetch('/api/stickers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: parsed.name, url: parsed.url })
+          })
+          const result = await res.json()
+          if (result.success) added.push(result.sticker)
+        } catch {}
+      }
+      if (added.length > 0) {
+        setStickers(prev => [...prev, ...added])
         setUrlInput('')
       }
     } catch {}
@@ -119,12 +136,12 @@ export default function StickerPanel({ onSelect, onClose }) {
               </label>
               
               <div className="url-upload">
-                <input
-                  type="text"
-                  placeholder="名称:URL 或直接粘贴URL"
+                <textarea
+                  placeholder="粘贴URL，每行一条（支持批量）&#10;格式：名称:https://... 或直接URL"
                   value={urlInput}
                   onChange={e => setUrlInput(e.target.value)}
-                  onKeyPress={e => e.key === 'Enter' && handleUrlUpload()}
+                  onKeyPress={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleUrlUpload() } }}
+                  rows={2}
                 />
                 <button onClick={handleUrlUpload} disabled={uploading || !urlInput.trim()}>
                   添加
@@ -224,17 +241,21 @@ export default function StickerPanel({ onSelect, onClose }) {
           border-radius: 8px;
           cursor: pointer;
           margin-bottom: 12px;
-        }
-        .url-upload {
+.url-upload {
           display: flex;
           gap: 8px;
+          align-items: flex-start;
         }
-        .url-upload input {
+        .url-upload textarea {
           flex: 1;
           padding: 8px 12px;
           border: 1px solid #ddd;
           border-radius: 6px;
-          font-size: 14px;
+          font-size: 13px;
+          resize: vertical;
+          font-family: inherit;
+          min-height: 40px;
+        }
         }
         .url-upload button {
           padding: 8px 16px;
