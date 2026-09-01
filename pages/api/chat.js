@@ -1960,8 +1960,13 @@ export default async function handler(req, res) {
       const reqMessages = convertSystemRole(currentMessages.slice())
         .filter(m => m && m.role && ['user', 'assistant'].includes(m.role) && m.content)
         .map(m => {
-          // Convert [img]url[/img] in messages to multimodal format for vision models
+          // Convert [img]url[/img] - only user msgs get image blocks, assistant msgs get text only
           if (typeof m.content === 'string' && m.content.includes('[img]') && m.content.includes('[/img]')) {
+            if (m.role === 'assistant') {
+              // Claude API does not allow image blocks in assistant messages - strip [img] tags
+              const stripped = m.content.replace(/\[img\][\s\S]*?\[\/img\]/g, '(表情包)').trim()
+              return { ...m, content: stripped || '(发送了表情包)' }
+            }
             const parts = m.content.split(/\[img\]([\s\S]*?)\[\/img\]/g)
             if (parts.length > 1) {
               const content = []
@@ -1975,7 +1980,7 @@ export default async function handler(req, res) {
                 }
               }
               if (content.length && !content.some(c => c.type === 'text')) {
-                content.unshift({ type: 'text', text: m.role === 'user' ? '(用户发送了表情包图片)' : '(发送了表情包)' })
+                content.unshift({ type: 'text', text: '(用户发送了表情包图片)' })
               }
               return { ...m, content }
             }
