@@ -1976,7 +1976,8 @@ export default async function handler(req, res) {
                 } else {
                   let imgUrl = parts[pi].trim()
                   if (imgUrl.startsWith('/')) imgUrl = 'https://chi.zeabur.app' + imgUrl
-                  content.push({ type: 'image_url', image_url: { url: imgUrl } })
+                  // Use text description instead of image block to avoid MIME mismatch with proxy
+                  content.push({ type: 'text', text: '(用户发送了表情包: ' + imgUrl + ')' })
                 }
               }
               if (content.length && !content.some(c => c.type === 'text')) {
