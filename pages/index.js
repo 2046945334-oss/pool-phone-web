@@ -596,7 +596,11 @@ function ChatView({ theme }) {
                 const content = []
                 for (let k = 0; k < parts.length; k++) {
                   if (k % 2 === 0) { if (parts[k].trim()) content.push({ type: 'text', text: parts[k].trim() }) }
-                  else { content.push({ type: 'text', text: '(用户发送了表情包)' }) }
+                  else {
+                    let imgUrl = parts[k].trim()
+                    if (imgUrl.startsWith('/')) imgUrl = window.location.origin + imgUrl
+                    content.push({ type: 'image_url', image_url: { url: imgUrl } })
+                  }
                 }
                 if (content.length === 0) content.push({ type: 'text', text: '(图片)' })
                 return { ...m, content }

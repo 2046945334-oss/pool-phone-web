@@ -1976,8 +1976,8 @@ export default async function handler(req, res) {
                 } else {
                   let imgUrl = parts[pi].trim()
                   if (imgUrl.startsWith('/')) imgUrl = 'https://chi.zeabur.app' + imgUrl
-                  // Use text description instead of image block to avoid MIME mismatch with proxy
-                  content.push({ type: 'text', text: '(用户发送了表情包: ' + imgUrl + ')' })
+                  // Store URL for async base64 conversion later
+                  content.push({ type: 'image_url_pending', url: imgUrl })
                 }
               }
               if (content.length && !content.some(c => c.type === 'text')) {
@@ -1988,6 +1988,32 @@ export default async function handler(req, res) {
           }
           return m
         })
+      // Convert image_url_pending to actual base64 image blocks
+      for (const msg of reqMessages) {
+        if (Array.isArray(msg.content)) {
+          for (let ci = 0; ci < msg.content.length; ci++) {
+            const block = msg.content[ci]
+            if (block.type === 'image_url_pending' || (block.type === 'image_url' && block.image_url && block.image_url.url)) {
+              const pendingUrl = block.url || (block.image_url && block.image_url.url)
+              if (!pendingUrl) { msg.content[ci] = { type: 'text', text: '(表情包)' }; continue }
+              try {
+                const imgResp = await fetch(pendingUrl, { timeout: 8000 })
+                if (imgResp.ok) {
+                  const buf = Buffer.from(await imgResp.arrayBuffer())
+                  const ct = imgResp.headers.get('content-type') || 'image/png'
+                  const mediaType = ct.split(';')[0].trim()
+                  const b64 = buf.toString('base64')
+                  msg.content[ci] = { type: 'image_url', image_url: { url: 'data:' + mediaType + ';base64,' + b64 } }
+                } else {
+                  msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + pendingUrl + ')' }
+                }
+              } catch (e) {
+                msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + pendingUrl + ')' }
+              }
+            }
+          }
+        }
+      }
       const bodyObj = {
         model: reqModel,
         messages: reqMessages,
