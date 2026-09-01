@@ -1990,7 +1990,8 @@ export default async function handler(req, res) {
           return m
         })
       // Convert image blocks: data URIs pass through, server URLs get text description
-      const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
+      const imgDb = getDb()
+      const stickerRow = imgDb.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
       const allStickers = stickerRow ? JSON.parse(stickerRow.value) : []
       for (const msg of reqMessages) {
         if (Array.isArray(msg.content)) {
