@@ -380,7 +380,7 @@ export default async function handler(req, res) {
 
       // 记录唤醒日志到kv
       try {
-        const logEntry = { time: new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 19), triggers: { scheduled: dueTasks.length, silence: silenceWake }, reply: (reply || '').slice(0, 100), tools: toolLogs.map(t => t.name) }
+        const logEntry = { time: new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 19), triggers: { scheduled: dueTasks.length, silence: silenceWake }, msg: reply || '', actions: toolLogs.map(t => ({ tool: t.name })) }
         const logRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_wake_log'").get()
         let logs = logRow ? JSON.parse(logRow.value) : []
         logs.push(logEntry)
@@ -402,7 +402,7 @@ export default async function handler(req, res) {
     try {
       const logRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_wake_log'").get()
       let logs = logRow ? JSON.parse(logRow.value) : []
-      logs.push({ time: new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 19), error: err.message })
+      logs.push({ time: new Date(now * 1000 + 8 * 3600000).toISOString().slice(0, 19), error: err.message, actions: [] })
       if (logs.length > 20) logs = logs.slice(-20)
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_wake_log', JSON.stringify(logs))
     } catch {}
