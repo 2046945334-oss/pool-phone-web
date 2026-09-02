@@ -1962,7 +1962,7 @@ export default async function handler(req, res) {
     } catch (e) {
       console.log(`[MCP] Tool loading failed: ${e.message}`)
     }
-    let maxRounds = 5
+    let maxRounds = 10
     while (maxRounds-- > 0) {
       // 统一使用对话模型配置
       const reqUrl = url
