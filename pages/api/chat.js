@@ -192,7 +192,7 @@ const TOOLS = [
   {
     type: 'function', function: {
       name: 'manage_pool_shop', description: '管理"池的小铺"（AI自己的商店）。可以上架新商品或下架商品。用户在这里花积分购买AI上架的东西。',
-      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['add','remove'], description: 'add=上架, remove=下架' }, name: { type: 'string', description: '商品名称' }, price: { type: 'number', description: '价格（用户积分）' }, desc: { type: 'string', description: '商品描述/寄语' }, id: { type: 'string', description: '下架时用的商品ID' } }, required: ['action'] }
+      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['add','remove'], description: 'add=上架, remove=下架' }, name: { type: 'string', description: '商品名称' }, price: { type: 'number', description: '价格（��户积分）' }, desc: { type: 'string', description: '商品描述/寄语' }, id: { type: 'string', description: '下架时用的商品ID' } }, required: ['action'] }
     }
   },
   {
@@ -210,7 +210,7 @@ const TOOLS = [
   {
     type: 'function', function: {
       name: 'place_commission_order', description: '向画师(用户)下约稿订单。扣除poolScore积分，订单进入pending状态等画师接单。',
-      parameters: { type: 'object', properties: { title: { type: 'string', description: '约稿标题，如：Q版头像、半身立绘' }, price: { type: 'number', description: '愿意支付的积分' }, description: { type: 'string', description: '需求描述：画风、尺寸、要求等' }, reference: { type: 'string', description: '参考说明（可选）' } }, required: ['title', 'price'] }
+      parameters: { type: 'object', properties: { title: { type: 'string', description: '约稿标题，如：Q版头像、半身立绘' }, price: { type: 'number', description: '愿意支付的积分' }, description: { type: 'string', description: '需求描述：画风、尺寸、要求等' }, reference: { type: 'string', description: '参���说明（可选）' } }, required: ['title', 'price'] }
     }
   },
   {
@@ -1841,6 +1841,10 @@ export default async function handler(req, res) {
     // 3. 注入记忆到system prompt + 工具使用引导
     const toolGuidance = `
 【工具使用指引】
+**❗强制规则 - 禁止编造数据：**
+当用户询问需要实时查询的信息时（如：朋友圈内容、积分、养护数据、记忆、应用使用时长、当前时间等），你**必须先调用对应工具获取真实数据**，然后基于工具返回的结果回答。
+**绝对禁止**在没有调用工具的情况下凭空编造、猜测或假设数据内容。如果工具返回空/无数据，如实告知用户"目前没有"，而不是编造内容。
+
 你拥有多种工具，必须在合适时机主动调用，不要只用嘴说而不执行操作。
 **朋友圈工具（重要）：**
 - **post_moment** — 聊天中有感而发时，发一条朋友圈动态。不是每句话都发，是"想让她之后刷到"的那种。
