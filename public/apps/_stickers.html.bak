@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>表情包管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .upload-section {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .upload-area {
+      border: 2px dashed #667eea;
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: block;
+    }
+    .upload-area:hover {
+      border-color: #764ba2;
+      background: rgba(102, 126, 234, 0.05);
+    }
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    .upload-text {
+      color: #667eea;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .preview-section {
+      display: none;
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .preview-section.active {
+      display: block;
+    }
+    .preview-img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: contain;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      background: #f5f5f5;
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    .input-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .btn-secondary {
+      background: #f5f5f5;
+      color: #666;
+    }
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    .stickers-list {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .list-header h2 {
+      font-size: 18px;
+      color: #333;
+    }
+    .count {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .sticker-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #f9f9f9;
+      margin-bottom: 8px;
+      transition: all 0.3s;
+    }
+    .sticker-item:hover {
+      background: #f0f0f0;
+      transform: translateX(4px);
+    }
+    .sticker-thumb {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: white;
+    }
+    .sticker-info {
+      flex: 1;
+    }
+    .sticker-meaning {
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    .sticker-url {
+      font-size: 12px;
+      color: #999;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-delete {
+      background: #ff4757;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-delete:hover {
+      background: #ff3838;
+      transform: scale(1.05);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎭 表情包管理</h1>
+      <p>上传表情包并添加含义标注</p>
+    </div>
+
+    <div class="upload-section">
+      <input type="file" id="fileInput" accept="image/*,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onchange="handleFileSelect(event)" style="display:none">
+      <label for="fileInput" class="upload-area">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">点击上传图片</div>
+      </label>
+    </div>
+
+    <div class="preview-section" id="previewSection">
+      <img id="previewImg" class="preview-img" alt="预览">
+      <div class="input-group">
+        <label for="meaningInput">表情含义 *</label>
+        <input type="text" id="meaningInput" placeholder="例如：开心、生气、委屈..." maxlength="20">
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="cancelUpload()">取消</button>
+        <button class="btn btn-primary" onclick="confirmUpload()">确认添加</button>
+      </div>
+    </div>
+
+    <div class="stickers-list">
+      <div class="list-header">
+        <h2>我的表情包</h2>
+        <span class="count" id="stickerCount">0</span>
+      </div>
+      <div id="stickersList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+  <script>
+    let currentFile = null
+    let currentBase64 = null
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast')
+      toast.textContent = msg
+      toast.classList.add('show')
+      setTimeout(() => toast.classList.remove('show'), 2000)
+    }
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      
+      currentFile = file
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        currentBase64 = ev.target.result
+        document.getElementById('previewImg').src = currentBase64
+        document.getElementById('previewSection').classList.add('active')
+        document.getElementById('meaningInput').value = ''
+        document.getElementById('meaningInput').focus()
+      }
+      reader.readAsDataURL(file)
+    }
+
+    function cancelUpload() {
+      document.getElementById('previewSection').classList.remove('active')
+      document.getElementById('fileInput').value = ''
+      currentFile = null
+      currentBase64 = null
+    }
+
+    async function confirmUpload() {
+      const meaning = document.getElementById('meaningInput').value.trim()
+      if (!meaning) {
+        showToast('请填写表情含义')
+        return
+      }
+      if (!currentBase64) return
+
+      try {
+        // 直接调用POST /api/stickers，后端会自动上传
+        const addRes = await fetch('/api/stickers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: currentBase64, name: meaning })
+        })
+        const addData = await addRes.json()
+
+        if (addData.success) {
+          showToast('添加成功')
+          cancelUpload()
+          loadStickers()
+        } else {
+          showToast(addData.error || '添加失败')
+        }
+      } catch (err) {
+        console.error(err)
+        showToast('操作失败')
+      }
+    }
+
+    async function loadStickers() {
+      try {
+        const res = await fetch('/api/stickers')
+        const data = await res.json()
+        const stickers = data.stickers || []
+        
+        document.getElementById('stickerCount').textContent = stickers.length
+        
+        const listEl = document.getElementById('stickersList')
+        if (stickers.length === 0) {
+          listEl.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">🎭</div>
+              <div>还没有表情包，快去上传吧</div>
+            </div>
+          `
+          return
+        }
+
+        listEl.innerHTML = stickers.map((s, i) => `
+          <div class="sticker-item">
+            <img class="sticker-thumb" src="${s.url}" alt="${s.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect fill=%22%23f0f0f0%22 width=%2248%22 height=%2248%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2220%22%3E🎭%3C/text%3E%3C/svg%3E'">
+            <div class="sticker-info">
+              <div class="sticker-meaning">${s.name || '未命名'}</div>
+              <div class="sticker-url">${s.url}</div>
+            </div>
+            <button class="btn-delete" onclick="deleteSticker('${s.id}')">删除</button>
+          </div>
+        `).join('')
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    async function deleteSticker(id) {
+      if (!confirm('确定要删除这个表情包吗？')) return
+      
+      try {
+        const res = await fetch(`/api/stickers?id=${id}`, {
+          method: 'DELETE'
+        })
+        const data = await res.json()
+        
+        if (data.success) {
+          showToast('删除成功')
+          loadStickers()
+        } else {
+          showToast(data.error || '删除失败')
+        }
+      } catch (err) {
+        console.error(err)
+        showToast('操作失败')
+      }
+    }
+
+    // 初始加载
+    loadStickers()
+  </script>
+</body>
+</html>

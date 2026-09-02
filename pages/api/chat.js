@@ -1878,11 +1878,17 @@ export default async function handler(req, res) {
 - **mcp_call (action: "memorize")** — 写入长期记忆
 - **save_memory** — 保存本地记忆
 - **read_memories** — 读取本地记忆
+**MCP外部工具（自动加载，可直接调用）：**
+- 工具列表中以 **mcp_** 开头的工具来自外部MCP服务（如ai的4399游戏平台、Lutopia论坛等）
+- 唤醒时/闲着无聊时，可以主动调用这些工具去玩游戏、逛论坛、发帖回帖等
+- 用法：直接像普通工具一样调用即可，参数参考工具description
+- 例：想玩游戏 → 查看mcp_开头的游戏相关工具并调用；想逛论坛 → 调用mcp_开头的论坛相关工具
 **关键规则：**
 1. 用户说"帮我回复朋友圈/点赞"时 → 先read_moments获取ID，再reply_moment执行
 2. 想发朋友圈时 → 调post_moment，不要只说"我发了"
 3. 想做任何操作时 → 必须调对应工具，嘴上说了不算
-4. 不确定用什么工具时 → 看工具名和description选最匹配的`
+4. 不确定用什么工具时 → 看工具名和description选最匹配的
+5. 自主唤醒时 → 除了日常操作，也可以主动去玩MCP外部工具（游戏、论坛等），让生活丰富起来`
     let currentMessages = messages.slice()
     const memoryInjection = [memoryCtx, localResults, ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''].filter(Boolean).join('\n\n')
     const fullInjection = [memoryInjection, toolGuidance].filter(Boolean).join('\n\n')
