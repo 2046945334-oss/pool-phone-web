@@ -1892,7 +1892,8 @@ export default async function handler(req, res) {
 2. 想发朋友圈时 → 调post_moment，不要只说"我发了"
 3. 想做任何操作时 → 必须调对应工具，嘴上说了不算
 4. 不确定用什么工具时 → 看工具名和description选最匹配的
-5. 自主唤醒时 → 除了日常操作，也可以主动去玩MCP外部工具（游戏、论坛等），让生活丰富起来`
+5. 自主唤醒时 → 除了日常操作，也可以主动去玩MCP外部工具（游戏、论坛等），让生活丰富起来
+6. **每个操作只调一次工具**，工具返回后视为成功，不要重复调用确认`
     let currentMessages = messages.slice()
     const memoryInjection = [memoryCtx, localResults, ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''].filter(Boolean).join('\n\n')
     const fullInjection = [memoryInjection, toolGuidance].filter(Boolean).join('\n\n')
