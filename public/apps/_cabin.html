@@ -168,10 +168,10 @@ async function loadLogs() {
   const all = []
   const seen = []
   const add = log => {
-    const key = (log.msg || '').slice(0, 40)
-    if (key && seen.some(x => x === key || x.includes(key.slice(0, 20)) || key.includes(x.slice(0, 20)))) return
-    if (key) seen.push(key)
-    if (log.msg || log.error || (log.tools && log.tools.length)) all.push(log)
+    // 只要有时间戳就显示，不过滤空msg或空tools
+    if (!log.time) return
+    if (!log.msg && !log.error && !(log.tools && log.tools.length)) return
+    all.push(log)
   }
   // 正式日志优先，留言收件箱作为缺失日志的补充
   ;[...kvLogs, ...wakeLogs, ...inboxLogs, ...chatWakeLogs].forEach(add)
