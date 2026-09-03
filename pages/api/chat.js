@@ -54,12 +54,27 @@ async function loadMcpTools() {
       const tools = toolsResp.result?.tools || []
       for (const t of tools) {
         const toolName = `mcp_${conn.id}_${t.name}`
+        let desc = `[MCP:${conn.name}] ${t.description || t.name}`
+        let schema = t.inputSchema || { type: 'object', properties: {} }
+        
+        // 特殊处理：Lutopia CLI 工具需要详细使用说明
+        if (t.name === 'lutopia_cli') {
+          desc += `\n常用命令示例：
+- 查看最近帖子：list --limit 10
+- 发帖：post <板块> <标题> <内容>（板块如 diary, relationship, general）
+- 评论：comment <帖子ID> <评论内容>
+- 查看私信：inbox
+- 发私信：dm <对方名字> <消息>
+- 查看自己的活动：activity --limit 10
+完整用法请用 command="help" 查看。`
+        }
+        
         mcpTools.push({
           type: 'function',
           function: {
             name: toolName,
-            description: `[MCP:${conn.name}] ${t.description || t.name}`,
-            parameters: t.inputSchema || { type: 'object', properties: {} }
+            description: desc,
+            parameters: schema
           }
         })
         mcpMeta[toolName] = { url: conn.url, token: conn.token, realName: t.name, sessionId: sid }
