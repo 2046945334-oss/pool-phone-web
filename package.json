@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postinstall": "node scripts/install-alipay-bot.js",
     "start": "node server.js"
   },
   "dependencies": {
@@ -19,7 +20,8 @@
     "openai": "^4.52.0",
     "react": "^18",
     "react-dom": "^18",
-    "sharp": "^0.33.2"
+    "sharp": "^0.33.2",
+    "@alipay/agent-payment": "^1.0.12"
   },
   "devDependencies": {
     "@types/node": "^20",
