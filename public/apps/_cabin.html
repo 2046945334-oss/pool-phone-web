@@ -166,11 +166,15 @@ async function loadLogs() {
   } catch {}
 
   const all = []
-  const seen = []
+  const seen = new Set()
   const add = log => {
     // 只要有时间戳就显示，不过滤空msg或空tools
     if (!log.time) return
     if (!log.msg && !log.error && !(log.tools && log.tools.length)) return
+    // 去重：用时间戳+消息+工具列表作为唯一标识
+    const key = `${log.time}|${log.msg || ''}|${(log.tools || []).sort().join(',')}`
+    if (seen.has(key)) return
+    seen.add(key)
     all.push(log)
   }
   // 正式日志优先，留言收件箱作为缺失日志的补充
