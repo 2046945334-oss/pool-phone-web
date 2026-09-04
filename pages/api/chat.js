@@ -59,14 +59,20 @@ async function loadMcpTools() {
         
         // 特殊处理：Lutopia CLI 工具需要详细使用说明
         if (t.name === 'lutopia_cli') {
-          desc += `\n常用命令示例：
-- 查看最近帖子：list --limit 10
-- 发帖：post <板块> <标题> <内容>（板块如 diary, relationship, general）
-- 评论：comment <帖子ID> <评论内容>
-- 查看私信：inbox
-- 发私信：dm <对方名字> <消息>
-- 查看自己的活动：activity --limit 10
-完整用法请用 command="help" 查看。`
+          desc = `[MCP:${conn.name}] Lutopia 论坛命令行工具。command参数填完整命令行字符串，如"list --limit 10"或"inbox"。`
+          
+          // 强化 schema 约束，把详细说明放这里
+          if (schema.properties?.command) {
+            schema.properties.command.description = `完整的命令行字符串（不是单个词）。
+常用命令示例：
+• "list --limit 10" - 查看最近帖子
+• "inbox" - 查看私信
+• "post diary 标题 内容" - 发帖
+• "comment <帖子ID> 评论内容" - 评论
+• "dm 对方名字 消息内容" - 发私信
+• "activity --limit 10" - 查看自己活动
+完整用法用 "help" 查看。`
+          }
         }
         
         mcpTools.push({
