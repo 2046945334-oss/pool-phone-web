@@ -1817,6 +1817,7 @@ export default async function handler(req, res) {
     
     // 2. 只从 Ombre Brain 获取语义记忆（关闭本地记忆以节省token）
     let ombreRecall = ''
+    let ombreCount = 0  // 记忆条数
     if (lastUserMsg) {
       try {
         const OMBRE_URL = 'https://obe.zeabur.app/mcp'
@@ -1845,6 +1846,7 @@ export default async function handler(req, res) {
         if (ombreResp.ok) {
           const ombreData = await ombreResp.json()
           if (ombreData.result && ombreData.result.content) {
+            ombreCount = ombreData.result.content.length  // 记录实际返回条数
             const text = ombreData.result.content.map(c => c.text || '').join('\n')
             if (text.trim() && text.trim() !== '[]' && text.length > 10) {
               ombreRecall = text.slice(0, 3000)  // 增加到3000字符，完整记忆
@@ -2152,7 +2154,7 @@ export default async function handler(req, res) {
       // 返回响应，包含记忆命中信息
       const memoryHit = ombreRecall ? {
         source: 'Ombre Brain',
-        count: (ombreRecall.match(/##\s/g) || []).length || 1, // 统计 ## 标题数量
+        count: ombreCount || 1,  // 使用实际返回的记忆条数
         preview: ombreRecall.slice(0, 150) + (ombreRecall.length > 150 ? '...' : '')
       } : null
       return res.status(200).json({ 
@@ -2167,7 +2169,7 @@ export default async function handler(req, res) {
       toolLogs: toolLogs.length ? toolLogs : undefined,
       memoryHit: ombreRecall ? {
         source: 'Ombre Brain',
-        count: (ombreRecall.match(/##\s/g) || []).length || 1,
+        count: ombreCount || 1,
         preview: ombreRecall.slice(0, 150) + (ombreRecall.length > 150 ? '...' : '')
       } : null
     })
