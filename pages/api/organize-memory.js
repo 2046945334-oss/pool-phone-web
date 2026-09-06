@@ -1,14 +1,31 @@
 /**
  * 记忆整理API - 由定时任务触发
- * 使用唤醒模型（pool_api_config_wake）分析并整理OB记忆库
+ * 使用聊天/主API配置（与wakeup.js相同的fallback逻辑）分析并整理OB记忆库
  */
 
 import fs from 'fs/promises'
 import path from 'path'
+import Database from 'better-sqlite3'
 
 const DATA_DIR = path.join(process.cwd(), 'data')
+const DB_PATH = path.join(DATA_DIR, 'pool.db')
 const OB_MCP_URL = 'https://obe.zeabur.app/mcp'
 const OB_TOKEN = 'Bearer NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
+
+function getApiConfig() {
+  try {
+    const db = new Database(DB_PATH)
+    let row = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config_chat'").get()
+    if (row) {
+      const cfg = JSON.parse(row.value)
+      if (cfg.baseUrl && cfg.apiKey) { db.close(); return cfg }
+    }
+    row = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
+    if (row) { const cfg = JSON.parse(row.value); db.close(); return cfg }
+    db.close()
+  } catch {}
+  return null
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST' && req.method !== 'GET') {
@@ -16,16 +33,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. 读取唤醒模型配置
-    const wakeConfigPath = path.join(DATA_DIR, 'pool_api_config_wake.json')
-    let wakeConfig
-    try {
-      const data = await fs.readFile(wakeConfigPath, 'utf8')
-      wakeConfig = JSON.parse(data)
-    } catch (e) {
+    // 1. 读取API配置（与wakeup.js相同的fallback逻辑）
+    const apiConfig = getApiConfig()
+    if (!apiConfig || !apiConfig.baseUrl || !apiConfig.apiKey) {
       return res.status(500).json({ 
-        error: 'Wake model config not found',
-        detail: '请先在设置页配置唤醒模型'
+        error: 'API config not found',
+        detail: '请先在设置页配置对话或主API'
       })
     }
 
@@ -58,15 +71,15 @@ export default async function handler(req, res) {
       })
     }
 
-    // 3. 让唤醒模型分析这些记忆，决定如何整理
-    const aiResponse = await fetch(wakeConfig.baseUrl + '/chat/completions', {
+    // 3. 让AI模型分析这些记忆，决定如何整理
+    const aiResponse = await fetch(apiConfig.baseUrl.replace(/\/$/, '') + '/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${wakeConfig.apiKey}`,
+        'Authorization': `Bearer ${apiConfig.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: wakeConfig.model,
+        model: apiConfig.model || 'gemini-2.5-flash',
         messages: [
           {
             role: 'system',
@@ -122,7 +135,6 @@ export default async function handler(req, res) {
     // 4. 调用 OB grow 写入整合后的事件
     const results = []
     for (const event of events) {
-      // 调用 grow 创建整合后的完整事件
       const growResponse = await fetch(OB_MCP_URL, {
         method: 'POST',
         headers: {
