@@ -1841,7 +1841,14 @@ export default async function handler(req, res) {
         const rpcBody = {
           jsonrpc: '2.0', id: Date.now(),
           method: 'tools/call',
-          params: { name: 'recall', arguments: { query } }
+          params: { 
+            name: 'breath_search', 
+            arguments: { 
+              query,
+              max_results: 5,
+              mode: 'automatic'  // 自动模式：尊重 dont_surface 和 digested 标记
+            } 
+          }
         }
         const ombreResp = await fetch(OMBRE_URL, {
           method: 'POST',
@@ -1853,7 +1860,7 @@ export default async function handler(req, res) {
           if (ombreData.result && ombreData.result.content) {
             const text = ombreData.result.content.map(c => c.text || '').join('\n')
             if (text.trim() && text.trim() !== '[]' && text.length > 10) {
-              ombreRecall = text.slice(0, 1500)
+              ombreRecall = text.slice(0, 3000)  // 增加到3000字符，完整记忆
             }
           }
         }
