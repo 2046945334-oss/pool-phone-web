@@ -2152,7 +2152,7 @@ export default async function handler(req, res) {
       // 返回响应，包含记忆命中信息
       const memoryHit = ombreRecall ? {
         source: 'Ombre Brain',
-        count: (ombreRecall.match(/---/g) || []).length || 1, // 粗略统计记忆条数
+        count: (ombreRecall.match(/##\s/g) || []).length || 1, // 统计 ## 标题数量
         preview: ombreRecall.slice(0, 150) + (ombreRecall.length > 150 ? '...' : '')
       } : null
       return res.status(200).json({ 
@@ -2162,7 +2162,15 @@ export default async function handler(req, res) {
         memoryHit
       })
     }
-    return res.status(200).json({ reply: '工具调用次数过多，已停止', toolLogs: toolLogs.length ? toolLogs : undefined })
+    return res.status(200).json({ 
+      reply: '工具调用次数过多，已停止', 
+      toolLogs: toolLogs.length ? toolLogs : undefined,
+      memoryHit: ombreRecall ? {
+        source: 'Ombre Brain',
+        count: (ombreRecall.match(/##\s/g) || []).length || 1,
+        preview: ombreRecall.slice(0, 150) + (ombreRecall.length > 150 ? '...' : '')
+      } : null
+    })
   } catch (err) {
     return res.status(500).json({ error: err.message, debug: { url, model: model || 'gpt-4o-mini' } })
   }

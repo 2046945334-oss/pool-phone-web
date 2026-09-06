@@ -166,18 +166,18 @@ function ToolLogBubble({ logs, memoryHit }) {
     <div className="tool-log-wrap" onClick={() => setOpen(!open)}>
       <div className="tool-log-header">
         <span>
-          {logs && logs.length > 0 && `🔧 ${logs.length}个工具调用`}
-          {logs && logs.length > 0 && memoryHit && ' • '}
-          {memoryHit && `🧠 ${memoryHit.count}条记忆`}
+          {logs && logs.length > 0 && `⚙ ${logs.length} 次工具调用`}
+          {logs && logs.length > 0 && memoryHit && ' · '}
+          {memoryHit && `⊙ ${memoryHit.count} 条记忆`}
         </span>
-        <span className="tool-log-arrow">{open ? '▲' : '▼'}</span>
+        <span className="tool-log-arrow">{open ? '▴' : '▾'}</span>
       </div>
       {open && (
         <div className="tool-log-body">
           {/* 记忆命中区块 */}
           {memoryHit && (
             <div className="tool-log-section">
-              <div className="tool-log-section-title">{'🧠 记忆命中'}</div>
+              <div className="tool-log-section-title">{'⊙ 记忆命中'}</div>
               <div className="memory-hit-item">
                 <div className="memory-hit-source">{'来源: '}{memoryHit.source}</div>
                 <div className="memory-hit-preview">{memoryHit.preview}</div>
@@ -187,7 +187,7 @@ function ToolLogBubble({ logs, memoryHit }) {
           {/* 工具调用区块 */}
           {logs && logs.length > 0 && (
             <div className="tool-log-section">
-              <div className="tool-log-section-title">{'🔧 工具调用'}</div>
+              <div className="tool-log-section-title">{'⚙ 工具调用'}</div>
               {logs.map((log, i) => (
                 <div key={i} className="tool-log-item">
                   <div className="tool-log-name">{'▸ '}{log.name}</div>
