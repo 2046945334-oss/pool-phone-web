@@ -932,7 +932,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           <div className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
             {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
             {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
-{msg.role === 'tool_log' ? (
+            {msg.role === 'tool_log' ? (
               (() => {
                 try {
                   const parsed = JSON.parse(msg.content)
@@ -944,7 +944,6 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
                   return null
                 }
               })()
-            )
             ) : msg.role === 'system' ? (
               <div className="msg-system" style={theme?.systemMsgBg||theme?.systemMsgText||theme?.systemMsgBorder?{background:theme.systemMsgBg||undefined,color:theme.systemMsgText||undefined,borderColor:theme.systemMsgBorder||undefined}:{}}>{msg.content}</div>
             ) : editIdx === i ? (
