@@ -2311,11 +2311,11 @@ export default function Home() {
           </div>
           <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
             <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
-              <span className="nav-icon">{'\ud83d\udcf1'}</span>
+              <span className="nav-icon">{'▢'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
             </button>
             <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
-              <span className="nav-icon">{'\ud83d\udcac'}</span>
+              <span className="nav-icon">{'○'}</span>
               <span className="nav-label">{'\u804a\u5929'}</span>
             </button>
           </div>
@@ -2329,11 +2329,11 @@ export default function Home() {
         @media (min-width: 768px) { .phone-frame { height: 90vh; max-height: 844px; border-radius: 40px; border: 3px solid #333; box-shadow: 0 20px 60px rgba(0,0,0,0.8); } }
         .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 4px; font-size: 12px; color: #999; background: rgba(17,17,17,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); flex-shrink: 0; }
         .phone-screen { flex: 1; overflow: hidden; position: relative; background: #0d0d0d; }
-        .bottom-nav { display: flex; justify-content: space-around; align-items: center; padding: 8px 0 12px; background: rgba(17,17,17,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
-        .nav-btn { background: none; border: none; color: #666; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 16px; transition: color 0.2s; }
+        .bottom-nav { display: flex; justify-content: space-around; align-items: center; padding: 4px 0 calc(6px + env(safe-area-inset-bottom, 0px)); background: rgba(17,17,17,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
+        .nav-btn { background: none; border: none; color: #666; display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; padding: 3px 16px; transition: color 0.2s; }
         .nav-btn.active { color: #e8a0bf; }
-        .nav-icon { font-size: 20px; }
-        .nav-label { font-size: 10px; }
+        .nav-icon { font-size: 18px; font-weight: 300; }
+        .nav-label { font-size: 9px; }
 
         .lock-screen { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: url('/wallpaper_lock.jpg') center/cover no-repeat; color: #fff; cursor: pointer; user-select: none; position: relative; }
         .lock-screen::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.15); }
@@ -2399,11 +2399,11 @@ export default function Home() {
 
         .chat-view { width: 100%; height: 100%; display: flex; flex-direction: column; background: #e5ddd5; position: relative; }
         .chat-view::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.28), transparent 30%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.18), transparent 24%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02)); pointer-events: none; opacity: 0.75; }
-        .chat-header { display: flex; align-items: center; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.12); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; }
-        .chat-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #666; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-        .chat-header-info { margin-left: 10px; flex: 1; min-width: 0; }
-        .chat-name { font-size: 15px; font-weight: 600; color: #111; line-height: 1.2; }
-        .chat-status { font-size: 11px; color: #6b7280; margin-top: 2px; }
+        .chat-header { display: flex; align-items: center; padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.12); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; }
+        .chat-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 13px; color: #666; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        .chat-header-info { margin-left: 8px; flex: 1; min-width: 0; }
+        .chat-name { font-size: 14px; font-weight: 600; color: #111; line-height: 1.2; }
+        .chat-status { font-size: 10px; color: #6b7280; margin-top: 1px; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 14px 12px 10px; position: relative; z-index: 1; }
         .chat-empty { text-align: center; color: rgba(17,17,17,0.45); margin-top: 40%; font-size: 14px; }
         .msg-row { display: flex; align-items: flex-end; margin-bottom: 12px; gap: 8px; }
@@ -2413,15 +2413,15 @@ export default function Home() {
         .msg-bubble { max-width: 74%; padding: 10px 13px; border-radius: 18px; font-size: 14px; line-height: 1.55; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 1px rgba(0,0,0,0.08); }
         .msg-bubble.user { background: #95ec69; color: #111; border-bottom-right-radius: 6px; }
         .msg-bubble.assistant { background: #fff; color: #111; border-bottom-left-radius: 6px; border: 1px solid rgba(0,0,0,0.06); }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; }
-        .chat-plus-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
-        .emoji-item { font-size: 22px; cursor: pointer; padding: 4px; border-radius: 6px; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; }
+        .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
+        .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
         .emoji-item:hover { background: rgba(0,0,0,0.06); }
-        .fetch-models-btn { padding: 6px 10px; background: #07c160; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; white-space: nowrap; }
-        .chat-input { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 10px 14px; color: #eee; font-size: 14px; outline: none; font-family: inherit; min-height: 32px; max-height: 96px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+        .fetch-models-btn { padding: 5px 9px; background: #07c160; color: #fff; border: none; border-radius: 8px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 8px 12px; color: #eee; font-size: 14px; outline: none; font-family: inherit; min-height: 30px; max-height: 96px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
         .chat-input:focus { border-color: rgba(200,125,186,0.5); box-shadow: 0 0 0 3px rgba(200,125,186,0.15); }
-        .chat-send { width: 34px; height: 34px; border-radius: 50%; background: #07c160; color: #fff; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        .chat-send { width: 32px; height: 32px; border-radius: 50%; background: #07c160; color: #fff; border: none; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
         .chat-send:disabled { opacity: 0.45; background: #a3a3a3; }
       
         .app-full { width: 100%; height: 100%; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
