@@ -1854,8 +1854,9 @@ export default async function handler(req, res) {
         if (ombreResp.ok) {
           const ombreData = await ombreResp.json()
           if (ombreData.result && ombreData.result.content) {
-            ombreCount = ombreData.result.content.length  // 记录实际返回条数
             const text = ombreData.result.content.map(c => c.text || '').join('\n')
+            // 统计实际返回的记忆条数（每条记忆以 [bucket_id: 开头）
+            ombreCount = (text.match(/\[bucket_id:/g) || []).length
             if (text.trim() && text.trim() !== '[]' && text.length > 10) {
               ombreRecall = text.slice(0, 3000)  // 增加到3000字符，完整记忆
             }
