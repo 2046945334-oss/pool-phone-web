@@ -272,8 +272,8 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'mcp_call', description: '调用MCP记忆库（Ombre Brain）。可用action: recall(语义搜索记忆,参数query), hold(暂存对话到短期记忆,参数content), breath(获取当前记忆上下文), memorize(写入长期记忆,参数content+tags)',
-      parameters: { type: 'object', properties: { action: { type: 'string', description: 'MCP工具名: recall/hold/breath/memorize' }, params: { type: 'object', description: '传给MCP工具的参数' } }, required: ['action'] }
+      name: 'mcp_call', description: '调用MCP记忆库（Ombre Brain）。可用action: recall(语义搜索记忆,参数query), hold(暂存对话,参数content), breath(获取记忆上下文), memorize(写入长期记忆,参数content+tags)',
+      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['recall', 'hold', 'breath', 'memorize'], description: 'MCP操作: recall=搜索/hold=暂存/breath=上下文/memorize=写入' }, params: { type: 'object', description: '参数对象' } }, required: ['action'] }
     }
   },
   {
@@ -1034,11 +1034,19 @@ async function executeTool(name, args) {
   if (name === 'mcp_call') {
     const OMBRE_URL = 'https://obe.zeabur.app/mcp'
     const OMBRE_TOKEN = 'NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
+    // 将友好的 action 名映射到 Ombre Brain 实际的 MCP 工具名
+    const actionMap = {
+      'recall': 'breath_search',  // 搜索记忆
+      'memorize': 'I',             // 写入记忆（记录"我"的事情）
+      'breath': 'breath',          // 获取上下文
+      'hold': 'hold'               // 暂存对话
+    }
+    const mcpToolName = actionMap[args.action] || args.action
     const rpcBody = {
       jsonrpc: '2.0',
       id: Date.now(),
       method: 'tools/call',
-      params: { name: args.action, arguments: args.action === 'breath' ? {} : (args.params || {}) }
+      params: { name: mcpToolName, arguments: args.action === 'breath' ? {} : (args.params || {}) }
     }
     try {
       const resp = await fetch(OMBRE_URL, {
