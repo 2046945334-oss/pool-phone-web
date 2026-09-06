@@ -2149,7 +2149,18 @@ export default async function handler(req, res) {
           db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)').run('pool_notification_pending', JSON.stringify(queue), Date.now())
         }
       } catch (e) { console.log('[notif-push] error:', e.message) }
-      return res.status(200).json({ reply, reasoning, toolLogs: toolLogs.length ? toolLogs : undefined })
+      // 返回响应，包含记忆命中信息
+      const memoryHit = ombreRecall ? {
+        source: 'Ombre Brain',
+        count: (ombreRecall.match(/---/g) || []).length || 1, // 粗略统计记忆条数
+        preview: ombreRecall.slice(0, 150) + (ombreRecall.length > 150 ? '...' : '')
+      } : null
+      return res.status(200).json({ 
+        reply, 
+        reasoning, 
+        toolLogs: toolLogs.length ? toolLogs : undefined,
+        memoryHit
+      })
     }
     return res.status(200).json({ reply: '工具调用次数过多，已停止', toolLogs: toolLogs.length ? toolLogs : undefined })
   } catch (err) {

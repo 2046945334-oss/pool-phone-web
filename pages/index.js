@@ -156,29 +156,51 @@ function shouldShowTime(msgs, idx) {
   }
   return true
 }
-// 工具调用日志组件 - 可折叠显示
-function ToolLogBubble({ logs }) {
+// 工具调用日志组件 - 可折叠显示（米白色主题）
+function ToolLogBubble({ logs, memoryHit }) {
   const [open, setOpen] = useState(false)
-  if (!logs || !logs.length) return null
+  const hasContent = (logs && logs.length > 0) || memoryHit
+  if (!hasContent) return null
+  
   return (
     <div className="tool-log-wrap" onClick={() => setOpen(!open)}>
       <div className="tool-log-header">
-        <span>{'🔧'} {logs.length}{'个工具调用'}</span>
+        <span>
+          {logs && logs.length > 0 && `🔧 ${logs.length}个工具调用`}
+          {logs && logs.length > 0 && memoryHit && ' • '}
+          {memoryHit && `🧠 ${memoryHit.count}条记忆`}
+        </span>
         <span className="tool-log-arrow">{open ? '▲' : '▼'}</span>
       </div>
       {open && (
         <div className="tool-log-body">
-          {logs.map((log, i) => (
-            <div key={i} className="tool-log-item">
-              <div className="tool-log-name">{'▸ '}{log.name}</div>
-              {log.args && Object.keys(log.args).length > 0 && (
-                <div className="tool-log-args">{'参数: '}{JSON.stringify(log.args, null, 1)}</div>
-              )}
-              <div className="tool-log-result">
-                {'结果: '}{typeof log.result === 'object' ? JSON.stringify(log.result, null, 1) : String(log.result)}
+          {/* 记忆命中区块 */}
+          {memoryHit && (
+            <div className="tool-log-section">
+              <div className="tool-log-section-title">{'🧠 记忆命中'}</div>
+              <div className="memory-hit-item">
+                <div className="memory-hit-source">{'来源: '}{memoryHit.source}</div>
+                <div className="memory-hit-preview">{memoryHit.preview}</div>
               </div>
             </div>
-          ))}
+          )}
+          {/* 工具调用区块 */}
+          {logs && logs.length > 0 && (
+            <div className="tool-log-section">
+              <div className="tool-log-section-title">{'🔧 工具调用'}</div>
+              {logs.map((log, i) => (
+                <div key={i} className="tool-log-item">
+                  <div className="tool-log-name">{'▸ '}{log.name}</div>
+                  {log.args && Object.keys(log.args).length > 0 && (
+                    <div className="tool-log-args">{'参数: '}{JSON.stringify(log.args, null, 1)}</div>
+                  )}
+                  <div className="tool-log-result">
+                    {'结果: '}{typeof log.result === 'object' ? JSON.stringify(log.result, null, 1) : String(log.result)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -683,11 +705,14 @@ function ChatView({ theme }) {
         setMessages([...current])
         if (i < restored.length - 1) await new Promise(r => setTimeout(r, 600))
       }
-      // 附加工具调用日志（如果有）
-      if (toolLogs) {
-        current = [...current, { role: 'tool_log', content: JSON.stringify(toolLogs) }]
+      // 附加工具调用日志和记忆命中（如果有）
+      if (toolLogs || data.memoryHit) {
+        current = [...current, { 
+          role: 'tool_log', 
+          content: JSON.stringify({ logs: toolLogs, memoryHit: data.memoryHit }) 
+        }]
         setMessages([...current])
-        const wk = toolLogs.find(l => l.name === 'schedule_wakeup')
+        const wk = toolLogs && toolLogs.find(l => l.name === 'schedule_wakeup')
         if (wk && wk.result && wk.result.ok) {
           let mins = wk.args && wk.args.minutes
           if (!mins && wk.result.wake_at) { try { mins = Math.max(1, Math.round((new Date(wk.result.wake_at.replace(' ','T') + '+08:00') - Date.now()) / 60000)) } catch {} }
@@ -907,8 +932,19 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           <div className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
             {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
             {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
-            {msg.role === 'tool_log' ? (
-              <ToolLogBubble logs={JSON.parse(msg.content)} />
+{msg.role === 'tool_log' ? (
+              (() => {
+                try {
+                  const parsed = JSON.parse(msg.content)
+                  // 兼容旧格式（纯数组）和新格式（{logs, memoryHit}）
+                  const logs = Array.isArray(parsed) ? parsed : parsed.logs
+                  const memoryHit = parsed.memoryHit
+                  return <ToolLogBubble logs={logs} memoryHit={memoryHit} />
+                } catch {
+                  return null
+                }
+              })()
+            )
             ) : msg.role === 'system' ? (
               <div className="msg-system" style={theme?.systemMsgBg||theme?.systemMsgText||theme?.systemMsgBorder?{background:theme.systemMsgBg||undefined,color:theme.systemMsgText||undefined,borderColor:theme.systemMsgBorder||undefined}:{}}>{msg.content}</div>
             ) : editIdx === i ? (
@@ -2455,15 +2491,21 @@ export default function Home() {
         .msg-menu button { display: block; width: 100%; padding: 9px 14px; background: none; border: none; color: #e0e0e0; font-size: 13px; text-align: left; cursor: pointer; }
         .msg-menu button:active { background: rgba(232,160,191,.15); }
         .msg-system { font-size: 12px; color: #9a8a99; background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 12px; margin: 4px auto; max-width: 85%; text-align: center; border: 1px dashed #333; }
-        .tool-log-wrap { width: 90%; margin: 4px auto; background: rgba(255,255,255,.04); border-radius: 8px; border: 1px solid #2a2a2a; cursor: pointer; overflow: hidden; }
-        .tool-log-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; font-size: 11px; color: #8a8a8a; }
-        .tool-log-arrow { font-size: 10px; color: #666; }
-        .tool-log-body { padding: 0 12px 8px; border-top: 1px solid #2a2a2a; }
-        .tool-log-item { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+        .tool-log-wrap { width: 90%; margin: 4px auto; background: #f8f6f3; border-radius: 10px; border: 1px solid #e8e4df; cursor: pointer; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .tool-log-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-size: 11px; color: #6b5d56; font-weight: 500; }
+        .tool-log-arrow { font-size: 10px; color: #9a8a84; }
+        .tool-log-body { padding: 4px 0 8px; background: #fdfcfb; }
+        .tool-log-section { margin: 6px 12px; padding-bottom: 6px; border-bottom: 1px solid #f0ede8; }
+        .tool-log-section:last-child { border-bottom: none; }
+        .tool-log-section-title { font-size: 11px; color: #8a7a74; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.3px; }
+        .tool-log-item { padding: 6px 0; margin-left: 8px; border-bottom: 1px solid #f5f3f0; }
         .tool-log-item:last-child { border-bottom: none; }
-        .tool-log-name { font-size: 11px; color: #c77dba; font-weight: 600; }
-        .tool-log-args { font-size: 10px; color: #7a7a7a; white-space: pre-wrap; word-break: break-all; margin-top: 2px; }
-        .tool-log-result { font-size: 10px; color: #6a9a6a; white-space: pre-wrap; word-break: break-all; margin-top: 2px; }
+        .tool-log-name { font-size: 11px; color: #b08080; font-weight: 600; }
+        .tool-log-args { font-size: 10px; color: #9a8a84; white-space: pre-wrap; word-break: break-all; margin-top: 2px; line-height: 1.4; }
+        .tool-log-result { font-size: 10px; color: #7a9a7a; white-space: pre-wrap; word-break: break-all; margin-top: 2px; line-height: 1.4; }
+        .memory-hit-item { margin-left: 8px; }
+        .memory-hit-source { font-size: 10px; color: #8a7a74; margin-bottom: 4px; }
+        .memory-hit-preview { font-size: 10px; color: #6b5d56; line-height: 1.5; background: #f5f3f0; padding: 6px 8px; border-radius: 6px; border-left: 2px solid #d4c8bf; }
         .msg-row.tool_log { justify-content: center; }
         .msg-time-divider { text-align: center; padding: 10px 0 6px; font-size: 11px; color: #8a8a8a; letter-spacing: 1px; }
         .thinking-wrap { width: 90%; margin: 2px auto 6px; background: rgba(199,125,186,.06); border-radius: 8px; border: 1px solid rgba(199,125,186,.15); cursor: pointer; overflow: hidden; }
