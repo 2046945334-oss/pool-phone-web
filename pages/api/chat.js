@@ -1814,21 +1814,8 @@ export default async function handler(req, res) {
     if (lastUserMsg) {
       await processNewMessage(sessionId, 'user', lastUserMsg.content, apiConfig)
     }
-    // 2. 构建记忆增强的消息列表
-    const memoryCtx = buildMemoryContext(sessionId)
-    let localResults = ''
-    if (lastUserMsg) {
-      // 用用户最新消息做本地搜索（content可能是multimodal数组）
-      const textContent = typeof lastUserMsg.content === 'string' 
-        ? lastUserMsg.content 
-        : (Array.isArray(lastUserMsg.content) ? lastUserMsg.content.filter(c => c.type === 'text').map(c => c.text).join(' ') : String(lastUserMsg.content))
-      const keywords = textContent.slice(0, 50)
-      const found = localSearch(keywords, 3)
-      if (found.length) {
-        localResults = found.map(r => `[${r.type}] ${r.content}`).join('\n')
-      }
-    }
-    // 2.5 自动从 Ombre Brain recall 语义记忆
+    
+    // 2. 只从 Ombre Brain 获取语义记忆（关闭本地记忆以节省token）
     let ombreRecall = ''
     if (lastUserMsg) {
       try {
@@ -1866,6 +1853,7 @@ export default async function handler(req, res) {
         }
       } catch (e) { console.log('[OmbreRecall] auto recall error:', e.message) }
     }
+    
     // 3. 注入记忆到system prompt + 工具使用引导
     const toolGuidance = `
 【工具使用指引】
@@ -1924,7 +1912,7 @@ export default async function handler(req, res) {
 6. **每个操作只调一次工具**，工具返回后视为成功，不要重复调用确认
 7. **工具调用后必须用自然语言回复**：执行工具后，要用1-2句话告诉用户你做了什么/心里在想什么，不要只留工具调用记录`
     let currentMessages = messages.slice()
-    const memoryInjection = [memoryCtx, localResults, ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''].filter(Boolean).join('\n\n')
+    const memoryInjection = ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''
     const fullInjection = [memoryInjection, toolGuidance].filter(Boolean).join('\n\n')
     if (fullInjection) {
       // 在第一条system消息后插入记忆，或者作为新system消息
