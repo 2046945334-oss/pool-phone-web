@@ -150,7 +150,7 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'system',
-            content: '你是记忆整理助手。分析 dream 返回的碎片记忆，把相关的整合成完整事件。\n\n整理原则：\n1. 把碎片化对话（3条以上相关短消息）整合成有起因经过结果的完整故事\n2. 单独的、无关联的记忆不要强行合并\n3. 同一个bucket_id不要重复放在多个事件里\n\n你必须且只能输出一个合法的JSON对象，不要输出任何其他文本、注释或markdown。格式：\n{"events":[{"title":"事件标题","content":"完整叙述","source_buckets":["id1","id2"],"tags":["标签"],"importance":7,"quotes":[]}]}'
+            content: `你是记忆整理助手。分析 dream 返回的碎片记忆，把相关的整合成完整事件。\n\n整理原则：\n1. 把碎片化对话（3条以上相关短消息）整合成有起因经过结果的完整故事\n2. 单独的、无关联的记忆不要强行合并\n3. 同一个bucket_id不要重复放在多个事件里\n\n对每个事件还需判断：\n- pinned: 是否订选（极其重要的人生节点、承诺、决定才为true，日常琐事为false）\n- feel: 情感坐标，{valence:-1到1表示消极到积极, arousal:0到1表示平静到激动}。只对有明显情绪的事件标注，中性事件为null\n- resolved: 问题、困惑、待办类记忆如果已解决/完成则为true，其他为false\n\n你必须且只能输出一个合法的JSON对象，不要输出任何其他文本、注释或markdown。格式：\n{"events":[{"title":"事件标题","content":"完整叙述","source_buckets":["id1"],"tags":["标签"],"importance":7,"quotes":[],"pinned":false,"feel":null,"resolved":false}]}`
           },
           {
             role: 'user',
@@ -219,10 +219,32 @@ export default async function handler(req, res) {
         const growResult = await growResp.json()
         results.push({ title: event.title, status: 'created' })
 
-        // 6. 标记原碎片为已消化
+        // 6. 标记原碎片：消化 + 订选/情感/已解决
         if (event.source_buckets && event.source_buckets.length > 0) {
           for (const bucketId of event.source_buckets) {
             try {
+              const traceArgs = {
+                bucket_id: bucketId,
+                digested: 1
+              }
+
+              // 添加订选状态
+              if (event.pinned === true) {
+                traceArgs.pinned = 1
+              }
+
+              // 添加情感坐标
+              if (event.feel && typeof event.feel === 'object' && 
+                  typeof event.feel.valence === 'number' && 
+                  typeof event.feel.arousal === 'number') {
+                traceArgs.feel = event.feel
+              }
+
+              // 添加已解决状态
+              if (event.resolved === true) {
+                traceArgs.resolved = 1
+              }
+
               await fetch(obConn.url, {
                 method: 'POST',
                 headers: obHeaders,
@@ -232,10 +254,7 @@ export default async function handler(req, res) {
                   method: 'tools/call',
                   params: {
                     name: 'trace',
-                    arguments: {
-                      bucket_id: bucketId,
-                      digested: 1
-                    }
+                    arguments: traceArgs
                   }
                 })
               })
