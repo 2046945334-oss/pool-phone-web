@@ -1,20 +1,16 @@
 /**
  * 记忆整理API - 由定时任务触发
  * 使用聊天/主API配置（与wakeup.js相同的fallback逻辑）
+ * OB MCP连接信息从数据库pool_mcp_connections读取
  */
 
 import path from 'path'
-
-// 复用 lib/db.js 的数据库路径逻辑（ESM 环境下重新实现）
 import Database from 'better-sqlite3'
 import fs from 'fs'
 
 const DATA_DIR = process.env.DATA_DIR || (process.env.NODE_ENV === 'production' ? '/data' : path.join(process.cwd(), '.data'))
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
 const DB_PATH = path.join(DATA_DIR, 'pool.db')
-
-const OB_MCP_URL = 'https://obe.zeabur.app/mcp'
-const OB_TOKEN = 'Bearer NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
 
 function getApiConfig() {
   try {
@@ -27,13 +23,27 @@ function getApiConfig() {
     row = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
     if (row) {
       const cfg = JSON.parse(row.value)
-      // pool_api_config 可能用 apiBase 而非 baseUrl
       if (cfg.apiBase) cfg.baseUrl = cfg.apiBase
       if (cfg.baseUrl && cfg.apiKey) { db.close(); return cfg }
-      db.close()
     }
+    db.close()
   } catch (e) {
     console.error('[organize-memory] getApiConfig error:', e.message)
+  }
+  return null
+}
+
+function getObConnection() {
+  try {
+    const db = new Database(DB_PATH, { readonly: true })
+    const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_mcp_connections'").get()
+    db.close()
+    if (!row) return null
+    const conns = JSON.parse(row.value)
+    const ob = conns.find(c => c.enabled && c.url && c.url.includes('obe'))
+    if (ob) return { url: ob.url, token: ob.token }
+  } catch (e) {
+    console.error('[organize-memory] getObConnection error:', e.message)
   }
   return null
 }
@@ -44,23 +54,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. 读取API配置（与wakeup.js相同的fallback逻辑）
+    // 1. 读取API配置
     const apiConfig = getApiConfig()
     if (!apiConfig || !apiConfig.baseUrl || !apiConfig.apiKey) {
       return res.status(500).json({ 
         error: 'API config not found',
-        detail: '请先在设置页配置对话或主API',
-        debug: { DATA_DIR, DB_PATH, exists: fs.existsSync(DB_PATH) }
+        detail: '请先在设置页配置对话或主API'
       })
     }
 
-    // 2. 调用 OB dream 查看最近48小时记忆
-    const dreamResponse = await fetch(OB_MCP_URL, {
+    // 2. 读取OB MCP连接
+    const obConn = getObConnection()
+    if (!obConn) {
+      return res.status(500).json({
+        error: 'OB MCP connection not found',
+        detail: '请先在MCP管理中配置Ombre Brain连接'
+      })
+    }
+
+    const obHeaders = { 'Content-Type': 'application/json' }
+    if (obConn.token) obHeaders['Authorization'] = `Bearer ${obConn.token}`
+
+    // 3. 调用 OB dream 查看最近48小时记忆
+    const dreamResponse = await fetch(obConn.url, {
       method: 'POST',
-      headers: {
-        'Authorization': OB_TOKEN,
-        'Content-Type': 'application/json'
-      },
+      headers: obHeaders,
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
@@ -83,7 +101,7 @@ export default async function handler(req, res) {
       })
     }
 
-    // 3. 让AI模型分析这些记忆，决定如何整理
+    // 4. 让AI模型分析这些记忆，决定如何整理
     const aiResponse = await fetch(apiConfig.baseUrl.replace(/\/$/, '') + '/chat/completions', {
       method: 'POST',
       headers: {
@@ -125,15 +143,12 @@ export default async function handler(req, res) {
 
     const events = analysis.events || []
 
-    // 4. 调用 OB grow 写入整合后的事件
+    // 5. 调用 OB grow 写入整合后的事件
     const results = []
     for (const event of events) {
-      const growResponse = await fetch(OB_MCP_URL, {
+      await fetch(obConn.url, {
         method: 'POST',
-        headers: {
-          'Authorization': OB_TOKEN,
-          'Content-Type': 'application/json'
-        },
+        headers: obHeaders,
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 2,
@@ -153,18 +168,14 @@ export default async function handler(req, res) {
         })
       })
 
-      const growResult = await growResponse.json()
       results.push({ title: event.title, status: 'created' })
 
-      // 5. 标记原碎片为已消化
+      // 6. 标记原碎片为已消化
       if (event.source_buckets && event.source_buckets.length > 0) {
         for (const bucketId of event.source_buckets) {
-          await fetch(OB_MCP_URL, {
+          await fetch(obConn.url, {
             method: 'POST',
-            headers: {
-              'Authorization': OB_TOKEN,
-              'Content-Type': 'application/json'
-            },
+            headers: obHeaders,
             body: JSON.stringify({
               jsonrpc: '2.0',
               id: 3,
