@@ -1,29 +1,40 @@
 /**
  * 记忆整理API - 由定时任务触发
- * 使用聊天/主API配置（与wakeup.js相同的fallback逻辑）分析并整理OB记忆库
+ * 使用聊天/主API配置（与wakeup.js相同的fallback逻辑）
  */
 
-import fs from 'fs/promises'
 import path from 'path'
-import Database from 'better-sqlite3'
 
-const DATA_DIR = path.join(process.cwd(), 'data')
+// 复用 lib/db.js 的数据库路径逻辑（ESM 环境下重新实现）
+import Database from 'better-sqlite3'
+import fs from 'fs'
+
+const DATA_DIR = process.env.DATA_DIR || (process.env.NODE_ENV === 'production' ? '/data' : path.join(process.cwd(), '.data'))
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
 const DB_PATH = path.join(DATA_DIR, 'pool.db')
+
 const OB_MCP_URL = 'https://obe.zeabur.app/mcp'
 const OB_TOKEN = 'Bearer NxNrXE63qe3XakYEk-2yVYL2U8iqHGVRn0wF24e6rWg'
 
 function getApiConfig() {
   try {
-    const db = new Database(DB_PATH)
+    const db = new Database(DB_PATH, { readonly: true })
     let row = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config_chat'").get()
     if (row) {
       const cfg = JSON.parse(row.value)
       if (cfg.baseUrl && cfg.apiKey) { db.close(); return cfg }
     }
     row = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
-    if (row) { const cfg = JSON.parse(row.value); db.close(); return cfg }
-    db.close()
-  } catch {}
+    if (row) {
+      const cfg = JSON.parse(row.value)
+      // pool_api_config 可能用 apiBase 而非 baseUrl
+      if (cfg.apiBase) cfg.baseUrl = cfg.apiBase
+      if (cfg.baseUrl && cfg.apiKey) { db.close(); return cfg }
+      db.close()
+    }
+  } catch (e) {
+    console.error('[organize-memory] getApiConfig error:', e.message)
+  }
   return null
 }
 
@@ -38,7 +49,8 @@ export default async function handler(req, res) {
     if (!apiConfig || !apiConfig.baseUrl || !apiConfig.apiKey) {
       return res.status(500).json({ 
         error: 'API config not found',
-        detail: '请先在设置页配置对话或主API'
+        detail: '请先在设置页配置对话或主API',
+        debug: { DATA_DIR, DB_PATH, exists: fs.existsSync(DB_PATH) }
       })
     }
 
@@ -83,26 +95,7 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'system',
-            content: `你是记忆整理助手。分析 dream 返回的碎片记忆，把相关的整合成完整事件。
-
-整理原则：
-1. 把碎片化对话（3条以上相关短消息）整合成有起因经过结果的完整故事
-2. 单独的、无关联的记忆不要强行合并
-3. 同一个bucket_id不要重复放在多个事件里
-
-输出严格的 JSON 格式（不要markdown代码块）：
-{
-  "events": [
-    {
-      "title": "事件标题（简短精准）",
-      "content": "完整叙述（第一人称，包含起因经过结果）",
-      "source_buckets": ["bucket_id1", "bucket_id2"],
-      "tags": ["标签1", "标签2"],
-      "importance": 7,
-      "quotes": ["要原样记住的那句话（可选，多数记忆不需要）"]
-    }
-  ]
-}`
+            content: `你是记忆整理助手。分析 dream 返回的碎片记忆，把相关的整合成完整事件。\n\n整理原则：\n1. 把碎片化对话（3条以上相关短消息）整合成有起因经过结果的完整故事\n2. 单独的、无关联的记忆不要强行合并\n3. 同一个bucket_id不要重复放在多个事件里\n\n输出严格的 JSON 格式（不要markdown代码块）：\n{\n  "events": [\n    {\n      "title": "事件标题（简短精准）",\n      "content": "完整叙述（第一人称，包含起因经过结果）",\n      "source_buckets": ["bucket_id1", "bucket_id2"],\n      "tags": ["标签1", "标签2"],\n      "importance": 7,\n      "quotes": ["要原样记住的那句话（可选，多数记忆不需要）"]\n    }\n  ]\n}`
           },
           {
             role: 'user',
