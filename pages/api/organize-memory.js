@@ -66,6 +66,8 @@ function robustJsonParse(text) {
   }
   return null
 }
+  return null
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST' && req.method !== 'GET') {
