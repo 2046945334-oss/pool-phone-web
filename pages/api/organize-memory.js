@@ -49,28 +49,26 @@ function getObConnection() {
 }
 
 /**
- * 健壮的JSON解析：处理markdown代码块、转义字符等
- */
 function robustJsonParse(text) {
   if (!text || typeof text !== 'string') return null
-
   // 尝试1：直接解析
   try { return JSON.parse(text) } catch (e) { /* continue */ }
-
-  // 尝试2：去掉markdown代码块 ```json ... ```
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (codeBlockMatch) {
-    try { return JSON.parse(codeBlockMatch[1].trim()) } catch (e) { /* continue */ }
-  }
-
-  // 尝试3：提取第一个 { 到最后一个 } 之间的内容
-  const firstBrace = text.indexOf('{')
-  const lastBrace = text.lastIndexOf('}')
+  // 尝试2：去掉markdown代码块
+  let cleaned = text.trim()
+  cleaned = cleaned.replace(/^```(?:json)?\s*/gm, '').replace(/```\s*$/gm, '')
+  try { return JSON.parse(cleaned.trim()) } catch (e) { /* continue */ }
+  // 尝试3：提取第一个 { 到最后一个 }
+  const firstBrace = cleaned.indexOf('{')
+  const lastBrace = cleaned.lastIndexOf('}')
   if (firstBrace !== -1 && lastBrace > firstBrace) {
-    const extracted = text.substring(firstBrace, lastBrace + 1)
+    const extracted = cleaned.substring(firstBrace, lastBrace + 1)
     try { return JSON.parse(extracted) } catch (e) { /* continue */ }
   }
+  return null
+}
 
+  return null
+}
   // 尝试4：处理literal \n（模型输出的不是真换行而是\n字符串）
   // 以及修复常见的JSON格式问题
   try {
