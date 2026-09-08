@@ -67,22 +67,6 @@ function robustJsonParse(text) {
   return null
 }
 
-  return null
-}
-  // 尝试4：处理literal \n（模型输出的不是真换行而是\n字符串）
-  // 以及修复常见的JSON格式问题
-  try {
-    let cleaned = text
-    // 如果整个文本被引号包裹（字符串化的JSON），先解一层
-    if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-      cleaned = JSON.parse(cleaned)
-    }
-    return JSON.parse(cleaned)
-  } catch (e) { /* continue */ }
-
-  return null
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
