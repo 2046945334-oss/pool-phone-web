@@ -49,6 +49,8 @@ function getObConnection() {
 }
 
 /**
+ * 健壮的JSON解析：处理markdown代码块、转义字符等
+ */
 function robustJsonParse(text) {
   if (!text || typeof text !== 'string') return null
   // 尝试1：直接解析
@@ -64,8 +66,6 @@ function robustJsonParse(text) {
     const extracted = cleaned.substring(firstBrace, lastBrace + 1)
     try { return JSON.parse(extracted) } catch (e) { /* continue */ }
   }
-  return null
-}
   return null
 }
 
