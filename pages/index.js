@@ -318,6 +318,92 @@ function getApiConfig(feature) {
   const fc = all[feature] || {}
   return { apiBase: fc.apiBase || def.apiBase || '', apiKey: fc.apiKey || def.apiKey || '', model: fc.model || def.model || '' }
 }
+
+function MusicIsland({ theme }) {
+  const [np, setNp] = useState(null)
+  const [expanded, setExpanded] = useState(false)
+  const [togetherMin, setTogetherMin] = useState(0)
+  const musicServer = typeof window !== 'undefined' ? (localStorage.getItem('pool_music_server') || '') : ''
+  const musicToken = typeof window !== 'undefined' ? (localStorage.getItem('pool_music_token') || '') : ''
+
+  useEffect(() => {
+    if (!musicServer) return
+    const headers = musicToken ? { 'X-Auth-Token': musicToken } : {}
+    let active = true
+    const poll = async () => {
+      try {
+        const res = await fetch(musicServer + '/music/now', { headers })
+        const d = await res.json()
+        if (!active) return
+        if (d.ok) {
+          setNp(d)
+          if (typeof d.togetherMinutes === 'number') setTogetherMin(d.togetherMinutes)
+        }
+        // Don't clear np on ok:false — keep showing last state briefly
+      } catch {}
+    }
+    poll()
+    const timer = setInterval(poll, 5000)
+    return () => { active = false; clearInterval(timer) }
+  }, [musicServer, musicToken])
+
+  if (!np || !musicServer) return null
+
+  const pct = np.duration > 0 ? (np.position / np.duration * 100) : 0
+  const fmt = s => { const m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0') }
+  const avatarAI = theme?.avatarAI || ''
+  const avatarUser = theme?.avatarUser || ''
+
+  if (!expanded) return (
+    <div className="mi-pill" onClick={() => setExpanded(true)}>
+      <div className="mi-pill-avatars">
+        {avatarAI ? <img src={avatarAI} className="mi-ava" /> : <div className="mi-ava mi-ava-fallback">{"\u6c60"}</div>}
+        {avatarUser ? <img src={avatarUser} className="mi-ava mi-ava-right" /> : <div className="mi-ava mi-ava-right mi-ava-fallback">{"\u6211"}</div>}
+      </div>
+      <div className="mi-pill-info">
+        <div style={{color:'#f0e6ef',fontSize:'11px',fontWeight:600,maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{np.name || ''}</div>
+        <div style={{color:'rgba(232,160,191,0.6)',fontSize:'9px'}}>{np.artist || ''}</div>
+      </div>
+      <div className="mi-pill-bars">
+        {np.playing && <>{[0,.15,.3,.1].map((d,i) => <span key={i} className="mi-bar" style={{animationDelay:d+'s'}} />)}</>}
+        {!np.playing && <span style={{color:'rgba(232,160,191,0.5)',fontSize:'10px'}}>{"\u23f8"}</span>}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="mi-panel" onClick={(e) => { if (e.target === e.currentTarget) setExpanded(false) }}>
+      <div className="mi-panel-inner">
+        <div className="mi-panel-top">
+          <div className="mi-panel-avatars">
+            {avatarAI ? <img src={avatarAI} className="mi-panel-ava" /> : <div className="mi-panel-ava mi-ava-fallback">{"\u6c60"}</div>}
+            {avatarUser ? <img src={avatarUser} className="mi-panel-ava mi-panel-ava-right" /> : <div className="mi-panel-ava mi-panel-ava-right mi-ava-fallback">{"\u6211"}</div>}
+          </div>
+          <div className="mi-panel-together">
+            {"\u4e00\u8d77\u542c\u4e86 "}<span className="mi-mins">{togetherMin}</span>{" \u5206\u949f"}
+          </div>
+        </div>
+        <div className="mi-panel-song">
+          <div className="mi-song-name">{np.name || '\u672a\u77e5\u6b4c\u66f2'}</div>
+          <div className="mi-song-artist">{np.artist || ''}</div>
+        </div>
+        <div className="mi-progress-row">
+          <span className="mi-time">{fmt(np.position||0)}</span>
+          <div className="mi-progress-track"><div className="mi-progress-fill" style={{width: pct+'%'}} /></div>
+          <span className="mi-time">{fmt(np.duration||0)}</span>
+        </div>
+        <div className="mi-controls">
+          <button className="mi-ctrl" onClick={e=>e.stopPropagation()}><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 6h2v12H6zm12 0v12l-8.5-6z"/></svg></button>
+          <button className="mi-ctrl mi-ctrl-play" onClick={e=>e.stopPropagation()}>{np.playing
+            ? <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            : <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg>}</button>
+          <button className="mi-ctrl" onClick={e=>e.stopPropagation()}><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
