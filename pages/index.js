@@ -1467,6 +1467,8 @@ function SettingsPanel() {
   const [mcpLoading, setMcpLoading] = useState(false)
   const [mcpInput, setMcpInput] = useState('')
 
+  // Music server config
+  const [musicServer, setMusicServer] = useState(() => localStorage.getItem('pool_music_server') || '')
 
   const [injectCfg, setInjectCfg] = useState(() => JSON.parse(localStorage.getItem('pool_inject_config') || '{"time":true,"battery":true,"weather":true}'))
 
@@ -1476,6 +1478,7 @@ function SettingsPanel() {
     localStorage.setItem('pool_tts_config', JSON.stringify(ttsConfig))
 
     localStorage.setItem('pool_inject_config', JSON.stringify(injectCfg))
+    localStorage.setItem('pool_music_server', musicServer)
     // Sync configs to backend so wakeup scheduler can read them
     syncToBackend('pool_api_config', defaultCfg)
     syncToBackend('pool_api_configs', configs)
@@ -1620,7 +1623,17 @@ function SettingsPanel() {
         <div className="settings-item"><label>{'\u97f3\u8272 ID (Voice ID)'}</label>
           <input value={ttsConfig.voiceId||''} onChange={e=>setTtsConfig(c=>({...c,voiceId:e.target.value}))} placeholder="音色编号" className="settings-input"/>
         </div>
-      </div>            <McpPanel />
+      </div>
+
+      <div className="settings-section" style={{marginTop:'20px'}}>
+        <h3 className="settings-title">{'\ud83c\udfb5 \u97f3\u4e50\u670d\u52a1\u5668'}</h3>
+        <p className="settings-desc">{'Music-Mcp-Netease \u670d\u52a1\u5730\u5740\uff0c\u586b\u5199\u540e\u97f3\u4e50App\u5c06\u52a0\u8f7d\u5b8c\u6574\u64ad\u653e\u5668'}</p>
+        <div className="settings-item"><label>{'\u670d\u52a1\u5668\u5730\u5740'}</label>
+          <input value={musicServer} onChange={e=>setMusicServer(e.target.value)} placeholder="https://your-music-server.zeabur.app" className="settings-input"/>
+        </div>
+        <p style={{fontSize:'11px',color:'#aaa',marginTop:'4px'}}>{'留空则使用本地静态音乐页面'}</p>
+      </div>
+            <McpPanel />
 
 
       <button className="settings-save" onClick={saveAll}>{saved ? '\u2713 \u5df2\u4fdd\u5b58' : '\u4fdd\u5b58\u914d\u7f6e'}</button>
@@ -1966,6 +1979,9 @@ function AppContent({ appId, onBack }) {
   const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_ledger.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
+  // For music app: check if external music server is configured
+  const musicServerUrl = (appId === 'music') ? (localStorage.getItem('pool_music_server') || '') : ''
+
     return (
     <div className="app-page">
       <div className="app-page-header">
@@ -1978,6 +1994,8 @@ function AppContent({ appId, onBack }) {
         <div className="app-page-body"><ThemePanel /></div>
       ) : htmlFile === '__memory__' ? (
         <div className="app-page-body"><MemoryPanel /></div>
+      ) : (appId === 'music' && musicServerUrl) ? (
+        <iframe src={musicServerUrl} className="app-iframe" allow="autoplay; encrypted-media" style={{border:'none'}} />
       ) : htmlFile ? (
         <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
       ) : (
