@@ -101,11 +101,12 @@ h3 { font-size:14px; color:#546e7a; margin:12px 0 6px; }
 .history-item.active { color:#fff; background:rgba(255,255,255,0.1); }
 .detail-send-btn { background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.8); border:none; border-radius:16px; padding:8px 14px; font-size:12px; cursor:pointer; }
 
-/* 功能键栏 */
-.detail-action-bar { display:flex; justify-content:space-around; align-items:center; padding:8px 20px 4px; }
-.detail-action-bar .action-btn { background:rgba(255,255,255,0.1); border:none; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:rgba(255,255,255,0.7); font-size:16px; transition: all 0.2s; }
-.detail-action-bar .action-btn:active { background:rgba(255,255,255,0.2); transform:scale(0.92); }
-.detail-action-bar .action-btn.liked { color:#ff6b8a; }
+/* 功能键栏 (Anko3o/Music-Mcp-Netease style) */
+.detail-head-tools { display:flex; align-items:center; gap:5px; flex-wrap:nowrap; min-width:0; }
+.detail-head-tools .dt-btn { width:32px; height:32px; flex:0 0 auto; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.7); cursor:pointer; padding:0; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.2); transition:transform 0.2s; }
+.detail-head-tools .dt-btn:active { transform:scale(0.9); }
+.detail-head-tools .dt-btn svg { width:15px; height:15px; }
+.detail-head-tools .dt-btn.liked { color:#ff6b8a; }
 </style>
 </head>
 <body>
@@ -144,17 +145,8 @@ h3 { font-size:14px; color:#546e7a; margin:12px 0 6px; }
   <div class="detail-overlay"></div>
   <div class="detail-content">
     <div class="detail-header">
-      <button onclick="closeDetail()" class="detail-back">&#10094;</button>
-      <div class="detail-header-title">&#27491;&#22312;&#25773;&#25918;</div>
-      <div style="width:36px;"></div>
-    </div>
-    <div class="detail-action-bar">
-      <button class="action-btn" onclick="downloadCurrent()" title="下载">&#x2B07;&#xFE0E;</button>
-      <button class="action-btn" id="like-btn" onclick="toggleLike()" title="收藏">&#x2665;&#xFE0E;</button>
-      <button class="action-btn" onclick="openNotes()" title="笔记">&#x270E;&#xFE0E;</button>
-      <button class="action-btn" onclick="showComments()" title="评论">&#x1F4AC;</button>
-      <button class="action-btn" onclick="openMV()" title="MV">&#x25B6;&#xFE0E;</button>
-      <button class="action-btn" onclick="addToQueue()" title="加入歌单">&#x2630;&#xFE0E;</button>
+      <button onclick="closeDetail()" class="detail-back">&darr;</button>
+      <div class="detail-head-tools" id="detail-head-tools"></div>
     </div>
     <div class="detail-info">
       <div id="detail-title" class="detail-song-name"></div>
@@ -192,72 +184,129 @@ h3 { font-size:14px; color:#546e7a; margin:12px 0 6px; }
 
 <audio id="audio" preload="none"></audio>
 <script src="ai-bridge.js">
-// Action bar
-var isLiked = false;
-function toggleLike() {
-  isLiked = !isLiked;
-  var btn = document.getElementById('like-btn');
-  btn.classList.toggle('liked', isLiked);
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/netease/like', {
-    method: 'POST', headers: {'Content-Type':'application/json','X-Auth-Token':token},
-    body: JSON.stringify({songId: currentSongId, like: isLiked})
-  }).catch(function(){});
+
+// ── Detail head tools (from Anko3o/Music-Mcp-Netease) ──
+var likedIds = new Set();
+function heartSvg(on) {
+  return on
+    ? '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="currentColor" stroke="none"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
 }
-function downloadCurrent() {
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  window.open(server + '/music/file/' + currentSongId + '.mp3?token=' + encodeURIComponent(token));
+
+function renderDetailTools() {
+  var el = document.getElementById('detail-head-tools');
+  if (!el || !currentSongId) return;
+  var liked = likedIds.has(currentSongId);
+  el.innerHTML =
+    '<button class="dt-btn' + (liked ? ' liked' : '') + '" id="dt-like-btn" aria-label="收藏">' + heartSvg(liked) + '</button>' +
+    '<button class="dt-btn" id="dt-mem-btn" aria-label="批注"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>' +
+    '<button class="dt-btn" id="dt-cmt-btn" aria-label="评论"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5c0 4.1-3.8 7.5-8.5 7.5-1.2 0-2.4-.2-3.4-.6L4 20l1.3-3.4C4.5 15.3 4 13.5 4 11.5 4 7.4 7.8 4 12.5 4S21 7.4 21 11.5z"/></svg></button>' +
+    '<button class="dt-btn" id="dt-mv-btn" aria-label="MV"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><polygon points="10,9 16,12 10,15" fill="currentColor" stroke="none"/></svg></button>' +
+    '<button class="dt-btn" id="dt-add-btn" aria-label="加入歌单"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13M3 12h13M3 18h7"/><path d="M18 15v6M15 18h6"/></svg></button>';
+
+  document.getElementById('dt-like-btn').addEventListener('click', function() { likeSong(); });
+  document.getElementById('dt-mem-btn').addEventListener('click', function() { openMemory(); });
+  document.getElementById('dt-cmt-btn').addEventListener('click', function() { openComments(); });
+  document.getElementById('dt-mv-btn').addEventListener('click', function() { openMv(); });
+  document.getElementById('dt-add-btn').addEventListener('click', function() { openAddToList(); });
 }
-function openNotes() {
-  var name = document.getElementById('detail-title').textContent || '';
-  var msg = prompt('写下对「' + name + '」的感受：');
-  if (msg) {
-    var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-    var token = localStorage.getItem('pool_music_token') || '';
-    fetch(server + '/music/memory', {
-      method: 'POST', headers: {'Content-Type':'application/json','X-Auth-Token':token},
-      body: JSON.stringify({songId: currentSongId, note: msg})
-    }).catch(function(){});
-  }
+
+function showToast(msg) {
+  var t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;pointer-events:none;';
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 2000);
 }
-function showComments() {
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/comments?songId=' + currentSongId, {headers:{'X-Auth-Token':token}})
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.comments && d.comments.length){
-        alert(d.comments.slice(0,5).map(function(c){return c.user+': '+c.content;}).join('
-'));
-      } else { alert('暂无热评'); }
-    }).catch(function(){ alert('暂无热评'); });
+
+function getServer() { return localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app'; }
+function getToken() { return localStorage.getItem('pool_music_token') || ''; }
+function api(path) {
+  return fetch(getServer() + path, { headers: { 'X-Auth-Token': getToken() } }).then(function(r) { return r.json(); });
 }
-function openMV() {
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/mv?songId=' + currentSongId, {headers:{'X-Auth-Token':token}})
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.url){ window.open(d.url); }
-      else { alert('这首歌暂无MV'); }
-    }).catch(function(){ alert('这首歌暂无MV'); });
+function apiPost(path, body) {
+  return fetch(getServer() + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Auth-Token': getToken() },
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); });
 }
-function addToQueue() {
+
+function likeSong() {
   if (!currentSongId) return;
   var name = document.getElementById('detail-title').textContent || '';
   var artist = document.getElementById('detail-artist').textContent || '';
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/playlists/add-song', {
-    method: 'POST', headers: {'Content-Type':'application/json','X-Auth-Token':token},
-    body: JSON.stringify({playlistId: 'liked', songId: currentSongId, name: name, artist: artist})
-  }).then(function(){ alert('已加入歌单'); }).catch(function(){ alert('加入失败'); });
+  if (likedIds.has(currentSongId)) {
+    apiPost('/music/playlist/remove', { songId: currentSongId }).catch(function(){});
+    likedIds.delete(currentSongId);
+    apiPost('/music/netease/like', { songId: String(currentSongId), like: false }).catch(function(){});
+    showToast('取消收藏');
+  } else {
+    apiPost('/music/playlist/add', { song: { songId: currentSongId, name: name, artist: artist }, by: 'user' }).catch(function(){});
+    likedIds.add(currentSongId);
+    apiPost('/music/netease/like', { songId: String(currentSongId), like: true }).catch(function(){});
+    showToast('已收藏 ♥');
+  }
+  renderDetailTools();
+}
+
+function openMemory() {
+  if (!currentSongId) return;
+  var name = document.getElementById('detail-title').textContent || '';
+  api('/music/memory?songId=' + currentSongId).then(function(d) {
+    var notes = (d.notes || []).map(function(n) { return n.who + ': ' + n.text; }).join('
+');
+    var msg = prompt('歌的批注：' + (notes ? '
+' + notes + '
+
+追加新批注：' : '写下对「' + name + '」的感受：'));
+    if (msg) apiPost('/music/memory', { songId: currentSongId, note: msg }).then(function() { showToast('批注已保存'); }).catch(function(){});
+  }).catch(function() {
+    var msg = prompt('写下对这首歌的感受：');
+    if (msg) apiPost('/music/memory', { songId: currentSongId, note: msg }).catch(function(){});
+  });
+}
+
+function openComments() {
+  if (!currentSongId) return;
+  api('/music/comments?songId=' + currentSongId).then(function(d) {
+    var cmts = (d.comments || []).slice(0, 8);
+    if (cmts.length) {
+      alert(cmts.map(function(c) { return (c.user || '匿名') + ': ' + c.content; }).join('
+
+'));
+    } else { showToast('暂无热评'); }
+  }).catch(function() { showToast('评论加载失败'); });
+}
+
+function openMv() {
+  if (!currentSongId) return;
+  api('/music/mv?id=' + currentSongId).then(function(d) {
+    if (d.ok && d.url) { window.open(d.url, '_blank'); }
+    else { showToast(d.msg || '这首没有MV'); }
+  }).catch(function() { showToast('MV查询失败'); });
+}
+
+function openAddToList() {
+  if (!currentSongId) return;
+  var name = document.getElementById('detail-title').textContent || '';
+  var artist = document.getElementById('detail-artist').textContent || '';
+  api('/music/playlists').then(function(d) {
+    var pls = (d.ok ? d.playlists : []) || [];
+    if (!pls.length) { showToast('还没有歌单'); return; }
+    var names = pls.map(function(p, i) { return (i + 1) + '. ' + p.name; }).join('
+');
+    var choice = prompt('把「' + name + '」收进哪个歌单？
+' + names);
+    if (!choice) return;
+    var idx = parseInt(choice) - 1;
+    if (idx >= 0 && idx < pls.length) {
+      apiPost('/music/playlists/add-song', { playlistId: pls[idx].id, song: { songId: currentSongId, name: name, artist: artist }, by: 'user' })
+        .then(function(r) {
+          if (r.duplicate) showToast('已经在『' + pls[idx].name + '』里了');
+          else showToast('已收进『' + pls[idx].name + '』 ♪');
+        }).catch(function() { showToast('没收进去'); });
+    }
+  }).catch(function() { showToast('歌单加载失败'); });
 }
 </script>
 <script>
@@ -523,6 +572,7 @@ function openDetail(song, lyrics) {
   var pages = document.querySelectorAll(".page");
   for(var i=0;i<pages.length;i++) pages[i].classList.remove("active");
   document.getElementById("page-detail").classList.add("active");
+  renderDetailTools();
   // Fill content
   document.getElementById("detail-title").textContent = song.name || "";
   document.getElementById("detail-artist").textContent = song.artist || "";
@@ -847,72 +897,129 @@ function fmtTime(s) {
   return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec;
 }
 
-// Action bar
-var isLiked = false;
-function toggleLike() {
-  isLiked = !isLiked;
-  var btn = document.getElementById('like-btn');
-  btn.classList.toggle('liked', isLiked);
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/netease/like', {
-    method: 'POST', headers: {'Content-Type':'application/json','X-Auth-Token':token},
-    body: JSON.stringify({songId: currentSongId, like: isLiked})
-  }).catch(function(){});
+
+// ── Detail head tools (from Anko3o/Music-Mcp-Netease) ──
+var likedIds = new Set();
+function heartSvg(on) {
+  return on
+    ? '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="currentColor" stroke="none"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
 }
-function downloadCurrent() {
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  window.open(server + '/music/file/' + currentSongId + '.mp3?token=' + encodeURIComponent(token));
+
+function renderDetailTools() {
+  var el = document.getElementById('detail-head-tools');
+  if (!el || !currentSongId) return;
+  var liked = likedIds.has(currentSongId);
+  el.innerHTML =
+    '<button class="dt-btn' + (liked ? ' liked' : '') + '" id="dt-like-btn" aria-label="收藏">' + heartSvg(liked) + '</button>' +
+    '<button class="dt-btn" id="dt-mem-btn" aria-label="批注"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>' +
+    '<button class="dt-btn" id="dt-cmt-btn" aria-label="评论"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5c0 4.1-3.8 7.5-8.5 7.5-1.2 0-2.4-.2-3.4-.6L4 20l1.3-3.4C4.5 15.3 4 13.5 4 11.5 4 7.4 7.8 4 12.5 4S21 7.4 21 11.5z"/></svg></button>' +
+    '<button class="dt-btn" id="dt-mv-btn" aria-label="MV"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><polygon points="10,9 16,12 10,15" fill="currentColor" stroke="none"/></svg></button>' +
+    '<button class="dt-btn" id="dt-add-btn" aria-label="加入歌单"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13M3 12h13M3 18h7"/><path d="M18 15v6M15 18h6"/></svg></button>';
+
+  document.getElementById('dt-like-btn').addEventListener('click', function() { likeSong(); });
+  document.getElementById('dt-mem-btn').addEventListener('click', function() { openMemory(); });
+  document.getElementById('dt-cmt-btn').addEventListener('click', function() { openComments(); });
+  document.getElementById('dt-mv-btn').addEventListener('click', function() { openMv(); });
+  document.getElementById('dt-add-btn').addEventListener('click', function() { openAddToList(); });
 }
-function openNotes() {
-  var name = document.getElementById('detail-title').textContent || '';
-  var msg = prompt('写下对「' + name + '」的感受：');
-  if (msg) {
-    var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-    var token = localStorage.getItem('pool_music_token') || '';
-    fetch(server + '/music/memory', {
-      method: 'POST', headers: {'Content-Type':'application/json','X-Auth-Token':token},
-      body: JSON.stringify({songId: currentSongId, note: msg})
-    }).catch(function(){});
-  }
+
+function showToast(msg) {
+  var t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;pointer-events:none;';
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 2000);
 }
-function showComments() {
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/comments?songId=' + currentSongId, {headers:{'X-Auth-Token':token}})
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.comments && d.comments.length){
-        alert(d.comments.slice(0,5).map(function(c){return c.user+': '+c.content;}).join('
-'));
-      } else { alert('暂无热评'); }
-    }).catch(function(){ alert('暂无热评'); });
+
+function getServer() { return localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app'; }
+function getToken() { return localStorage.getItem('pool_music_token') || ''; }
+function api(path) {
+  return fetch(getServer() + path, { headers: { 'X-Auth-Token': getToken() } }).then(function(r) { return r.json(); });
 }
-function openMV() {
-  if (!currentSongId) return;
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/mv?songId=' + currentSongId, {headers:{'X-Auth-Token':token}})
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.url){ window.open(d.url); }
-      else { alert('这首歌暂无MV'); }
-    }).catch(function(){ alert('这首歌暂无MV'); });
+function apiPost(path, body) {
+  return fetch(getServer() + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Auth-Token': getToken() },
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); });
 }
-function addToQueue() {
+
+function likeSong() {
   if (!currentSongId) return;
   var name = document.getElementById('detail-title').textContent || '';
   var artist = document.getElementById('detail-artist').textContent || '';
-  var server = localStorage.getItem('pool_music_server') || 'https://musicc.zeabur.app';
-  var token = localStorage.getItem('pool_music_token') || '';
-  fetch(server + '/music/playlists/add-song', {
-    method: 'POST', headers: {'Content-Type':'application/json','X-Auth-Token':token},
-    body: JSON.stringify({playlistId: 'liked', songId: currentSongId, name: name, artist: artist})
-  }).then(function(){ alert('已加入歌单'); }).catch(function(){ alert('加入失败'); });
+  if (likedIds.has(currentSongId)) {
+    apiPost('/music/playlist/remove', { songId: currentSongId }).catch(function(){});
+    likedIds.delete(currentSongId);
+    apiPost('/music/netease/like', { songId: String(currentSongId), like: false }).catch(function(){});
+    showToast('取消收藏');
+  } else {
+    apiPost('/music/playlist/add', { song: { songId: currentSongId, name: name, artist: artist }, by: 'user' }).catch(function(){});
+    likedIds.add(currentSongId);
+    apiPost('/music/netease/like', { songId: String(currentSongId), like: true }).catch(function(){});
+    showToast('已收藏 ♥');
+  }
+  renderDetailTools();
+}
+
+function openMemory() {
+  if (!currentSongId) return;
+  var name = document.getElementById('detail-title').textContent || '';
+  api('/music/memory?songId=' + currentSongId).then(function(d) {
+    var notes = (d.notes || []).map(function(n) { return n.who + ': ' + n.text; }).join('
+');
+    var msg = prompt('歌的批注：' + (notes ? '
+' + notes + '
+
+追加新批注：' : '写下对「' + name + '」的感受：'));
+    if (msg) apiPost('/music/memory', { songId: currentSongId, note: msg }).then(function() { showToast('批注已保存'); }).catch(function(){});
+  }).catch(function() {
+    var msg = prompt('写下对这首歌的感受：');
+    if (msg) apiPost('/music/memory', { songId: currentSongId, note: msg }).catch(function(){});
+  });
+}
+
+function openComments() {
+  if (!currentSongId) return;
+  api('/music/comments?songId=' + currentSongId).then(function(d) {
+    var cmts = (d.comments || []).slice(0, 8);
+    if (cmts.length) {
+      alert(cmts.map(function(c) { return (c.user || '匿名') + ': ' + c.content; }).join('
+
+'));
+    } else { showToast('暂无热评'); }
+  }).catch(function() { showToast('评论加载失败'); });
+}
+
+function openMv() {
+  if (!currentSongId) return;
+  api('/music/mv?id=' + currentSongId).then(function(d) {
+    if (d.ok && d.url) { window.open(d.url, '_blank'); }
+    else { showToast(d.msg || '这首没有MV'); }
+  }).catch(function() { showToast('MV查询失败'); });
+}
+
+function openAddToList() {
+  if (!currentSongId) return;
+  var name = document.getElementById('detail-title').textContent || '';
+  var artist = document.getElementById('detail-artist').textContent || '';
+  api('/music/playlists').then(function(d) {
+    var pls = (d.ok ? d.playlists : []) || [];
+    if (!pls.length) { showToast('还没有歌单'); return; }
+    var names = pls.map(function(p, i) { return (i + 1) + '. ' + p.name; }).join('
+');
+    var choice = prompt('把「' + name + '」收进哪个歌单？
+' + names);
+    if (!choice) return;
+    var idx = parseInt(choice) - 1;
+    if (idx >= 0 && idx < pls.length) {
+      apiPost('/music/playlists/add-song', { playlistId: pls[idx].id, song: { songId: currentSongId, name: name, artist: artist }, by: 'user' })
+        .then(function(r) {
+          if (r.duplicate) showToast('已经在『' + pls[idx].name + '』里了');
+          else showToast('已收进『' + pls[idx].name + '』 ♪');
+        }).catch(function() { showToast('没收进去'); });
+    }
+  }).catch(function() { showToast('歌单加载失败'); });
 }
 </script>
 </body>
