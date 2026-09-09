@@ -593,6 +593,36 @@ const TOOLS = [
       name: 'care_note_add', description: '给某条数据添加批注',
       parameters: { type: 'object', properties: { module: { type: 'string', description: '模块名: habits/todo/wish/timeline' }, itemType: { type: 'string', description: '条目类型: habit/item/quote' }, itemId: { type: 'string', description: '条目ID或索引' }, text: { type: 'string', description: '批注内容' }, author: { type: 'string', enum: ['我','小水'], description: '批注作者' } }, required: ['module','itemType','itemId','text'] }
     }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_now', description: '获取当前正在播放的音乐状态（歌名、歌手、播放进度、是否在播放、一起听了多久）',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_search', description: '搜索歌曲（网易云音乐）。返回歌曲列表含id、歌名、歌手。',
+      parameters: { type: 'object', properties: { keywords: { type: 'string', description: '搜索关键词（歌名/歌手）' }, limit: { type: 'string', description: '返回数量，默认5' } }, required: ['keywords'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_play', description: '播放指定歌曲。可传歌曲id直接播放，或传关键词自动搜索并播放第一首。',
+      parameters: { type: 'object', properties: { id: { type: 'string', description: '网易云歌曲id（优先）' }, keywords: { type: 'string', description: '搜索关键词（没有id时用）' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_control', description: '控制音乐播放：暂停/继续、上一首、下一首',
+      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['togglePlay','playNext','playPrev','pause','play'], description: '控制动作' } }, required: ['action'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_playlist', description: '获取当前播放列表',
+      parameters: { type: 'object', properties: {} }
+    }
   }
 ]
 async function executeTool(name, args) {
@@ -844,6 +874,72 @@ async function executeTool(name, args) {
     const data = { song: args.song, artist: args.artist || '', time: new Date().toISOString() }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(data))
     return { success: true, message: '正在播放: ' + args.song + (args.artist ? ' - ' + args.artist : '') }
+  }
+  // === Music tools (real-time control via music server + command queue) ===
+  if (name === 'music_now') {
+    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
+    const musicU = process.env.MUSIC_U || ''
+    try {
+      const cookie = musicU ? '?cookie=' + encodeURIComponent('MUSIC_U=' + musicU) : ''
+      const res = await fetch(musicServer + '/music/now' + cookie, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+      const d = await res.json()
+      if (d.ok) return { playing: d.playing, name: d.name, artist: d.artist, position: d.position, duration: d.duration, togetherMinutes: d.togetherMinutes }
+      return { error: '无法获取播放状态', detail: d }
+    } catch (e) { return { error: '音乐服务连接失败: ' + e.message } }
+  }
+  if (name === 'music_search') {
+    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
+    const musicU = process.env.MUSIC_U || ''
+    const limit = parseInt(args.limit) || 5
+    try {
+      let url = musicServer + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=' + limit
+      if (musicU) url += '&cookie=' + encodeURIComponent('MUSIC_U=' + musicU)
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+      const d = await res.json()
+      if (d.result && d.result.songs) {
+        return d.result.songs.map(s => ({ id: String(s.id), name: s.name, artist: (s.artists||s.ar||[]).map(a=>a.name).join('/'), album: (s.album||s.al||{}).name||'' }))
+      }
+      return { error: '未搜到结果', detail: d }
+    } catch (e) { return { error: '搜索失败: ' + e.message } }
+  }
+  if (name === 'music_play') {
+    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
+    const musicU = process.env.MUSIC_U || ''
+    let songId = args.id
+    let songName = ''
+    if (!songId && args.keywords) {
+      try {
+        let url = musicServer + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=1'
+        if (musicU) url += '&cookie=' + encodeURIComponent('MUSIC_U=' + musicU)
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+        const d = await res.json()
+        if (d.result && d.result.songs && d.result.songs[0]) {
+          songId = String(d.result.songs[0].id)
+          songName = d.result.songs[0].name + ' - ' + (d.result.songs[0].artists||d.result.songs[0].ar||[]).map(a=>a.name).join('/')
+        } else return { error: '搜索无结果' }
+      } catch (e) { return { error: '搜索失败: ' + e.message } }
+    }
+    if (!songId) return { error: '需要歌曲id或搜索关键词' }
+    const cmd = { action: 'playSong', songId, songName, ts: Date.now() }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_music_cmd', JSON.stringify(cmd))
+    return { success: true, message: '已发送播放指令' + (songName ? ': ' + songName : ' (id:' + songId + ')') }
+  }
+  if (name === 'music_control') {
+    const cmd = { action: args.action, ts: Date.now() }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_music_cmd', JSON.stringify(cmd))
+    const labels = { togglePlay:'切换播放/暂停', playNext:'下一首', playPrev:'上一首', pause:'暂停', play:'继续播放' }
+    return { success: true, message: '已发送控制指令: ' + (labels[args.action] || args.action) }
+  }
+  if (name === 'music_playlist') {
+    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
+    const musicU = process.env.MUSIC_U || ''
+    try {
+      let url = musicServer + '/music/playlist'
+      if (musicU) url += '?cookie=' + encodeURIComponent('MUSIC_U=' + musicU)
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+      const d = await res.json()
+      return d
+    } catch (e) { return { error: '获取播放列表失败: ' + e.message } }
   }
   if (name === 'manage_pool_shop') {
     const key = 'pool_pool_shop'
