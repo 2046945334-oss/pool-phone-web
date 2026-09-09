@@ -2282,7 +2282,7 @@ export default function Home() {
             <span className="app-page-title">{appTitles[currentApp]}</span>
             <button className="app-customize-btn" onClick={() => setCustomizerApp(currentApp)}>{'🎨'}</button>
           </div>
-          <div className="app-page-body" style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
+          <div className={`app-page-body${hasHtml ? ' app-page-body-html' : ''}`} style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
             {isReact && reactApps[currentApp]}
             {hasHtml && <HtmlApp htmlContent={htmlContent} />}
             {isLazy && !htmlContent && <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px'}}>加载中...</div>}
@@ -2411,6 +2411,8 @@ export default function Home() {
         .back-btn { background: none; border: none; color: #c77dba; font-size: 20px; cursor: pointer; padding: 4px 8px; }
         .app-page-title { color: #333; font-size: 16px; font-weight: 500; }
         .app-page-body { flex: 1; overflow-y: auto; padding: 20px 16px; }
+        .app-page-body-html { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+        .app-page-body-html iframe { flex: 1; min-height: 0; }
         .app-content { }
         .app-content-title { font-size: 18px; color: #9b5da0; margin-bottom: 16px; text-align: center; }
         .app-content-list { display: flex; flex-direction: column; gap: 10px; }
