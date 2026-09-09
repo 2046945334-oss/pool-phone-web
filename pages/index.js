@@ -121,35 +121,22 @@ if (typeof window !== 'undefined') {
 }
 
 
-// 思考过程组件 - 底部抽屉样式
+// 思考过程组件 - 内嵌折叠面板样式（米白色）
 function ThinkingToggle({ reasoning }) {
   const [open, setOpen] = useState(false)
   if (!reasoning) return null
   return (
-    <>
-      <div className="thinking-trigger" onClick={() => setOpen(true)}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 8v4M12 16h.01"/>
-        </svg>
-        <span>思考过程</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <div className="thinking-inline">
+      <div className="thinking-inline-trigger" onClick={() => setOpen(!open)}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s'}}>
           <polyline points="9 18 15 12 9 6"/>
         </svg>
+        <span>思考</span>
       </div>
       {open && (
-        <div className="thinking-drawer-overlay" onClick={() => setOpen(false)}>
-          <div className="thinking-drawer" onClick={e => e.stopPropagation()}>
-            <div className="thinking-drawer-handle"/>
-            <div className="thinking-drawer-header">
-              <span>思考过程</span>
-              <button onClick={() => setOpen(false)} className="thinking-drawer-close">✕</button>
-            </div>
-            <div className="thinking-drawer-body">{reasoning}</div>
-          </div>
-        </div>
+        <div className="thinking-inline-body">{reasoning}</div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -972,6 +959,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
               </div>
             ) : (
               <div className={`msg-bubble ${msg.role}${/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? ' sticker-only' : ''}`} style={/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? {background:'transparent',border:'none',boxShadow:'none',padding:0} : msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
+{msg.role === 'assistant' && msg.reasoning && <ThinkingToggle reasoning={msg.reasoning} />}
 {msg.content.includes('[voice]') && msg.content.includes('[/voice]') && /\[voice\].*?\[\/voice\]/s.test(msg.content) ? 
                   msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{part}</span> : null) : <VoiceBubble key={j} text={part} />) 
                 : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
@@ -987,7 +975,6 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
               </div>
             )}
           </div>
-          {msg.role === 'assistant' && msg.reasoning && <ThinkingToggle reasoning={msg.reasoning} />}
           </React.Fragment>
         )})}
         <div ref={bottomRef} />
@@ -2528,10 +2515,10 @@ export default function Home() {
         .memory-hit-preview { font-size: 10px; color: #6b5d56; line-height: 1.5; background: #f5f3f0; padding: 6px 8px; border-radius: 6px; border-left: 2px solid #d4c8bf; }
         .msg-row.tool_log { justify-content: center; }
         .msg-time-divider { text-align: center; padding: 10px 0 6px; font-size: 11px; color: #8a8a8a; letter-spacing: 1px; }
-        .thinking-wrap { width: 90%; margin: 2px auto 6px; background: rgba(199,125,186,.06); border-radius: 8px; border: 1px solid rgba(199,125,186,.15); cursor: pointer; overflow: hidden; }
-        .thinking-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; font-size: 11px; color: #9a8a99; }
-        .thinking-arrow { font-size: 10px; color: #666; }
-        .thinking-body { padding: 6px 12px 10px; border-top: 1px solid rgba(199,125,186,.12); font-size: 12px; color: #8a8a8a; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto; }
+        .thinking-inline { margin-bottom: 6px; background: #faf7f2; border-radius: 8px; border: 1px solid rgba(210,200,185,0.4); overflow: hidden; }
+        .thinking-inline-trigger { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11px; color: #9a9088; cursor: pointer; user-select: none; }
+        .thinking-inline-trigger:active { background: rgba(0,0,0,0.03); }
+        .thinking-inline-body { padding: 6px 10px 8px; border-top: 1px solid rgba(210,200,185,0.3); font-size: 11px; color: #8a8278; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; background: #f8f5ef; }
         .msg-edit-wrap { max-width: 72%; }
         .msg-edit-input { width: 100%; min-height: 60px; background: #1a1a1a; border: 1px solid #e8a0bf; border-radius: 12px; padding: 8px 12px; color: #e0e0e0; font-size: 14px; resize: none; outline: none; }
         .msg-edit-btns { display: flex; gap: 8px; margin-top: 4px; }
