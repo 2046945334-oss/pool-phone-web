@@ -2121,7 +2121,7 @@ function AppContent({ appId, onBack }) {
       ) : htmlFile === '__memory__' ? (
         <div className="app-page-body"><MemoryPanel /></div>
       ) : (appId === 'music' && musicIframeSrc) ? (
-        <iframe src={musicIframeSrc} className="app-iframe" allow="autoplay; encrypted-media" style={{border:'none'}} />
+        <iframe src={musicIframeSrc} className="app-iframe music-fullscreen" allow="autoplay; encrypted-media" style={{border:'none'}} />
       ) : htmlFile ? (
         <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
       ) : (
@@ -2691,6 +2691,7 @@ export default function Home() {
 
       
         .app-iframe { width: 100%; flex: 1; border: none; background: #fff; }
+        .app-page:has(.music-fullscreen) .app-page-header { display: none; }
         .app-page { display: flex; flex-direction: column; height: 100%; }
       
         .settings-panel { padding: 16px; overflow-y: auto; flex: 1; background: #f5f0f5; }
