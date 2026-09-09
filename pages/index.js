@@ -346,12 +346,38 @@ function MusicIsland({ theme }) {
     return () => { active = false; clearInterval(timer) }
   }, [musicServer, musicToken])
 
-  const sendCmd = (cmd) => {
+  const sendCmd = (cmd, data) => {
     const iframe = document.getElementById('persistent-music-iframe')
     if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage({ musicCmd: cmd }, '*')
+      iframe.contentWindow.postMessage({ musicCmd: cmd, ...data }, '*')
     }
   }
+
+  // Poll music command queue from backend (AI tool writes commands here)
+  const lastCmdTs = useRef(0)
+  useEffect(() => {
+    if (!musicServer) return
+    let active = true
+    const pollCmd = async () => {
+      try {
+        const res = await fetch('/api/data/pool_music_cmd')
+        const d = await res.json()
+        if (!d.value || !active) return
+        const cmd = typeof d.value === 'string' ? JSON.parse(d.value) : d.value
+        if (cmd.ts && cmd.ts > lastCmdTs.current) {
+          lastCmdTs.current = cmd.ts
+          if (cmd.action === 'playSong' && cmd.songId) {
+            sendCmd('playSong', { songId: cmd.songId })
+          } else if (['togglePlay','playNext','playPrev','pause','play'].includes(cmd.action)) {
+            sendCmd(cmd.action)
+          }
+        }
+      } catch {}
+    }
+    pollCmd()
+    const t = setInterval(pollCmd, 3000)
+    return () => { active = false; clearInterval(t) }
+  }, [musicServer])
 
   if (!np || !musicServer) return null
 
