@@ -876,25 +876,35 @@ async function executeTool(name, args) {
     return { success: true, message: '正在播放: ' + args.song + (args.artist ? ' - ' + args.artist : '') }
   }
   // === Music tools (real-time control via music server + command queue) ===
-  if (name === 'music_now') {
-    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
-    const musicU = process.env.MUSIC_U || ''
+  // Helper: get music server config from KV
+  function getMusicConfig() {
+    let server = '', token = ''
     try {
-      const cookie = musicU ? '?cookie=' + encodeURIComponent('MUSIC_U=' + musicU) : ''
-      const res = await fetch(musicServer + '/music/now' + cookie, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-      const d = await res.json()
-      if (d.ok) return { playing: d.playing, name: d.name, artist: d.artist, position: d.position, duration: d.duration, togetherMinutes: d.togetherMinutes }
-      return { error: '无法获取播放状态', detail: d }
-    } catch (e) { return { error: '音乐服务连接失败: ' + e.message } }
+      const sRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_server'").get()
+      if (sRow) server = sRow.value.replace(/^"/g, '').replace(/"$/g, '')
+      const tRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_token'").get()
+      if (tRow) token = tRow.value.replace(/^"/g, '').replace(/"$/g, '')
+    } catch {}
+    if (!server) server = 'https://musicc.zeabur.app'
+    return { server, token }
+  }
+  if (name === 'music_now') {
+    try {
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_now'").get()
+      if (row) {
+        const md = typeof row.value === 'string' ? JSON.parse(row.value) : row.value
+        return { playing: true, name: md.song || '', artist: md.artist || '', time: md.time }
+      }
+      return { error: '暂无播放数据' }
+    } catch (e) { return { error: '读取失败: ' + e.message } }
   }
   if (name === 'music_search') {
-    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
-    const musicU = process.env.MUSIC_U || ''
+    const { server, token } = getMusicConfig()
     const limit = parseInt(args.limit) || 5
     try {
-      let url = musicServer + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=' + limit
-      if (musicU) url += '&cookie=' + encodeURIComponent('MUSIC_U=' + musicU)
-      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+      const fetchH = { 'User-Agent': 'Mozilla/5.0' }
+      if (token) fetchH['X-Auth-Token'] = token
+      const res = await fetch(server + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=' + limit, { headers: fetchH, signal: AbortSignal.timeout(8000) })
       const d = await res.json()
       if (d.result && d.result.songs) {
         return d.result.songs.map(s => ({ id: String(s.id), name: s.name, artist: (s.artists||s.ar||[]).map(a=>a.name).join('/'), album: (s.album||s.al||{}).name||'' }))
@@ -903,15 +913,14 @@ async function executeTool(name, args) {
     } catch (e) { return { error: '搜索失败: ' + e.message } }
   }
   if (name === 'music_play') {
-    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
-    const musicU = process.env.MUSIC_U || ''
+    const { server, token } = getMusicConfig()
     let songId = args.id
     let songName = ''
     if (!songId && args.keywords) {
       try {
-        let url = musicServer + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=1'
-        if (musicU) url += '&cookie=' + encodeURIComponent('MUSIC_U=' + musicU)
-        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+        const fetchH = { 'User-Agent': 'Mozilla/5.0' }
+        if (token) fetchH['X-Auth-Token'] = token
+        const res = await fetch(server + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=1', { headers: fetchH, signal: AbortSignal.timeout(8000) })
         const d = await res.json()
         if (d.result && d.result.songs && d.result.songs[0]) {
           songId = String(d.result.songs[0].id)
@@ -931,12 +940,11 @@ async function executeTool(name, args) {
     return { success: true, message: '已发送控制指令: ' + (labels[args.action] || args.action) }
   }
   if (name === 'music_playlist') {
-    const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
-    const musicU = process.env.MUSIC_U || ''
+    const { server, token } = getMusicConfig()
     try {
-      let url = musicServer + '/music/playlist'
-      if (musicU) url += '?cookie=' + encodeURIComponent('MUSIC_U=' + musicU)
-      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+      const fetchH = { 'User-Agent': 'Mozilla/5.0' }
+      if (token) fetchH['X-Auth-Token'] = token
+      const res = await fetch(server + '/music/playlist', { headers: fetchH, signal: AbortSignal.timeout(8000) })
       const d = await res.json()
       return d
     } catch (e) { return { error: '获取播放列表失败: ' + e.message } }
@@ -2055,19 +2063,17 @@ export default async function handler(req, res) {
         else currentMessages.unshift({ role: 'system', content: stickerHint })
       }
     } catch {}
-    // 注入当前音乐播放状态
+    // 注入当前音乐播放状态（从KV读取）
     try {
-      const musicServer = process.env.MUSIC_SERVER_URL || 'https://musicc.zeabur.app'
-      const musicU = process.env.MUSIC_U || ''
-      const cookie = musicU ? '?cookie=' + encodeURIComponent('MUSIC_U=' + musicU) : ''
-      const musicRes = await fetch(musicServer + '/music/now' + cookie, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3000) })
-      const musicData = await musicRes.json()
-      if (musicData.ok && musicData.name) {
-        const fmt = s => { const m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0') }
-        const musicHint = '【当前音乐】正在' + (musicData.playing ? '播放' : '暂停') + ': ' + musicData.name + (musicData.artist ? ' - ' + musicData.artist : '') + ' (' + fmt(musicData.position||0) + '/' + fmt(musicData.duration||0) + ')' + (musicData.togetherMinutes ? ' | 一起听了' + musicData.togetherMinutes + '分钟' : '') + '\n你可以用 music_search 搜歌、music_play 播放、music_control 控制(暂停/切歌)、music_now 查状态。'
-        const sysMsg2 = currentMessages.find(m => m.role === 'system')
-        if (sysMsg2) sysMsg2.content += '\n\n' + musicHint
-        else currentMessages.unshift({ role: 'system', content: musicHint })
+      const musicRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_now'").get()
+      if (musicRow) {
+        const md = typeof musicRow.value === 'string' ? JSON.parse(musicRow.value) : musicRow.value
+        if (md && md.song) {
+          const musicHint = '【当前音乐】正在播放: ' + md.song + (md.artist ? ' - ' + md.artist : '') + '\n你可以用 music_search 搜歌、music_play 播放、music_control 控制(暂停/切歌)、music_now 查状态。'
+          const sysMsg2 = currentMessages.find(m => m.role === 'system')
+          if (sysMsg2) sysMsg2.content += '\n\n' + musicHint
+          else currentMessages.unshift({ role: 'system', content: musicHint })
+        }
       }
     } catch {}
     // 将system role转为user消息（部分代理不支持system role）
