@@ -2383,6 +2383,10 @@ export default function Home() {
     const lazyHtmlApps = { care: '/apps/_care.html' }
 
     if (currentApp && appTitles[currentApp]) {
+      // Music with external server: persistent iframe (L2473) handles display, just return empty container
+      if (currentApp === 'music' && typeof window !== 'undefined' && localStorage.getItem('pool_music_server')) {
+        return <div className="app-page" style={{background:'transparent'}} />
+      }
       const bgCfg = appBg[currentApp]
       const bgStyle = getAppBgStyle(bgCfg)
       const isHtml = !!htmlApps[currentApp]
