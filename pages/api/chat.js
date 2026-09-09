@@ -206,8 +206,44 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'update_music', description: '更新当前播放的音乐',
-      parameters: { type: 'object', properties: { song: { type: 'string', description: '歌名' }, artist: { type: 'string', description: '歌手' } }, required: ['song'] }
+      name: 'music_now', description: '获取当前正在播放的音乐详情（歌名、歌手、进度、状态、一起听时间等）',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_search', description: '搜索歌曲（网易云）。返回搜索结果列表，可配合music_play播放',
+      parameters: { type: 'object', properties: { keyword: { type: 'string', description: '搜索关键词（歌名/歌手）' } }, required: ['keyword'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_play', description: '播放指定歌曲（通过song_id）或通过关键词搜索并播放第一个结果',
+      parameters: { type: 'object', properties: { song_id: { type: 'string', description: '歌曲ID（从搜索结果获取）' }, keyword: { type: 'string', description: '直接搜关键词播放第一首（song_id和keyword二选一）' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_control', description: '音乐播放控制：暂停、继续、上一首、下一首',
+      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['pause','resume','next','prev'], description: '控制动作' } }, required: ['action'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_playlist', description: '查看/管理歌单。action: list(查看歌单列表), songs(查看歌单内歌曲), add(添加歌曲到歌单), remove(从歌单移除歌曲)',
+      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['list','songs','add','remove'], description: '操作' }, playlist_id: { type: 'string', description: '歌单ID（默认liked）' }, song_id: { type: 'string', description: '歌曲ID（add/remove时需要）' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_lyrics', description: '获取当前或指定歌曲的歌词（含翻译）',
+      parameters: { type: 'object', properties: { song_id: { type: 'string', description: '歌曲ID（不传则获取当前播放歌曲的歌词）' } } }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'music_recent', description: '获取最近播放记录',
+      parameters: { type: 'object', properties: {} }
     }
   },
   {
@@ -839,11 +875,86 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(history))
     return { success: true, message: '浏览记录已添加: ' + args.title }
   }
-  if (name === 'update_music') {
-    const key = 'pool_music_now'
-    const data = { song: args.song, artist: args.artist || '', time: new Date().toISOString() }
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(data))
-    return { success: true, message: '正在播放: ' + args.song + (args.artist ? ' - ' + args.artist : '') }
+  // ── Music proxy handlers ──
+  const MUSIC_NAMES = ['music_now','music_search','music_play','music_control','music_playlist','music_lyrics','music_recent']
+  if (MUSIC_NAMES.includes(name)) {
+    // Read music server config from db
+    let musicServer = '', musicToken = ''
+    try {
+      const msRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_server'").get()
+      const mtRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_token'").get()
+      if (msRow) musicServer = msRow.value.replace(/"/g, '')
+      if (mtRow) musicToken = mtRow.value.replace(/"/g, '')
+    } catch {}
+    if (!musicServer) {
+      // Fallback: read from frontend localStorage via API
+      try {
+        const msRow2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_server_url'").get()
+        if (msRow2) musicServer = JSON.parse(msRow2.value)
+      } catch {}
+    }
+    if (!musicServer) return { error: '音乐服务器未配置。请在系统App中设置音乐服务器地址。' }
+    const mHeaders = musicToken ? { 'X-Auth-Token': musicToken } : {}
+
+    if (name === 'music_now') {
+      const r = await fetch(musicServer + '/music/now', { headers: mHeaders })
+      return await r.json()
+    }
+    if (name === 'music_search') {
+      const r = await fetch(musicServer + '/music/search?q=' + encodeURIComponent(args.keyword || ''), { headers: mHeaders })
+      return await r.json()
+    }
+    if (name === 'music_play') {
+      if (args.song_id) {
+        const r = await fetch(musicServer + '/music/remote', { method: 'POST', headers: { ...mHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'play', song_id: args.song_id }) })
+        return await r.json()
+      }
+      if (args.keyword) {
+        const sr = await fetch(musicServer + '/music/search?q=' + encodeURIComponent(args.keyword), { headers: mHeaders })
+        const sd = await sr.json()
+        if (sd.songs && sd.songs.length > 0) {
+          const first = sd.songs[0]
+          const r = await fetch(musicServer + '/music/remote', { method: 'POST', headers: { ...mHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'play', song_id: String(first.id) }) })
+          const rd = await r.json()
+          return { ...rd, played: first.name + ' - ' + (first.artists||[]).map(a=>a.name).join('/') }
+        }
+        return { error: '没找到: ' + args.keyword }
+      }
+      return { error: '需要song_id或keyword' }
+    }
+    if (name === 'music_control') {
+      const r = await fetch(musicServer + '/music/remote', { method: 'POST', headers: { ...mHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: args.action }) })
+      return await r.json()
+    }
+    if (name === 'music_playlist') {
+      const pid = args.playlist_id || 'liked'
+      if (args.action === 'list') {
+        const r = await fetch(musicServer + '/music/playlists', { headers: mHeaders })
+        return await r.json()
+      }
+      if (args.action === 'songs') {
+        const r = await fetch(musicServer + '/music/playlists/songs?id=' + encodeURIComponent(pid), { headers: mHeaders })
+        return await r.json()
+      }
+      if (args.action === 'add' && args.song_id) {
+        const r = await fetch(musicServer + '/music/playlists/add-song', { method: 'POST', headers: { ...mHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pid, song_id: args.song_id }) })
+        return await r.json()
+      }
+      if (args.action === 'remove' && args.song_id) {
+        const r = await fetch(musicServer + '/music/playlists/remove-song', { method: 'POST', headers: { ...mHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pid, song_id: args.song_id }) })
+        return await r.json()
+      }
+      return { error: '无效操作' }
+    }
+    if (name === 'music_lyrics') {
+      const sid = args.song_id || ''
+      const r = await fetch(musicServer + '/music/lyric?id=' + encodeURIComponent(sid), { headers: mHeaders })
+      return await r.json()
+    }
+    if (name === 'music_recent') {
+      const r = await fetch(musicServer + '/music/recent', { headers: mHeaders })
+      return await r.json()
+    }
   }
   if (name === 'manage_pool_shop') {
     const key = 'pool_pool_shop'
@@ -1957,6 +2068,35 @@ export default async function handler(req, res) {
         const sysMsg = currentMessages.find(m => m.role === 'system')
         if (sysMsg) sysMsg.content += '\n\n' + stickerHint
         else currentMessages.unshift({ role: 'system', content: stickerHint })
+      }
+    } catch {}
+
+    // 注入当前音乐状态
+    try {
+      let musicServer = '', musicToken = ''
+      try {
+        const msRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_server'").get()
+        const mtRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_token'").get()
+        if (msRow) musicServer = msRow.value.replace(/"/g, '')
+        if (mtRow) musicToken = mtRow.value.replace(/"/g, '')
+      } catch {}
+      if (!musicServer) try { const r = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_server_url'").get(); if (r) musicServer = JSON.parse(r.value) } catch {}
+      if (musicServer) {
+        const mh = musicToken ? { 'X-Auth-Token': musicToken } : {}
+        const nr = await fetch(musicServer + '/music/now', { headers: mh, signal: AbortSignal.timeout(3000) })
+        const nd = await nr.json()
+        if (nd.ok) {
+          const musicInfo = `【当前音乐】正在和她一起听: ${nd.name} - ${nd.artist}` +
+            ` | ${nd.playing ? '播放中' : '已暂停'} ${Math.floor((nd.position||0)/60)}:${String(Math.floor((nd.position||0)%60)).padStart(2,'0')}/${Math.floor((nd.duration||0)/60)}:${String(Math.floor((nd.duration||0)%60)).padStart(2,'0')}` +
+            (typeof nd.togetherMinutes === 'number' ? ` | 一起听了${nd.togetherMinutes}分钟` : '') +
+            '
+你可以用music_search搜歌、music_play播放、music_control控制播放。'
+          const sysMsg3 = currentMessages.find(m => m.role === 'system')
+          if (sysMsg3) sysMsg3.content += '
+
+' + musicInfo
+          else currentMessages.unshift({ role: 'system', content: musicInfo })
+        }
       }
     } catch {}
     
