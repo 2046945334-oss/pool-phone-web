@@ -1013,6 +1013,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           <button onClick={clearChat} style={{background:'none',border:'none',color:'#9a8a99',cursor:'pointer',padding:'4px'}} title={'\u6e05\u7a7a\u5bf9\u8bdd'}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         </div>
       </div>
+      <MusicIsland theme={theme} />
       <div className="chat-messages" style={theme?.chatBg ? {backgroundImage:`url(${theme.chatBg})`,backgroundSize:'cover',backgroundPosition:'center'} : {}} onClick={() => setMenuIdx(-1)}>
         {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
         {visibleStart > 0 && <div style={{textAlign:'center',padding:'12px 0'}}><button onClick={() => setVisibleStart(Math.max(0, visibleStart - 20))} style={{background:'rgba(200,125,186,0.15)',border:'1px solid rgba(200,125,186,0.3)',borderRadius:'16px',color:'#c77dba',padding:'6px 20px',fontSize:'12px',cursor:'pointer'}}>{'点击加载更早的历史记录'}</button></div>}
