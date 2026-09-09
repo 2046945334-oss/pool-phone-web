@@ -338,6 +338,8 @@ function MusicIsland({ theme }) {
         if (d.ok) {
           setNp(d)
           if (typeof d.togetherMinutes === 'number') setTogetherMin(d.togetherMinutes)
+          // 同步当前播放状态到后端KV，供AI读取
+          try { fetch('/api/data/pool_music_now', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify({ playing: !!d.playing, name: d.name || '', artist: d.artist || '', position: d.position || 0, duration: d.duration || 0, time: new Date().toISOString() }) }) }).catch(() => {}) } catch {}
         }
       } catch {}
     }
