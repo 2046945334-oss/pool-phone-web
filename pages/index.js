@@ -372,7 +372,7 @@ function MusicIsland({ theme }) {
       </div>
       <div className="mi-pill-bars">
         {np.playing && <>{[0,.15,.3,.1].map((d,i) => <span key={i} className="mi-bar" style={{animationDelay:d+'s'}} />)}</>}
-        {!np.playing && <svg viewBox="0 0 24 24" width="12" height="12" fill="#b08a9f" style={{opacity:0.7}}><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>}
+        {!np.playing && <span style={{color:'rgba(140,100,130,0.5)',fontSize:'10px'}}>{"\u23f8"}</span>}
       </div>
     </div>
   )

@@ -5,5 +5,3 @@ README.md
 .env.local
 .next
 node_modules
-
-android/
