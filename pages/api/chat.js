@@ -904,10 +904,10 @@ async function executeTool(name, args) {
     try {
       const fetchH = { 'User-Agent': 'Mozilla/5.0' }
       if (token) fetchH['X-Auth-Token'] = token
-      const res = await fetch(server + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=' + limit, { headers: fetchH, signal: AbortSignal.timeout(8000) })
+      const res = await fetch(server + '/music/search?q=' + encodeURIComponent(args.keywords) + '&limit=' + limit, { headers: fetchH, signal: AbortSignal.timeout(8000) })
       const d = await res.json()
-      if (d.result && d.result.songs) {
-        return d.result.songs.map(s => ({ id: String(s.id), name: s.name, artist: (s.artists||s.ar||[]).map(a=>a.name).join('/'), album: (s.album||s.al||{}).name||'' }))
+      if (d.ok && d.songs) {
+        return d.songs.map(s => ({ id: String(s.id), name: s.name, artist: s.artist||'', album: s.album||'' }))
       }
       return { error: '未搜到结果', detail: d }
     } catch (e) { return { error: '搜索失败: ' + e.message } }
@@ -920,11 +920,11 @@ async function executeTool(name, args) {
       try {
         const fetchH = { 'User-Agent': 'Mozilla/5.0' }
         if (token) fetchH['X-Auth-Token'] = token
-        const res = await fetch(server + '/search?keywords=' + encodeURIComponent(args.keywords) + '&limit=1', { headers: fetchH, signal: AbortSignal.timeout(8000) })
+        const res = await fetch(server + '/music/search?q=' + encodeURIComponent(args.keywords) + '&limit=1', { headers: fetchH, signal: AbortSignal.timeout(8000) })
         const d = await res.json()
-        if (d.result && d.result.songs && d.result.songs[0]) {
-          songId = String(d.result.songs[0].id)
-          songName = d.result.songs[0].name + ' - ' + (d.result.songs[0].artists||d.result.songs[0].ar||[]).map(a=>a.name).join('/')
+        if (d.ok && d.songs && d.songs[0]) {
+          songId = String(d.songs[0].id)
+          songName = d.songs[0].name + ' - ' + (d.songs[0].artist||'')
         } else return { error: '搜索无结果' }
       } catch (e) { return { error: '搜索失败: ' + e.message } }
     }
