@@ -2107,13 +2107,14 @@ function AppContent({ appId, onBack }) {
   const musicServerUrl = (appId === 'music') ? (localStorage.getItem('pool_music_server') || '') : ''
   const musicToken = (appId === 'music') ? (localStorage.getItem('pool_music_token') || '') : ''
   const musicIframeSrc = musicServerUrl ? (musicServerUrl + (musicToken ? ('/?token=' + encodeURIComponent(musicToken)) : '/')) : ''
+  const isMusicFull = appId === 'music' && musicIframeSrc
 
     return (
     <div className="app-page">
-      <div className="app-page-header">
+      {!isMusicFull && <div className="app-page-header">
         <button className="back-btn" onClick={onBack}>{'←'}</button>
         <span className="app-page-title">{appNames[appId] || appId}</span>
-      </div>
+      </div>}
       {htmlFile === '__settings__' ? (
         <div className="app-page-body"><SettingsPanel /></div>
       ) : htmlFile === '__theme__' ? (
@@ -2691,7 +2692,6 @@ export default function Home() {
 
       
         .app-iframe { width: 100%; flex: 1; border: none; background: #fff; }
-        .app-page:has(.music-fullscreen) .app-page-header { display: none; }
         .app-page { display: flex; flex-direction: column; height: 100%; }
       
         .settings-panel { padding: 16px; overflow-y: auto; flex: 1; background: #f5f0f5; }
