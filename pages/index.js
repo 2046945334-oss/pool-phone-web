@@ -1981,6 +1981,8 @@ function AppContent({ appId, onBack }) {
 
   // For music app: check if external music server is configured
   const musicServerUrl = (appId === 'music') ? (localStorage.getItem('pool_music_server') || '') : ''
+  const musicToken = (appId === 'music') ? (localStorage.getItem('pool_music_token') || '') : ''
+  const musicIframeSrc = musicServerUrl ? (musicServerUrl + (musicToken ? ('/?token=' + encodeURIComponent(musicToken)) : '/')) : ''
 
     return (
     <div className="app-page">
@@ -1994,8 +1996,8 @@ function AppContent({ appId, onBack }) {
         <div className="app-page-body"><ThemePanel /></div>
       ) : htmlFile === '__memory__' ? (
         <div className="app-page-body"><MemoryPanel /></div>
-      ) : (appId === 'music' && musicServerUrl) ? (
-        <iframe src={musicServerUrl} className="app-iframe" allow="autoplay; encrypted-media" style={{border:'none'}} />
+      ) : (appId === 'music' && musicIframeSrc) ? (
+        <iframe src={musicIframeSrc} className="app-iframe" allow="autoplay; encrypted-media" style={{border:'none'}} />
       ) : htmlFile ? (
         <iframe src={`/apps/${htmlFile}`} className="app-iframe" />
       ) : (
