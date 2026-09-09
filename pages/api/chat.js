@@ -2064,16 +2064,12 @@ export default async function handler(req, res) {
       const musicData = await musicRes.json()
       if (musicData.ok && musicData.name) {
         const fmt = s => { const m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0') }
-        const musicHint = '【当前音乐】正在' + (musicData.playing ? '播放' : '暂停') + ': ' + musicData.name + (musicData.artist ? ' - ' + musicData.artist : '') + ' (' + fmt(musicData.position||0) + '/' + fmt(musicData.duration||0) + ')' + (musicData.togetherMinutes ? ' | 一起听了' + musicData.togetherMinutes + '分钟' : '') + '
-你可以用 music_search 搜歌、music_play 播放、music_control 控制(暂停/切歌)、music_now 查状态。'
+        const musicHint = '【当前音乐】正在' + (musicData.playing ? '播放' : '暂停') + ': ' + musicData.name + (musicData.artist ? ' - ' + musicData.artist : '') + ' (' + fmt(musicData.position||0) + '/' + fmt(musicData.duration||0) + ')' + (musicData.togetherMinutes ? ' | 一起听了' + musicData.togetherMinutes + '分钟' : '') + '\n你可以用 music_search 搜歌、music_play 播放、music_control 控制(暂停/切歌)、music_now 查状态。'
         const sysMsg2 = currentMessages.find(m => m.role === 'system')
-        if (sysMsg2) sysMsg2.content += '
-
-' + musicHint
+        if (sysMsg2) sysMsg2.content += '\n\n' + musicHint
         else currentMessages.unshift({ role: 'system', content: musicHint })
       }
     } catch {}
-    
     // 将system role转为user消息（部分代理不支持system role）
     function convertSystemRole(msgs) {
       let systemContent = ''
