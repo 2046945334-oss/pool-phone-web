@@ -2083,7 +2083,9 @@ export default async function handler(req, res) {
       if (!musicServer) try { const r = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_server_url'").get(); if (r) musicServer = JSON.parse(r.value) } catch {}
       if (musicServer) {
         const mh = musicToken ? { 'X-Auth-Token': musicToken } : {}
-        const nr = await fetch(musicServer + '/music/now', { headers: mh, signal: AbortSignal.timeout(3000) })
+        const _ac = new AbortController(); const _to = setTimeout(() => _ac.abort(), 3000);
+        const nr = await fetch(musicServer + '/music/now', { headers: mh, signal: _ac.signal })
+        clearTimeout(_to)
         const nd = await nr.json()
         if (nd.ok) {
           const musicInfo = `【当前音乐】正在和她一起听: ${nd.name} - ${nd.artist}` +
