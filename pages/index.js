@@ -2499,6 +2499,58 @@ export default function Home() {
         .music-pl-item { padding: 10px 14px; border-radius: 10px; margin-bottom: 4px; display: flex; justify-content: space-between; color: #aaa; font-size: 13px; cursor: pointer; }
         .music-pl-item.active { background: rgba(232,160,191,0.1); color: #e8a0bf; }
         .music-pl-artist { color: #666; font-size: 11px; }
+        /* ── Music Dynamic Island ── */
+        @keyframes mi-bounce { 0%,100% { height: 4px; } 50% { height: 14px; } }
+        .mi-pill { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 200;
+          display: flex; align-items: center; gap: 6px;
+          background: linear-gradient(135deg, #3a2433 0%, #2a1522 100%); border-radius: 22px;
+          padding: 5px 14px 5px 6px; cursor: pointer;
+          box-shadow: 0 2px 12px rgba(200,125,186,0.35); transition: all .3s cubic-bezier(.4,0,.2,1);
+          border: 1px solid rgba(200,125,186,0.25); }
+        .mi-pill:active { transform: translateX(-50%) scale(0.96); }
+        .mi-pill-avatars { display: flex; align-items: center; }
+        .mi-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+          border: 1.5px solid rgba(200,125,186,0.5); }
+        .mi-ava-right { margin-left: -8px; }
+        .mi-ava-fallback { background: linear-gradient(135deg, #e8a0bf, #c77dba); display: flex;
+          align-items: center; justify-content: center; font-size: 11px; color: #fff; }
+        .mi-pill-bars { display: flex; align-items: flex-end; gap: 2px; height: 16px; padding-left: 4px; }
+        .mi-bar { width: 2.5px; border-radius: 2px; background: #e8a0bf;
+          animation: mi-bounce .6s ease-in-out infinite; }
+
+        /* ── Expanded Panel ── */
+        .mi-panel { position: absolute; top: 0; left: 0; right: 0; z-index: 200;
+          padding: 8px 12px; }
+        .mi-panel-inner { background: linear-gradient(160deg, #3a2433 0%, #2a1522 50%, #1f1018 100%);
+          border-radius: 22px; padding: 16px 18px 14px;
+          box-shadow: 0 4px 24px rgba(200,125,186,0.3);
+          border: 1px solid rgba(200,125,186,0.15);
+          animation: mi-expand .3s cubic-bezier(.4,0,.2,1); }
+        @keyframes mi-expand { from { opacity: 0; transform: scaleY(0.6) translateY(-10px); } to { opacity: 1; transform: scaleY(1) translateY(0); } }
+        .mi-panel-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .mi-panel-avatars { display: flex; align-items: center; }
+        .mi-panel-ava { width: 42px; height: 42px; border-radius: 50%; object-fit: cover;
+          border: 2px solid rgba(200,125,186,0.5); }
+        .mi-panel-ava-right { margin-left: -12px; border-color: rgba(232,160,191,0.4); }
+        .mi-panel-together { font-size: 13px; color: rgba(232,160,191,0.85); font-weight: 500; }
+        .mi-mins { font-size: 18px; font-weight: 700; color: #e8a0bf; }
+        .mi-panel-song { text-align: center; margin-bottom: 10px; }
+        .mi-song-name { font-size: 15px; font-weight: 600; color: #f0e6ef; white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis; max-width: 260px; margin: 0 auto; }
+        .mi-song-artist { font-size: 12px; color: rgba(200,125,186,0.7); margin-top: 2px; }
+        .mi-progress-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .mi-time { font-size: 10px; color: rgba(232,160,191,0.6); min-width: 32px; font-variant-numeric: tabular-nums; }
+        .mi-time:last-child { text-align: right; }
+        .mi-progress-track { flex: 1; height: 3px; background: rgba(232,160,191,0.15); border-radius: 2px; overflow: hidden; }
+        .mi-progress-fill { height: 100%; background: linear-gradient(90deg, #e8a0bf, #c77dba); border-radius: 2px;
+          transition: width 1s linear; }
+        .mi-controls { display: flex; align-items: center; justify-content: center; gap: 20px; }
+        .mi-ctrl { background: none; border: none; color: rgba(232,160,191,0.7); cursor: pointer; padding: 4px;
+          display: flex; align-items: center; justify-content: center; transition: color .15s; }
+        .mi-ctrl:active { color: #e8a0bf; }
+        .mi-ctrl-play { color: #e8a0bf; }
+        .mi-ctrl-heart { color: rgba(200,125,186,0.5); }
+
       
         .app-iframe { width: 100%; flex: 1; border: none; background: #fff; }
         .app-page { display: flex; flex-direction: column; height: 100%; }
