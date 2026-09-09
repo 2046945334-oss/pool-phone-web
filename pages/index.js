@@ -2291,7 +2291,7 @@ export default function Home() {
           </div>
           <div className={`app-page-body${(hasHtml || (currentApp === 'music')) ? ' app-page-body-html' : ''}`} style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
             {isReact && reactApps[currentApp]}
-            {currentApp === 'music' && (() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} className="app-iframe" allow="autoplay; encrypted-media" style={{border:'none',width:'100%',height:'100%',flex:1}} /> } } catch {} return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px',textAlign:'center',padding:'0 20px'}}>{'请先在系统App中配置音乐服务器地址'}</div> })()}
+            {currentApp === 'music' && !localStorage.getItem('pool_music_server') && <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px',textAlign:'center',padding:'0 20px'}}>{'请先在系统App中配置音乐服务器地址'}</div>}
             {hasHtml && <HtmlApp htmlContent={htmlContent} />}
             {isLazy && !htmlContent && <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px'}}>加载中...</div>}
           </div>
@@ -2330,9 +2330,10 @@ export default function Home() {
             <span className="status-icons">{'\ud83d\udfe2'}</span>
           </div>
           <div className="phone-screen">
-            <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%'}}>
+            <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%', position:'relative'}}>
               {renderPhoneContent()}
               <PreloadedApps currentApp={currentApp} onBack={handleBack} />
+              {(() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe id="persistent-music-iframe" src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} allow="autoplay; encrypted-media" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',zIndex: currentApp === 'music' ? 10 : -1,opacity: currentApp === 'music' ? 1 : 0,pointerEvents: currentApp === 'music' ? 'auto' : 'none'}} /> } } catch {} return null })()}
             </div>
             <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
           </div>
