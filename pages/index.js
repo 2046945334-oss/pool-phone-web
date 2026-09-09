@@ -339,13 +339,19 @@ function MusicIsland({ theme }) {
           setNp(d)
           if (typeof d.togetherMinutes === 'number') setTogetherMin(d.togetherMinutes)
         }
-        // Don't clear np on ok:false — keep showing last state briefly
       } catch {}
     }
     poll()
     const timer = setInterval(poll, 5000)
     return () => { active = false; clearInterval(timer) }
   }, [musicServer, musicToken])
+
+  const sendCmd = (cmd) => {
+    const iframe = document.getElementById('persistent-music-iframe')
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ musicCmd: cmd }, '*')
+    }
+  }
 
   if (!np || !musicServer) return null
 
@@ -361,46 +367,49 @@ function MusicIsland({ theme }) {
         {avatarUser ? <img src={avatarUser} className="mi-ava mi-ava-right" /> : <div className="mi-ava mi-ava-right mi-ava-fallback">{"\u6211"}</div>}
       </div>
       <div className="mi-pill-info">
-        <div style={{color:'#f0e6ef',fontSize:'11px',fontWeight:600,maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{np.name || ''}</div>
-        <div style={{color:'rgba(232,160,191,0.6)',fontSize:'9px'}}>{np.artist || ''}</div>
+        <div style={{color:'#5a3d52',fontSize:'11px',fontWeight:600,maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{np.name || ''}</div>
+        <div style={{color:'rgba(140,100,130,0.7)',fontSize:'9px'}}>{np.artist || ''}</div>
       </div>
       <div className="mi-pill-bars">
         {np.playing && <>{[0,.15,.3,.1].map((d,i) => <span key={i} className="mi-bar" style={{animationDelay:d+'s'}} />)}</>}
-        {!np.playing && <span style={{color:'rgba(232,160,191,0.5)',fontSize:'10px'}}>{"\u23f8"}</span>}
+        {!np.playing && <span style={{color:'rgba(140,100,130,0.5)',fontSize:'10px'}}>{"\u23f8"}</span>}
       </div>
     </div>
   )
 
   return (
-    <div className="mi-panel" onClick={(e) => { if (e.target === e.currentTarget) setExpanded(false) }}>
-      <div className="mi-panel-inner">
-        <div className="mi-panel-top">
-          <div className="mi-panel-avatars">
-            {avatarAI ? <img src={avatarAI} className="mi-panel-ava" /> : <div className="mi-panel-ava mi-ava-fallback">{"\u6c60"}</div>}
-            {avatarUser ? <img src={avatarUser} className="mi-panel-ava mi-panel-ava-right" /> : <div className="mi-panel-ava mi-panel-ava-right mi-ava-fallback">{"\u6211"}</div>}
+    <>
+      <div className="mi-overlay" onClick={() => setExpanded(false)} />
+      <div className="mi-panel">
+        <div className="mi-panel-inner">
+          <div className="mi-panel-top">
+            <div className="mi-panel-avatars">
+              {avatarAI ? <img src={avatarAI} className="mi-panel-ava" /> : <div className="mi-panel-ava mi-ava-fallback">{"\u6c60"}</div>}
+              {avatarUser ? <img src={avatarUser} className="mi-panel-ava mi-panel-ava-right" /> : <div className="mi-panel-ava mi-panel-ava-right mi-ava-fallback">{"\u6211"}</div>}
+            </div>
+            <div className="mi-panel-together">
+              {"\u4e00\u8d77\u542c\u4e86 "}<span className="mi-mins">{togetherMin}</span>{" \u5206\u949f"}
+            </div>
           </div>
-          <div className="mi-panel-together">
-            {"\u4e00\u8d77\u542c\u4e86 "}<span className="mi-mins">{togetherMin}</span>{" \u5206\u949f"}
+          <div className="mi-panel-song">
+            <div className="mi-song-name">{np.name || '\u672a\u77e5\u6b4c\u66f2'}</div>
+            <div className="mi-song-artist">{np.artist || ''}</div>
           </div>
-        </div>
-        <div className="mi-panel-song">
-          <div className="mi-song-name">{np.name || '\u672a\u77e5\u6b4c\u66f2'}</div>
-          <div className="mi-song-artist">{np.artist || ''}</div>
-        </div>
-        <div className="mi-progress-row">
-          <span className="mi-time">{fmt(np.position||0)}</span>
-          <div className="mi-progress-track"><div className="mi-progress-fill" style={{width: pct+'%'}} /></div>
-          <span className="mi-time">{fmt(np.duration||0)}</span>
-        </div>
-        <div className="mi-controls">
-          <button className="mi-ctrl" onClick={e=>e.stopPropagation()}><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 6h2v12H6zm12 0v12l-8.5-6z"/></svg></button>
-          <button className="mi-ctrl mi-ctrl-play" onClick={e=>e.stopPropagation()}>{np.playing
-            ? <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-            : <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg>}</button>
-          <button className="mi-ctrl" onClick={e=>e.stopPropagation()}><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+          <div className="mi-progress-row">
+            <span className="mi-time">{fmt(np.position||0)}</span>
+            <div className="mi-progress-track"><div className="mi-progress-fill" style={{width: pct+'%'}} /></div>
+            <span className="mi-time">{fmt(np.duration||0)}</span>
+          </div>
+          <div className="mi-controls">
+            <button className="mi-ctrl" onClick={(e)=>{e.stopPropagation();sendCmd('playPrev')}}><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 6h2v12H6zm12 0v12l-8.5-6z"/></svg></button>
+            <button className="mi-ctrl mi-ctrl-play" onClick={(e)=>{e.stopPropagation();sendCmd('togglePlay')}}>{np.playing
+              ? <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+              : <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg>}</button>
+            <button className="mi-ctrl" onClick={(e)=>{e.stopPropagation();sendCmd('playNext')}}><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -2476,7 +2485,7 @@ export default function Home() {
         .banner-img { width: 100%; height: 100%; display: block; object-fit: cover; }
         .music-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 8px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; }
         .music-card:active { background: rgba(255,255,255,0.1); }
-        .music-icon { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #e8a0bf, #c77dba); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
+        .music-icon { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f0c6d8, #e8a0bf); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
         .music-info { flex: 1; }
         .music-title { font-size: 12px; color: #f0e6ef; font-weight: 500; }
         .music-status { font-size: 10px; color: #9a8a99; margin-top: 1px; }
@@ -2500,10 +2509,10 @@ export default function Home() {
         .app-label { font-size: 10px; color: #fff; text-align: center; }
         .page-dots { display: flex; justify-content: center; gap: 8px; padding: 10px 0 6px; flex-shrink: 0; }
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
-        .dot.active { width: 16px; background: #e8a0bf; }
+        .dot.active { width: 16px; background: #c77dba; }
 
         .app-page { width: 100%; height: 100%; display: flex; flex-direction: column; background: #f5f0f5; }
-        .app-page-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e8dce8; flex-shrink: 0; background: #fff; }
+        .app-page-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e8dce8; flex-shrink: 0; background: #fff; position: relative; z-index: 20; }
         .back-btn { background: none; border: none; color: #c77dba; font-size: 20px; cursor: pointer; padding: 4px 8px; }
         .app-page-title { color: #333; font-size: 16px; font-weight: 500; }
         .app-page-body { flex: 1; overflow-y: auto; padding: 20px 16px; }
@@ -2558,7 +2567,7 @@ export default function Home() {
         .fish-score { text-align: center; font-size: 18px; color: #e8a0bf; margin-bottom: 16px; }
         .fish-pond { min-height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border-radius: 16px; margin-bottom: 16px; padding: 20px; }
         .fish-btn { padding: 14px 28px; border-radius: 30px; border: none; font-size: 16px; cursor: pointer; font-weight: 600; }
-        .fish-btn.cast { background: linear-gradient(135deg, #e8a0bf, #c77dba); color: #fff; }
+        .fish-btn.cast { background: linear-gradient(135deg, #f0c6d8, #e8a0bf); color: #fff; }
         .fish-btn.reel { background: linear-gradient(135deg, #f4d03f, #f39c12); color: #333; animation: pulse 0.5s infinite; }
         .fish-status { color: #9a8a99; font-size: 14px; animation: pulse 1.5s infinite; }
         .fish-result { text-align: center; }
@@ -2591,16 +2600,16 @@ export default function Home() {
         @keyframes mi-bounce { 0%,100% { height: 4px; } 50% { height: 14px; } }
         .mi-pill { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 200;
           display: flex; align-items: center; gap: 6px;
-          background: linear-gradient(135deg, #3a2433 0%, #2a1522 100%); border-radius: 22px;
+          background: linear-gradient(135deg, #fff5f9 0%, #fce4ef 100%); border-radius: 22px; box-shadow: 0 2px 12px rgba(199,125,186,0.2);
           padding: 5px 14px 5px 6px; cursor: pointer;
           box-shadow: 0 2px 12px rgba(200,125,186,0.35); transition: all .3s cubic-bezier(.4,0,.2,1);
           border: 1px solid rgba(200,125,186,0.25); }
         .mi-pill:active { transform: translateX(-50%) scale(0.96); }
         .mi-pill-avatars { display: flex; align-items: center; }
         .mi-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
-          border: 1.5px solid rgba(200,125,186,0.5); }
+          border: 2px solid #fff; }
         .mi-ava-right { margin-left: -8px; }
-        .mi-ava-fallback { background: linear-gradient(135deg, #e8a0bf, #c77dba); display: flex;
+        .mi-ava-fallback { background: linear-gradient(135deg, #f0c6d8, #e8a0bf); display: flex;
           align-items: center; justify-content: center; font-size: 11px; color: #fff; }
         .mi-pill-bars { display: flex; align-items: flex-end; gap: 2px; height: 16px; padding-left: 4px; }
         .mi-bar { width: 2.5px; border-radius: 2px; background: #e8a0bf;
@@ -2609,7 +2618,7 @@ export default function Home() {
         /* ── Expanded Panel ── */
         .mi-panel { position: absolute; top: 0; left: 0; right: 0; z-index: 200;
           padding: 8px 12px; }
-        .mi-panel-inner { background: linear-gradient(160deg, #3a2433 0%, #2a1522 50%, #1f1018 100%);
+        .mi-panel-inner { background: linear-gradient(160deg, #fff5f9 0%, #fce4ef 50%, #f8dae6 100%); box-shadow: 0 4px 24px rgba(199,125,186,0.25);
           border-radius: 22px; padding: 16px 18px 14px;
           box-shadow: 0 4px 24px rgba(200,125,186,0.3);
           border: 1px solid rgba(200,125,186,0.15);
@@ -2619,24 +2628,25 @@ export default function Home() {
         .mi-panel-avatars { display: flex; align-items: center; }
         .mi-panel-ava { width: 42px; height: 42px; border-radius: 50%; object-fit: cover;
           border: 2px solid rgba(200,125,186,0.5); }
-        .mi-panel-ava-right { margin-left: -12px; border-color: rgba(232,160,191,0.4); }
-        .mi-panel-together { font-size: 13px; color: rgba(232,160,191,0.85); font-weight: 500; }
-        .mi-mins { font-size: 18px; font-weight: 700; color: #e8a0bf; }
+        .mi-panel-ava-right { margin-left: -12px; border-color: rgba(199,125,186,0.3); }
+        .mi-panel-together { font-size: 13px; color: #8c6480; font-weight: 500; }
+        .mi-mins { font-size: 18px; font-weight: 700; color: #c77dba; }
         .mi-panel-song { text-align: center; margin-bottom: 10px; }
-        .mi-song-name { font-size: 15px; font-weight: 600; color: #f0e6ef; white-space: nowrap;
+        .mi-song-name { font-size: 15px; font-weight: 600; color: #3a2433; white-space: nowrap;
           overflow: hidden; text-overflow: ellipsis; max-width: 260px; margin: 0 auto; }
-        .mi-song-artist { font-size: 12px; color: rgba(200,125,186,0.7); margin-top: 2px; }
+        .mi-song-artist { font-size: 12px; color: #a08090; margin-top: 2px; }
         .mi-progress-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-        .mi-time { font-size: 10px; color: rgba(232,160,191,0.6); min-width: 32px; font-variant-numeric: tabular-nums; }
+        .mi-time { font-size: 10px; color: #a08090; min-width: 32px; font-variant-numeric: tabular-nums; }
         .mi-time:last-child { text-align: right; }
-        .mi-progress-track { flex: 1; height: 3px; background: rgba(232,160,191,0.15); border-radius: 2px; overflow: hidden; }
+        .mi-progress-track { flex: 1; height: 3px; background: rgba(199,125,186,0.2); border-radius: 2px; overflow: hidden; }
         .mi-progress-fill { height: 100%; background: linear-gradient(90deg, #e8a0bf, #c77dba); border-radius: 2px;
           transition: width 1s linear; }
         .mi-controls { display: flex; align-items: center; justify-content: center; gap: 20px; }
-        .mi-ctrl { background: none; border: none; color: rgba(232,160,191,0.7); cursor: pointer; padding: 4px;
+        .mi-ctrl { background: none; border: none; color: #b08a9f; cursor: pointer; padding: 4px;
           display: flex; align-items: center; justify-content: center; transition: color .15s; }
-        .mi-ctrl:active { color: #e8a0bf; }
-        .mi-ctrl-play { color: #e8a0bf; }
+        .mi-ctrl:active { color: #c77dba; }
+        .mi-ctrl-play { color: #c77dba; }
+        .mi-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 199; background: rgba(0,0,0,0.15); }
         .mi-ctrl-heart { color: rgba(200,125,186,0.5); }
 
       
@@ -2650,7 +2660,7 @@ export default function Home() {
         .settings-item label { display: block; font-size: 12px; color: #7a6a79; margin-bottom: 4px; }
         .settings-input { width: 100%; background: #f8f4f8; border: 1px solid #e0d0e0; border-radius: 8px; padding: 10px 12px; color: #333; font-size: 14px; outline: none; }
         .settings-input:focus { border-color: #c77dba; }
-        .settings-save { width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg, #e8a0bf, #c77dba); color: #fff; font-size: 15px; font-weight: 600; margin-top: 8px; cursor: pointer; }
+        .settings-save { width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg, #f0c6d8, #e8a0bf); color: #fff; font-size: 15px; font-weight: 600; margin-top: 8px; cursor: pointer; }
         .settings-desc { font-size: 13px; color: #888; }
       
         .msg-row { position: relative; }
