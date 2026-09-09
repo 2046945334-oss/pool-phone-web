@@ -2289,7 +2289,7 @@ export default function Home() {
             <span className="app-page-title">{appTitles[currentApp]}</span>
             <button className="app-customize-btn" onClick={() => setCustomizerApp(currentApp)}>{'🎨'}</button>
           </div>
-          <div className={`app-page-body${hasHtml ? ' app-page-body-html' : ''}`} style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
+          <div className={`app-page-body${(hasHtml || (currentApp === 'music')) ? ' app-page-body-html' : ''}`} style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
             {isReact && reactApps[currentApp]}
             {currentApp === 'music' && (() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} className="app-iframe" allow="autoplay; encrypted-media" style={{border:'none',width:'100%',height:'100%',flex:1}} /> } } catch {} return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px',textAlign:'center',padding:'0 20px'}}>{'请先在系统App中配置音乐服务器地址'}</div> })()}
             {hasHtml && <HtmlApp htmlContent={htmlContent} />}
