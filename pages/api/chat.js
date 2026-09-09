@@ -2119,7 +2119,7 @@ export default async function handler(req, res) {
           if (f.parameters.required && f.parameters.required.includes(k)) s += ' [必需]'
           return s
         }).join('\n') : '  (无参数)'
-        desc += `\n- ${f.name}: ${f.description || ''}\n${params}\n'
+        desc += `\n- ${f.name}: ${f.description || ''}\n${params}\n`
       }
       desc += '\n注意：调用工具后等待系统返回结果，再基于结果回复用户。如果不需要工具，直接回复即可。'
       return desc
