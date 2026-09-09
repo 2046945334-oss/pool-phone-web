@@ -893,7 +893,7 @@ async function executeTool(name, args) {
       const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_now'").get()
       if (row) {
         const md = typeof row.value === 'string' ? JSON.parse(row.value) : row.value
-        return { playing: true, name: md.song || '', artist: md.artist || '', time: md.time }
+        return { playing: !!md.playing, name: md.name || md.song || '', artist: md.artist || '', position: md.position || 0, duration: md.duration || 0, time: md.time }
       }
       return { error: '暂无播放数据' }
     } catch (e) { return { error: '读取失败: ' + e.message } }
