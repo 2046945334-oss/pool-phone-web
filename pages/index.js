@@ -2241,7 +2241,7 @@ export default function Home() {
 
     const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿', care:'养护手册', stickers:'表情包管理' }
     const reactApps = { browser: <BrowserApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
-    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, music: musicHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml, commission: commissionHtml, stickers: stickersHtml }
+    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml, commission: commissionHtml, stickers: stickersHtml }
     // Lazy-loaded HTML apps: fetched on demand to reduce initial bundle size
     const lazyHtmlApps = { care: '/apps/_care.html' }
 
@@ -2291,6 +2291,7 @@ export default function Home() {
           </div>
           <div className={`app-page-body${hasHtml ? ' app-page-body-html' : ''}`} style={bgCfg?.contentOpacity != null && bgCfg.contentOpacity < 1 ? { opacity: bgCfg.contentOpacity } : {}}>
             {isReact && reactApps[currentApp]}
+            {currentApp === 'music' && (() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} className="app-iframe" allow="autoplay; encrypted-media" style={{border:'none',width:'100%',height:'100%',flex:1}} /> } } catch {} return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px',textAlign:'center',padding:'0 20px'}}>{'请先在系统App中配置音乐服务器地址'}</div> })()}
             {hasHtml && <HtmlApp htmlContent={htmlContent} />}
             {isLazy && !htmlContent && <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',color:'#999',fontSize:'14px'}}>加载中...</div>}
           </div>
