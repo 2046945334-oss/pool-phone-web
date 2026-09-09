@@ -2172,6 +2172,18 @@ function HomeScreen({ onOpenApp, theme }) {
   const getIcon = (app) => icons[app.id] || app.icon
   const [page, setPage] = useState(0)
   const [swipeX, setSwipeX] = useState(null)
+  const [nowPlaying, setNowPlaying] = useState(null)
+  useEffect(() => {
+    let active = true
+    const poll = () => {
+      fetch('/api/data/pool_music_now').then(r=>r.json()).then(d=>{
+        if(active && d && d.value) setNowPlaying(d.value)
+      }).catch(()=>{})
+    }
+    poll()
+    const iv = setInterval(poll, 8000)
+    return () => { active = false; clearInterval(iv) }
+  }, [])
   const startDate = new Date(2026, 6, 21)
   const today = new Date()
   const coupleDays = Math.floor((today - startDate) / (1000*60*60*24))
@@ -2194,8 +2206,8 @@ function HomeScreen({ onOpenApp, theme }) {
 <div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?(theme.musicCardBg.startsWith('data:')||theme.musicCardBg.startsWith('http')||theme.musicCardBg.startsWith('/')?{backgroundImage:`url(${theme.musicCardBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.musicCardBg}):{}}>
           <div className="music-icon">{'\u266a'}</div>
           <div className="music-info" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>
-            <div className="music-title" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>{'\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
-            <div className="music-status" style={theme?.musicTextColor?{color:theme.musicTextColor,opacity:0.7}:{}}>{'\u6b63\u5728\u64ad\u653e'}</div>
+            <div className="music-title" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>{nowPlaying?.name ? `${nowPlaying.name}${nowPlaying.artist ? ' - '+nowPlaying.artist : ''}` : '\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
+            <div className="music-status" style={theme?.musicTextColor?{color:theme.musicTextColor,opacity:0.7}:{}}>{nowPlaying?.playing ? '\u6b63\u5728\u64ad\u653e' : nowPlaying ? '\u5df2\u6682\u505c' : '\u6b63\u5728\u64ad\u653e'}</div>
           </div>
         </div>
         <div className="couple-card" onClick={() => onOpenApp('couple')}>
