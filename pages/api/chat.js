@@ -2107,6 +2107,33 @@ export default async function handler(req, res) {
     } catch (e) {
       console.log(`[MCP] Tool loading failed: ${e.message}`)
     }
+    // === 构建工具描述文本注入系统提示词 ===
+    function buildToolPrompt(tools) {
+      if (!tools || !tools.length) return ''
+      let desc = '\n\n【可用工具】\n你可以通过在回复中使用以下格式调用工具：\n<tool_call>{"name":"工具名","args":{参数对象}}</tool_call>\n\n可以在一次回复中调用多个工具。工具调用必须严格使用上述XML标签格式。\n\n工具列表：\n'
+      for (const t of tools) {
+        const f = t.function || t
+        const params = f.parameters && f.parameters.properties ? Object.entries(f.parameters.properties).map(([k,v]) => {
+          let s = `  - ${k}: ${v.description || v.type || ''}`
+          if (v.enum) s += ` (可选值: ${v.enum.join(', ')})`
+          if (f.parameters.required && f.parameters.required.includes(k)) s += ' [必需]'
+          return s
+        }).join('\n') : '  (无参数)'
+        desc += `\n- ${f.name}: ${f.description || ''}\n${params}\n'
+      }
+      desc += '\n注意：调用工具后等待系统返回结果，再基于结果回复用户。如果不需要工具，直接回复即可。'
+      return desc
+    }
+    const toolPromptText = buildToolPrompt(allTools)
+    // 注入工具描述到系统提示词
+    if (toolPromptText) {
+      const sysIdxForTools = currentMessages.findIndex(m => m.role === 'system')
+      if (sysIdxForTools >= 0) {
+        currentMessages[sysIdxForTools].content += toolPromptText
+      } else {
+        currentMessages.unshift({ role: 'system', content: toolPromptText })
+      }
+    }
     let maxRounds = 50
     while (maxRounds-- > 0) {
       // 统一使用对话模型配置
@@ -2199,8 +2226,8 @@ export default async function handler(req, res) {
         messages: reqMessages,
         stream: false,
       }
-      // 始终带工具定义
-      if (allTools.length > 0) bodyObj.tools = allTools
+      // 工具定义通过系统提示词注入，不使用API tools参数（避免中转站incomplete_tool_use）
+      // if (allTools.length > 0) bodyObj.tools = allTools
       const response = await fetch(reqUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + reqKey },
@@ -2237,6 +2264,38 @@ export default async function handler(req, res) {
         continue
       }
       let reply = (choice && choice.message && choice.message.content) || '无响应'
+      // === 从文本回复中解析 <tool_call> 标签 ===
+      const toolCallRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g
+      const textToolCalls = []
+      let tcMatch
+      while ((tcMatch = toolCallRegex.exec(reply)) !== null) {
+        try {
+          const parsed = JSON.parse(tcMatch[1].trim())
+          if (parsed.name) textToolCalls.push(parsed)
+        } catch (e) { console.log('[TOOL PARSE] Failed to parse:', tcMatch[1], e.message) }
+      }
+      if (textToolCalls.length > 0) {
+        console.log('[TOOL] Parsed', textToolCalls.length, 'tool calls from text')
+        const toolResults = []
+        for (const tc of textToolCalls) {
+          const args = tc.args || tc.arguments || {}
+          let result
+          if (mcpMeta[tc.name]) {
+            result = await callMcpToolDirect(mcpMeta[tc.name], args)
+          } else {
+            result = await executeTool(tc.name, args)
+          }
+          toolLogs.push({ name: tc.name, args, result })
+          console.log('[TOOL]', tc.name, 'result:', JSON.stringify(result).substring(0, 200))
+          toolResults.push(`[${tc.name}] ${JSON.stringify(result)}`)
+        }
+        // 将工具结果注入并继续循环
+        currentMessages.push({
+          role: 'user',
+          content: `[系统：工具执行结果如下，请基于结果回复用户]\n\n${toolResults.join('\n\n')}`
+        })
+        continue
+      }
       console.log('[AI RAW]', reply.substring(0, 300))
       // Auto-convert sticker URLs in AI reply
       try {
