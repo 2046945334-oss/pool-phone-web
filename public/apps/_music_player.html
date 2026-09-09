@@ -259,15 +259,33 @@ function showMusicCard(song) {
 }
 
 // ===== 一起听逻辑 =====
+// Music API proxy base
+var MUSIC_API = '/api/music';
+
 function doSearch() {
   var kw = document.getElementById("search-input").value.trim();
   if (!kw) return;
   document.getElementById("together-empty").style.display = "none";
   document.getElementById("search-results").innerHTML = '<div class="status">搜索中...</div>';
   document.getElementById("lyrics-container").innerHTML = "";
-  if (window.MusicBridge && window.MusicBridge.searchSong) {
-    window.MusicBridge.searchSong(kw);
-  }
+  fetch(MUSIC_API + '/cloudsearch?keywords=' + encodeURIComponent(kw) + '&limit=20')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var songs = (d.result && d.result.songs) || [];
+      var results = songs.map(function(s){
+        return {
+          id: s.id,
+          name: s.name,
+          artist: (s.ar||[]).map(function(a){return a.name}).join('/'),
+          album: s.al ? s.al.name : '',
+          cover: s.al && s.al.picUrl ? s.al.picUrl + '?param=100y100' : ''
+        };
+      });
+      window._receiveSearchResults(JSON.stringify(results));
+    })
+    .catch(function(e){
+      document.getElementById("search-results").innerHTML = '<div class="status">搜索失败: ' + e.message + '</div>';
+    });
 }
 
 // Bridge callback: 收到搜索结果
@@ -294,17 +312,25 @@ function playSearchResult(idx) {
   var song = _searchResults[idx];
   if (!song) return;
   togetherSongId = song.id;
-  // 请求播放
   addToHistory(song);
-  if (window.MusicBridge && window.MusicBridge.playSearchResult) {
-    window.MusicBridge.playSearchResult(JSON.stringify(song));
-  }
-  // 打开详情页（歌词稍后通过回调填入）
+  fetch(MUSIC_API + '/song/url/v1?id=' + song.id + '&level=standard')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var urlData = (d.data && d.data[0]) || {};
+      if (urlData.url) {
+        audio.src = urlData.url;
+        audio.play().catch(function(){});
+        window._playSongUrl(urlData.url, song.name, song.artist, song.cover);
+      } else { setStatus('该歌曲暂无版权或需VIP'); }
+    }).catch(function(e){ setStatus('播放失败: ' + e.message); });
   openDetail(song, []);
-  // 请求歌词
-  if (window.MusicBridge && window.MusicBridge.getLyrics) {
-    window.MusicBridge.getLyrics(String(song.id));
-  }
+  fetch(MUSIC_API + '/lyric?id=' + song.id)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var rawLrc = (d.lrc && d.lrc.lyric) ? d.lrc.lyric.split('\n') : [];
+      var lyrics = rawLrc.map(function(l){ return l.replace(/\[\d+:\d+\.?\d*\]/g,'').trim(); }).filter(function(l){return l;});
+      window._receiveLyrics(JSON.stringify({rawLrc: rawLrc, lyrics: lyrics}));
+    }).catch(function(){});
 }
 
 // Bridge callback: 收到歌词
@@ -556,13 +582,24 @@ function nextSong() {
 }
 
 function playSongFromHistory(song) {
-  if (window.MusicBridge && window.MusicBridge.playSearchResult) {
-    window.MusicBridge.playSearchResult(JSON.stringify(song));
-  }
+  fetch(MUSIC_API + '/song/url/v1?id=' + song.id + '&level=standard')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var urlData = (d.data && d.data[0]) || {};
+      if (urlData.url) {
+        audio.src = urlData.url;
+        audio.play().catch(function(){});
+        window._playSongUrl(urlData.url, song.name, song.artist, song.cover);
+      }
+    }).catch(function(){});
   openDetail(song, []);
-  if (window.MusicBridge && window.MusicBridge.getLyrics) {
-    window.MusicBridge.getLyrics(String(song.id));
-  }
+  fetch(MUSIC_API + '/lyric?id=' + song.id)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var rawLrc = (d.lrc && d.lrc.lyric) ? d.lrc.lyric.split('\n') : [];
+      var lyrics = rawLrc.map(function(l){ return l.replace(/\[\d+:\d+\.?\d*\]/g,'').trim(); }).filter(function(l){return l;});
+      window._receiveLyrics(JSON.stringify({rawLrc: rawLrc, lyrics: lyrics}));
+    }).catch(function(){});
 }
 
 function renderHistory() {
