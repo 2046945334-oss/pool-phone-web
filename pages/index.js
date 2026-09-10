@@ -1131,7 +1131,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
         <button className="chat-send" onClick={() => addUserMsg()} disabled={loading || !input.trim()}>{'\u27a4'}</button>
-        <button className="chat-trigger" onClick={triggerAI} disabled={loading}>{loading ? '...' : '\u2728'}</button>
+        <button className="chat-trigger" onClick={triggerAI} disabled={loading}>{loading ? '...' : '♡'}</button>
       </div>
       {showEmoji && <div className="emoji-panel">
         {EMOJI_LIST.map(e => <span key={e} className="emoji-item" onClick={() => { setInput(input + e); setShowEmoji(false) }}>{e}</span>)}
@@ -2763,7 +2763,7 @@ export default function Home() {
         .mcp-action-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 13px; cursor: pointer; margin-top: 8px; }
         .mcp-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .mcp-result { background: #0d0d1a; border: 1px solid #333; border-radius: 8px; padding: 10px; margin-top: 10px; color: #ccc; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; font-family: monospace; }
-        .chat-trigger { width: 34px; height: 34px; border-radius: 50%; border: none; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: 14px; cursor: pointer; flex-shrink: 0; box-shadow: 0 1px 3px rgba(102,126,234,0.4); }
+        .chat-trigger { width: 34px; height: 34px; border-radius: 50%; border: none; background: transparent; color: #999; font-size: 14px; cursor: pointer; flex-shrink: 0; box-shadow: 0 1px 3px rgba(102,126,234,0.4); }
         .chat-trigger:disabled { opacity: 0.5; }
         .settings-panel { padding-bottom: 40px; }
         .theme-item { margin-bottom: 12px; }
