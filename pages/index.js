@@ -1059,9 +1059,8 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           return (
           <React.Fragment key={i}>
             {shouldShowTime(messages, i) && msg.ts && <div className="msg-time-divider">{formatMsgTime(msg.ts)}</div>}
-          <div className={`msg-row ${msg.role}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
-            {msg.role === 'assistant' && <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>}
-            {msg.role === 'user' && <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>}
+          <div className={`msg-row ${msg.role}${(() => { const prev = messages[i-1]; return (!prev || prev.role !== msg.role) ? ' group-first' : ' group-cont'; })()}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
+            {(() => { const prev = messages[i-1]; const isFirst = !prev || prev.role !== msg.role; if (!isFirst) return null; if (msg.role === 'assistant') return <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>; if (msg.role === 'user') return <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>; return null; })()}
             {msg.role === 'tool_log' ? (
               (() => {
                 try {
@@ -2585,10 +2584,10 @@ export default function Home() {
         .chat-status { font-size: 10px; color: #6b7280; margin-top: 1px; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 14px 12px 10px; position: relative; z-index: 1; }
         .chat-empty { text-align: center; color: rgba(17,17,17,0.45); margin-top: 40%; font-size: 14px; }
-        .msg-row { display: flex; align-items: flex-end; margin-bottom: 12px; gap: 8px; }
-        .msg-row.user { flex-direction: row-reverse; }
-        .msg-row.assistant { justify-content: flex-start; }
-        .msg-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        .msg-row { display: flex; flex-direction: column; margin-bottom: 3px; padding: 0 12px; }
+        .msg-row.user { align-items: flex-end; }
+        .msg-row.assistant { align-items: flex-start; }
+        .msg-avatar { width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); margin-bottom: 4px; }
         .msg-bubble { max-width: 74%; padding: 10px 13px; border-radius: 18px; font-size: 14px; line-height: 1.55; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 1px rgba(0,0,0,0.08); }
         .msg-bubble.user { background: #95ec69; color: #111; border-bottom-right-radius: 6px; }
         .msg-bubble.assistant { background: #fff; color: #111; border-bottom-left-radius: 6px; border: 1px solid rgba(0,0,0,0.06); }
@@ -2737,7 +2736,10 @@ export default function Home() {
         .memory-hit-item { margin-left: 8px; }
         .memory-hit-source { font-size: 10px; color: #8a7a74; margin-bottom: 4px; }
         .memory-hit-preview { font-size: 10px; color: #6b5d56; line-height: 1.5; background: #f5f3f0; padding: 6px 8px; border-radius: 6px; border-left: 2px solid #d4c8bf; }
-        .msg-row.tool_log { justify-content: center; }
+        .msg-row.tool_log { align-items: center; justify-content: center; }
+        .msg-row.group-first { margin-top: 14px; }
+        .msg-row.group-cont { margin-top: 0; }
+        .msg-row.group-cont .msg-bubble { margin-top: 2px; }
         .msg-time-divider { text-align: center; padding: 10px 0 6px; font-size: 11px; color: #8a8a8a; letter-spacing: 1px; }
         .thinking-inline { margin-bottom: 6px; background: #faf7f2; border-radius: 8px; border: 1px solid rgba(210,200,185,0.4); overflow: hidden; }
         .thinking-inline-trigger { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11px; color: #9a9088; cursor: pointer; user-select: none; }
@@ -2776,7 +2778,7 @@ export default function Home() {
         .theme-icon-input { flex: 1; font-size: 11px !important; }
         .theme-upload-sm { padding: 4px 8px; background: #f0e8f0; border: 1px solid #d8c8d8; border-radius: 6px; color: #999; font-size: 12px; cursor: pointer; }
         .theme-preview-sm { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-top: 6px; border: 2px solid #d8c8d8; }
-        .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .avatar-img { width: 100%; height: 100%; border-radius: 6px; object-fit: cover; }
         .user-avatar { background: #c77dba; }
 
         /* App Customizer */
