@@ -127,6 +127,7 @@ function parseThinkTags(text) {
   if (!m) return { content: text, reasoning: null }
   return { content: text.replace(/<think>[\s\S]*?<\/think>/, '').trim(), reasoning: m[1].trim() }
 }
+function stripThink(text) { return text ? text.replace(/<think>[\s\S]*?<\/think>/g, '').trim() : text }
 
 function ThinkingToggle({ reasoning }) {
   const [open, setOpen] = useState(false)
@@ -1093,8 +1094,8 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
               <div className={`msg-bubble ${msg.role}${/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? ' sticker-only' : ''}`} style={/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? {background:'transparent',border:'none',boxShadow:'none',padding:0} : msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
 {msg.role === 'assistant' && (msg.reasoning || (msg.content && msg.content.includes('<think>'))) && <ThinkingToggle reasoning={msg.reasoning || parseThinkTags(msg.content).reasoning} />}
 {msg.content.includes('[voice]') && msg.content.includes('[/voice]') && /\[voice\].*?\[\/voice\]/s.test(msg.content) ? 
-                  msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{part}</span> : null) : <VoiceBubble key={j} text={part} />) 
-                : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
+                  msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{stripThink(part)}</span> : null) : <VoiceBubble key={j} text={part} />) 
+                : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? stripThink(part) : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : stripThink(msg.content)}
               </div>
             )}
             {menuIdx === i && msg.role !== 'system' && (
