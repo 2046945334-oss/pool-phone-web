@@ -138,7 +138,7 @@ function parseThinkTags(text) {
   if (!m) return { content: text, reasoning: null }
   return { content: text.replace(/<think>[\s\S]*?<\/think>/, '').trim(), reasoning: m[1].trim() }
 }
-function stripThink(text) { return text ? text.replace(/<think>[\s\S]*?<\/think>/g, '').trim() : text }
+function stripThink(text) { return text ? text.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim() : text }
 
 function ThinkingToggle({ reasoning }) {
   const [open, setOpen] = useState(false)
@@ -1139,11 +1139,11 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
             )}
             {menuIdx === i && msg.role !== 'system' && (
               <div className="msg-menu">
-                <button onClick={() => copyMsg(i)}>{'\ud83d\udccb \u590d\u5236'}</button>
-                <button onClick={() => startEdit(i)}>{'\u270f\ufe0f \u7f16\u8f91'}</button>
-                <button onClick={() => rollbackTo(i)}>{'\u23ea \u56de\u6eda\u5230\u6b64'}</button>
-                <button onClick={insertSummary}>{'\ud83d\udcdd \u63d2\u5165\u603b\u7ed3'}</button>
-                <button onClick={() => deleteMsg(i)}>{'\ud83d\uddd1 \u5220\u9664'}</button>
+                <button onClick={() => copyMsg(i)}>{'复制'}</button>
+                <button onClick={() => startEdit(i)}>{'编辑'}</button>
+                <button onClick={() => { if(confirm('确定回滚到这条吗？')) rollbackTo(i) }}>{'回滚到此'}</button>
+                <button onClick={insertSummary}>{'插入总结'}</button>
+                <button onClick={() => { if(confirm('确定删除吗？')) deleteMsg(i) }}>{'删除'}</button>
               </div>
             )}
           </div>
@@ -2765,10 +2765,10 @@ export default function Home() {
         .settings-desc { font-size: 13px; color: #888; }
       
         /* msg-row position:relative moved to main rule */
-        .msg-menu { position: absolute; top: 100%; left: 10px; z-index: 100; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 4px 0; box-shadow: 0 4px 16px rgba(0,0,0,.6); min-width: 130px; }
+        .msg-menu { position: absolute; bottom: 100%; left: 10px; z-index: 100; background: #faf8f5; border: 1px solid #e8e4df; border-radius: 12px; padding: 4px 0; box-shadow: 0 2px 12px rgba(0,0,0,.1); min-width: 120px; margin-bottom: 4px; }
         .msg-row.user .msg-menu { left: auto; right: 10px; }
-        .msg-menu button { display: block; width: 100%; padding: 9px 14px; background: none; border: none; color: #e0e0e0; font-size: 13px; text-align: left; cursor: pointer; }
-        .msg-menu button:active { background: rgba(232,160,191,.15); }
+        .msg-menu button { display: block; width: 100%; padding: 8px 14px; background: none; border: none; color: #5a5a5a; font-size: 13px; text-align: left; cursor: pointer; }
+        .msg-menu button:active { background: rgba(0,0,0,.05); }
         .msg-system { font-size: 12px; color: #9a8a99; background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 12px; margin: 4px auto; max-width: 85%; text-align: center; border: 1px dashed #333; }
         .tool-log-wrap { width: 90%; margin: 4px auto; background: #f8f6f3; border-radius: 10px; border: 1px solid #e8e4df; cursor: pointer; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
         .tool-log-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-size: 11px; color: #6b5d56; font-weight: 500; }
