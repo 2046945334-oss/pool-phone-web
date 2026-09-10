@@ -2633,7 +2633,7 @@ export default function Home() {
         .chat-status { font-size: 10px; color: #6b7280; margin-top: 1px; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 14px 12px 10px; position: relative; z-index: 1; }
         .chat-empty { text-align: center; color: rgba(17,17,17,0.45); margin-top: 40%; font-size: 14px; }
-        .msg-row { display: flex; flex-direction: column; margin-bottom: 3px; padding: 0 12px; }
+        .msg-row { position: relative; display: flex; flex-direction: column; margin-bottom: 3px; padding: 0 12px; }
         .msg-row.user { align-items: flex-end; }
         .msg-row.assistant { align-items: flex-start; }
         .msg-avatar { width: 38px; height: 38px; border-radius: 6px; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid rgba(255,255,255,0.8); margin-bottom: -12px; position: relative; z-index: 2; }
