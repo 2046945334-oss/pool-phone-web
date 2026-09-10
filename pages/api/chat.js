@@ -2381,7 +2381,9 @@ export default async function handler(req, res) {
         if (before !== reply) console.log('[IMG CONV]', before, '->', reply)
       } catch {}
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
-      // 5. 存储AI回复到数据库
+      // 5. strip tool_call from reply
+      reply = reply.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim() || reply
+      // 5b. 存储AI回复到数据库
       await processNewMessage(sessionId, 'assistant', reply, apiConfig)
       // 6. 通知推送（写入通知队列）
       try {
