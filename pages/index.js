@@ -1100,11 +1100,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
       <div className="chat-messages" style={theme?.chatBg ? {backgroundImage:`url(${theme.chatBg})`,backgroundSize:'cover',backgroundPosition:'center'} : {}} onClick={() => setMenuIdx(-1)}>
         {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
         {visibleStart > 0 && <div style={{textAlign:'center',padding:'12px 0'}}><button onClick={() => setVisibleStart(Math.max(0, visibleStart - 20))} style={{background:'rgba(200,125,186,0.15)',border:'1px solid rgba(200,125,186,0.3)',borderRadius:'16px',color:'#c77dba',padding:'6px 20px',fontSize:'12px',cursor:'pointer'}}>{'点击加载更早的历史记录'}</button></div>}
-        {(() => {
-        const lastUserIdx = messages.reduce((acc, m, i) => m.role === 'user' ? i : acc, -1)
-        const lastAssistantIdx = messages.reduce((acc, m, i) => m.role === 'assistant' ? i : acc, -1)
-        return messages
-      })().slice(visibleStart).map((msg, idx) => {
+        {messages.slice(visibleStart).map((msg, idx) => {
           const i = visibleStart + idx
           return (
           <React.Fragment key={i}>
@@ -1138,7 +1134,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
                 : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? stripThink(part) : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : stripThink(msg.content)}
               </div>
             )}
-            {((msg.role === 'user' && i === lastUserIdx) || (msg.role === 'assistant' && i === lastAssistantIdx)) && msg.role !== 'system' && (
+            {((msg.role === 'user' && !messages.slice(i+1).some(m => m.role === 'user')) || (msg.role === 'assistant' && !messages.slice(i+1).some(m => m.role === 'assistant'))) && msg.role !== 'system' && (
               <ReadStatusIcon read={msg.role === 'user' ? (readStatus.userLastReadTs >= (msg.ts || 0)) : (readStatus.aiLastReadTs >= (msg.ts || 0))} />
             )}
             {menuIdx === i && msg.role !== 'system' && (
