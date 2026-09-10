@@ -122,6 +122,12 @@ if (typeof window !== 'undefined') {
 
 
 // 思考过程组件 - 内嵌折叠面板样式（米白色）
+function parseThinkTags(text) {
+  const m = text.match(/<think>([\s\S]*?)<\/think>/)
+  if (!m) return { content: text, reasoning: null }
+  return { content: text.replace(/<think>[\s\S]*?<\/think>/, '').trim(), reasoning: m[1].trim() }
+}
+
 function ThinkingToggle({ reasoning }) {
   const [open, setOpen] = useState(false)
   if (!reasoning) return null
@@ -811,7 +817,10 @@ function ChatView({ theme }) {
         setMessages([...newMessages, { role: 'system', content: '\u26a0\ufe0f API\u9519\u8bef: ' + errMsg + debugInfo }])
         setLoading(false); return
       }
-      const reply = data.reply || '\u65e0\u54cd\u5e94'
+      const rawReply = data.reply || '\u65e0\u54cd\u5e94'
+      const thinkParsed = parseThinkTags(rawReply)
+      const reply = thinkParsed.content || rawReply
+      const mergedReasoning = data.reasoning || thinkParsed.reasoning
       const toolLogs = data.toolLogs || null
       // Split reply into sentences and show one by one
       // Protect [voice]...[/voice] and [img]...[/img] blocks from being split
@@ -830,7 +839,7 @@ function ChatView({ theme }) {
       const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]).replace(/__URL_(\d+)__/g, (_, idx) => urlBlocks[parseInt(idx)]).replace(/__PUNCT_(\d+)__/g, (_, idx) => punctBlocks[parseInt(idx)]))
       let current = [...newMessages]
       for (let i = 0; i < restored.length; i++) {
-        current = [...current, { role: 'assistant', content: restored[i].trim(), ts: i === 0 ? Date.now() : undefined, ...(i === 0 && data.reasoning ? { reasoning: data.reasoning } : {}) }]
+        current = [...current, { role: 'assistant', content: restored[i].trim(), ts: i === 0 ? Date.now() : undefined, ...(i === 0 && mergedReasoning ? { reasoning: mergedReasoning } : {}) }]
         setMessages([...current])
         if (i < restored.length - 1) await new Promise(r => setTimeout(r, 600))
       }
@@ -1082,7 +1091,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
               </div>
             ) : (
               <div className={`msg-bubble ${msg.role}${/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? ' sticker-only' : ''}`} style={/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? {background:'transparent',border:'none',boxShadow:'none',padding:0} : msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
-{msg.role === 'assistant' && msg.reasoning && <ThinkingToggle reasoning={msg.reasoning} />}
+{msg.role === 'assistant' && (msg.reasoning || (msg.content && msg.content.includes('<think>'))) && <ThinkingToggle reasoning={msg.reasoning || parseThinkTags(msg.content).reasoning} />}
 {msg.content.includes('[voice]') && msg.content.includes('[/voice]') && /\[voice\].*?\[\/voice\]/s.test(msg.content) ? 
                   msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{part}</span> : null) : <VoiceBubble key={j} text={part} />) 
                 : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? part : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : msg.content}
