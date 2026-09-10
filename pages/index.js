@@ -1618,6 +1618,9 @@ function SettingsPanel() {
       model: wkCfg.model || chatCfg.model || defaultCfg.model || ''
     }
     syncToBackend('pool_api_config_chat', wakeupCfg)
+    // Sync music server config so wakeup.js can access it
+    syncToBackend('pool_music_server', musicServer)
+    syncToBackend('pool_music_token', localStorage.getItem('pool_music_token') || '')
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
