@@ -2063,13 +2063,66 @@ export default async function handler(req, res) {
         else currentMessages.unshift({ role: 'system', content: stickerHint })
       }
     } catch {}
-    // 注入当前音乐播放状态（从KV读取）
+    // 注入当前音乐播放状态（从KV读取）+ 歌词
     try {
       const musicRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_now'").get()
       if (musicRow) {
         const md = typeof musicRow.value === 'string' ? JSON.parse(musicRow.value) : musicRow.value
-        if (md && md.song) {
-          const musicHint = '【当前音乐】正在播放: ' + md.song + (md.artist ? ' - ' + md.artist : '') + '\n你可以用 music_search 搜歌、music_play 播放、music_control 控制(暂停/切歌)、music_now 查状态。'
+        const songName = md && (md.name || md.song)
+        if (songName) {
+          let musicHint = '【当前音乐】正在播放: ' + songName + (md.artist ? ' - ' + md.artist : '')
+          // 尝试从音乐服务器获取歌词
+          if (md.songId) {
+            try {
+              let mServer = '', mToken = ''
+              try {
+                const sRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_server'").get()
+                if (sRow) mServer = (typeof sRow.value === 'string' ? sRow.value : '').replace(/^"/g, '').replace(/"$/g, '')
+                const tRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_token'").get()
+                if (tRow) mToken = (typeof tRow.value === 'string' ? tRow.value : '').replace(/^"/g, '').replace(/"$/g, '')
+              } catch {}
+              if (!mServer) mServer = 'https://musicc.zeabur.app'
+              const lrcHeaders = { 'User-Agent': 'Mozilla/5.0' }
+              if (mToken) lrcHeaders['X-Auth-Token'] = mToken
+              const lrcResp = await fetch(mServer + '/music/lyric?id=' + md.songId, { headers: lrcHeaders, signal: AbortSignal.timeout(5000) })
+              if (lrcResp.ok) {
+                const lrcData = await lrcResp.json()
+                if (lrcData.ok && lrcData.lrc) {
+                  const pos = Math.floor(md.position || md.time || 0)
+                  const lrcLines = lrcData.lrc.split('\n').map(l => {
+                    const m = l.match(/\[(\d+):(\d+\.?\d*)\](.*)/)
+                    if (!m) return null
+                    return { time: parseInt(m[1])*60 + parseFloat(m[2]), text: m[3].trim() }
+                  }).filter(Boolean)
+                  let curIdx = -1
+                  for (let i = lrcLines.length - 1; i >= 0; i--) {
+                    if (lrcLines[i].time <= pos && lrcLines[i].text) { curIdx = i; break }
+                  }
+                  if (curIdx >= 0) {
+                    const nearby = []
+                    for (let i = Math.max(0, curIdx - 1); i <= Math.min(lrcLines.length - 1, curIdx + 2); i++) {
+                      if (lrcLines[i].text) nearby.push((i === curIdx ? '▶ ' : '  ') + lrcLines[i].text)
+                    }
+                    if (nearby.length) musicHint += '\n当前歌词:\n' + nearby.join('\n')
+                  }
+                  if (lrcData.tlyric && curIdx >= 0) {
+                    const tlines = lrcData.tlyric.split('\n').map(l => {
+                      const m = l.match(/\[(\d+):(\d+\.?\d*)\](.*)/)
+                      if (!m) return null
+                      return { time: parseInt(m[1])*60 + parseFloat(m[2]), text: m[3].trim() }
+                    }).filter(Boolean)
+                    for (let i = tlines.length - 1; i >= 0; i--) {
+                      if (tlines[i].time <= pos && tlines[i].text) {
+                        musicHint += '\n翻译：' + tlines[i].text
+                        break
+                      }
+                    }
+                  }
+                }
+              }
+            } catch {}
+          }
+          musicHint += '\n你可以用 music_search 搜歌、music_play 播放、music_control 控制(暂停/切歌)、music_now 查状态。'
           const sysMsg2 = currentMessages.find(m => m.role === 'system')
           if (sysMsg2) sysMsg2.content += '\n\n' + musicHint
           else currentMessages.unshift({ role: 'system', content: musicHint })
