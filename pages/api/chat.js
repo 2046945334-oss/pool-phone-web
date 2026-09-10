@@ -2027,8 +2027,22 @@ export default async function handler(req, res) {
 6. **每个操作只调一次工具**，工具返回后视为成功，不要重复调用确认
 7. **工具调用后必须用自然语言回复**：执行工具后，要用1-2句话告诉用户你做了什么/心里在想什么，不要只留工具调用记录`
     let currentMessages = messages.slice()
+    // Inject read status
+    let readStatusHint = ''
+    try {
+      const db = getDb()
+      const rsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_read_status'").get()
+      if (rsRow) {
+        const rs = JSON.parse(rsRow.value)
+        const now = Date.now()
+        const userRead = rs.userLastReadTs ? (now - rs.userLastReadTs < 300000 ? '已读' : '已读(较早前)') : '未读'
+        const aiRead = rs.aiLastReadTs ? (now - rs.aiLastReadTs < 300000 ? '已读' : '已读(较早前)') : '未读'
+        readStatusHint = `
+【消息已读状态】她对你最后一条消息：${aiRead}，你对她最后一条消息：${userRead}。`
+      }
+    } catch {}
     const memoryInjection = ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''
-    const fullInjection = [memoryInjection, toolGuidance].filter(Boolean).join('\n\n')
+    const fullInjection = [memoryInjection, toolGuidance, readStatusHint].filter(Boolean).join('\n\n')
     if (fullInjection) {
       // 在第一条system消息后插入记忆，或者作为新system消息
       const sysIdx = currentMessages.findIndex(m => m.role === 'system')

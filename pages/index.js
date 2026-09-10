@@ -122,6 +122,17 @@ if (typeof window !== 'undefined') {
 
 
 // 思考过程组件 - 内嵌折叠面板样式（米白色）
+function ReadStatusIcon({ read }) {
+  return React.createElement('div', { className: 'read-status' },
+    read ? React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: '#bbb', strokeWidth: 2 },
+      React.createElement('circle', { cx: 12, cy: 12, r: 10 }),
+      React.createElement('polyline', { points: '8 12 11 15 16 9' })
+    ) : React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: '#ccc', strokeWidth: 2 },
+      React.createElement('circle', { cx: 12, cy: 12, r: 10 })
+    )
+  )
+}
+
 function parseThinkTags(text) {
   const m = text.match(/<think>([\s\S]*?)<\/think>/)
   if (!m) return { content: text, reasoning: null }
@@ -500,6 +511,22 @@ function ChatView({ theme }) {
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
   const [showEmoji, setShowEmoji] = useState(false)
+  const [readStatus, setReadStatus] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pool_read_status') || '{}') } catch { return {} }
+  })
+  useEffect(() => {
+    if (!messages.length) return
+    const last = messages[messages.length - 1]
+    if (last.role === 'assistant' && last.ts) {
+      setReadStatus(prev => {
+        if (prev.aiLastReadTs >= last.ts) return prev
+        const next = { ...prev, aiLastReadTs: last.ts }
+        localStorage.setItem('pool_read_status', JSON.stringify(next))
+        fetch('/api/data/pool_read_status', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ value: next }) }).catch(() => {})
+        return next
+      })
+    }
+  }, [messages])
   const [showStickerPanel, setShowStickerPanel] = useState(false)
   const EMOJI_LIST = ['😊','😂','🥺','😭','❤️','🔥','👍','😘','🤗','😏','🙄','😴','🎉','💕','😤','🥰','😳','👀','✨','🌸','💔','🫶','😈','🤭','💋','🙈','😮','💀','🫡','🤔']
   const [editIdx, setEditIdx] = useState(-1)
@@ -844,6 +871,15 @@ function ChatView({ theme }) {
         setMessages([...current])
         if (i < restored.length - 1) await new Promise(r => setTimeout(r, 600))
       }
+      const lastUserMsg = newMessages.filter(m => m.role === 'user').pop()
+      if (lastUserMsg && lastUserMsg.ts) {
+        setReadStatus(prev => {
+          const next = { ...prev, userLastReadTs: lastUserMsg.ts }
+          localStorage.setItem('pool_read_status', JSON.stringify(next))
+          fetch('/api/data/pool_read_status', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ value: next }) }).catch(() => {})
+          return next
+        })
+      }
       // 附加工具调用日志和记忆命中（如果有）
       if (toolLogs || data.memoryHit) {
         current = [...current, { 
@@ -1064,7 +1100,11 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
       <div className="chat-messages" style={theme?.chatBg ? {backgroundImage:`url(${theme.chatBg})`,backgroundSize:'cover',backgroundPosition:'center'} : {}} onClick={() => setMenuIdx(-1)}>
         {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
         {visibleStart > 0 && <div style={{textAlign:'center',padding:'12px 0'}}><button onClick={() => setVisibleStart(Math.max(0, visibleStart - 20))} style={{background:'rgba(200,125,186,0.15)',border:'1px solid rgba(200,125,186,0.3)',borderRadius:'16px',color:'#c77dba',padding:'6px 20px',fontSize:'12px',cursor:'pointer'}}>{'点击加载更早的历史记录'}</button></div>}
-        {messages.slice(visibleStart).map((msg, idx) => {
+        {(() => {
+        const lastUserIdx = messages.reduce((acc, m, i) => m.role === 'user' ? i : acc, -1)
+        const lastAssistantIdx = messages.reduce((acc, m, i) => m.role === 'assistant' ? i : acc, -1)
+        return messages
+      })().slice(visibleStart).map((msg, idx) => {
           const i = visibleStart + idx
           return (
           <React.Fragment key={i}>
@@ -1097,6 +1137,9 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
                   msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{stripThink(part)}</span> : null) : <VoiceBubble key={j} text={part} />) 
                 : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? stripThink(part) : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : stripThink(msg.content)}
               </div>
+            )}
+            {((msg.role === 'user' && i === lastUserIdx) || (msg.role === 'assistant' && i === lastAssistantIdx)) && msg.role !== 'system' && (
+              <ReadStatusIcon read={msg.role === 'user' ? (readStatus.userLastReadTs >= (msg.ts || 0)) : (readStatus.aiLastReadTs >= (msg.ts || 0))} />
             )}
             {menuIdx === i && msg.role !== 'system' && (
               <div className="msg-menu">
@@ -2751,6 +2794,10 @@ export default function Home() {
         .msg-row.group-cont { margin-top: 0; }
         .msg-row.group-cont .msg-bubble { margin-top: 2px; }
         .msg-row.group-first .msg-bubble { padding-top: 16px; }
+        .read-status { font-size: 11px; color: #bbb; display: flex; align-items: center; gap: 2px; margin-top: 2px; }
+        .read-status svg { width: 14px; height: 14px; }
+        .msg-row.user .read-status { justify-content: flex-end; }
+        .msg-row.assistant .read-status { justify-content: flex-start; }
         .msg-time-divider { text-align: center; padding: 10px 0 6px; font-size: 11px; color: #8a8a8a; letter-spacing: 1px; }
         .thinking-inline { margin-bottom: 6px; background: #faf7f2; border-radius: 8px; border: 1px solid rgba(210,200,185,0.4); overflow: hidden; }
         .thinking-inline-trigger { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11px; color: #9a9088; cursor: pointer; user-select: none; }
