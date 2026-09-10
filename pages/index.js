@@ -2353,8 +2353,13 @@ export default function Home() {
         e.source?.postMessage({ type: 'poolAI_response', id, error: err.message }, '*')
       }
     }
+    // Also listen for music iframe back button
+    function musicBackHandler(e) {
+      if (e.data && e.data.type === 'music:back') { handleBack() }
+    }
     window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
+    window.addEventListener('message', musicBackHandler)
+    return () => { window.removeEventListener('message', handler); window.removeEventListener('message', musicBackHandler) }
   }, [])
 
   function handleOpenApp(id) { if (id === 'chat') { setActiveTab('chat') } else { setCurrentApp(id) } }
