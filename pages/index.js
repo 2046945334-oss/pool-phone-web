@@ -2587,7 +2587,7 @@ export default function Home() {
         .msg-row { display: flex; flex-direction: column; margin-bottom: 3px; padding: 0 12px; }
         .msg-row.user { align-items: flex-end; }
         .msg-row.assistant { align-items: flex-start; }
-        .msg-avatar { width: 38px; height: 38px; border-radius: 6px; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid rgba(255,255,255,0.8); margin-bottom: 4px; }
+        .msg-avatar { width: 38px; height: 38px; border-radius: 6px; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid rgba(255,255,255,0.8); margin-bottom: -12px; position: relative; z-index: 2; }
         .msg-bubble { max-width: 78%; padding: 11px 14px; border-radius: 4px; font-size: 14px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em; }
         .msg-bubble.user { background: #95ec69; color: #111; }
         .msg-bubble.assistant { background: rgba(255,255,255,0.92); color: #1a1a1a; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,0,0,0.05); }
@@ -2740,6 +2740,7 @@ export default function Home() {
         .msg-row.group-first { margin-top: 14px; }
         .msg-row.group-cont { margin-top: 0; }
         .msg-row.group-cont .msg-bubble { margin-top: 2px; }
+        .msg-row.group-first .msg-bubble { padding-top: 16px; }
         .msg-time-divider { text-align: center; padding: 10px 0 6px; font-size: 11px; color: #8a8a8a; letter-spacing: 1px; }
         .thinking-inline { margin-bottom: 6px; background: #faf7f2; border-radius: 8px; border: 1px solid rgba(210,200,185,0.4); overflow: hidden; }
         .thinking-inline-trigger { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11px; color: #9a9088; cursor: pointer; user-select: none; }
