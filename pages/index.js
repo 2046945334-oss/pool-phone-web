@@ -2528,6 +2528,15 @@ export default function Home() {
         }
       }
 
+      // Reader app: render full-screen without outer header/body padding
+      if (currentApp === 'reader') {
+        return (
+          <div className="app-page" style={{padding:0,...bgStyle}}>
+            <ReaderApp onBack={handleBack} />
+          </div>
+        )
+      }
+
       return (
         <div className="app-page" style={isReact ? bgStyle : {}}>
           <div className="app-page-header">
