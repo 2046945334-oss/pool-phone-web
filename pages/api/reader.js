@@ -70,14 +70,17 @@ export default async function handler(req, res) {
   if (req.method === 'PUT') {
     const body = req.body
 
-    // PUT action=import — 导入书籍
+    // PUT action=import — 导入书籍（事务保证原子读写，防并发覆盖）
     if (action === 'import') {
       const { title, chapters } = body
       if (!title || !chapters) return res.status(400).json({ error: 'title and chapters required' })
-      const books = getVal(db, KEY_BOOKS) || []
       const id = Math.random().toString(36).substr(2, 10)
-      books.push({ id, title, chapters, importedAt: Date.now() })
-      setVal(db, KEY_BOOKS, books)
+      const importTx = db.transaction(() => {
+        const books = getVal(db, KEY_BOOKS) || []
+        books.push({ id, title, chapters, importedAt: Date.now() })
+        setVal(db, KEY_BOOKS, books)
+      })
+      importTx()
       return res.json({ ok: true, id, chapterCount: chapters.length })
     }
 
@@ -159,8 +162,11 @@ export default async function handler(req, res) {
   // DELETE action=book&id=xxx
   if (req.method === 'DELETE' && action === 'book') {
     const { id } = req.query
-    const books = getVal(db, KEY_BOOKS) || []
-    setVal(db, KEY_BOOKS, books.filter(b => b.id !== id))
+    const delTx = db.transaction(() => {
+      const books = getVal(db, KEY_BOOKS) || []
+      setVal(db, KEY_BOOKS, books.filter(b => b.id !== id))
+    })
+    delTx()
     return res.json({ ok: true })
   }
 

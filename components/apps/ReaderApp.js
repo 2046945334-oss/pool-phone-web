@@ -239,6 +239,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   function backToShelf() { setCurrentBookIdx(-1); setView('shelf'); loadState(); loadBooks() }
   async function delBook(idx) {
     const book = books[idx]
+    if (!confirm('确定要删除《' + book.title + '》吗？')) return
     await fetch('/api/reader?action=book&id=' + book.id, { method: 'DELETE' })
     await loadBooks()
   }
