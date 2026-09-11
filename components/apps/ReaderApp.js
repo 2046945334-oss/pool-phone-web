@@ -91,6 +91,22 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   }, [])
 
   useEffect(() => { loadState(); loadBooks() }, [])
+
+  // Mini mode: auto-open current book on mount
+  useEffect(() => {
+    if (!mini) return
+    if (books.length === 0) return
+    if (view === 'reader') return
+    if (state.active && state.currentBookId) {
+      const idx = books.findIndex(b => b.id === state.currentBookId)
+      if (idx >= 0) {
+        setCurrentBookIdx(idx)
+        setCurrentChapter(state.userChapter || 0)
+        setCurrentPage(state.userPage || 0)
+        setView('reader')
+      }
+    }
+  }, [mini, books, state])
   useEffect(() => {
     if (view !== 'reader') return
     const iv = setInterval(loadState, 15000)
@@ -216,7 +232,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   // Mini mode
   if (mini && view === 'reader' && chapter) {
     return (
-      <div style={{ display:'flex', flexDirection:'column', height:'100%', width:'100%', background:'#faf8f5', fontFamily:'-apple-system,sans-serif', overflow:'hidden' }}>
+      <div style={{ display:'flex', flexDirection:'column', height:'100%', width:'100%', background:'#fff5f8', fontFamily:'-apple-system,sans-serif', overflow:'hidden' }}>
         <div style={{ display:'flex', alignItems:'center', padding:'6px 10px', gap:6, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
           <span style={{ flex:1, fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{chapter.title || ('第 ' + (currentChapter + 1) + ' 章')}</span>
           <span style={{ fontSize:10, color:'#999' }}>{safePageIdx + 1}/{pages.length}</span>
@@ -225,26 +241,26 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           <div style={{ lineHeight:1.75, fontSize:14, color:'#2c2c2c' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
         </div>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 10px', borderTop:'1px solid #eee', background:'#fff', flexShrink:0 }}>
-          <button onClick={() => goPage(book, currentChapter, safePageIdx - 1)} disabled={safePageIdx === 0 && currentChapter === 0} style={{ background:'none', border:'none', color:'#1976d2', fontSize:12, cursor:'pointer', opacity: (safePageIdx === 0 && currentChapter === 0) ? 0.4 : 1 }}>{'← 上一页'}</button>
-          <button onClick={() => goPage(book, currentChapter, safePageIdx + 1)} disabled={safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1} style={{ background:'none', border:'none', color:'#1976d2', fontSize:12, cursor:'pointer', opacity: (safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1) ? 0.4 : 1 }}>{'下一页 →'}</button>
+          <button onClick={() => goPage(book, currentChapter, safePageIdx - 1)} disabled={safePageIdx === 0 && currentChapter === 0} style={{ background:'none', border:'none', color:'#e91e8c', fontSize:12, cursor:'pointer', opacity: (safePageIdx === 0 && currentChapter === 0) ? 0.4 : 1 }}>{'← 上一页'}</button>
+          <button onClick={() => goPage(book, currentChapter, safePageIdx + 1)} disabled={safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1} style={{ background:'none', border:'none', color:'#e91e8c', fontSize:12, cursor:'pointer', opacity: (safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1) ? 0.4 : 1 }}>{'下一页 →'}</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', width:'100%', background:'#faf8f5', fontFamily:'-apple-system,sans-serif', position:'relative', overflow:'hidden' }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', width:'100%', background:'#fff5f8', fontFamily:'-apple-system,sans-serif', position:'relative', overflow:'hidden' }}>
 
       {/* SHELF */}
       {view === 'shelf' && (<>
         <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
           <button onClick={onBack} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
           <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>共读书架</h2>
-          <button onClick={() => setView('import')} style={{ background:'#1976d2', color:'#fff', border:'none', padding:'7px 14px', borderRadius:8, fontSize:13, cursor:'pointer' }}>+ 导入</button>
+          <button onClick={() => setView('import')} style={{ background:'#e91e8c', color:'#fff', border:'none', padding:'7px 14px', borderRadius:8, fontSize:13, cursor:'pointer' }}>+ 导入</button>
         </div>
         <div style={{ flex:1, overflowY:'auto', padding:12 }}>
           {state.recommendation && (
-            <div style={{ background:'#e3f2fd', borderRadius:10, padding:12, marginBottom:10, border:'1px solid #90caf9' }}>
+            <div style={{ background:'#fce4ec', borderRadius:10, padding:12, marginBottom:10, border:'1px solid #90caf9' }}>
               <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>📖 池推荐了一本书</div>
               <div style={{ fontSize:15, fontWeight:600 }}>{state.recommendation.title}</div>
               <div style={{ fontSize:13, color:'#555', marginTop:2 }}>{state.recommendation.reason}</div>
@@ -257,9 +273,9 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
               <div style={{ fontSize:15, fontWeight:600, marginBottom:3 }}>{b.title}</div>
               <div style={{ fontSize:12, color:'#888' }}>{b.chapters?.length || 0} 章 · 读到第 {(state.currentBookId === b.id ? (state.userChapter || 0) : 0) + 1} 章</div>
               {state.currentBookId === b.id && state.active && (
-                <div style={{ display:'inline-block', background:'#fff3e0', color:'#e65100', fontSize:11, padding:'2px 8px', borderRadius:10, marginTop:4 }}>👀 池在读 · 第 {(state.aiChapter || 0) + 1} 章</div>
+                <div style={{ display:'inline-block', background:'#fce4ec', color:'#c2185b', fontSize:11, padding:'2px 8px', borderRadius:10, marginTop:4 }}>👀 池在读 · 第 {(state.aiChapter || 0) + 1} 章</div>
               )}
-              <button onClick={(e) => { e.stopPropagation(); delBook(i) }} style={{ position:'absolute', top:12, right:12, background:'#e53935', color:'#fff', border:'none', padding:'3px 10px', borderRadius:6, fontSize:11, cursor:'pointer' }}>删除</button>
+              <button onClick={(e) => { e.stopPropagation(); delBook(i) }} style={{ position:'absolute', top:12, right:12, background:'#f06292', color:'#fff', border:'none', padding:'3px 10px', borderRadius:6, fontSize:11, cursor:'pointer' }}>删除</button>
             </div>
           ))}
         </div>
@@ -275,7 +291,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           <div style={{ border:'2px dashed #d0ccc6', borderRadius:12, padding:30, textAlign:'center', margin:'16px 0', background:'#fff' }}>
             <p style={{ marginBottom:12, color:'#666' }}>选择 .txt 文件导入到共读书架</p>
             <input type="file" accept=".txt" onChange={handleFile} ref={fileRef} />
-            {loading && <p style={{ marginTop:12, color:'#1976d2' }}>正在解析...</p>}
+            {loading && <p style={{ marginTop:12, color:'#e91e8c' }}>正在解析...</p>}
           </div>
         </div>
       </>)}
@@ -286,13 +302,13 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           <button onClick={backToShelf} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
           <h2 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{chapter.title || ('第 ' + (currentChapter + 1) + ' 章')}</h2>
           <span style={{ fontSize:11, color:'#999', flexShrink:0 }}>P{safePageIdx + 1}/{pages.length} · Ch{currentChapter + 1}/{book.chapters.length}</span>
-          {onMinimize && <button onClick={onMinimize} style={{ background:'#ff9800', color:'#fff', border:'none', borderRadius:8, padding:'5px 10px', fontSize:12, cursor:'pointer', flexShrink:0 }} title="小窗看书">🗗</button>}
+          {onMinimize && <button onClick={onMinimize} style={{ background:'#f48fb1', color:'#fff', border:'none', borderRadius:8, padding:'5px 10px', fontSize:12, cursor:'pointer', flexShrink:0 }} title="小窗看书">🗗</button>}
         </div>
 
         <div style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
           {chapterNotes.length > 0 && safePageIdx === 0 && chapterNotes.map((n, i) => (
-            <div key={n.id || i} style={{ background:'#f0f7f0', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'0 0 10px', borderRadius:'0 8px 8px 0' }}>
-              <div style={{ fontSize:12, color:'#2e7d32', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
+            <div key={n.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'0 0 10px', borderRadius:'0 8px 8px 0' }}>
+              <div style={{ fontSize:12, color:'#c2185b', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
               {n.quote && <div style={{ fontSize:12, color:'#777', fontStyle:'italic', marginBottom:4 }}>「{n.quote}」</div>}
               <p style={{ fontSize:13, color:'#444', margin:0 }}>{n.text}</p>
             </div>
@@ -301,24 +317,24 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           <div style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c', minHeight:'60%' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
 
           {chapterBookmarks.length > 0 && safePageIdx === 0 && chapterBookmarks.map((b, i) => (
-            <div key={b.id || i} style={{ background:'#fff8e1', borderLeft:'3px solid #ffa726', padding:'8px 12px', margin:'10px 0', borderRadius:'0 8px 8px 0' }}>
-              <div style={{ fontSize:12, color:'#e65100', marginBottom:2 }}>🔖 书签</div>
-              <div style={{ fontSize:13, color:'#5d4037' }}>「{b.quote}」</div>
+            <div key={b.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #ffa726', padding:'8px 12px', margin:'10px 0', borderRadius:'0 8px 8px 0' }}>
+              <div style={{ fontSize:12, color:'#c2185b', marginBottom:2 }}>🔖 书签</div>
+              <div style={{ fontSize:13, color:'#880e4f' }}>「{b.quote}」</div>
             </div>
           ))}
         </div>
 
         {/* Page navigation */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 16px', borderTop:'1px solid #eee', background:'#fff', flexShrink:0 }}>
-          <button onClick={() => goPage(book, currentChapter, safePageIdx - 1)} disabled={safePageIdx === 0 && currentChapter === 0} style={{ background:'#e8f0fe', border:'none', padding:'8px 16px', borderRadius:8, color:'#1a5bb5', fontSize:13, cursor:'pointer', opacity: (safePageIdx === 0 && currentChapter === 0) ? 0.4 : 1 }}>{'← 上一页'}</button>
+          <button onClick={() => goPage(book, currentChapter, safePageIdx - 1)} disabled={safePageIdx === 0 && currentChapter === 0} style={{ background:'#fce4ec', border:'none', padding:'8px 16px', borderRadius:8, color:'#c2185b', fontSize:13, cursor:'pointer', opacity: (safePageIdx === 0 && currentChapter === 0) ? 0.4 : 1 }}>{'← 上一页'}</button>
           <span style={{ fontSize:12, color:'#999' }}>{safePageIdx + 1} / {pages.length}</span>
-          <button onClick={() => goPage(book, currentChapter, safePageIdx + 1)} disabled={safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1} style={{ background:'#e8f0fe', border:'none', padding:'8px 16px', borderRadius:8, color:'#1a5bb5', fontSize:13, cursor:'pointer', opacity: (safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1) ? 0.4 : 1 }}>{'下一页 →'}</button>
+          <button onClick={() => goPage(book, currentChapter, safePageIdx + 1)} disabled={safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1} style={{ background:'#fce4ec', border:'none', padding:'8px 16px', borderRadius:8, color:'#c2185b', fontSize:13, cursor:'pointer', opacity: (safePageIdx >= pages.length - 1 && currentChapter >= book.chapters.length - 1) ? 0.4 : 1 }}>{'下一页 →'}</button>
         </div>
 
         {selectedText && (
           <div style={{ position:'absolute', bottom:50, left:0, right:0, background:'#333', color:'#fff', padding:'8px 12px', display:'flex', gap:8, alignItems:'center', zIndex:100 }}>
             <span style={{ flex:1, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>「{selectedText.slice(0, 40)}...」</span>
-            <button onClick={addBookmark} style={{ background:'#ffa726', color:'#333', border:'none', borderRadius:6, padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer' }}>🔖 添加书签</button>
+            <button onClick={addBookmark} style={{ background:'#f48fb1', color:'#333', border:'none', borderRadius:6, padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer' }}>🔖 添加书签</button>
           </div>
         )}
       </>)}
