@@ -2095,6 +2095,7 @@ export default async function handler(req, res) {
     }
     // 注入表情包使用提示
     try {
+      const db = getDb()
       const stickerRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
       const stickers = stickerRow ? JSON.parse(stickerRow.value) : []
       if (stickers.length > 0) {
@@ -2106,6 +2107,7 @@ export default async function handler(req, res) {
     } catch {}
     // 注入当前音乐播放状态（从KV读取）+ 歌词
     try {
+      const db = getDb()
       const musicRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_now'").get()
       if (musicRow) {
         const md = typeof musicRow.value === 'string' ? JSON.parse(musicRow.value) : musicRow.value
