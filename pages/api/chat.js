@@ -1741,12 +1741,23 @@ export default async function handler(req, res) {
             readerHint += '，你读到第' + ((rs.aiChapter || 0) + 1) + '章'
             readerHint += '，共' + (book.chapters?.length || 0) + '章。'
             const userCh = rs.userChapter || 0
+            const userPg = rs.userPage || 0
             if (book.chapters && book.chapters[userCh]) {
               const chObj = book.chapters[userCh]
               const chTitle = chObj.title || ('第' + (userCh + 1) + '章')
-              const chContent = (chObj.content || '').slice(0, 800)
-              readerHint += '\n\n【她正在看的章节：' + chTitle + '】\n' + chContent
-              if ((chObj.content || '').length > 800) readerHint += '\n...（以上为前800字，可用reader_read_chapter读完整内容）'
+              const CHARS_PER_PAGE = 500
+              const contentLines = (chObj.content || '').split('\\n')
+              const pagesArr = []
+              let buf = ''
+              for (const ln of contentLines) {
+                if (buf.length + ln.length + 1 > CHARS_PER_PAGE && buf.length > 0) { pagesArr.push(buf); buf = ln }
+                else { buf += (buf ? '\\n' : '') + ln }
+              }
+              if (buf) pagesArr.push(buf)
+              const totalPages = pagesArr.length || 1
+              const safePg = Math.min(userPg, totalPages - 1)
+              const pageText = pagesArr[safePg] || ''
+              readerHint += '\n\n【她正在看的内容：' + chTitle + ' 第' + (safePg + 1) + '/' + totalPages + '页】\n' + pageText
             }
             const notesRow2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_notes'").get()
             if (notesRow2) {
@@ -1757,7 +1768,7 @@ export default async function handler(req, res) {
                 chNotes.forEach(n => { readerHint += '\n- ' + (n.quote ? '「' + n.quote + '」: ' : '') + n.text })
               }
             }
-            readerHint += '\n\n你可以用reader_read_chapter读其他章节，用reader_add_note添加批注，主动和她讨论书的内容。'
+            readerHint += '\n\n你可以用reader_read_chapter读其他章节，用reader_add_note添加批注。她当前看的是上面注入的这一页内容。'
             const sysMsgR = currentMessages.find(m => m.role === 'system')
             if (sysMsgR) sysMsgR.content += '\n\n' + readerHint
             else currentMessages.unshift({ role: 'system', content: readerHint })
