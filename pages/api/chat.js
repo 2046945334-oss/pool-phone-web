@@ -2168,7 +2168,7 @@ export default async function handler(req, res) {
               }
             } catch {}
           }
-          musicHint += '\n你可以用 music_search 搜歌、music_play 播放、music_control 控制(暂停/切歌)、music_now 查状态。'
+          musicHint += '\n（以上音乐信息已自动注入，无需调用music_now。可用 music_search 搜歌、music_play 播放、music_control 控制暂停/切歌。）'
           const sysMsg2 = currentMessages.find(m => m.role === 'system')
           if (sysMsg2) sysMsg2.content += '\n\n' + musicHint
           else currentMessages.unshift({ role: 'system', content: musicHint })
