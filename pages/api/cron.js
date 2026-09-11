@@ -443,13 +443,7 @@ async function executeWakeTool(db, name, args) {
     return { caught, poolScore: fishData.poolScore }
   }
 
-    const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_browser_history'").get()
-    let hist = row ? JSON.parse(row.value) : []
-    hist.push({ title: args.title, time: Date.now() })
-    if (hist.length > 50) hist = hist.slice(-50)
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_browser_history', JSON.stringify(hist))
-    return { ok: true }
-  }
+
 
   if (name === 'schedule_wakeup') {
     const nowSec = Math.floor(Date.now() / 1000)
