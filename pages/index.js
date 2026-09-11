@@ -518,7 +518,7 @@ function MusicIsland({ theme }) {
 
 function ChatView({ theme }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
-  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log'); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
+  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
   useEffect(() => {
     const pollInbox = async () => {
@@ -1202,6 +1202,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         {messages.slice(visibleStart).map((msg, idx) => {
           const i = visibleStart + idx
           if (msg.role === 'assistant' && msg.content && msg.content.trim() === '[无话]') return null
+          if (msg.isReadingSync) return null
           return (
           <React.Fragment key={i}>
             {shouldShowTime(messages, i) && msg.ts && <div className="msg-time-divider">{formatMsgTime(msg.ts)}</div>}

@@ -69,6 +69,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   const [selectedText, setSelectedText] = useState('')
   const [loading, setLoading] = useState(false)
   const fileRef = useRef(null)
+  const contentRef = useRef(null)
 
   const loadState = useCallback(async () => {
     try {
@@ -191,6 +192,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         setCurrentChapter(chapter - 1)
         setCurrentPage(prevPages.length - 1)
         syncProgress(book.id, chapter - 1, prevPages.length - 1)
+        if (contentRef.current) contentRef.current.scrollTop = 0
         if (mini) {
           const txt = (prevPages[prevPages.length - 1] || '')
           const title = book.chapters[chapter - 1].title || ('第 ' + chapter + ' 章')
@@ -207,6 +209,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         setCurrentChapter(chapter + 1)
         setCurrentPage(0)
         syncProgress(book.id, chapter + 1, 0)
+        if (contentRef.current) contentRef.current.scrollTop = 0
         if (mini) {
           const nextCh = book.chapters[chapter + 1]
           const nextPages = splitPages(nextCh.content)
@@ -221,6 +224,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
     }
     setCurrentPage(page)
     syncProgress(book.id, chapter, page)
+    if (contentRef.current) contentRef.current.scrollTop = 0
     // Notify ChatView about page change in mini mode
     if (mini) {
       const pg = splitPages(ch.content)
@@ -272,7 +276,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           <span style={{ flex:1, fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{chapter.title || ('第 ' + (currentChapter + 1) + ' 章')}</span>
           <span style={{ fontSize:10, color:'#999' }}>{safePageIdx + 1}/{pages.length}</span>
         </div>
-        <div style={{ flex:1, overflowY:'auto', padding:'8px 12px' }}>
+        <div ref={contentRef} style={{ flex:1, overflowY:'auto', padding:'8px 12px' }}>
           <div style={{ lineHeight:1.75, fontSize:14, color:'#2c2c2c' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
         </div>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 10px', borderTop:'1px solid #eee', background:'#fff', flexShrink:0 }}>
@@ -340,7 +344,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           {onMinimize && <button onClick={onMinimize} style={{ background:'#f48fb1', color:'#fff', border:'none', borderRadius:8, padding:'5px 10px', fontSize:12, cursor:'pointer', flexShrink:0 }} title="小窗看书">🗗</button>}
         </div>
 
-        <div style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
+        <div ref={contentRef} style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
           {chapterNotes.length > 0 && safePageIdx === 0 && chapterNotes.map((n, i) => (
             <div key={n.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'0 0 10px', borderRadius:'0 8px 8px 0' }}>
               <div style={{ fontSize:12, color:'#c2185b', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
