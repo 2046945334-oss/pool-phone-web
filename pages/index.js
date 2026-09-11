@@ -341,6 +341,9 @@ function MusicIsland({ theme }) {
   const [np, setNp] = useState(null)
   const [expanded, setExpanded] = useState(false)
   const [togetherMin, setTogetherMin] = useState(0)
+  const [lrcData, setLrcData] = useState([])
+  const [currentLyric, setCurrentLyric] = useState('')
+  const lrcSongRef = useRef('')
   const musicServer = typeof window !== 'undefined' ? (localStorage.getItem('pool_music_server') || '') : ''
   const musicToken = typeof window !== 'undefined' ? (localStorage.getItem('pool_music_token') || '') : ''
 
@@ -399,6 +402,41 @@ function MusicIsland({ theme }) {
     return () => { active = false; clearInterval(t) }
   }, [musicServer])
 
+  useEffect(() => {
+    if (!np || !musicServer) return
+    const songKey = (np.songId || np.id || '') + '|' + (np.name || '')
+    if (songKey === lrcSongRef.current) return
+    lrcSongRef.current = songKey
+    const sid = np.songId || np.id
+    if (!sid) { setLrcData([]); return }
+    const hd = musicToken ? { 'X-Auth-Token': musicToken } : {}
+    fetch(musicServer + '/lyric?id=' + sid, { headers: hd })
+      .then(r => r.json())
+      .then(d => {
+        const raw = (d.lrc && d.lrc.lyric) ? d.lrc.lyric.split('\n') : []
+        const parsed = []
+        for (const line of raw) {
+          const m = line.match(/\[(\d+):(\d+\.?\d*)\](.*)/)
+          if (m) {
+            const txt = m[3].trim()
+            if (txt) parsed.push({ time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: txt })
+          }
+        }
+        setLrcData(parsed)
+      })
+      .catch(() => setLrcData([]))
+  }, [np, musicServer, musicToken])
+
+  useEffect(() => {
+    if (!lrcData.length || !np) { setCurrentLyric(''); return }
+    const pos = np.position || 0
+    let line = ''
+    for (let i = lrcData.length - 1; i >= 0; i--) {
+      if (pos >= lrcData[i].time) { line = lrcData[i].text; break }
+    }
+    setCurrentLyric(line)
+  }, [np, lrcData])
+
   if (!np || !musicServer) return null
 
   const pct = np.duration > 0 ? (np.position / np.duration * 100) : 0
@@ -434,12 +472,13 @@ function MusicIsland({ theme }) {
               {avatarUser ? <img src={avatarUser} className="mi-panel-ava mi-panel-ava-right" /> : <div className="mi-panel-ava mi-panel-ava-right mi-ava-fallback">{"\u6211"}</div>}
             </div>
             <div className="mi-panel-together">
-              {"\u4e00\u8d77\u542c\u4e86 "}<span className="mi-mins">{togetherMin}</span>{" \u5206\u949f"}
+              {(() => { const h = Math.floor(togetherMin / 60); const m = togetherMin % 60; return h > 0 ? <>{"\u4e00\u8d77\u542c\u4e86 "}<span className="mi-mins">{h}</span>{" \u5c0f\u65f6 "}<span className="mi-mins">{m}</span>{" \u5206\u949f"}</> : <>{"\u4e00\u8d77\u542c\u4e86 "}<span className="mi-mins">{m}</span>{" \u5206\u949f"}</> })()}
             </div>
           </div>
           <div className="mi-panel-song">
             <div className="mi-song-name">{np.name || '\u672a\u77e5\u6b4c\u66f2'}</div>
             <div className="mi-song-artist">{np.artist || ''}</div>
+            {currentLyric && <div className="mi-lyric-line">{currentLyric}</div>}
           </div>
           <div className="mi-progress-row">
             <span className="mi-time">{fmt(np.position||0)}</span>
@@ -2720,23 +2759,27 @@ export default function Home() {
         .mi-panel { position: absolute; top: 0; left: 0; right: 0; z-index: 200;
           padding: 8px 12px; }
         .mi-panel-inner { background: linear-gradient(160deg, #fff5f9 0%, #fce4ef 50%, #f8dae6 100%); box-shadow: 0 4px 24px rgba(199,125,186,0.25);
-          border-radius: 22px; padding: 16px 18px 14px;
+          border-radius: 22px; padding: 12px 16px 10px;
           box-shadow: 0 4px 24px rgba(200,125,186,0.3);
           border: 1px solid rgba(200,125,186,0.15);
           animation: mi-expand .3s cubic-bezier(.4,0,.2,1); }
         @keyframes mi-expand { from { opacity: 0; transform: scaleY(0.6) translateY(-10px); } to { opacity: 1; transform: scaleY(1) translateY(0); } }
-        .mi-panel-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .mi-panel-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .mi-panel-avatars { display: flex; align-items: center; }
-        .mi-panel-ava { width: 42px; height: 42px; border-radius: 50%; object-fit: cover;
+        .mi-panel-ava { width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
           border: 2px solid rgba(200,125,186,0.5); }
         .mi-panel-ava-right { margin-left: -12px; border-color: rgba(199,125,186,0.3); }
-        .mi-panel-together { font-size: 13px; color: #8c6480; font-weight: 500; }
-        .mi-mins { font-size: 18px; font-weight: 700; color: #c77dba; }
-        .mi-panel-song { text-align: center; margin-bottom: 10px; }
-        .mi-song-name { font-size: 15px; font-weight: 600; color: #3a2433; white-space: nowrap;
+        .mi-panel-together { font-size: 11px; color: #8c6480; font-weight: 500; }
+        .mi-mins { font-size: 14px; font-weight: 700; color: #c77dba; }
+        .mi-panel-song { text-align: center; margin-bottom: 6px; }
+        .mi-song-name { font-size: 13px; font-weight: 600; color: #3a2433; white-space: nowrap;
           overflow: hidden; text-overflow: ellipsis; max-width: 260px; margin: 0 auto; }
-        .mi-song-artist { font-size: 12px; color: #a08090; margin-top: 2px; }
-        .mi-progress-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .mi-song-artist { font-size: 10px; color: #a08090; margin-top: 1px; }
+        .mi-lyric-line { font-size: 11px; color: #c77dba; margin-top: 4px; white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis; max-width: 280px; margin-left: auto; margin-right: auto;
+          opacity: 0.85; animation: mi-lyric-fade .4s ease; }
+        @keyframes mi-lyric-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 0.85; transform: translateY(0); } }
+        .mi-progress-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .mi-time { font-size: 10px; color: #a08090; min-width: 32px; font-variant-numeric: tabular-nums; }
         .mi-time:last-child { text-align: right; }
         .mi-progress-track { flex: 1; height: 3px; background: rgba(199,125,186,0.2); border-radius: 2px; overflow: hidden; }
