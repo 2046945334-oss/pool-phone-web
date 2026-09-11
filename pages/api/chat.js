@@ -594,12 +594,7 @@ const TOOLS = [
       parameters: { type: 'object', properties: { module: { type: 'string', description: '模块名: habits/todo/wish/timeline' }, itemType: { type: 'string', description: '条目类型: habit/item/quote' }, itemId: { type: 'string', description: '条目ID或索引' }, text: { type: 'string', description: '批注内容' }, author: { type: 'string', enum: ['我','小水'], description: '批注作者' } }, required: ['module','itemType','itemId','text'] }
     }
   },
-  {
-    type: 'function', function: {
-      name: 'music_now', description: '获取当前正在播放的音乐状态（歌名、歌手、播放进度、是否在播放、一起听了多久）',
-      parameters: { type: 'object', properties: {} }
-    }
-  },
+
   {
     type: 'function', function: {
       name: 'music_search', description: '搜索歌曲（网易云音乐）。返回歌曲列表含id、歌名、歌手。',
