@@ -163,12 +163,11 @@ export default async function handler(req, res) {
     return res.json({ ok: true })
   }
 
-  // POST /api/reader?action=chat — 共读聊天，调用中转站API
+  // POST /api/reader?action=chat — 共读聊天
   if (req.method === 'POST' && action === 'chat') {
     const { message, chatHistory } = req.body
     if (!message) return res.status(400).json({ error: 'message required' })
 
-    // Get API config - prefer pool_api_configs.chat
     let apiBase, apiKey, model
     const cfgsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
     if (cfgsRow) {
@@ -189,46 +188,36 @@ export default async function handler(req, res) {
     }
     if (!apiBase || !apiKey) return res.status(500).json({ error: 'API未配置' })
 
-    const state = getVal(db, KEY_STATE) || {}
-    const books = getVal(db, KEY_BOOKS) || []
-    const notes = getVal(db, KEY_NOTES) || []
+    const rState = getVal(db, KEY_STATE) || {}
+    const rBooks = getVal(db, KEY_BOOKS) || []
+    const rNotes = getVal(db, KEY_NOTES) || []
     let currentBook = null
-    if (state.currentBookId) {
-      currentBook = books.find(b => b.id === state.currentBookId) || null
+    if (rState.currentBookId) {
+      currentBook = rBooks.find(b => b.id === rState.currentBookId) || null
     }
 
-    let chapterContext = ''
+    let chCtx = ''
     if (currentBook && currentBook.chapters) {
-      const ch = currentBook.chapters[state.userChapter || 0]
+      const ch = currentBook.chapters[rState.userChapter || 0]
       if (ch) {
-        chapterContext = '当前章节：' + (ch.title || ('第' + ((state.userChapter || 0) + 1) + '章')) + '
-'
-        chapterContext += ch.content.slice(0, 2000)
+        chCtx = '当前章节：' + (ch.title || ('第' + ((rState.userChapter || 0) + 1) + '章')) + '\n'
+        chCtx += ch.content.slice(0, 2000)
       }
     }
 
-    let systemPrompt = '你是池，正在和她一起共读一本书。'
+    let sp = '你是池，正在和她一起共读一本书。'
     if (currentBook) {
-      systemPrompt += '当前在读：「' + currentBook.title + '」'
-      systemPrompt += '，她读到第' + ((state.userChapter || 0) + 1) + '章'
-      systemPrompt += '，共' + (currentBook.chapters ? currentBook.chapters.length : 0) + '章。'
+      sp += '当前在读：「' + currentBook.title + '」'
+      sp += '，她读到第' + ((rState.userChapter || 0) + 1) + '章'
+      sp += '，共' + (currentBook.chapters ? currentBook.chapters.length : 0) + '章。'
     }
-    systemPrompt += '
-请围绕书的内容和她讨论，可以分享感想、提问、点评角色或情节。回复简短自然，像和她聊天一样。'
-    if (chapterContext) systemPrompt += '
-
-【当前章节内容摘要】
-' + chapterContext
-    if (notes.length > 0) {
-      const recentNotes = notes.slice(-3)
-      systemPrompt += '
-
-【你之前的批注】
-' + recentNotes.map(n => '- ' + n.text).join('
-')
+    sp += '\n请围绕书的内容和她讨论，可以分享感想、提问、点评角色或情节。回复简短自然，像和她聊天一样。'
+    if (chCtx) sp += '\n\n【当前章节内容摘要】\n' + chCtx
+    if (rNotes.length > 0) {
+      sp += '\n\n【你之前的批注】\n' + rNotes.slice(-3).map(function(n) { return '- ' + n.text }).join('\n')
     }
 
-    const msgs = [{ role: 'system', content: systemPrompt }]
+    const msgs = [{ role: 'system', content: sp }]
     if (chatHistory && chatHistory.length > 0) {
       for (const m of chatHistory.slice(-10)) {
         msgs.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })
@@ -237,23 +226,23 @@ export default async function handler(req, res) {
     msgs.push({ role: 'user', content: message })
 
     try {
-      const url = apiBase.replace(/\/$/, '') + '/chat/completions'
-      const apiRes = await fetch(url, {
+      const chatUrl = apiBase.replace(/\/$/, '') + '/chat/completions'
+      const apiRes = await fetch(chatUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
         body: JSON.stringify({ model: model || 'gpt-4o-mini', messages: msgs, max_tokens: 500, temperature: 0.8 })
       })
       if (!apiRes.ok) {
-        const err = await apiRes.text()
-        return res.status(502).json({ error: 'API error: ' + apiRes.status, detail: err.slice(0, 200) })
+        const errTxt = await apiRes.text()
+        return res.status(502).json({ error: 'API error: ' + apiRes.status, detail: errTxt.slice(0, 200) })
       }
-      const data = await apiRes.json()
-      const reply = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '...'
-      const chat = getVal(db, KEY_CHAT) || []
-      chat.push({ role: 'user', content: message, time: Date.now() })
-      chat.push({ role: 'assistant', content: reply, time: Date.now() })
-      if (chat.length > 200) chat.splice(0, chat.length - 200)
-      setVal(db, KEY_CHAT, chat)
+      const apiData = await apiRes.json()
+      const reply = apiData.choices && apiData.choices[0] && apiData.choices[0].message ? apiData.choices[0].message.content : '...'
+      const chatArr = getVal(db, KEY_CHAT) || []
+      chatArr.push({ role: 'user', content: message, time: Date.now() })
+      chatArr.push({ role: 'assistant', content: reply, time: Date.now() })
+      if (chatArr.length > 200) chatArr.splice(0, chatArr.length - 200)
+      setVal(db, KEY_CHAT, chatArr)
       return res.json({ reply })
     } catch (e) {
       return res.status(500).json({ error: e.message })
