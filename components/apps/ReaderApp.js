@@ -360,33 +360,67 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
                 <div style={{ height:5, background:'linear-gradient(180deg, rgba(0,0,0,.06) 0%, transparent 100%)', margin:'0 14px' }} />
               </div>
               )}
-              {/* Spine rows: all books */}
+              {/* Spine rows: all books standing upright like real bookshelf */}
               {spineRows.map((row, ri) => (
                 <div key={ri} style={{ marginBottom:0 }}>
-                  <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'flex-start', padding:'14px 16px 6px', minHeight:100, gap:0 }}>
+                  <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'flex-start', padding:'18px 16px 4px', minHeight:140, gap:2 }}>
                     {row.map((b, bi) => {
                       const globalIdx = ri * 6 + bi;
                       const color = shelfColors[globalIdx % shelfColors.length];
                       const aiReading = state.currentBookId === b.id && state.active;
-                      const spineW = 30 + Math.min((b.chapters?.length || 5), 40) * 0.6;
-                      const spineH = 78 + (bi % 3) * 4;
-                      const tilt = bi % 3 === 1 ? -3 : bi % 3 === 2 ? 4 : 0;
+                      // Thickness based on chapter count: min 22px, max 48px
+                      const chCount = b.chapters?.length || 5;
+                      const thickness = Math.max(22, Math.min(48, 18 + chCount * 0.6));
+                      // Height varies slightly per book for natural look
+                      const baseH = 120;
+                      const hVariation = ((globalIdx * 7 + 13) % 5) * 4 - 8; // -8 to +8
+                      const bookH = baseH + hVariation;
+                      // Tilt: some books lean slightly
+                      const tiltAngles = [0, -4, 3, 0, -2, 5];
+                      const tilt = tiltAngles[bi % tiltAngles.length];
+                      // Spine decorations vary per book
+                      const decoType = globalIdx % 4; // 0=lines, 1=dots, 2=flower, 3=plain
                       return (
-                        <div key={b.id} onClick={() => openBook(globalIdx)} style={{ cursor:'pointer', position:'relative', marginRight:1, transform: tilt ? 'rotate('+tilt+'deg)' : 'none', transformOrigin:'bottom center' }}>
-                          <div style={{ width:spineW, height:spineH, borderRadius:'2px 4px 4px 2px', background: 'linear-gradient(180deg, ' + color + ' 0%, ' + color + 'bb 100%)', boxShadow:'1px 2px 5px rgba(0,0,0,.12), inset -2px 0 4px rgba(0,0,0,.05)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 2px', border:'1px solid rgba(0,0,0,.05)', position:'relative' }}>
-                            <div style={{ position:'absolute', left:3, top:6, bottom:6, width:2, background:'rgba(255,255,255,.35)', borderRadius:1 }} />
-                            <div style={{ position:'absolute', top:5, left:6, right:6, height:1, background:'rgba(255,255,255,.25)' }} />
-                            <div style={{ position:'absolute', bottom:5, left:6, right:6, height:1, background:'rgba(255,255,255,.25)' }} />
-                            <div style={{ writingMode:'vertical-rl', fontSize:10, fontWeight:600, color:'#4a3040', letterSpacing:1, maxHeight:60, overflow:'hidden', textOverflow:'ellipsis' }}>{b.title.length > 6 ? b.title.slice(0,6)+'\u2026' : b.title}</div>
+                        <div key={b.id} onClick={() => openBook(globalIdx)} style={{ cursor:'pointer', position:'relative', transform: tilt ? 'rotate('+tilt+'deg)' : 'none', transformOrigin:'bottom center', zIndex: tilt < 0 ? 2 : 1 }}>
+                          <div style={{
+                            width: thickness, height: bookH,
+                            borderRadius: '3px 5px 5px 3px',
+                            background: 'linear-gradient(90deg, ' + color + 'cc 0%, ' + color + ' 30%, ' + color + 'dd 70%, ' + color + '99 100%)',
+                            boxShadow: '2px 3px 8px rgba(0,0,0,.18), inset -3px 0 6px rgba(0,0,0,.08), inset 3px 0 4px rgba(255,255,255,.15)',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                            padding: '8px 3px', position: 'relative',
+                            border: '1px solid rgba(0,0,0,.08)',
+                          }}>
+                            {/* Left edge shadow (spine binding) */}
+                            <div style={{ position:'absolute', left:0, top:0, bottom:0, width:4, background:'linear-gradient(90deg, rgba(0,0,0,.12), transparent)', borderRadius:'3px 0 0 3px' }} />
+                            {/* Top decoration */}
+                            {decoType === 0 && (<>
+                              <div style={{ position:'absolute', top:8, left:'25%', right:'25%', height:1.5, background:'rgba(255,255,255,.4)', borderRadius:1 }} />
+                              <div style={{ position:'absolute', top:12, left:'25%', right:'25%', height:1.5, background:'rgba(255,255,255,.4)', borderRadius:1 }} />
+                            </>)}
+                            {decoType === 1 && (
+                              <div style={{ position:'absolute', top:10, display:'flex', gap:3, justifyContent:'center', width:'100%' }}>
+                                {[0,1,2].map(d => <div key={d} style={{ width:4, height:4, borderRadius:2, background:'rgba(255,255,255,.35)' }} />)}
+                              </div>
+                            )}
+                            {decoType === 2 && (
+                              <div style={{ position:'absolute', top:8, fontSize:8, color:'rgba(255,255,255,.4)' }}>{'\u273b'}</div>
+                            )}
+                            {/* Bottom decoration */}
+                            <div style={{ position:'absolute', bottom:8, left:'20%', right:'20%', height:1, background:'rgba(255,255,255,.3)', borderRadius:1 }} />
+                            {/* Title (vertical) */}
+                            <div style={{ writingMode:'vertical-rl', fontSize: thickness > 30 ? 11 : 9, fontWeight:600, color:'#4a3040', letterSpacing:2, maxHeight: bookH - 40, overflow:'hidden', textOverflow:'ellipsis', lineHeight:1.2 }}>
+                              {b.title.length > 8 ? b.title.slice(0,8)+'\u2026' : b.title}
+                            </div>
                           </div>
-                          {aiReading && <div style={{ position:'absolute', top:-4, right:-4, width:10, height:10, borderRadius:5, background:'#e91e8c', border:'1.5px solid #fff' }} />}
-                          <button onClick={(e) => { e.stopPropagation(); delBook(globalIdx) }} style={{ position:'absolute', top:-5, right:-5, background:'#f06292', color:'#fff', border:'none', width:16, height:16, borderRadius:8, fontSize:9, cursor:'pointer', lineHeight:'16px', textAlign:'center', zIndex:2 }}>{'\u00d7'}</button>
+                          {aiReading && <div style={{ position:'absolute', top:-4, right:-4, width:10, height:10, borderRadius:5, background:'#e91e8c', border:'1.5px solid #fff', zIndex:3 }} />}
+                          <button onClick={(e) => { e.stopPropagation(); delBook(globalIdx) }} style={{ position:'absolute', top:-6, right:-6, background:'#f06292', color:'#fff', border:'none', width:18, height:18, borderRadius:9, fontSize:10, cursor:'pointer', lineHeight:'18px', textAlign:'center', zIndex:4, boxShadow:'0 1px 3px rgba(0,0,0,.2)' }}>{'\u00d7'}</button>
                         </div>
                       );
                     })}
                     {row.length < 6 && <div style={{ flex:1 }} />}
                   </div>
-                  <div style={{ height:7, background:'linear-gradient(180deg, #c9a88c 0%, #b8957a 40%, #a68060 100%)', borderRadius:'0 0 2px 2px', boxShadow:'0 2px 5px rgba(0,0,0,.15)', margin:'0 10px' }} />
+                  <div style={{ height:8, background:'linear-gradient(180deg, #c9a88c 0%, #b8957a 40%, #a68060 100%)', borderRadius:'0 0 3px 3px', boxShadow:'0 3px 6px rgba(0,0,0,.18)', margin:'0 10px' }} />
                   <div style={{ height:4, background:'linear-gradient(180deg, rgba(0,0,0,.05) 0%, transparent 100%)', margin:'0 14px' }} />
                 </div>
               ))}
