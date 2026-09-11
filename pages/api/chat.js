@@ -893,7 +893,39 @@ async function executeTool(name, args) {
       const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_music_now'").get()
       if (row) {
         const md = typeof row.value === 'string' ? JSON.parse(row.value) : row.value
-        return { playing: !!md.playing, name: md.name || md.song || '', artist: md.artist || '', position: md.position || 0, duration: md.duration || 0, time: md.time }
+        const result = { playing: !!md.playing, name: md.name || md.song || '', artist: md.artist || '', position: md.position || 0, duration: md.duration || 0, time: md.time }
+        // 尝试获取歌词
+        if (md.songId) {
+          try {
+            const { server, token } = getMusicConfig()
+            const lrcH = { 'User-Agent': 'Mozilla/5.0' }
+            if (token) lrcH['X-Auth-Token'] = token
+            const lrcResp = await fetch(server + '/music/lyric?id=' + md.songId, { headers: lrcH, signal: AbortSignal.timeout(5000) })
+            if (lrcResp.ok) {
+              const lrcData = await lrcResp.json()
+              if (lrcData.ok && lrcData.lrc) {
+                const pos = Math.floor(md.position || 0)
+                const lrcLines = lrcData.lrc.split('\n').map(l => {
+                  const m = l.match(/\[(\d+):(\d+\.?\d*)\](.*)/)
+                  if (!m) return null
+                  return { time: parseInt(m[1]) * 60 + parseFloat(m[2]), text: m[3].trim() }
+                }).filter(Boolean)
+                let curIdx = -1
+                for (let i = lrcLines.length - 1; i >= 0; i--) {
+                  if (lrcLines[i].time <= pos && lrcLines[i].text) { curIdx = i; break }
+                }
+                if (curIdx >= 0) {
+                  const nearby = []
+                  for (let i = Math.max(0, curIdx - 1); i <= Math.min(lrcLines.length - 1, curIdx + 2); i++) {
+                    if (lrcLines[i].text) nearby.push((i === curIdx ? '▶ ' : '  ') + lrcLines[i].text)
+                  }
+                  if (nearby.length) result.lyric = nearby.join('\n')
+                }
+              }
+            }
+          } catch {}
+        }
+        return result
       }
       return { error: '暂无播放数据' }
     } catch (e) { return { error: '读取失败: ' + e.message } }
