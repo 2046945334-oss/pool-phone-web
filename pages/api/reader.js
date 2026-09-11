@@ -83,10 +83,11 @@ export default async function handler(req, res) {
 
     // PUT action=progress — 更新用户阅读进度
     if (action === 'progress') {
-      const { bookId, chapter } = body
+      const { bookId, chapter, page } = body
       const state = getVal(db, KEY_STATE) || {}
       state.currentBookId = bookId
       state.userChapter = chapter
+      if (typeof page === 'number') state.userPage = page
       state.active = true
       state.lastRead = Date.now()
       setVal(db, KEY_STATE, state)
