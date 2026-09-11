@@ -70,7 +70,9 @@ export default function ReaderApp({ onBack }) {
     try {
       const r = await fetch('/api/data/pool_reader_books')
       const d = await r.json()
-      if (d.value) setBooks(d.value)
+      let val = d.value
+      if (typeof val === 'string') try { val = JSON.parse(val) } catch {}
+      if (Array.isArray(val)) setBooks(val)
     } catch {}
   }, [])
 
@@ -175,7 +177,7 @@ export default function ReaderApp({ onBack }) {
     setChatLoading(true)
     // Call AI API for reply
     try {
-      const r = await fetch('/api/readerchat', {
+      const r = await fetch('/api/reader?action=chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, chatHistory: chatMessages })
       })
