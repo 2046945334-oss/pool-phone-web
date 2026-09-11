@@ -827,6 +827,7 @@ function ChatView({ theme }) {
   // Listen for shared-reading page changes from mini reader
   const readerAccumRef = useRef({ pages: [], lastTrigger: 0 })
   useEffect(() => {
+    if (typeof window === 'undefined') return
     function onPageChange(e) {
       const { bookTitle, chapterTitle, page, totalPages, content } = e.detail
       const snippet = content || ''
