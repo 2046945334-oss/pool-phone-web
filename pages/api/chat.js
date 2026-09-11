@@ -1678,9 +1678,7 @@ export default async function handler(req, res) {
             readerHint += '，共' + (book.chapters?.length || 0) + '章。'
             readerHint += '你可以用reader_read_chapter读她已读的章节，用reader_add_note添加批注，主动和她讨论书的内容。'
             const sysMsgR = currentMessages.find(m => m.role === 'system')
-            if (sysMsgR) sysMsgR.content += '
-
-' + readerHint
+            if (sysMsgR) sysMsgR.content += '\n\n' + readerHint
             else currentMessages.unshift({ role: 'system', content: readerHint })
           }
         }
