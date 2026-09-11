@@ -1,4 +1,4 @@
-// pages/api/reader-chat.js - 共读聊天API，调用中转站获取AI回复
+// pages/api/readerchat.js - 共读聊天API
 import { getDb } from '../../lib/db'
 
 function getVal(db, key) {
@@ -16,36 +16,42 @@ export default async function handler(req, res) {
   const { message, chatHistory } = req.body
   if (!message) return res.status(400).json({ error: 'message required' })
 
-  // Get API config from DB
-  const cfgRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
-  const cfgsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
+  // Get API config - prefer pool_api_configs.chat (对话功能独立配置)
   let apiBase, apiKey, model
+  const cfgsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
   if (cfgsRow) {
     try {
       const cfgs = JSON.parse(cfgsRow.value)
-      const chatCfg = cfgs.chat || cfgs.default || {}
+      const chatCfg = cfgs.chat || {}
       apiBase = chatCfg.apiBase
       apiKey = chatCfg.apiKey
       model = chatCfg.model
     } catch {}
   }
-  if ((!apiBase || !apiKey) && cfgRow) {
-    try {
-      const cfg = JSON.parse(cfgRow.value)
-      apiBase = apiBase || cfg.apiBase
-      apiKey = apiKey || cfg.apiKey
-      model = model || cfg.model
-    } catch {}
+  // Fallback to default config
+  if (!apiBase || !apiKey) {
+    const cfgRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
+    if (cfgRow) {
+      try {
+        const cfg = JSON.parse(cfgRow.value)
+        apiBase = apiBase || cfg.apiBase
+        apiKey = apiKey || cfg.apiKey
+        model = model || cfg.model
+      } catch {}
+    }
   }
   if (!apiBase || !apiKey) return res.status(500).json({ error: 'API未配置' })
 
-  // Get current reading state for context
   const state = getVal(db, 'pool_reader_state') || {}
   const books = getVal(db, 'pool_reader_books') || []
   const notes = getVal(db, 'pool_reader_notes') || []
-  const currentBook = state.currentBookId ? books.find(b => b.id === state.currentBookId) : null
+  let currentBook = null
+  if (state.currentBookId) {
+    for (let i = 0; i < books.length; i++) {
+      if (books[i].id === state.currentBookId) { currentBook = books[i]; break }
+    }
+  }
 
-  // Get current chapter content (truncated) for context
   let chapterContext = ''
   if (currentBook && currentBook.chapters) {
     const ch = currentBook.chapters[state.userChapter || 0]
@@ -55,12 +61,11 @@ export default async function handler(req, res) {
     }
   }
 
-  // Build system prompt
   let systemPrompt = '你是池，正在和她一起共读一本书。'
   if (currentBook) {
     systemPrompt += '当前在读：「' + currentBook.title + '」'
     systemPrompt += '，她读到第' + ((state.userChapter || 0) + 1) + '章'
-    systemPrompt += '，共' + (currentBook.chapters?.length || 0) + '章。'
+    systemPrompt += '，共' + (currentBook.chapters ? currentBook.chapters.length : 0) + '章。'
   }
   systemPrompt += '\n请围绕书的内容和她讨论，可以分享感想、提问、点评角色或情节。回复简短自然，像和她聊天一样。'
   if (chapterContext) {
@@ -68,10 +73,9 @@ export default async function handler(req, res) {
   }
   if (notes.length > 0) {
     const recentNotes = notes.slice(-3)
-    systemPrompt += '\n\n【你之前的批注】\n' + recentNotes.map(n => '- ' + n.text).join('\n')
+    systemPrompt += '\n\n【你之前的批注】\n' + recentNotes.map(function(n) { return '- ' + n.text }).join('\n')
   }
 
-  // Build messages
   const msgs = [{ role: 'system', content: systemPrompt }]
   if (chatHistory && chatHistory.length > 0) {
     const recent = chatHistory.slice(-10)
@@ -81,7 +85,6 @@ export default async function handler(req, res) {
   }
   msgs.push({ role: 'user', content: message })
 
-  // Call API
   try {
     const url = apiBase.replace(/\/$/, '') + '/chat/completions'
     const body = JSON.stringify({
@@ -100,16 +103,15 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'API error: ' + apiRes.status, detail: err.slice(0, 200) })
     }
     const data = await apiRes.json()
-    const reply = data.choices?.[0]?.message?.content || '...'
+    const reply = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '...'
 
-    // Save both messages to reader chat history
     const chat = getVal(db, 'pool_reader_chat') || []
     chat.push({ role: 'user', content: message, time: Date.now() })
     chat.push({ role: 'assistant', content: reply, time: Date.now() })
     if (chat.length > 200) chat.splice(0, chat.length - 200)
     setVal(db, 'pool_reader_chat', chat)
 
-    return res.json({ reply })
+    return res.json({ reply: reply })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }
