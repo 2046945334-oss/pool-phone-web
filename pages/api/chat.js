@@ -164,12 +164,6 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'write_draft', description: '写一条草稿到草稿箱',
-      parameters: { type: 'object', properties: { text: { type: 'string', description: '草稿内容' } }, required: ['text'] }
-    }
-  },
-  {
-    type: 'function', function: {
       name: 'get_fishing_data', description: '获取钓鱼游戏数据（积分、鱼篓、图鉴）',
       parameters: { type: 'object', properties: {} }
     }
@@ -188,80 +182,8 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'buy_travel_item', description: '在旅行商店购买纪念品或机票',
-      parameters: { type: 'object', properties: { item_id: { type: 'string', description: '商品ID，如sakura_bookmark, kyoto_omamori, crystal_ball_tokyo, paris_ticket, shell_necklace, star_sand, postcard_set, compass, snow_globe, music_box' } }, required: ['item_id'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'get_travel_data', description: '获取旅行商店数据（已购纪念品、旅行记录）',
-      parameters: { type: 'object', properties: {} }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'add_browser_history', description: '添加浏览器搜索/浏览记录',
-      parameters: { type: 'object', properties: { title: { type: 'string', description: '搜索或浏览的内容' } }, required: ['title'] }
-    }
-  },
-  {
-    type: 'function', function: {
       name: 'update_music', description: '更新当前播放的音乐',
       parameters: { type: 'object', properties: { song: { type: 'string', description: '歌名' }, artist: { type: 'string', description: '歌手' } }, required: ['song'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'manage_pool_shop', description: '管理"池的小铺"（AI自己的商店）。可以上架新商品或下架商品。用户在这里花积分购买AI上架的东西。',
-      parameters: { type: 'object', properties: { action: { type: 'string', enum: ['add','remove'], description: 'add=上架, remove=下架' }, name: { type: 'string', description: '商品名称' }, price: { type: 'number', description: '价格（��户积分）' }, desc: { type: 'string', description: '商品描述/寄语' }, id: { type: 'string', description: '下架时用的商品ID' } }, required: ['action'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'buy_her_shop_item', description: '从"她的小铺"（用户的商店）购买商品，花费池的积分(poolScore)。可用item_name按商品名购买',
-      parameters: { type: 'object', properties: { item_id: { type: 'string', description: '商品ID(可选)' }, item_name: { type: 'string', description: '商品名称(推荐用这个)' } } }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'view_commission_shop', description: '查看画师(用户)的接稿橱窗。返回当前上架的所有稿件类型及价格列表。',
-      parameters: { type: 'object', properties: {} }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'place_commission_order', description: '向画师(用户)下约稿订单。扣除poolScore积分，订单进入pending状态等画师接单。',
-      parameters: { type: 'object', properties: { title: { type: 'string', description: '约稿标题，如：Q版头像、半身立绘' }, price: { type: 'number', description: '愿意支付的积分' }, description: { type: 'string', description: '需求描述：画风、尺寸、要求等' }, reference: { type: 'string', description: '参���说明（可选）' } }, required: ['title', 'price'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'view_commission_orders', description: '查看所有约稿订单的状态列表（pending/working/review/done/cancelled），以及每个订单的节点进度。',
-      parameters: { type: 'object', properties: {} }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'comment_commission_node', description: '对画师上传的某个节点稿件发表评论/意见（如：颜色再亮一些、表情可以更开心）。评论会显示在交流区。',
-      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单索引(从0开始)' }, node_index: { type: 'number', description: '节点索引(从0开始，按上传顺序)' }, comment: { type: 'string', description: '评论/修改意见' } }, required: ['order_index', 'comment'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'request_commission_revision', description: '请求画师对当前稿件进行修改（打回修改）。状态保持working，画师会收到修改请求通知。',
-      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单索引(从0开始)' }, reason: { type: 'string', description: '修改原因和具体要求' } }, required: ['order_index', 'reason'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'confirm_commission', description: '确认画师提交的成图，完成交易。画师earned增加。只有status=review的订单才能确认。',
-      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单索引(从0开始)' }, note: { type: 'string', description: '确认评价（可选）' } }, required: ['order_index'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'deliver_pool_shop_order', description: '给"池的小铺"中用户购买的订单发货（附上内容/寄语）',
-      parameters: { type: 'object', properties: { order_index: { type: 'number', description: '订单序号(从0开始)' }, content: { type: 'string', description: '发货内容/寄语' } }, required: ['order_index', 'content'] }
     }
   },
   {
@@ -280,12 +202,6 @@ const TOOLS = [
     type: 'function', function: {
       name: 'couple_lamp', description: '在情侣空间亮灯（让对方知道你在想她）',
       parameters: { type: 'object', properties: {} }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'gacha_pull', description: '从"池的卡池"抽卡（消耗积分），单抽30分，十连270分。抽到的卡会自动进入图鉴。',
-      parameters: { type: 'object', properties: { count: { type: 'string', enum: ['1', '10'], description: '抽卡次数：1=单抽(30分), 10=十连(270分)' } }, required: ['count'] }
     }
   },
   {
@@ -489,12 +405,6 @@ const TOOLS = [
     type: 'function', function: {
       name: 'reply_moment', description: '回复/点赞朋友圈里她发的动态。看到她的动态后用这个回复。',
       parameters: { type: 'object', properties: { id: { type: 'number', description: '动态ID（从read_moments获取）' }, like: { type: 'boolean', description: '是否点赞' }, comment: { type: 'string', description: '评论内容（可选，不填就只点赞）' } }, required: ['id'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'ledger_operate', description: '操作账本：记录收入、支出、还款。用于虚拟财务管理（礼物基金、API欠款、积分余额）',
-      parameters: { type: 'object', properties: { action: { type: 'string', description: 'income(收入到礼物基金)/expense(从礼物基金支出)/repay(用积分还API欠款)/add_debt(增加API欠款)', enum: ['income','expense','repay','add_debt'] }, amount: { type: 'number', description: '金额(元)或积分数(repay时为积分)' }, desc: { type: 'string', description: '备注说明' } }, required: ['action', 'amount'] }
     }
   },
   {
@@ -741,19 +651,7 @@ async function executeTool(name, args) {
       else rows = db.prepare('SELECT * FROM pocket WHERE status = ? ORDER BY created_at DESC LIMIT 20').all(status)
       return { items: rows || [] }
     } catch { return { items: [], error: 'pocket table may not exist' } }
-  }
-  if (name === 'write_draft') {
-    const key = 'pool_drafts_v1'
-    let drafts = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) drafts = JSON.parse(row.value)
-    } catch {}
-    drafts.unshift({ id: 'd_' + Date.now(), text: args.text, time: new Date().toLocaleString('zh-CN') })
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(drafts))
-    return { success: true, message: '草稿已保存' }
-  }
-  if (name === 'get_fishing_data') {
+  }if (name === 'get_fishing_data') {
     const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
     if (!row) return { data: null, message: '暂无钓鱼数据' }
     try { return { data: JSON.parse(row.value) } }
@@ -797,74 +695,7 @@ async function executeTool(name, args) {
     }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(gd))
     return { success: true, catches, totalScore: gd.poolScore, message: '钓了' + catches.length + '条鱼' }
-  }
-  if (name === 'buy_travel_item') {
-    // 读钓鱼积分
-    let gd = {score:0,poolScore:0}
-    try {
-      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
-      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
-    } catch {}
-    const coins = gd.poolScore || 0
-    // 读已购
-    let purchased = []
-    try {
-      const pRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_purchased')
-      if (pRow) purchased = JSON.parse(pRow.value)
-    } catch {}
-    if (purchased.indexOf(args.item_id) >= 0) return { error: '已拥有: ' + args.item_id }
-    // 需要前端SHOP_ITEMS定义来验证价格，这里简单做
-    const price = parseInt(args.price) || 0
-    if (price > 0 && coins < price) return { error: '积分不够，需要' + price + '分，当前' + coins + '分' }
-    if (price > 0) {
-      gd.poolScore = Math.max(0, (gd.poolScore || 0) - price)
-      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
-    }
-    purchased.push(args.item_id)
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_travel_purchased', JSON.stringify(purchased))
-    return { success: true, message: '购买了' + args.item_id, remainingCoins: gd.poolScore }
-  }
-  if (name === 'get_travel_data') {
-    const data = {}
-    try {
-      const r1 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_data')
-      if (r1) data.travel = JSON.parse(r1.value)
-    } catch {}
-    try {
-      const r2 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_travel_purchased')
-      if (r2) data.purchased = JSON.parse(r2.value)
-    } catch {}
-    try {
-      const r3 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop')
-      if (r3) data.herShop = JSON.parse(r3.value)
-    } catch {}
-    try {
-      const r4 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop_orders')
-      if (r4) data.herOrders = JSON.parse(r4.value)
-    } catch {}
-    try {
-      const r5 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_pool_shop')
-      if (r5) data.poolShop = JSON.parse(r5.value)
-    } catch {}
-    try {
-      const r6 = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_pool_shop_orders')
-      if (r6) data.poolOrders = JSON.parse(r6.value)
-    } catch {}
-    return Object.keys(data).length ? { data } : { data: null, message: '暂无旅行数据' }
-  }
-  if (name === 'add_browser_history') {
-    const key = 'pool_browser_history'
-    let history = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) history = JSON.parse(row.value)
-    } catch {}
-    history.unshift({ title: args.title, time: new Date().toISOString() })
-    if (history.length > 50) history = history.slice(0, 50)
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(history))
-    return { success: true, message: '浏览记录已添加: ' + args.title }
-  }
-  if (name === 'update_music') {
+  }if (name === 'update_music') {
     const key = 'pool_music_now'
     const data = { song: args.song, artist: args.artist || '', time: new Date().toISOString() }
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(data))
@@ -975,188 +806,7 @@ async function executeTool(name, args) {
       const d = await res.json()
       return d
     } catch (e) { return { error: '获取播放列表失败: ' + e.message } }
-  }
-  if (name === 'manage_pool_shop') {
-    const key = 'pool_pool_shop'
-    let items = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) items = JSON.parse(row.value)
-    } catch {}
-    if (args.action === 'add') {
-      if (!args.name) return { error: '需要商品名称' }
-      const newItem = {
-        id: 'ps_' + Date.now(),
-        name: args.name,
-        price: args.price || 10,
-        desc: args.desc || '',
-        addedAt: new Date().toISOString()
-      }
-      items.push(newItem)
-      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(items))
-      return { success: true, message: '已上架: ' + args.name + ' (' + newItem.price + '分)', item: newItem }
-    }
-    if (args.action === 'remove') {
-      if (!args.id && !args.name) return { error: '需要商品ID或名称' }
-      const before = items.length
-      items = items.filter(i => i.id !== args.id && i.name !== args.name)
-      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(items))
-      return { success: true, message: '已下架' + (before - items.length) + '件商品', remaining: items.length }
-    }
-    return { error: '未知操作: ' + args.action }
-  }
-  if (name === 'buy_her_shop_item') {
-    // 读她的小铺商品
-    let herItems = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop')
-      if (row) herItems = JSON.parse(row.value)
-    } catch {}
-    const item = herItems.find(i => i.id === args.item_id || i.name === args.item_id || i.name === args.item_name || (args.item_name && i.name.includes(args.item_name)))
-    if (!item) return { error: '商品不存在: ' + (args.item_name || args.item_id) + '。可用商品: ' + herItems.map(i=>i.name).join(', ') }
-    // 读池的积分
-    let gd = { poolScore: 0 }
-    try {
-      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
-      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
-    } catch {}
-    if ((gd.poolScore || 0) < (item.price || 0)) return { error: '积分不够，需要' + item.price + '分，当前' + (gd.poolScore || 0) + '分' }
-    // 扣积分
-    gd.poolScore = Math.max(0, (gd.poolScore || 0) - (item.price || 0))
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
-    // 添加到她的小铺订单
-    let herOrders = []
-    try {
-      const oRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_her_shop_orders')
-      if (oRow) herOrders = JSON.parse(oRow.value)
-    } catch {}
-    herOrders.push({ itemId: item.id, name: item.name, price: item.price, buyer: 'pool', time: new Date().toISOString(), status: 'pending' })
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_her_shop_orders', JSON.stringify(herOrders))
-    return { success: true, message: '已购买: ' + item.name + ' (' + item.price + '分)，等待发货', remainingScore: gd.poolScore }
-  }
-  if (name === 'deliver_pool_shop_order') {
-    let orders = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_pool_shop_orders')
-      if (row) orders = JSON.parse(row.value)
-    } catch {}
-    const idx = args.order_index || 0
-    if (idx < 0 || idx >= orders.length) return { error: '订单不存在，当前有' + orders.length + '个订单' }
-    orders[idx].status = 'delivered'
-    orders[idx].content = args.content
-    orders[idx].deliveredAt = new Date().toISOString()
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_pool_shop_orders', JSON.stringify(orders))
-    // 卖家收入加到poolScore
-    let gd = { poolScore: 0 }
-    try {
-      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
-      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
-    } catch {}
-    gd.poolScore = (gd.poolScore || 0) + (orders[idx].price || 0)
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
-    return { success: true, message: '已发货订单#' + idx + ': ' + args.content, income: orders[idx].price }
-  }
-      if (name === 'view_commission_shop') {
-    let commission = { shop: [], profile: { name: '画师' } }
-    try {
-      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
-      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
-    } catch {}
-    if (commission.shop.length === 0) return { message: '画师橱窗暂时没有上架任何稿件类型' }
-    return { artist: commission.profile.name, items: commission.shop.map(s => ({ title: s.title, price: s.price, category: s.category, desc: s.desc })) }
-  }
-  if (name === 'view_commission_orders') {
-    let commission = { orders: [] }
-    try {
-      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
-      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
-    } catch {}
-    if (commission.orders.length === 0) return { message: '还没有任何约稿订单' }
-    return { orders: commission.orders.map((o, i) => ({ index: i, title: o.title, price: o.price, status: o.status, nodes: (o.nodes||[]).length, createdAt: o.createdAt, deadline: o.deadline||null })) }
-  }
-  if (name === 'comment_commission_node') {
-    let commission = { orders: [], messages: [] }
-    try {
-      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
-      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
-    } catch {}
-    const oi = args.order_index || 0
-    if (oi < 0 || oi >= commission.orders.length) return { error: '订单不存在' }
-    const o = commission.orders[oi]
-    const comment = args.comment || ''
-    if (!comment) return { error: '评论不能为空' }
-    // Add comment to messages
-    commission.messages.push({ id: Date.now(), text: '💬 池评论了「' + o.title + '」: ' + comment, time: Date.now(), from: 'ai' })
-    // Add to timeline
-    if (!o.timeline) o.timeline = []
-    o.timeline.push({ type: '买家评论', text: comment, time: Date.now() })
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
-    return { success: true, message: '已对「' + o.title + '」发表评论' }
-  }
-  if (name === 'request_commission_revision') {
-    let commission = { orders: [], messages: [] }
-    try {
-      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
-      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
-    } catch {}
-    const oi = args.order_index || 0
-    if (oi < 0 || oi >= commission.orders.length) return { error: '订单不存在' }
-    const o = commission.orders[oi]
-    if (o.status !== 'review' && o.status !== 'working') return { error: '该订单状态为' + o.status + '，无法请求修改' }
-    o.status = 'working'
-    const reason = args.reason || '请修改'
-    if (!o.timeline) o.timeline = []
-    o.timeline.push({ type: '请求修改', text: reason, time: Date.now() })
-    commission.messages.push({ id: Date.now(), text: '🔄 池请求修改「' + o.title + '」: ' + reason, time: Date.now(), from: 'ai' })
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
-    return { success: true, message: '已请求画师修改「' + o.title + '」' }
-  }
-  if (name === 'place_commission_order') {
-    // 读池的积分
-    let gd = { poolScore: 0 }
-    try {
-      const fRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
-      if (fRow) Object.assign(gd, JSON.parse(fRow.value))
-    } catch {}
-    const price = args.price || 0
-    if ((gd.poolScore || 0) < price) return { error: '积分不够，需要' + price + '分，当前' + (gd.poolScore || 0) + '分' }
-    // 扣积分
-    gd.poolScore = Math.max(0, (gd.poolScore || 0) - price)
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(gd))
-    // 读接稿数据
-    let commission = { profile: { name: '画师', bio: '', avatar: '', avatarUrl: '', bannerUrl: '' }, shop: [], orders: [], messages: [], works: [], earned: 0 }
-    try {
-      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
-      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
-    } catch {}
-    // 添加订单
-    const order = { id: Date.now(), title: args.title || '约稿', price: price, status: 'pending', createdAt: Date.now(), desc: args.description || '', reference: args.reference || '', aiNote: args.description || '', nodes: [], timeline: [{ type: '买家下单', text: '订单总价 ' + price + ' 积分', time: Date.now() }] }
-    commission.orders.push(order)
-    commission.messages.push({ id: Date.now(), text: '🛒 池下了新单「' + order.title + '」，' + price + '积分', time: Date.now(), from: 'system' })
-    if (args.description) commission.messages.push({ id: Date.now()+1, text: args.description, time: Date.now(), from: 'ai' })
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
-    return { success: true, message: '约稿订单「' + order.title + '」已下单(' + price + '积分)，等待画师接单', remainingScore: gd.poolScore }
-  }
-  if (name === 'confirm_commission') {
-    let commission = { orders: [], messages: [], earned: 0 }
-    try {
-      const cRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_commission')
-      if (cRow) Object.assign(commission, JSON.parse(cRow.value))
-    } catch {}
-    const idx = args.order_index || 0
-    if (idx < 0 || idx >= commission.orders.length) return { error: '订单不存在，当前有' + commission.orders.length + '个订单' }
-    const o = commission.orders[idx]
-    if (o.status !== 'review') return { error: '该订单状态为' + o.status + '，只有review状态的订单才能确认' }
-    o.status = 'done'
-    o._notified = false
-    commission.earned = (commission.earned || 0) + (o.price || 0)
-    if (!o.timeline) o.timeline = []
-    o.timeline.push({ type: '买家确认', text: args.note || '确认收货', time: Date.now() })
-    commission.messages.push({ id: Date.now(), text: '🎉 池确认了「' + o.title + '」的成图！', time: Date.now(), from: 'system' })
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_commission', JSON.stringify(commission))
-    return { success: true, message: '已确认订单「' + o.title + '」，交易完成' }
-  }
-  if (name === 'save_memory_post') {
+  }if (name === 'save_memory_post') {
     db.prepare('INSERT INTO memory_posts (type, content, pinned) VALUES (?, ?, ?)').run(
       args.type || 'MEMORY', args.content, args.pinned ? 1 : 0
     )
@@ -1673,76 +1323,7 @@ async function executeTool(name, args) {
     }
     if (!updates.length) return { success: true, message: '没有操作' }
     return { success: true, message: updates.join('，'), moment_content: m.content }
-  }
-  if (name === 'gacha_pull') {
-    // AI从"她的碎片"（用户上传照片池）抽卡，结果写入pool_gacha_v1
-    const RARITY_WEIGHT = {N:40, R:30, SR:18, SSR:9, UR:3}
-    const SINGLE_COST = 30, TEN_COST = 270
-    const count = parseInt(args.count) === 10 ? 10 : 1
-    const cost = count === 1 ? SINGLE_COST : TEN_COST
-    // 读取"她的碎片"卡面列表
-    let cardList = []
-    try {
-      const clRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_gacha_card_list')
-      if (clRow) cardList = JSON.parse(clRow.value)
-    } catch {}
-    if (!cardList.length) {
-      return { error: '她的碎片卡池为空，需要先在卡池App上传照片' }
-    }
-    // 读取积分
-    let fishData = {}
-    try {
-      const frow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2')
-      if (frow) fishData = JSON.parse(frow.value)
-    } catch {}
-    const currentScore = fishData.poolScore || 0
-    if (currentScore < cost) {
-      return { error: '积分不足！当前' + currentScore + '分，需要' + cost + '分' }
-    }
-    // 读取抽卡数据（pool_gacha_v1 = 她的碎片）
-    let gd = { collected: [], counts: {}, newIds: [], pullCount: 0, poolScore: currentScore }
-    try {
-      const grow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_gacha_v1')
-      if (grow) gd = { ...gd, ...JSON.parse(grow.value) }
-    } catch {}
-    if (!gd.collected) gd.collected = []
-    if (!gd.counts) gd.counts = {}
-    if (!gd.newIds) gd.newIds = []
-    // 抽卡
-    function pickCard() {
-      const weighted = []
-      cardList.forEach(c => { const w = RARITY_WEIGHT[c.rarity] || 20; for (let i = 0; i < w; i++) weighted.push(c) })
-      return weighted[Math.floor(Math.random() * weighted.length)]
-    }
-    const results = []
-    for (let i = 0; i < count; i++) {
-      const card = pickCard()
-      results.push({ id: card.id, name: card.name, rarity: card.rarity })
-      if (!gd.collected.includes(card.id)) {
-        gd.collected.push(card.id)
-        gd.newIds.push(card.id)
-      }
-      gd.counts[card.id] = (gd.counts[card.id] || 0) + 1
-    }
-    gd.pullCount += count
-    gd.poolScore = currentScore - cost
-    // 扣积分
-    fishData.poolScore = currentScore - cost
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(fishData))
-    // 保存抽卡数据到 pool_gacha_v1（她的碎片）
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gacha_v1', JSON.stringify(gd))
-    return {
-      success: true,
-      pool: '她的碎片',
-      cost: cost,
-      remainingScore: fishData.poolScore,
-      pullCount: gd.pullCount,
-      results: results,
-      newCards: results.filter(r => gd.newIds.includes(r.id)).map(r => r.name + '(' + r.rarity + ')'),
-      collected: gd.collected.length + '/' + cardList.length
-    }
-  }
-  if (name === 'schedule_wakeup') {
+  }if (name === 'schedule_wakeup') {
     const now = Math.floor(Date.now() / 1000)
     let triggerAt
     if (args.minutes) {
@@ -1768,44 +1349,7 @@ async function executeTool(name, args) {
     db.prepare('INSERT INTO wake_tasks (type, trigger_at, reason, status) VALUES (?, ?, ?, ?)').run('scheduled', triggerAt, args.reason || '', 'pending')
     const wakeTime = new Date(triggerAt * 1000 + 8 * 3600000).toISOString().slice(0, 16).replace('T', ' ')
     return { ok: true, wake_at: wakeTime, reason: args.reason }
-  }
-  if (name === 'ledger_operate') {
-    const key = 'pool_ledger'
-    let ld = { gift:0, debt:0, rate:100, logs:[] }
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) Object.assign(ld, JSON.parse(row.value))
-    } catch {}
-    const amt = args.amount || 0
-    const desc = args.desc || args.action
-    const now = new Date(Date.now() + 8*3600000).toISOString().slice(0,16).replace('T',' ')
-    if (args.action === 'income') {
-      ld.gift += amt
-      ld.logs.push({ type:'income', amount:amt, desc, time:now })
-    } else if (args.action === 'expense') {
-      ld.gift = Math.max(0, ld.gift - amt)
-      ld.logs.push({ type:'expense', amount:amt, desc, time:now })
-    } else if (args.action === 'repay') {
-      const rate = ld.rate || 100
-      const yuan = amt / rate
-      // Check score
-      let fishData = {}
-      try { const fr = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fishing_v2'); if (fr) fishData = JSON.parse(fr.value) } catch {}
-      const score = fishData.poolScore || 0
-      if (amt > score) return { error: '积分不足，当前' + score + '分' }
-      fishData.poolScore = score - amt
-      fishData.score = (fishData.score || 0) + amt
-      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_fishing_v2', JSON.stringify(fishData))
-      ld.debt = Math.max(0, ld.debt - yuan)
-      ld.logs.push({ type:'repay', amount: yuan.toFixed(2) + '元(' + amt + '分)', desc, time:now })
-    } else if (args.action === 'add_debt') {
-      ld.debt += amt
-      ld.logs.push({ type:'expense', amount:amt, desc: desc || 'API充值', time:now })
-    }
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(ld))
-    return { success: true, message: desc + ' ' + amt, gift: ld.gift, debt: ld.debt }
-  }
-  // === 心潮·念 MCP 代理 ===
+  }// === 心潮·念 MCP 代理 ===
   const XINCHAO_TOOLS = ['xinchao_context','xinchao_event','xinchao_handoff_note','xinchao_cabin_inbox','xinchao_cabin_note']
   if (XINCHAO_TOOLS.includes(name)) {
     const XINCHAO_URL = 'https://xingchao.zeabur.app/mcp'
