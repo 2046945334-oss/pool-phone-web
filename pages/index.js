@@ -2592,26 +2592,26 @@ export default function Home() {
               {(() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe id="persistent-music-iframe" src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} allow="autoplay; encrypted-media" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',zIndex: currentApp === 'music' ? 10 : -1,opacity: currentApp === 'music' ? 1 : 0,pointerEvents: currentApp === 'music' ? 'auto' : 'none'}} /> } } catch {} return null })()}
             </div>
             <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
+              {readerMini && (
+                <div style={{
+                  position:'absolute', top:0, left:0, right:0, bottom:0,
+                  zIndex:600, background:'rgba(255,252,253,0.97)',
+                  display:'flex', flexDirection:'column',
+                  overflow:'hidden'
+                }}>
+                  <div style={{ display:'flex', alignItems:'center', padding:'6px 12px', background:'#fef0f3', borderBottom:'1px solid #f5d5de', gap:8, flexShrink:0 }}>
+                    <span style={{ flex:1, fontSize:13, color:'#b06080', fontWeight:600 }}>📖 共读小窗</span>
+                    <button onClick={() => { setCurrentApp('reader'); setActiveTab('phone'); setReaderMini(false) }} style={{ background:'#f8e0e8', color:'#b06080', border:'1px solid #f0c0d0', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>全屏</button>
+                    <button onClick={() => setReaderMini(false)} style={{ background:'#f8e0e8', color:'#b06080', border:'1px solid #f0c0d0', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>✕</button>
+                  </div>
+                  <div style={{ flex:1, overflow:'hidden' }}>
+                    <ReaderApp mini={true} />
+                  </div>
+                </div>
+              )}
           </div>
           <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
-            {/* Mini Reader Floating Window */}
-            {readerMini && (
-              <div style={{
-                position:'absolute', top:0, left:0, right:0, height:'45%',
-                zIndex:500, background:'#fff5f8', borderBottom:'2px solid #e91e8c',
-                boxShadow:'0 4px 16px rgba(0,0,0,0.15)', display:'flex', flexDirection:'column',
-                borderRadius:'0 0 12px 12px', overflow:'hidden'
-              }}>
-                <div style={{ display:'flex', alignItems:'center', padding:'4px 10px', background:'#e91e8c', gap:6 }}>
-                  <span style={{ flex:1, fontSize:12, color:'#fff', fontWeight:600 }}>📖 共读小窗</span>
-                  <button onClick={() => { setCurrentApp('reader'); setActiveTab('phone'); setReaderMini(false) }} style={{ background:'rgba(255,255,255,0.2)', color:'#fff', border:'none', borderRadius:4, padding:'2px 8px', fontSize:11, cursor:'pointer' }}>全屏</button>
-                  <button onClick={() => setReaderMini(false)} style={{ background:'rgba(255,255,255,0.2)', color:'#fff', border:'none', borderRadius:4, padding:'2px 8px', fontSize:11, cursor:'pointer' }}>✕</button>
-                </div>
-                <div style={{ flex:1, overflow:'hidden' }}>
-                  <ReaderApp mini={true} />
-                </div>
-              </div>
-            )}
+
                         <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
               <span className="nav-icon">{'▢'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
