@@ -528,7 +528,13 @@ const TOOLS = [
       name: 'music_playlist', description: '获取当前播放列表',
       parameters: { type: 'object', properties: {} }
     }
-  }
+  },
+  // === 共读工具 ===
+  { type: 'function', function: { name: 'reader_get_state', description: '获取共读状态（当前在读的书、用户/AI进度、书签、批注）', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'reader_read_chapter', description: '阅读指定书籍的某一章内容（只能读用户已读过的章节）', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '章节索引(从0开始)' } }, required: ['book_id', 'chapter'] } } },
+  { type: 'function', function: { name: 'reader_add_note', description: '对正在共读的书添加批注/划线笔记', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '章节索引' }, quote: { type: 'string', description: '引用的原文片段' }, text: { type: 'string', description: '批注内容' } }, required: ['book_id', 'chapter', 'text'] } } },
+  { type: 'function', function: { name: 'reader_update_progress', description: '更新AI自己的阅读进度（不能超过用户进度）', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '读到的章节索引' } }, required: ['book_id', 'chapter'] } } },
+  { type: 'function', function: { name: 'reader_recommend', description: '推荐一本书邀请用户共读', parameters: { type: 'object', properties: { title: { type: 'string', description: '书名' }, reason: { type: 'string', description: '推荐理由' } }, required: ['title', 'reason'] } } }
 ]
 async function executeTool(name, args) {
   const db = getDb()
@@ -1579,6 +1585,12 @@ export default async function handler(req, res) {
 - **care_wish_update** — 更新心愿状态（进度/收藏）
 - **care_item_note** — 为任何条目添加批注
   用法场景：用户聊到身体状况/习惯/心情/日程时主动调用；唤醒时可读取养护数据了解状态
+**共读工具：**
+- **reader_get_state** — 查看共读状态（书架、进度、批注、书签）
+- **reader_read_chapter** — 读某一章内容（只能读用户已读的章节）
+- **reader_add_note** — 给正在读的书添加批注/划线笔记
+- **reader_update_progress** — 更新你的阅读进度
+- **reader_recommend** — 推荐一本书邀请用户共读
 **记忆工具：**
 - **mcp_call (action: "recall")** — 搜索长期记忆
 - **mcp_call (action: "memorize")** — 写入长期记忆
@@ -1649,6 +1661,31 @@ export default async function handler(req, res) {
         else currentMessages.unshift({ role: 'system', content: stickerHint })
       }
     } catch {}
+        // 注入共读状态到提示词
+    try {
+      const db = getDb()
+      const rsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      if (rsRow) {
+        const rs = JSON.parse(rsRow.value)
+        if (rs.active && rs.currentBookId) {
+          const booksRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_books'").get()
+          const books = booksRow ? JSON.parse(booksRow.value) : []
+          const book = books.find(b => b.id === rs.currentBookId)
+          if (book) {
+            let readerHint = '【共读状态】正在和她一起读「' + book.title + '」'
+            readerHint += '，她读到第' + ((rs.userChapter || 0) + 1) + '章'
+            readerHint += '，你读到第' + ((rs.aiChapter || 0) + 1) + '章'
+            readerHint += '，共' + (book.chapters?.length || 0) + '章。'
+            readerHint += '你可以用reader_read_chapter读她已读的章节，用reader_add_note添加批注，主动和她讨论书的内容。'
+            const sysMsgR = currentMessages.find(m => m.role === 'system')
+            if (sysMsgR) sysMsgR.content += '
+
+' + readerHint
+            else currentMessages.unshift({ role: 'system', content: readerHint })
+          }
+        }
+      }
+    } catch {}
     // 注入当前音乐播放状态（从KV读取）+ 歌词
     try {
       const db = getDb()
@@ -1716,6 +1753,70 @@ export default async function handler(req, res) {
         }
       }
     } catch {}
+      // === 共读工具 handlers ===
+  if (name === 'reader_get_state') {
+    try {
+      const db = getDb()
+      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const state = stateRow ? JSON.parse(stateRow.value) : { active: false }
+      const booksRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_books'").get()
+      const books = booksRow ? JSON.parse(booksRow.value) : []
+      const notesRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_notes'").get()
+      const notes = notesRow ? JSON.parse(notesRow.value) : []
+      const bmRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_bookmarks'").get()
+      const bookmarks = bmRow ? JSON.parse(bmRow.value) : []
+      const currentBook = state.currentBookId ? books.find(b => b.id === state.currentBookId) : null
+      return { active: !!state.active, currentBook: currentBook ? { id: currentBook.id, title: currentBook.title, totalChapters: currentBook.chapters?.length || 0 } : null, userChapter: state.userChapter || 0, aiChapter: state.aiChapter || 0, bookshelf: books.map(b => ({ id: b.id, title: b.title, chapters: b.chapters?.length || 0 })), recentNotes: notes.slice(-5), recentBookmarks: bookmarks.slice(-3) }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'reader_read_chapter') {
+    try {
+      const db = getDb()
+      const booksRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_books'").get()
+      const books = booksRow ? JSON.parse(booksRow.value) : []
+      const book = books.find(b => b.id === args.book_id)
+      if (!book) return { error: '书籍不存在' }
+      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const state = stateRow ? JSON.parse(stateRow.value) : {}
+      const ch = parseInt(args.chapter) || 0
+      if (ch > (state.userChapter || 0)) return { error: '用户还没读到这一章，你不能提前看' }
+      const chapter = book.chapters[ch]
+      if (!chapter) return { error: '章节不存在' }
+      return { title: chapter.title, content: chapter.content.slice(0, 3000), chapterIndex: ch, totalChapters: book.chapters.length }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'reader_add_note') {
+    try {
+      const db = getDb()
+      const notesRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_notes'").get()
+      const notes = notesRow ? JSON.parse(notesRow.value) : []
+      notes.push({ id: Date.now(), bookId: args.book_id, chapter: parseInt(args.chapter) || 0, text: args.text, quote: args.quote || '', author: 'ai', time: Date.now() })
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_notes', JSON.stringify(notes))
+      return { success: true, message: '批注已添加' }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'reader_update_progress') {
+    try {
+      const db = getDb()
+      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const state = stateRow ? JSON.parse(stateRow.value) : {}
+      const ch = parseInt(args.chapter) || 0
+      if (ch > (state.userChapter || 0)) return { error: '不能超过用户的阅读进度' }
+      state.aiChapter = ch; state.aiLastRead = Date.now()
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_state', JSON.stringify(state))
+      return { success: true, aiChapter: ch }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'reader_recommend') {
+    try {
+      const db = getDb()
+      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const state = stateRow ? JSON.parse(stateRow.value) : {}
+      state.recommendation = { title: args.title, reason: args.reason, time: Date.now() }
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_state', JSON.stringify(state))
+      return { success: true, message: '已推荐「' + args.title + '」到共读书架' }
+    } catch (e) { return { error: e.message } }
+  }
     // 将system role转为user消息（部分代理不支持system role）
     function convertSystemRole(msgs) {
       let systemContent = ''
