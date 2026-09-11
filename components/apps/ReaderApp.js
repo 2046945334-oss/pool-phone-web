@@ -222,8 +222,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           <span style={{ fontSize:10, color:'#999' }}>{safePageIdx + 1}/{pages.length}</span>
         </div>
         <div style={{ flex:1, overflowY:'auto', padding:'8px 12px' }}>
-          <div style={{ lineHeight:1.75, fontSize:14, color:'#2c2c2c' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).replace(/
-/g, '</p><p>') + '</p>' }} />
+          <div style={{ lineHeight:1.75, fontSize:14, color:'#2c2c2c' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
         </div>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 10px', borderTop:'1px solid #eee', background:'#fff', flexShrink:0 }}>
           <button onClick={() => goPage(book, currentChapter, safePageIdx - 1)} disabled={safePageIdx === 0 && currentChapter === 0} style={{ background:'none', border:'none', color:'#1976d2', fontSize:12, cursor:'pointer', opacity: (safePageIdx === 0 && currentChapter === 0) ? 0.4 : 1 }}>{'← 上一页'}</button>
@@ -299,8 +298,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
             </div>
           ))}
 
-          <div style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c', minHeight:'60%' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).replace(/
-/g, '</p><p>') + '</p>' }} />
+          <div style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c', minHeight:'60%' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
 
           {chapterBookmarks.length > 0 && safePageIdx === 0 && chapterBookmarks.map((b, i) => (
             <div key={b.id || i} style={{ background:'#fff8e1', borderLeft:'3px solid #ffa726', padding:'8px 12px', margin:'10px 0', borderRadius:'0 8px 8px 0' }}>
