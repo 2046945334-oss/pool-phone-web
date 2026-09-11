@@ -5,8 +5,7 @@ const STATIC_ASSETS = [
   '/icons/music.png',
   '/icons/couple.png',
   '/icons/fishing.png',
-  '/icons/theme.png',
-  '/icons/gallery.png'
+  '/icons/theme.png'
 ]
 
 // Install: cache static assets
