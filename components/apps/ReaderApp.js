@@ -76,7 +76,13 @@ export default function ReaderApp({ onBack }) {
     } catch {}
   }, [])
 
-  useEffect(() => { loadState(); loadBooks() }, [])
+  useEffect(() => {
+    loadState(); loadBooks()
+    // Load chat history from backend
+    fetch('/api/reader?action=chat').then(r => r.json()).then(d => {
+      if (d.messages && d.messages.length > 0) setChatMessages(d.messages)
+    }).catch(() => {})
+  }, [])
   useEffect(() => {
     if (view !== 'reader') return
     const iv = setInterval(loadState, 15000)
