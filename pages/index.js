@@ -824,8 +824,7 @@ function ChatView({ theme }) {
     const userText = overrideMessages ? null : input.trim()
     if (!overrideMessages && !userText) return
     const newMessages = overrideMessages || [...messages, { role: 'user', content: userText, ts: Date.now() }]
-    if (!overrideMessages) { setMessages(newMessages); setInput(''); return }
-    // Only trigger AI when explicitly called with overrideMessages
+    if (!overrideMessages) { setMessages(newMessages); setInput('') }
     setLoading(true)
     const cfg = getApiConfig('chat')
     if (!cfg.apiBase || !cfg.apiKey) {
