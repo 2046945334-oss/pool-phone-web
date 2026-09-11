@@ -816,10 +816,46 @@ function ChatView({ theme }) {
       }
     } catch {}
 
+    // If recent messages contain reading sync, add reading discussion prompt
+    const hasReading = userMessages.some(m => m.isReadingSync)
+    if (hasReading) {
+      parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻页时会分享当前阅读内容。请像一起读书的伴侣一样，自然地讨论情节、角色、感想，简短可爱地回应（2-3句），不要很正式地“分析”。偶尔讨论情节、偶尔产生感南、偶尔问用户觉得怎么样。' })
+    }
     return parts
   }
 
-  async function sendMessage(overrideMessages) {
+  // Listen for shared-reading page changes from mini reader
+  useEffect(() => {
+    let cooldown = false
+    function onPageChange(e) {
+      if (cooldown) return
+      cooldown = true
+      setTimeout(() => { cooldown = false }, 8000) // 8s cooldown between auto-comments
+      const { bookTitle, chapterTitle, page, totalPages, content } = e.detail
+      const snippet = content || ''
+      if (!snippet.trim()) return
+      // Add a system-style reading context and trigger AI response
+      const readingMsg = {
+        role: 'user',
+        content: '[共读小窗] 我翻到了『' + bookTitle + '』' + chapterTitle + ' (' + page + '/' + totalPages + ')
+当前内容片段:
+' + snippet.slice(0, 200) + '...',
+        ts: Date.now(),
+        isReadingSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, readingMsg]
+        // Auto-trigger AI response
+        setTimeout(() => {
+          window.__chiTriggerAI && window.__chiTriggerAI(next)
+        }, 500)
+        return next
+      })
+    }
+    window.addEventListener('reader-page-change', onPageChange)
+    return () => window.removeEventListener('reader-page-change', onPageChange)
+  }, [])
+    async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
     const userText = overrideMessages ? null : input.trim()
     if (!overrideMessages && !userText) return
@@ -1011,6 +1047,7 @@ function ChatView({ theme }) {
   }
 
   function triggerAI() { sendMessage(messages) }
+  window.__chiTriggerAI = sendMessage
   async function addUserMsg() {
     const t = input.trim()
     if (!t) return
