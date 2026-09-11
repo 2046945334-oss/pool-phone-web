@@ -51,6 +51,7 @@ export default function ReaderApp({ onBack }) {
   const [chatInput, setChatInput] = useState('')
   const [selectedText, setSelectedText] = useState('')
   const [loading, setLoading] = useState(false)
+  const [chatLoading, setChatLoading] = useState(false)
   const fileRef = useRef(null)
   const bodyRef = useRef(null)
   const chatEndRef = useRef(null)
@@ -169,11 +170,24 @@ export default function ReaderApp({ onBack }) {
     if (!chatInput.trim()) return
     const msg = chatInput.trim()
     setChatInput('')
-    setChatMessages(prev => [...prev, { role: 'user', content: msg, time: Date.now() }])
-    await fetch('/api/reader?action=chat_msg', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'user', content: msg })
-    })
+    const newHistory = [...chatMessages, { role: 'user', content: msg, time: Date.now() }]
+    setChatMessages(newHistory)
+    setChatLoading(true)
+    // Call AI API for reply
+    try {
+      const r = await fetch('/api/reader-chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, chatHistory: chatMessages })
+      })
+      const d = await r.json()
+      if (d.reply) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply, time: Date.now() }])
+      } else if (d.error) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: '(' + d.error + ')', time: Date.now() }])
+      }
+    } catch (e) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: '(网络错误)', time: Date.now() }])
+    }
   }
 
   const book = currentBookIdx >= 0 ? books[currentBookIdx] : null
@@ -286,6 +300,7 @@ export default function ReaderApp({ onBack }) {
                 <span style={{ background: m.role === 'user' ? '#d4e8fc' : '#f0f0f0', padding:'6px 12px', borderRadius:12, display:'inline-block', maxWidth:'85%', fontSize:14, lineHeight:1.5, wordBreak:'break-word' }}>{m.content}</span>
               </div>
             ))}
+            {chatLoading && <div style={{ marginBottom:8, display:'flex', justifyContent:'flex-start' }}><span style={{ background:'#f0f0f0', padding:'6px 12px', borderRadius:12, fontSize:13, color:'#999' }}>\u6c60\u5728\u601d\u8003...</span></div>}
             <div ref={chatEndRef} />
           </div>
           <div style={{ display:'flex', gap:6, padding:'8px 12px', borderTop:'1px solid #eee', flexShrink:0 }}>
