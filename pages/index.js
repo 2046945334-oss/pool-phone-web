@@ -3,29 +3,20 @@ import Head from 'next/head'
 import SplashScreen from '../components/SplashScreen'
 import StickerPanel from '../components/StickerPanel'
 import { pullAllFromBackend, pushAllToBackend } from '../lib/appSync'
-import BrowserApp from '../components/apps/BrowserApp'
-import FortuneApp from '../components/apps/FortuneApp'
 import FishingApp from '../components/apps/FishingApp'
 import ReaderApp from '../components/apps/ReaderApp'
-import DraftsApp from '../components/apps/DraftsApp'
 import HtmlApp from '../components/apps/HtmlApp'
 import AppCustomizer, { getAppBgStyle, getAppBgCss, getCoupleInjectJs } from '../components/apps/AppCustomizer'
 import notesHtml from '../public/apps/_notes.html'
-import gachaHtml from '../public/apps/_gacha.html'
 import messagesHtml from '../public/apps/_messages.html'
 import diaryHtml from '../public/apps/_diary.html'
 import musicHtml from '../public/apps/_music_player.html'
 import coupleHtml from '../public/apps/_couple.html'
-import doodleHtml from '../public/apps/_doodle.html'
-import sleepHtml from '../public/apps/_sleep.html'
-import travelHtml from '../public/apps/_travel.html'
 import gardenHtml from '../public/apps/_garden.html'
-import ledgerHtml from '../public/apps/_ledger.html'
 import cabinHtml from '../public/apps/_cabin.html'
 import starmapHtml from '../public/apps/_starmap.html'
 import stickersHtml from '../public/apps/_stickers.html'
 // import careHtml from '../public/apps/_care.html' // removed: 72KB bloat
-import commissionHtml from '../public/apps/_commission.html'
 import ScreenTimeApp from '../components/apps/ScreenTimeApp'
 
 // ===== Capacitor 通知初始化 =====
@@ -1295,8 +1286,8 @@ function LockScreen({ onUnlock, theme }) {
 function ThemePanel() {
   const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
   const [saved, setSaved] = useState(false)
-  const APP_LIST = ['notes','gallery','messages','music','browser','couple','system','doodle','ledger','drafts','fishing','reader','game','theme','travel','memoryMgr','diary','garden','cabin','starmap','commission','screenTime','care','stickers']
-  const APP_NAMES = {notes:'\u4fbf\u7b7e',gallery:'\u547d\u8fd0\u5361\u6c60',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',browser:'\u6d4f\u89c8',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',doodle:'\u6d82\u9e26',ledger:'\u8d26\u672c',drafts:'\u8349\u7a3f\u7bb1',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',game:'\u756a\u8304\u949f',theme:'\u7f8e\u5316',travel:'\u65c5\u884c',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',commission:'接稿',screenTime:'屏幕时间',care:'养护手册',stickers:'表情包管理'}
+  const APP_LIST = ['notes','messages','music','couple','system','fishing','reader','theme','memoryMgr','diary','garden','cabin','starmap','screenTime','care','stickers']
+  const APP_NAMES = {notes:'\u4fbf\u7b7e',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',theme:'\u7f8e\u5316',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',screenTime:'屏幕时间',care:'养护手册',stickers:'表情包管理'}
 
   function save() {
     try {
@@ -2216,8 +2207,8 @@ function EmotionMonitor() {
 }
 
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', browser:'浏览', couple:'情侣空间', system:'系统', doodle:'涂鸦', ledger:'账本', drafts:'草稿箱', fishing:'钓鱼', reader:'阅读', game:'晚安', theme:'美化', memoryMgr:'记忆管理', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿', screenTime:'屏幕时间' }
-  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', gallery:'_gacha.html', messages:'_messages.html', couple:'_couple.html', game:'_sleep.html', ledger:'_ledger.html', drafts:'_drafts.html', doodle:'_doodle.html', reader:'_reader.html', browser:'_browser.html', travel:'_travel.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
+  const appNames = { notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', system:'系统', fishing:'钓鱼', reader:'阅读', theme:'美化', memoryMgr:'记忆管理', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', screenTime:'屏幕时间' }
+  const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', messages:'_messages.html', couple:'_couple.html', reader:'_reader.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
   // For music app: check if external music server is configured
@@ -2257,21 +2248,14 @@ function PreloadedApps({ currentApp, onBack }) {
 function HomeScreen({ onOpenApp, theme }) {
   const page1Apps = [
     { id: 'notes', icon: '/icons/notes.png', name: '\u4fbf\u7b7e' },
-    { id: 'gallery', icon: '/icons/gallery.png', name: '\u547d\u8fd0\u5361\u6c60' },
     { id: 'messages', icon: '/icons/messages.png', name: '\u670b\u53cb\u5708' },
     { id: 'music', icon: '/icons/music.png', name: '\u97f3\u4e50' },
-    { id: 'browser', icon: '/icons/browser.png', name: '\u6d4f\u89c8' },
     { id: 'couple', icon: '/icons/couple.png', name: '\u60c5\u4fa3' },
     { id: 'system', icon: '/icons/system.png', name: '\u7cfb\u7edf' },
-    { id: 'doodle', icon: '/icons/doodle.png', name: '\u6d82\u9e26' },
   ]
   const page2Apps = [
-    { id: 'ledger', icon: '/icons/ledger.png', name: '\u8d26\u672c' },
-    { id: 'drafts', icon: '/icons/drafts.png', name: '\u8349\u7a3f' },
     { id: 'fishing', icon: '/icons/fishing.png', name: '\u9493\u9c7c' },
-    { id: 'travel', icon: '/icons/travel.png', name: '\u65c5\u884c' },
     { id: 'reader', icon: '/icons/reader.png', name: '\u9605\u8bfb' },
-    { id: 'game', icon: '/icons/game.png', name: '\u665a\u5b89' },
     { id: 'theme', icon: '/icons/theme.png', name: '\u7f8e\u5316' },
     { id: 'memoryMgr', icon: '/icons/system.png', name: '\u8bb0\u5fc6' },
   ]
@@ -2280,10 +2264,9 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'garden', icon: '/icons/doodle.png', name: '\u5ead\u9662' },
     { id: 'cabin', icon: '/icons/couple.png', name: '唤醒日志' },
     { id: 'starmap', icon: '/icons/music.png', name: '\u661f\u56fe' },
-    { id: 'commission', icon: '/icons/notes.png', name: '接稿' },
     { id: 'screenTime', icon: '/icons/system.png', name: '屏幕时间' },
     { id: 'care', icon: '/icons/couple.png', name: '养护' },
-    { id: 'stickers', icon: '/icons/gallery.png', name: '表情包管理' },
+    { id: 'stickers', icon: '/icons/system.png', name: '表情包管理' },
   ]
   const allPages = [page1Apps, page2Apps, page3Apps]
   const icons = theme?.icons || {}
@@ -2498,9 +2481,9 @@ export default function Home() {
       </div>
     )
 
-    const appTitles = { browser:'浏览', ledger:'账本', fishing:'钓鱼', reader:'阅读', drafts:'草稿箱', notes:'便签', gallery:'命运卡池', messages:'朋友圈', music:'音乐', couple:'情侣空间', doodle:'涂鸦', game:'晚安', travel:'旅行', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', commission:'接稿', care:'养护手册', stickers:'表情包管理' }
-    const reactApps = { browser: <BrowserApp />, fishing: <FishingApp />, reader: <ReaderApp />, drafts: <DraftsApp /> }
-    const htmlApps = { notes: notesHtml, gallery: gachaHtml, messages: messagesHtml, couple: coupleHtml, doodle: doodleHtml, game: sleepHtml, travel: travelHtml, diary: diaryHtml, garden: gardenHtml, ledger: ledgerHtml, cabin: cabinHtml, starmap: starmapHtml, commission: commissionHtml, stickers: stickersHtml }
+    const appTitles = { fishing:'钓鱼', reader:'阅读', notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', care:'养护手册', stickers:'表情包管理' }
+    const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, }
+    const htmlApps = { notes: notesHtml, messages: messagesHtml, couple: coupleHtml, diary: diaryHtml, garden: gardenHtml, cabin: cabinHtml, starmap: starmapHtml, stickers: stickersHtml }
     // Lazy-loaded HTML apps: fetched on demand to reduce initial bundle size
     const lazyHtmlApps = { care: '/apps/_care.html' }
 
