@@ -1052,7 +1052,7 @@ function ChatView({ theme }) {
   }
 
   function triggerAI() { sendMessage(messages) }
-  window.__chiTriggerAI = sendMessage
+  if (typeof window !== 'undefined') window.__chiTriggerAI = sendMessage
   async function addUserMsg() {
     const t = input.trim()
     if (!t) return
