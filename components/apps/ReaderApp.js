@@ -300,64 +300,86 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         <div style={{ flex:1, overflowY:'auto', padding:0, background:'linear-gradient(180deg, #fef6f3 0%, #faf0ed 100%)' }}>
           {state.recommendation && (
             <div style={{ background:'#fce4ec', borderRadius:10, padding:12, margin:'10px 12px', border:'1px solid #f8bbd0' }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>{'\u{1f4d6} \u{6c60}\u{63a8}\u{8350}\u{4e86}\u{4e00}\u{672c}\u{4e66}'}</div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>{'📖 池推荐了一本书'}</div>
               <div style={{ fontSize:15, fontWeight:600 }}>{state.recommendation.title}</div>
               <div style={{ fontSize:13, color:'#555', marginTop:2 }}>{state.recommendation.reason}</div>
             </div>
           )}
           {books.length === 0 ? (
             <div style={{ textAlign:'center', padding:'60px 20px', color:'#c9a0a0' }}>
-              <div style={{ fontSize:40, marginBottom:12 }}>{'\u{1f4da}'}</div>
-              <p style={{ fontSize:14 }}>{'\u{4e66}\u{67b6}\u{7a7a}\u{7a7a}\u{7684}\uff0c\u{5bfc}\u{5165}\u{4e00}\u{672c} TXT \u{5f00}\u{59cb}\u{5171}\u{8bfb}\u{5427}'}</p>
+              <div style={{ fontSize:40, marginBottom:12 }}>{'📚'}</div>
+              <p style={{ fontSize:14 }}>{'书架空空的，导入一本 TXT 开始共读吧'}</p>
             </div>
           ) : (() => {
             const shelfColors = ['#f8bbd0','#e1bee7','#c5cae9','#b2dfdb','#ffe0b2','#d7ccc8','#f0f4c3','#b3e5fc','#ffccbc','#dcedc8'];
-            const rows = [];
-            for (let i = 0; i < books.length; i += 4) rows.push(books.slice(i, i + 4));
-            return rows.map((row, ri) => (
-              <div key={ri} style={{ marginBottom:0 }}>
-                <div style={{ display:'flex', alignItems:'flex-end', justifyContent: ri === 0 ? 'center' : 'flex-start', gap: ri === 0 ? 16 : 0, padding: ri === 0 ? '20px 16px 8px' : '12px 16px 6px', minHeight: ri === 0 ? 160 : 100 }}>
-                  {row.map((b, bi) => {
-                    const globalIdx = ri * 4 + bi;
-                    const color = shelfColors[globalIdx % shelfColors.length];
-                    const isReading = state.currentBookId === b.id;
+            const featuredBooks = books.slice(0, 3);
+            const spineBooks = books.slice(3);
+            const spineRows = [];
+            for (let i = 0; i < spineBooks.length; i += 6) spineRows.push(spineBooks.slice(i, i + 6));
+            const rotations = [-8, 0, 5];
+            const offsets = [12, 0, -8];
+            const zIndexes = [2, 3, 1];
+            return (<>
+              {/* Featured row: stacked/angled book covers */}
+              <div style={{ marginBottom:0 }}>
+                <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', padding:'24px 20px 10px', minHeight:180, position:'relative' }}>
+                  {featuredBooks.map((b, bi) => {
+                    const color = shelfColors[bi % shelfColors.length];
                     const aiReading = state.currentBookId === b.id && state.active;
-                    const userCh = isReading ? (state.userChapter || 0) : 0;
+                    const userCh = state.currentBookId === b.id ? (state.userChapter || 0) : 0;
                     const progress = b.chapters?.length ? Math.round(((userCh + 1) / b.chapters.length) * 100) : 0;
-                    if (ri === 0) {
-                      return (
-                        <div key={b.id} onClick={() => openBook(globalIdx)} style={{ cursor:'pointer', width:100, position:'relative' }}>
-                          <div style={{ width:100, height:130, borderRadius:'4px 8px 8px 4px', background: 'linear-gradient(135deg, ' + color + ' 0%, ' + color + '88 100%)', boxShadow:'2px 3px 8px rgba(0,0,0,.15), inset -3px 0 6px rgba(0,0,0,.08)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:8, position:'relative', border:'1px solid rgba(0,0,0,.08)' }}>
-                            <div style={{ position:'absolute', left:4, top:0, bottom:0, width:3, background:'rgba(0,0,0,.1)', borderRadius:2 }} />
-                            <div style={{ fontSize:13, fontWeight:700, color:'#4a3040', textAlign:'center', lineHeight:1.3, wordBreak:'break-all', maxHeight:52, overflow:'hidden' }}>{b.title.length > 8 ? b.title.slice(0,8)+'...' : b.title}</div>
-                            <div style={{ fontSize:9, color:'#7a6070', marginTop:6 }}>{(b.chapters?.length || 0) + '\u{7ae0}'}</div>
-                            {aiReading && <div style={{ fontSize:8, color:'#c2185b', marginTop:2 }}>{'\u{1f440} \u{6c60}\u{5728}\u{8bfb}'}</div>}
-                          </div>
-                          <div style={{ height:3, margin:'0 6px', background:'linear-gradient(90deg, transparent, rgba(0,0,0,.08), transparent)', borderRadius:2 }} />
-                          <div style={{ height:2, margin:'2px 8px 0', background:'#e0d0d0', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:progress+'%', background:'#e91e8c', borderRadius:2 }} /></div>
-                          <button onClick={(e) => { e.stopPropagation(); delBook(globalIdx) }} style={{ position:'absolute', top:-6, right:-6, background:'#f06292', color:'#fff', border:'none', width:18, height:18, borderRadius:9, fontSize:10, cursor:'pointer', lineHeight:'18px', textAlign:'center', zIndex:2 }}>{'\u{00d7}'}</button>
+                    const rot = rotations[bi] || 0;
+                    const offsetY = offsets[bi] || 0;
+                    const zIdx = zIndexes[bi] || 1;
+                    return (
+                      <div key={b.id} onClick={() => openBook(bi)} style={{ cursor:'pointer', position:'relative', zIndex:zIdx, marginLeft: bi === 0 ? 0 : -20, marginBottom:offsetY, transform:'rotate('+rot+'deg)', transformOrigin:'bottom center', transition:'transform 0.2s' }}>
+                        <div style={{ width:105, height:140, borderRadius:'4px 10px 10px 4px', background: 'linear-gradient(145deg, ' + color + ' 0%, ' + color + 'aa 50%, ' + color + '66 100%)', boxShadow:'3px 4px 12px rgba(0,0,0,.2), inset -4px 0 8px rgba(0,0,0,.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:10, position:'relative', border:'1px solid rgba(255,255,255,.5)' }}>
+                          <div style={{ position:'absolute', left:5, top:0, bottom:0, width:3, background:'rgba(0,0,0,.08)', borderRadius:2 }} />
+                          <div style={{ position:'absolute', left:10, top:8, right:8, bottom:8, border:'1px solid rgba(255,255,255,.3)', borderRadius:4, pointerEvents:'none' }} />
+                          <div style={{ fontSize:14, fontWeight:700, color:'#4a3040', textAlign:'center', lineHeight:1.3, wordBreak:'break-all', maxHeight:56, overflow:'hidden' }}>{b.title.length > 8 ? b.title.slice(0,8)+'...' : b.title}</div>
+                          <div style={{ fontSize:9, color:'#7a6070', marginTop:8 }}>{(b.chapters?.length || 0) + '章'}</div>
+                          {aiReading && <div style={{ fontSize:8, color:'#c2185b', marginTop:2 }}>{'👀 池在读'}</div>}
                         </div>
-                      );
-                    } else {
-                      const spineW = 28 + Math.min((b.chapters?.length || 5), 30) * 0.5;
-                      return (
-                        <div key={b.id} onClick={() => openBook(globalIdx)} style={{ cursor:'pointer', position:'relative', marginRight:2 }}>
-                          <div style={{ width:spineW, height:85, borderRadius:'2px 4px 4px 2px', background: 'linear-gradient(180deg, ' + color + ' 0%, ' + color + 'cc 100%)', boxShadow:'1px 2px 4px rgba(0,0,0,.12), inset -2px 0 3px rgba(0,0,0,.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 2px', border:'1px solid rgba(0,0,0,.06)', position:'relative' }}>
-                            <div style={{ position:'absolute', left:2, top:6, bottom:6, width:2, background:'rgba(255,255,255,.4)', borderRadius:1 }} />
-                            <div style={{ writingMode:'vertical-rl', fontSize:10, fontWeight:600, color:'#4a3040', letterSpacing:1, maxHeight:65, overflow:'hidden', textOverflow:'ellipsis' }}>{b.title.length > 6 ? b.title.slice(0,6)+'\u{2026}' : b.title}</div>
-                          </div>
-                          {aiReading && <div style={{ position:'absolute', top:-4, right:-4, width:10, height:10, borderRadius:5, background:'#e91e8c', border:'1px solid #fff' }} />}
-                          <button onClick={(e) => { e.stopPropagation(); delBook(globalIdx) }} style={{ position:'absolute', top:-6, right:-6, background:'#f06292', color:'#fff', border:'none', width:16, height:16, borderRadius:8, fontSize:9, cursor:'pointer', lineHeight:'16px', textAlign:'center', zIndex:2 }}>{'\u{00d7}'}</button>
-                        </div>
-                      );
-                    }
+                        <div style={{ height:2, margin:'2px 10px 0', background:'#e0d0d0', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:progress+'%', background:'#e91e8c', borderRadius:2 }} /></div>
+                        <button onClick={(e) => { e.stopPropagation(); delBook(bi) }} style={{ position:'absolute', top:-4, right:-4, background:'#f06292', color:'#fff', border:'none', width:18, height:18, borderRadius:9, fontSize:10, cursor:'pointer', lineHeight:'18px', textAlign:'center', zIndex:10 }}>{'\u00d7'}</button>
+                      </div>
+                    );
                   })}
-                  {ri > 0 && row.length < 4 && <div style={{ flex:1 }} />}
                 </div>
-                <div style={{ height:8, background:'linear-gradient(180deg, #c9a88c 0%, #b8957a 40%, #a68060 100%)', borderRadius:'0 0 2px 2px', boxShadow:'0 2px 4px rgba(0,0,0,.15)', margin:'0 8px' }} />
-                <div style={{ height:4, background:'linear-gradient(180deg, rgba(0,0,0,.06) 0%, transparent 100%)', margin:'0 12px' }} />
+                <div style={{ height:8, background:'linear-gradient(180deg, #c9a88c 0%, #b8957a 40%, #a68060 100%)', borderRadius:'0 0 3px 3px', boxShadow:'0 3px 6px rgba(0,0,0,.18)', margin:'0 10px' }} />
+                <div style={{ height:5, background:'linear-gradient(180deg, rgba(0,0,0,.06) 0%, transparent 100%)', margin:'0 14px' }} />
               </div>
-            ));
+              {/* Spine rows */}
+              {spineRows.map((row, ri) => (
+                <div key={ri} style={{ marginBottom:0 }}>
+                  <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'flex-start', padding:'14px 16px 6px', minHeight:100, gap:0 }}>
+                    {row.map((b, bi) => {
+                      const globalIdx = 3 + ri * 6 + bi;
+                      const color = shelfColors[globalIdx % shelfColors.length];
+                      const aiReading = state.currentBookId === b.id && state.active;
+                      const spineW = 30 + Math.min((b.chapters?.length || 5), 40) * 0.6;
+                      const spineH = 78 + (bi % 3) * 4;
+                      const tilt = bi % 3 === 1 ? -3 : bi % 3 === 2 ? 4 : 0;
+                      return (
+                        <div key={b.id} onClick={() => openBook(globalIdx)} style={{ cursor:'pointer', position:'relative', marginRight:1, transform: tilt ? 'rotate('+tilt+'deg)' : 'none', transformOrigin:'bottom center' }}>
+                          <div style={{ width:spineW, height:spineH, borderRadius:'2px 4px 4px 2px', background: 'linear-gradient(180deg, ' + color + ' 0%, ' + color + 'bb 100%)', boxShadow:'1px 2px 5px rgba(0,0,0,.12), inset -2px 0 4px rgba(0,0,0,.05)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 2px', border:'1px solid rgba(0,0,0,.05)', position:'relative' }}>
+                            <div style={{ position:'absolute', left:3, top:6, bottom:6, width:2, background:'rgba(255,255,255,.35)', borderRadius:1 }} />
+                            <div style={{ position:'absolute', top:5, left:6, right:6, height:1, background:'rgba(255,255,255,.25)' }} />
+                            <div style={{ position:'absolute', bottom:5, left:6, right:6, height:1, background:'rgba(255,255,255,.25)' }} />
+                            <div style={{ writingMode:'vertical-rl', fontSize:10, fontWeight:600, color:'#4a3040', letterSpacing:1, maxHeight:60, overflow:'hidden', textOverflow:'ellipsis' }}>{b.title.length > 6 ? b.title.slice(0,6)+'\u2026' : b.title}</div>
+                          </div>
+                          {aiReading && <div style={{ position:'absolute', top:-4, right:-4, width:10, height:10, borderRadius:5, background:'#e91e8c', border:'1.5px solid #fff' }} />}
+                          <button onClick={(e) => { e.stopPropagation(); delBook(globalIdx) }} style={{ position:'absolute', top:-5, right:-5, background:'#f06292', color:'#fff', border:'none', width:16, height:16, borderRadius:8, fontSize:9, cursor:'pointer', lineHeight:'16px', textAlign:'center', zIndex:2 }}>{'\u00d7'}</button>
+                        </div>
+                      );
+                    })}
+                    {row.length < 6 && <div style={{ flex:1 }} />}
+                  </div>
+                  <div style={{ height:7, background:'linear-gradient(180deg, #c9a88c 0%, #b8957a 40%, #a68060 100%)', borderRadius:'0 0 2px 2px', boxShadow:'0 2px 5px rgba(0,0,0,.15)', margin:'0 10px' }} />
+                  <div style={{ height:4, background:'linear-gradient(180deg, rgba(0,0,0,.05) 0%, transparent 100%)', margin:'0 14px' }} />
+                </div>
+              ))}
+            </>);
           })()}
         </div>
       </>)}
