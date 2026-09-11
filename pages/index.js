@@ -410,10 +410,10 @@ function MusicIsland({ theme }) {
     const sid = np.songId || np.id
     if (!sid) { setLrcData([]); return }
     const hd = musicToken ? { 'X-Auth-Token': musicToken } : {}
-    fetch(musicServer + '/lyric?id=' + sid, { headers: hd })
+    fetch(musicServer + '/music/lyric?id=' + sid, { headers: hd })
       .then(r => r.json())
       .then(d => {
-        const raw = (d.lrc && d.lrc.lyric) ? d.lrc.lyric.split('\n') : []
+        const raw = d.lrc ? d.lrc.split('\n') : []
         const parsed = []
         for (const line of raw) {
           const m = line.match(/\[(\d+):(\d+\.?\d*)\](.*)/)
