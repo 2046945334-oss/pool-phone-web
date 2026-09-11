@@ -313,19 +313,29 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
             </div>
           ) : (() => {
             const shelfColors = ['#f8bbd0','#e1bee7','#c5cae9','#b2dfdb','#ffe0b2','#d7ccc8','#f0f4c3','#b3e5fc','#ffccbc','#dcedc8'];
-            const featuredBooks = books.slice(0, 3);
-            const spineBooks = books.slice(3);
+            // First row: up to 3 recently viewed books (sorted by last read time)
+            const recentBooks = books
+              .map((b, idx) => ({ b, idx, lastRead: state.currentBookId === b.id ? (state.lastRead || 0) : (b.lastOpenedAt || b.importedAt || 0) }))
+              .sort((a, c) => c.lastRead - a.lastRead)
+              .filter(x => x.lastRead > 0)
+              .slice(0, 3);
+            // All books go to spine rows
+            const spineBooks = books;
             const spineRows = [];
             for (let i = 0; i < spineBooks.length; i += 6) spineRows.push(spineBooks.slice(i, i + 6));
             const rotations = [-8, 0, 5];
             const offsets = [12, 0, -8];
             const zIndexes = [2, 3, 1];
             return (<>
-              {/* Featured row: stacked/angled book covers */}
+              {/* Featured row: recently viewed books (stacked/angled covers) */}
+              {recentBooks.length > 0 && (
               <div style={{ marginBottom:0 }}>
-                <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', padding:'24px 20px 10px', minHeight:180, position:'relative' }}>
-                  {featuredBooks.map((b, bi) => {
-                    const color = shelfColors[bi % shelfColors.length];
+                <div style={{ padding:'4px 20px 0', fontSize:11, color:'#b08090', fontWeight:500 }}>{'最近在读'}</div>
+                <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', padding:'12px 20px 10px', minHeight:180, position:'relative' }}>
+                  {recentBooks.map((item, bi) => {
+                    const b = item.b;
+                    const realIdx = item.idx;
+                    const color = shelfColors[realIdx % shelfColors.length];
                     const aiReading = state.currentBookId === b.id && state.active;
                     const userCh = state.currentBookId === b.id ? (state.userChapter || 0) : 0;
                     const progress = b.chapters?.length ? Math.round(((userCh + 1) / b.chapters.length) * 100) : 0;
@@ -333,7 +343,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
                     const offsetY = offsets[bi] || 0;
                     const zIdx = zIndexes[bi] || 1;
                     return (
-                      <div key={b.id} onClick={() => openBook(bi)} style={{ cursor:'pointer', position:'relative', zIndex:zIdx, marginLeft: bi === 0 ? 0 : -20, marginBottom:offsetY, transform:'rotate('+rot+'deg)', transformOrigin:'bottom center', transition:'transform 0.2s' }}>
+                      <div key={b.id} onClick={() => openBook(realIdx)} style={{ cursor:'pointer', position:'relative', zIndex:zIdx, marginLeft: bi === 0 ? 0 : -20, marginBottom:offsetY, transform:'rotate('+rot+'deg)', transformOrigin:'bottom center', transition:'transform 0.2s' }}>
                         <div style={{ width:105, height:140, borderRadius:'4px 10px 10px 4px', background: 'linear-gradient(145deg, ' + color + ' 0%, ' + color + 'aa 50%, ' + color + '66 100%)', boxShadow:'3px 4px 12px rgba(0,0,0,.2), inset -4px 0 8px rgba(0,0,0,.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:10, position:'relative', border:'1px solid rgba(255,255,255,.5)' }}>
                           <div style={{ position:'absolute', left:5, top:0, bottom:0, width:3, background:'rgba(0,0,0,.08)', borderRadius:2 }} />
                           <div style={{ position:'absolute', left:10, top:8, right:8, bottom:8, border:'1px solid rgba(255,255,255,.3)', borderRadius:4, pointerEvents:'none' }} />
@@ -342,7 +352,6 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
                           {aiReading && <div style={{ fontSize:8, color:'#c2185b', marginTop:2 }}>{'👀 池在读'}</div>}
                         </div>
                         <div style={{ height:2, margin:'2px 10px 0', background:'#e0d0d0', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:progress+'%', background:'#e91e8c', borderRadius:2 }} /></div>
-                        <button onClick={(e) => { e.stopPropagation(); delBook(bi) }} style={{ position:'absolute', top:-4, right:-4, background:'#f06292', color:'#fff', border:'none', width:18, height:18, borderRadius:9, fontSize:10, cursor:'pointer', lineHeight:'18px', textAlign:'center', zIndex:10 }}>{'\u00d7'}</button>
                       </div>
                     );
                   })}
@@ -350,12 +359,13 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
                 <div style={{ height:8, background:'linear-gradient(180deg, #c9a88c 0%, #b8957a 40%, #a68060 100%)', borderRadius:'0 0 3px 3px', boxShadow:'0 3px 6px rgba(0,0,0,.18)', margin:'0 10px' }} />
                 <div style={{ height:5, background:'linear-gradient(180deg, rgba(0,0,0,.06) 0%, transparent 100%)', margin:'0 14px' }} />
               </div>
-              {/* Spine rows */}
+              )}
+              {/* Spine rows: all books */}
               {spineRows.map((row, ri) => (
                 <div key={ri} style={{ marginBottom:0 }}>
                   <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'flex-start', padding:'14px 16px 6px', minHeight:100, gap:0 }}>
                     {row.map((b, bi) => {
-                      const globalIdx = 3 + ri * 6 + bi;
+                      const globalIdx = ri * 6 + bi;
                       const color = shelfColors[globalIdx % shelfColors.length];
                       const aiReading = state.currentBookId === b.id && state.active;
                       const spineW = 30 + Math.min((b.chapters?.length || 5), 40) * 0.6;
