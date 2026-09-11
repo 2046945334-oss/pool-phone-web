@@ -226,7 +226,7 @@ export default async function handler(req, res) {
     msgs.push({ role: 'user', content: message })
 
     try {
-      const chatUrl = apiBase.replace(/\/$/, '') + '/chat/completions'
+      const chatUrl = apiBase.replace(/\/+$/, '').replace(/\/v1$/, '') + '/v1/chat/completions'
       const apiRes = await fetch(chatUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
