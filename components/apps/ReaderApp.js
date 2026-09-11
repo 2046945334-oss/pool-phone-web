@@ -97,14 +97,17 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
     if (!mini) return
     if (books.length === 0) return
     if (view === 'reader') return
-    if (state.active && state.currentBookId) {
-      const idx = books.findIndex(b => b.id === state.currentBookId)
-      if (idx >= 0) {
-        setCurrentBookIdx(idx)
-        setCurrentChapter(state.userChapter || 0)
-        setCurrentPage(state.userPage || 0)
-        setView('reader')
-      }
+    // Try current book first, fallback to first book
+    let idx = -1
+    if (state.currentBookId) {
+      idx = books.findIndex(b => b.id === state.currentBookId)
+    }
+    if (idx < 0) idx = 0  // fallback to first book
+    if (idx >= 0 && idx < books.length) {
+      setCurrentBookIdx(idx)
+      setCurrentChapter(state.currentBookId === books[idx].id ? (state.userChapter || 0) : 0)
+      setCurrentPage(state.currentBookId === books[idx].id ? (state.userPage || 0) : 0)
+      setView('reader')
     }
   }, [mini, books, state])
   useEffect(() => {
@@ -229,7 +232,14 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   const chapterNotes = notes.filter(n => book && n.bookId === book.id && n.chapter === currentChapter)
   const chapterBookmarks = bookmarks.filter(b => book && b.bookId === book.id && b.chapter === currentChapter)
 
-  // Mini mode
+  // Mini mode - loading/empty fallback
+  if (mini && view !== 'reader') {
+    return (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', background:'#fff5f8', color:'#b06080', fontSize:13 }}>
+        {books.length === 0 ? '加载中...' : '书架是空的'}
+      </div>
+    )
+  }
   if (mini && view === 'reader' && chapter) {
     return (
       <div style={{ display:'flex', flexDirection:'column', height:'100%', width:'100%', background:'#fff5f8', fontFamily:'-apple-system,sans-serif', overflow:'hidden' }}>
