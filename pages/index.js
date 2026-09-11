@@ -2393,6 +2393,7 @@ export default function Home() {
   const [locked, setLocked] = useState(true)
   const [currentApp, setCurrentApp] = useState(null)
   const [activeTab, setActiveTab] = useState('phone')
+  const [readerMini, setReaderMini] = useState(false)
   const [theme, setTheme] = useState({})
   const [appBg, setAppBg] = useState({})
   const [customizerApp, setCustomizerApp] = useState(null)
@@ -2532,7 +2533,7 @@ export default function Home() {
       if (currentApp === 'reader') {
         return (
           <div className="app-page" style={{padding:0,...bgStyle}}>
-            <ReaderApp onBack={handleBack} />
+            <ReaderApp onBack={handleBack} onMinimize={() => { setReaderMini(true); setActiveTab('chat'); handleBack() }} />
           </div>
         )
       }
@@ -2593,7 +2594,25 @@ export default function Home() {
             <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
           </div>
           <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
-            <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
+            {/* Mini Reader Floating Window */}
+            {readerMini && (
+              <div style={{
+                position:'absolute', top:0, left:0, right:0, height:'45%',
+                zIndex:500, background:'#faf8f5', borderBottom:'2px solid #1976d2',
+                boxShadow:'0 4px 16px rgba(0,0,0,0.15)', display:'flex', flexDirection:'column',
+                borderRadius:'0 0 12px 12px', overflow:'hidden'
+              }}>
+                <div style={{ display:'flex', alignItems:'center', padding:'4px 10px', background:'#1976d2', gap:6 }}>
+                  <span style={{ flex:1, fontSize:12, color:'#fff', fontWeight:600 }}>📖 共读小窗</span>
+                  <button onClick={() => { setCurrentApp('reader'); setActiveTab('phone'); setReaderMini(false) }} style={{ background:'rgba(255,255,255,0.2)', color:'#fff', border:'none', borderRadius:4, padding:'2px 8px', fontSize:11, cursor:'pointer' }}>全屏</button>
+                  <button onClick={() => setReaderMini(false)} style={{ background:'rgba(255,255,255,0.2)', color:'#fff', border:'none', borderRadius:4, padding:'2px 8px', fontSize:11, cursor:'pointer' }}>✕</button>
+                </div>
+                <div style={{ flex:1, overflow:'hidden' }}>
+                  <ReaderApp mini={true} />
+                </div>
+              </div>
+            )}
+                        <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
               <span className="nav-icon">{'▢'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
             </button>
