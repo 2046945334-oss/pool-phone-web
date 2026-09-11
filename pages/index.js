@@ -343,10 +343,17 @@ function MusicIsland({ theme }) {
   const [togetherMin, setTogetherMin] = useState(0)
   const [lrcData, setLrcData] = useState([])
   const [currentLyric, setCurrentLyric] = useState('')
+  const [localPos, setLocalPos] = useState(0)
   const lrcSongRef = useRef('')
+  const lastPollTime = useRef(0)
+  const lastPollPos = useRef(0)
+  const isPlaying = useRef(false)
+  const lastKvSync = useRef(0)
+  const lastSongKey = useRef('')
   const musicServer = typeof window !== 'undefined' ? (localStorage.getItem('pool_music_server') || '') : ''
   const musicToken = typeof window !== 'undefined' ? (localStorage.getItem('pool_music_token') || '') : ''
 
+  // 主轮询：从音乐服务器获取播放状态，间隔8秒
   useEffect(() => {
     if (!musicServer) return
     const headers = musicToken ? { 'X-Auth-Token': musicToken } : {}
@@ -358,16 +365,37 @@ function MusicIsland({ theme }) {
         if (!active) return
         if (d.ok) {
           setNp(d)
+          lastPollTime.current = Date.now()
+          lastPollPos.current = d.position || 0
+          isPlaying.current = !!d.playing
+          setLocalPos(d.position || 0)
           if (typeof d.togetherMinutes === 'number') setTogetherMin(d.togetherMinutes)
-          // 同步当前播放状态到后端KV，供AI读取
-          try { fetch('/api/data/pool_music_now', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify({ playing: !!d.playing, name: d.name || '', artist: d.artist || '', songId: d.songId || '', position: d.position || 0, duration: d.duration || 0, time: new Date().toISOString() }) }) }).catch(() => {}) } catch {}
+          // KV同步：仅换歌或每30秒同步一次
+          const songKey = (d.songId || '') + '|' + (d.name || '')
+          const now = Date.now()
+          if (songKey !== lastSongKey.current || now - lastKvSync.current > 30000) {
+            lastSongKey.current = songKey
+            lastKvSync.current = now
+            fetch('/api/data/pool_music_now', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify({ playing: !!d.playing, name: d.name || '', artist: d.artist || '', songId: d.songId || '', position: d.position || 0, duration: d.duration || 0, time: new Date().toISOString() }) }) }).catch(() => {})
+          }
         }
       } catch {}
     }
     poll()
-    const timer = setInterval(poll, 5000)
+    const timer = setInterval(poll, 8000)
     return () => { active = false; clearInterval(timer) }
   }, [musicServer, musicToken])
+
+  // 本地position插值：每500ms根据已过时间推算当前位置，歌词平滑更新
+  useEffect(() => {
+    const tick = setInterval(() => {
+      if (isPlaying.current && lastPollTime.current > 0) {
+        const elapsed = (Date.now() - lastPollTime.current) / 1000
+        setLocalPos(lastPollPos.current + elapsed)
+      }
+    }, 500)
+    return () => clearInterval(tick)
+  }, [])
 
   const sendCmd = (cmd, data) => {
     const iframe = document.getElementById('persistent-music-iframe')
@@ -429,17 +457,16 @@ function MusicIsland({ theme }) {
 
   useEffect(() => {
     if (!lrcData.length || !np) { setCurrentLyric(''); return }
-    const pos = np.position || 0
     let line = ''
     for (let i = lrcData.length - 1; i >= 0; i--) {
-      if (pos >= lrcData[i].time) { line = lrcData[i].text; break }
+      if (localPos >= lrcData[i].time) { line = lrcData[i].text; break }
     }
     setCurrentLyric(line)
-  }, [np, lrcData])
+  }, [localPos, lrcData, np])
 
   if (!np || !musicServer) return null
 
-  const pct = np.duration > 0 ? (np.position / np.duration * 100) : 0
+  const pct = np.duration > 0 ? (Math.min(localPos, np.duration) / np.duration * 100) : 0
   const fmt = s => { const m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0') }
   const avatarAI = theme?.avatarAI || ''
   const avatarUser = theme?.avatarUser || ''
