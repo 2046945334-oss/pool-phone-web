@@ -2598,11 +2598,11 @@ export default function Home() {
             {readerMini && (
               <div style={{
                 position:'absolute', top:0, left:0, right:0, height:'45%',
-                zIndex:500, background:'#faf8f5', borderBottom:'2px solid #1976d2',
+                zIndex:500, background:'#fff5f8', borderBottom:'2px solid #e91e8c',
                 boxShadow:'0 4px 16px rgba(0,0,0,0.15)', display:'flex', flexDirection:'column',
                 borderRadius:'0 0 12px 12px', overflow:'hidden'
               }}>
-                <div style={{ display:'flex', alignItems:'center', padding:'4px 10px', background:'#1976d2', gap:6 }}>
+                <div style={{ display:'flex', alignItems:'center', padding:'4px 10px', background:'#e91e8c', gap:6 }}>
                   <span style={{ flex:1, fontSize:12, color:'#fff', fontWeight:600 }}>📖 共读小窗</span>
                   <button onClick={() => { setCurrentApp('reader'); setActiveTab('phone'); setReaderMini(false) }} style={{ background:'rgba(255,255,255,0.2)', color:'#fff', border:'none', borderRadius:4, padding:'2px 8px', fontSize:11, cursor:'pointer' }}>全屏</button>
                   <button onClick={() => setReaderMini(false)} style={{ background:'rgba(255,255,255,0.2)', color:'#fff', border:'none', borderRadius:4, padding:'2px 8px', fontSize:11, cursor:'pointer' }}>✕</button>
