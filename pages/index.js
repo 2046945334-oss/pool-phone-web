@@ -1876,7 +1876,7 @@ function SettingsPanel() {
         <button className="settings-save" style={{background:'#e8d8f0',marginBottom:'8px'}} onClick={() => {
           try {
             const backup = {}
-            const keys = ['pool_theme','pool_theme_presets','pool_api_config','pool_api_configs','pool_tts_config','pool_inject_config','pool_memory_config','pool_memory_entries','pool_system_prompt','pool_chat_history','pool_fishing_v2','pool_gacha','pool_couple','pool_diary_entries','pool_notes','pool_drafts','pool_ledger','pool_music','pool_doodle','pool_reader','pool_garden','pool_starmap','pool_commission','pool_travel']
+            const keys = ['pool_theme','pool_theme_presets','pool_api_config','pool_api_configs','pool_tts_config','pool_inject_config','pool_memory_config','pool_memory_entries','pool_system_prompt','pool_chat_history','pool_fishing_v2','pool_couple','pool_diary_entries','pool_notes','pool_music','pool_reader','pool_garden','pool_starmap',]
             for (const k of keys) {
               const v = localStorage.getItem(k)
               if (v) backup[k] = v
@@ -2261,7 +2261,7 @@ function HomeScreen({ onOpenApp, theme }) {
   ]
   const page3Apps = [
     { id: 'diary', icon: '/icons/notes.png', name: '\u65e5\u8bb0' },
-    { id: 'garden', icon: '/icons/doodle.png', name: '\u5ead\u9662' },
+    { id: 'garden', icon: '/icons/notes.png', name: '\u5ead\u9662' },
     { id: 'cabin', icon: '/icons/couple.png', name: '唤醒日志' },
     { id: 'starmap', icon: '/icons/music.png', name: '\u661f\u56fe' },
     { id: 'screenTime', icon: '/icons/system.png', name: '屏幕时间' },
