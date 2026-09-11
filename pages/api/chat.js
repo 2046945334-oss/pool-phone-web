@@ -1740,7 +1740,24 @@ export default async function handler(req, res) {
             readerHint += '，她读到第' + ((rs.userChapter || 0) + 1) + '章'
             readerHint += '，你读到第' + ((rs.aiChapter || 0) + 1) + '章'
             readerHint += '，共' + (book.chapters?.length || 0) + '章。'
-            readerHint += '你可以用reader_read_chapter读她已读的章节，用reader_add_note添加批注，主动和她讨论书的内容。'
+            const userCh = rs.userChapter || 0
+            if (book.chapters && book.chapters[userCh]) {
+              const chObj = book.chapters[userCh]
+              const chTitle = chObj.title || ('第' + (userCh + 1) + '章')
+              const chContent = (chObj.content || '').slice(0, 800)
+              readerHint += '\n\n【她正在看的章节：' + chTitle + '】\n' + chContent
+              if ((chObj.content || '').length > 800) readerHint += '\n...（以上为前800字，可用reader_read_chapter读完整内容）'
+            }
+            const notesRow2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_notes'").get()
+            if (notesRow2) {
+              const allNotes = JSON.parse(notesRow2.value)
+              const chNotes = allNotes.filter(n => n.bookId === book.id && n.chapter === userCh)
+              if (chNotes.length > 0) {
+                readerHint += '\n\n【你在本章的批注】'
+                chNotes.forEach(n => { readerHint += '\n- ' + (n.quote ? '「' + n.quote + '」: ' : '') + n.text })
+              }
+            }
+            readerHint += '\n\n你可以用reader_read_chapter读其他章节，用reader_add_note添加批注，主动和她讨论书的内容。'
             const sysMsgR = currentMessages.find(m => m.role === 'system')
             if (sysMsgR) sysMsgR.content += '\n\n' + readerHint
             else currentMessages.unshift({ role: 'system', content: readerHint })
