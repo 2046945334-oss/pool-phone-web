@@ -281,7 +281,6 @@ export default async function handler(req, res) {
   const WAKE_TOOLS = [
     { type: 'function', function: { name: 'write_note', description: '写便签', parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } } },
     { type: 'function', function: { name: 'do_fishing', description: '钓鱼（模拟5竿）', parameters: { type: 'object', properties: {} } } },
-    { type: 'function', function: { name: 'add_browser_history', description: '添加浏览记录', parameters: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } } },
     { type: 'function', function: { name: 'schedule_wakeup', description: '设定下次唤醒时间', parameters: { type: 'object', properties: { minutes: { type: 'number' }, time: { type: 'string' }, reason: { type: 'string' } }, required: ['reason'] } } },
     { type: 'function', function: { name: 'write_data', description: '写入App数据', parameters: { type: 'object', properties: { key: { type: 'string' }, value: { type: 'string' } }, required: ['key', 'value'] } } },
     { type: 'function', function: { name: 'read_data', description: '读取App数据', parameters: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } } },
@@ -444,7 +443,6 @@ async function executeWakeTool(db, name, args) {
     return { caught, poolScore: fishData.poolScore }
   }
 
-  if (name === 'add_browser_history') {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_browser_history'").get()
     let hist = row ? JSON.parse(row.value) : []
     hist.push({ title: args.title, time: Date.now() })
