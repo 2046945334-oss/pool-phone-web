@@ -4,9 +4,9 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 function splitChapters(text) {
   const lines = text.split(/\r?\n/)
-  const p1 = /^\s*第[\u4E00-\u9FFF\d]{1,10}[章节回卷集篇]/
+  const p1 = /^\s*第[一-鿿\d]{1,10}[章节回卷集篇]/
   const p2 = /^\s*Chapter\s+\d+/i
-  const p3 = /^\s*\d{1,4}[\s\.\u3001\uff0e]/
+  const p3 = /^\s*\d{1,4}[\s\.、．]/
   let c1=0, c2=0, c3=0
   for (const l of lines) {
     if (p1.test(l) && l.trim().length <= 30) c1++
@@ -100,7 +100,7 @@ export default function ReaderApp({ onBack }) {
     const reader = new FileReader()
     reader.onload = async (ev) => {
       let text = ev.target.result
-      if (text.indexOf('\ufffd') > -1) {
+      if (text.indexOf('�') > -1) {
         const r2 = new FileReader()
         r2.onload = (e2) => doImport(file.name, e2.target.result)
         r2.readAsText(file, 'GBK')
@@ -175,7 +175,7 @@ export default function ReaderApp({ onBack }) {
     setChatLoading(true)
     // Call AI API for reply
     try {
-      const r = await fetch('/api/reader-chat', {
+      const r = await fetch('/api/readerchat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, chatHistory: chatMessages })
       })
@@ -201,28 +201,28 @@ export default function ReaderApp({ onBack }) {
       {/* === SHELF === */}
       {view === 'shelf' && (<>
         <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
-          <button onClick={onBack} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'\u2190'}</button>
-          <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>\u5171\u8bfb\u4e66\u67b6</h2>
-          <button onClick={() => setView('import')} style={{ background:'#1976d2', color:'#fff', border:'none', padding:'7px 14px', borderRadius:8, fontSize:13, cursor:'pointer' }}>+ \u5bfc\u5165</button>
+          <button onClick={onBack} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
+          <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>共读书架</h2>
+          <button onClick={() => setView('import')} style={{ background:'#1976d2', color:'#fff', border:'none', padding:'7px 14px', borderRadius:8, fontSize:13, cursor:'pointer' }}>+ 导入</button>
         </div>
         <div style={{ flex:1, overflowY:'auto', padding:12 }}>
           {state.recommendation && (
             <div style={{ background:'#e3f2fd', borderRadius:10, padding:12, marginBottom:10, border:'1px solid #90caf9' }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>\ud83d\udcd6 \u6c60\u63a8\u8350\u4e86\u4e00\u672c\u4e66</div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:4 }}>📖 池推荐了一本书</div>
               <div style={{ fontSize:15, fontWeight:600 }}>{state.recommendation.title}</div>
               <div style={{ fontSize:13, color:'#555', marginTop:2 }}>{state.recommendation.reason}</div>
             </div>
           )}
           {books.length === 0 ? (
-            <p style={{ color:'#999', textAlign:'center', padding:40 }}>\u4e66\u67b6\u7a7a\u7a7a\u7684\uff0c\u5bfc\u5165\u4e00\u672c TXT \u5f00\u59cb\u5171\u8bfb\u5427</p>
+            <p style={{ color:'#999', textAlign:'center', padding:40 }}>书架空空的，导入一本 TXT 开始共读吧</p>
           ) : books.map((b, i) => (
             <div key={b.id} onClick={() => openBook(i)} style={{ background:'#fff', borderRadius:12, padding:14, marginBottom:10, boxShadow:'0 1px 3px rgba(0,0,0,.06)', cursor:'pointer', position:'relative' }}>
               <div style={{ fontSize:15, fontWeight:600, marginBottom:3 }}>{b.title}</div>
-              <div style={{ fontSize:12, color:'#888' }}>{b.chapters?.length || 0} \u7ae0 \u00b7 \u8bfb\u5230\u7b2c {(state.currentBookId === b.id ? (state.userChapter || 0) : 0) + 1} \u7ae0</div>
+              <div style={{ fontSize:12, color:'#888' }}>{b.chapters?.length || 0} 章 · 读到第 {(state.currentBookId === b.id ? (state.userChapter || 0) : 0) + 1} 章</div>
               {state.currentBookId === b.id && state.active && (
-                <div style={{ display:'inline-block', background:'#fff3e0', color:'#e65100', fontSize:11, padding:'2px 8px', borderRadius:10, marginTop:4 }}>\ud83d\udc40 \u6c60\u5728\u8bfb \u00b7 \u7b2c {(state.aiChapter || 0) + 1} \u7ae0</div>
+                <div style={{ display:'inline-block', background:'#fff3e0', color:'#e65100', fontSize:11, padding:'2px 8px', borderRadius:10, marginTop:4 }}>👀 池在读 · 第 {(state.aiChapter || 0) + 1} 章</div>
               )}
-              <button onClick={(e) => { e.stopPropagation(); delBook(i) }} style={{ position:'absolute', top:12, right:12, background:'#e53935', color:'#fff', border:'none', padding:'3px 10px', borderRadius:6, fontSize:11, cursor:'pointer' }}>\u5220\u9664</button>
+              <button onClick={(e) => { e.stopPropagation(); delBook(i) }} style={{ position:'absolute', top:12, right:12, background:'#e53935', color:'#fff', border:'none', padding:'3px 10px', borderRadius:6, fontSize:11, cursor:'pointer' }}>删除</button>
             </div>
           ))}
         </div>
@@ -231,14 +231,14 @@ export default function ReaderApp({ onBack }) {
       {/* === IMPORT === */}
       {view === 'import' && (<>
         <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
-          <button onClick={() => setView('shelf')} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'\u2190'}</button>
-          <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>\u5bfc\u5165\u4e66\u7c4d</h2>
+          <button onClick={() => setView('shelf')} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
+          <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>导入书籍</h2>
         </div>
         <div style={{ flex:1, overflowY:'auto', padding:12 }}>
           <div style={{ border:'2px dashed #d0ccc6', borderRadius:12, padding:30, textAlign:'center', margin:'16px 0', background:'#fff' }}>
-            <p style={{ marginBottom:12, color:'#666' }}>\u9009\u62e9 .txt \u6587\u4ef6\u5bfc\u5165\u5230\u5171\u8bfb\u4e66\u67b6</p>
+            <p style={{ marginBottom:12, color:'#666' }}>选择 .txt 文件导入到共读书架</p>
             <input type="file" accept=".txt" onChange={handleFile} ref={fileRef} />
-            {loading && <p style={{ marginTop:12, color:'#1976d2' }}>\u6b63\u5728\u89e3\u6790...</p>}
+            {loading && <p style={{ marginTop:12, color:'#1976d2' }}>正在解析...</p>}
           </div>
         </div>
       </>)}
@@ -246,38 +246,38 @@ export default function ReaderApp({ onBack }) {
       {/* === READER === */}
       {view === 'reader' && chapter && (<>
         <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
-          <button onClick={backToShelf} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'\u2190'}</button>
-          <h2 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{chapter.title || ('\u7b2c ' + (currentChapter + 1) + ' \u7ae0')}</h2>
+          <button onClick={backToShelf} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
+          <h2 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{chapter.title || ('第 ' + (currentChapter + 1) + ' 章')}</h2>
           <span style={{ fontSize:11, color:'#999', flexShrink:0 }}>{currentChapter + 1}/{book.chapters.length}</span>
-          <button onClick={() => setDrawerOpen(true)} style={{ background:'#1976d2', color:'#fff', border:'none', borderRadius:8, padding:'5px 10px', fontSize:12, cursor:'pointer', flexShrink:0 }}>\ud83d\udcac \u804a</button>
+          <button onClick={() => setDrawerOpen(true)} style={{ background:'#1976d2', color:'#fff', border:'none', borderRadius:8, padding:'5px 10px', fontSize:12, cursor:'pointer', flexShrink:0 }}>💬 聊</button>
         </div>
 
         <div ref={bodyRef} style={{ flex:1, overflowY:'auto', padding:'12px 16px' }}>
           {chapterNotes.length > 0 && chapterNotes.map((n, i) => (
             <div key={n.id || i} style={{ background:'#f0f7f0', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'0 0 10px', borderRadius:'0 8px 8px 0' }}>
-              <div style={{ fontSize:12, color:'#2e7d32', fontWeight:600, marginBottom:3 }}>\ud83d\udcdd \u6c60\u7684\u6279\u6ce8</div>
-              {n.quote && <div style={{ fontSize:12, color:'#777', fontStyle:'italic', marginBottom:4 }}>\u300c{n.quote}\u300d</div>}
+              <div style={{ fontSize:12, color:'#2e7d32', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
+              {n.quote && <div style={{ fontSize:12, color:'#777', fontStyle:'italic', marginBottom:4 }}>「{n.quote}」</div>}
               <p style={{ fontSize:13, color:'#444', margin:0 }}>{n.text}</p>
             </div>
           ))}
           <div style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(chapter.content).replace(/\n/g, '</p><p>') + '</p>' }} />
           {chapterBookmarks.length > 0 && chapterBookmarks.map((b, i) => (
             <div key={b.id || i} style={{ background:'#fff8e1', borderLeft:'3px solid #ffa726', padding:'8px 12px', margin:'10px 0', borderRadius:'0 8px 8px 0' }}>
-              <div style={{ fontSize:12, color:'#e65100', marginBottom:2 }}>\ud83d\udd16 \u4e66\u7b7e</div>
-              <div style={{ fontSize:13, color:'#5d4037' }}>\u300c{b.quote}\u300d</div>
+              <div style={{ fontSize:12, color:'#e65100', marginBottom:2 }}>🔖 书签</div>
+              <div style={{ fontSize:13, color:'#5d4037' }}>「{b.quote}」</div>
             </div>
           ))}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderTop:'1px solid #eee', marginTop:12 }}>
-            <button onClick={() => goChapter(currentChapter - 1)} disabled={currentChapter === 0} style={{ background:'#e8f0fe', border:'none', padding:'7px 14px', borderRadius:8, color:'#1a5bb5', fontSize:13, cursor:'pointer', opacity: currentChapter === 0 ? 0.4 : 1 }}>{'\u2190 \u4e0a\u4e00\u7ae0'}</button>
-            <button onClick={() => goChapter(currentChapter + 1)} disabled={currentChapter >= book.chapters.length - 1} style={{ background:'#e8f0fe', border:'none', padding:'7px 14px', borderRadius:8, color:'#1a5bb5', fontSize:13, cursor:'pointer', opacity: currentChapter >= book.chapters.length - 1 ? 0.4 : 1 }}>{'\u4e0b\u4e00\u7ae0 \u2192'}</button>
+            <button onClick={() => goChapter(currentChapter - 1)} disabled={currentChapter === 0} style={{ background:'#e8f0fe', border:'none', padding:'7px 14px', borderRadius:8, color:'#1a5bb5', fontSize:13, cursor:'pointer', opacity: currentChapter === 0 ? 0.4 : 1 }}>{'← 上一章'}</button>
+            <button onClick={() => goChapter(currentChapter + 1)} disabled={currentChapter >= book.chapters.length - 1} style={{ background:'#e8f0fe', border:'none', padding:'7px 14px', borderRadius:8, color:'#1a5bb5', fontSize:13, cursor:'pointer', opacity: currentChapter >= book.chapters.length - 1 ? 0.4 : 1 }}>{'下一章 →'}</button>
           </div>
         </div>
 
         {/* Selection bookmark bar */}
         {selectedText && (
           <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'#333', color:'#fff', padding:'8px 12px', display:'flex', gap:8, alignItems:'center', zIndex:100 }}>
-            <span style={{ flex:1, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>\u300c{selectedText.slice(0, 40)}...\u300d</span>
-            <button onClick={addBookmark} style={{ background:'#ffa726', color:'#333', border:'none', borderRadius:6, padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer' }}>\ud83d\udd16 \u6dfb\u52a0\u4e66\u7b7e</button>
+            <span style={{ flex:1, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>「{selectedText.slice(0, 40)}...」</span>
+            <button onClick={addBookmark} style={{ background:'#ffa726', color:'#333', border:'none', borderRadius:6, padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer' }}>🔖 添加书签</button>
           </div>
         )}
 
@@ -290,22 +290,22 @@ export default function ReaderApp({ onBack }) {
           transition:'right 0.3s ease'
         }}>
           <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', borderBottom:'1px solid #eee', flexShrink:0 }}>
-            <button onClick={() => setDrawerOpen(false)} style={{ background:'none', border:'none', fontSize:18, padding:4, cursor:'pointer', color:'#666' }}>{'\u2190'}</button>
-            <h3 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, marginLeft:8 }}>\u548c\u6c60\u804a\u804a\u8fd9\u672c\u4e66</h3>
+            <button onClick={() => setDrawerOpen(false)} style={{ background:'none', border:'none', fontSize:18, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
+            <h3 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, marginLeft:8 }}>和池聊聊这本书</h3>
           </div>
           <div style={{ flex:1, overflowY:'auto', padding:'10px 14px' }}>
-            {chatMessages.length === 0 && <p style={{ fontSize:13, color:'#bbb', textAlign:'center', marginTop:40 }}>\u548c\u6c60\u8ba8\u8bba\u6b63\u5728\u8bfb\u7684\u5185\u5bb9...</p>}
+            {chatMessages.length === 0 && <p style={{ fontSize:13, color:'#bbb', textAlign:'center', marginTop:40 }}>和池讨论正在读的内容...</p>}
             {chatMessages.map((m, i) => (
               <div key={i} style={{ marginBottom:8, display:'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <span style={{ background: m.role === 'user' ? '#d4e8fc' : '#f0f0f0', padding:'6px 12px', borderRadius:12, display:'inline-block', maxWidth:'85%', fontSize:14, lineHeight:1.5, wordBreak:'break-word' }}>{m.content}</span>
               </div>
             ))}
-            {chatLoading && <div style={{ marginBottom:8, display:'flex', justifyContent:'flex-start' }}><span style={{ background:'#f0f0f0', padding:'6px 12px', borderRadius:12, fontSize:13, color:'#999' }}>\u6c60\u5728\u601d\u8003...</span></div>}
+            {chatLoading && <div style={{ marginBottom:8, display:'flex', justifyContent:'flex-start' }}><span style={{ background:'#f0f0f0', padding:'6px 12px', borderRadius:12, fontSize:13, color:'#999' }}>池在思考...</span></div>}
             <div ref={chatEndRef} />
           </div>
           <div style={{ display:'flex', gap:6, padding:'8px 12px', borderTop:'1px solid #eee', flexShrink:0 }}>
-            <input style={{ flex:1, border:'1px solid #ddd', borderRadius:10, padding:'8px 12px', fontSize:14, outline:'none' }} value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="\u8bf4\u70b9\u4ec0\u4e48..." />
-            <button style={{ background:'#1976d2', color:'#fff', border:'none', borderRadius:10, padding:'8px 16px', fontSize:14, cursor:'pointer' }} onClick={sendChat}>\u53d1\u9001</button>
+            <input style={{ flex:1, border:'1px solid #ddd', borderRadius:10, padding:'8px 12px', fontSize:14, outline:'none' }} value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="说点什么..." />
+            <button style={{ background:'#1976d2', color:'#fff', border:'none', borderRadius:10, padding:'8px 16px', fontSize:14, cursor:'pointer' }} onClick={sendChat}>发送</button>
           </div>
         </div>
       </>)}
