@@ -134,7 +134,7 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'read_data', description: '读取任意App的数据（通过localStorage key），常用key: pool_fishing_v2(钓鱼), pool_tv_program(情侣), pool_drafts_v1(草稿), pool_browser_history(浏览记录), pool_gacha_v2_chi(卡池), f_hist(占卜历史)',
+      name: 'read_data', description: '读取任意App的数据（通过localStorage key），常用key: pool_fishing_v2(钓鱼), pool_tv_program(情侣)',
       parameters: { type: 'object', properties: { key: { type: 'string', description: 'localStorage的key名' } }, required: ['key'] }
     }
   },
