@@ -2594,8 +2594,8 @@ export default function Home() {
             <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
               {readerMini && (
                 <div style={{
-                  position:'absolute', top:0, left:0, right:0, bottom:0,
-                  zIndex:600, background:'rgba(255,252,253,0.97)',
+                  position:'absolute', top:0, left:0, right:0, height:'55%',
+                  zIndex:600, background:'rgba(255,252,253,0.98)', borderRadius:'0 0 16px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.08)',
                   display:'flex', flexDirection:'column',
                   overflow:'hidden'
                 }}>
