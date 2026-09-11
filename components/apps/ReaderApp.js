@@ -192,7 +192,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         setCurrentPage(prevPages.length - 1)
         syncProgress(book.id, chapter - 1, prevPages.length - 1)
         if (mini) {
-          const txt = (prevPages[prevPages.length - 1] || '').slice(0, 300)
+          const txt = (prevPages[prevPages.length - 1] || '')
           const title = book.chapters[chapter - 1].title || ('第 ' + chapter + ' 章')
           window.dispatchEvent(new CustomEvent('reader-page-change', {
             detail: { bookTitle: book.title, chapterTitle: title, page: prevPages.length, totalPages: prevPages.length, content: txt }
@@ -210,7 +210,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         if (mini) {
           const nextCh = book.chapters[chapter + 1]
           const nextPages = splitPages(nextCh.content)
-          const txt = (nextPages[0] || '').slice(0, 300)
+          const txt = (nextPages[0] || '')
           const title = nextCh.title || ('第 ' + (chapter + 2) + ' 章')
           window.dispatchEvent(new CustomEvent('reader-page-change', {
             detail: { bookTitle: book.title, chapterTitle: title, page: 1, totalPages: nextPages.length, content: txt }
@@ -227,7 +227,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
       const txt = pg[page] || ''
       const title = ch.title || ('第 ' + (chapter + 1) + ' 章')
       window.dispatchEvent(new CustomEvent('reader-page-change', {
-        detail: { bookTitle: book.title, chapterTitle: title, page: page + 1, totalPages: pg.length, content: txt.slice(0, 300) }
+        detail: { bookTitle: book.title, chapterTitle: title, page: page + 1, totalPages: pg.length, content: txt }
       }))
     }
   }

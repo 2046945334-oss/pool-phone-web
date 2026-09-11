@@ -819,33 +819,37 @@ function ChatView({ theme }) {
     // If recent messages contain reading sync, add reading discussion prompt
     const hasReading = userMessages.some(m => m.isReadingSync)
     if (hasReading) {
-      parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻页时会分享当前阅读内容。请像一起读书的伴侣一样，自然地讨论情节、角色、感想，简短可爱地回应（2-3句），不要很正式地“分析”。偶尔讨论情节、偶尔产生感南、偶尔问用户觉得怎么样。' })
+      parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻了几页后，会把内容发给你。你不需要每次都回应——只在觉得内容有意思、有感触、有想讨论的时候才说。如果内容平淡或只是过渡段落，可以只回一个“嘿”或“嘶”，甚至不回复也可以（回复[无话]表示跳过）。回应要自然随意，像和女朋友窝在一起读同一本书时的对话，2-3句就好。' })
     }
     return parts
   }
 
   // Listen for shared-reading page changes from mini reader
+  const readerAccumRef = useRef({ pages: [], lastTrigger: 0 })
   useEffect(() => {
-    let cooldown = false
     function onPageChange(e) {
-      if (cooldown) return
-      cooldown = true
-      setTimeout(() => { cooldown = false }, 8000) // 8s cooldown between auto-comments
       const { bookTitle, chapterTitle, page, totalPages, content } = e.detail
       const snippet = content || ''
       if (!snippet.trim()) return
-      // Add a system-style reading context and trigger AI response
+      const accum = readerAccumRef.current
+      accum.pages.push({ bookTitle, chapterTitle, page, totalPages, content: snippet })
+      // Only consider triggering after accumulating 3+ pages and 15s since last trigger
+      const now = Date.now()
+      if (accum.pages.length < 3 || now - accum.lastTrigger < 15000) return
+      // Build accumulated content summary for AI to decide
+      const accumulated = accum.pages.map(p =>
+        p.chapterTitle + ' (' + p.page + '/' + p.totalPages + '):\n' + p.content
+      ).join('\n---\n')
+      accum.pages = []
+      accum.lastTrigger = now
       const readingMsg = {
         role: 'user',
-        content: '[共读小窗] 我翻到了『' + bookTitle + '』' + chapterTitle + ' (' + page + '/' + totalPages + ')
-当前内容片段:
-' + snippet.slice(0, 200) + '...',
-        ts: Date.now(),
+        content: '[共读小窗] 我在读『' + bookTitle + '』，刚翻了几页：\n' + accumulated,
+        ts: now,
         isReadingSync: true
       }
       setMessages(prev => {
         const next = [...prev, readingMsg]
-        // Auto-trigger AI response
         setTimeout(() => {
           window.__chiTriggerAI && window.__chiTriggerAI(next)
         }, 500)
@@ -1196,6 +1200,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         {visibleStart > 0 && <div style={{textAlign:'center',padding:'12px 0'}}><button onClick={() => setVisibleStart(Math.max(0, visibleStart - 20))} style={{background:'rgba(200,125,186,0.15)',border:'1px solid rgba(200,125,186,0.3)',borderRadius:'16px',color:'#c77dba',padding:'6px 20px',fontSize:'12px',cursor:'pointer'}}>{'点击加载更早的历史记录'}</button></div>}
         {messages.slice(visibleStart).map((msg, idx) => {
           const i = visibleStart + idx
+          if (msg.role === 'assistant' && msg.content && msg.content.trim() === '[无话]') return null
           return (
           <React.Fragment key={i}>
             {shouldShowTime(messages, i) && msg.ts && <div className="msg-time-divider">{formatMsgTime(msg.ts)}</div>}
