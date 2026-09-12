@@ -689,6 +689,7 @@ async function executeTool(name, args) {
     for (let rod = 0; rod < 5; rod++) {
       if (Math.random() < 0.25) continue
       const spotFish = FISH_DB.filter(f => f.spots.indexOf(gd.spot) >= 0)
+      if (spotFish.length === 0) return { success: false, catches: [], totalScore: gd.poolScore, message: '这个钓点没有鱼，换个地方试试' }
       let tw = 0; const pool2 = spotFish.map(f => { const w = RARITY_W[f.rarity] || 10; tw += w; return {f, w} })
       let r = Math.random() * tw, ac = 0, pk = null
       for (const p of pool2) { ac += p.w; if (r <= ac) { pk = p.f; break } }
