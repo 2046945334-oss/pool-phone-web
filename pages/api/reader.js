@@ -93,6 +93,9 @@ export default async function handler(req, res) {
       if (typeof page === 'number') state.userPage = page
       state.active = true
       state.lastRead = Date.now()
+      // Save per-book progress so switching books preserves position
+      if (!state.bookProgress) state.bookProgress = {}
+      state.bookProgress[bookId] = { chapter, page: page || 0, ts: Date.now() }
       setVal(db, KEY_STATE, state)
       return res.json({ ok: true, state })
     }

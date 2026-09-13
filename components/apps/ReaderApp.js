@@ -106,8 +106,17 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
     if (idx < 0) idx = 0  // fallback to first book
     if (idx >= 0 && idx < books.length) {
       setCurrentBookIdx(idx)
-      setCurrentChapter(state.currentBookId === books[idx].id ? (state.userChapter || 0) : 0)
-      setCurrentPage(state.currentBookId === books[idx].id ? (state.userPage || 0) : 0)
+      const bp = state.bookProgress?.[books[idx].id]
+      if (bp) {
+        setCurrentChapter(bp.chapter || 0)
+        setCurrentPage(bp.page || 0)
+      } else if (state.currentBookId === books[idx].id) {
+        setCurrentChapter(state.userChapter || 0)
+        setCurrentPage(state.userPage || 0)
+      } else {
+        setCurrentChapter(0)
+        setCurrentPage(0)
+      }
       setView('reader')
     }
   }, [mini, books, state])
@@ -172,8 +181,16 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   async function openBook(idx) {
     const book = books[idx]
     setCurrentBookIdx(idx)
-    const ch = state.currentBookId === book.id ? (state.userChapter || 0) : 0
-    const pg = state.currentBookId === book.id ? (state.userPage || 0) : 0
+    // Restore per-book progress if available, otherwise fall back to global state or 0
+    const bp = state.bookProgress?.[book.id]
+    let ch = 0, pg = 0
+    if (bp) {
+      ch = bp.chapter || 0
+      pg = bp.page || 0
+    } else if (state.currentBookId === book.id) {
+      ch = state.userChapter || 0
+      pg = state.userPage || 0
+    }
     setCurrentChapter(ch)
     setCurrentPage(pg)
     setView('reader')
