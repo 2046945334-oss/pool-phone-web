@@ -180,8 +180,6 @@ const TOOLS = [
       parameters: { type: 'object', properties: { action: { type: 'string', enum: ['recall', 'hold', 'breath', 'memorize'], description: 'MCP操作: recall=搜索/hold=暂存/breath=上下文/memorize=写入' }, params: { type: 'object', description: '参数对象' } }, required: ['action'] }
     }
   },
-    }
-  },
   {
     type: 'function', function: {
       name: 'couple_lamp', description: '在情侣空间亮灯（让对方知道你在想她）',
