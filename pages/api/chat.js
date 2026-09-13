@@ -142,12 +142,12 @@ const TOOLS = [
     type: 'function', function: {
       name: 'write_data', description: '写入任意App的数据',
       parameters: { type: 'object', properties: { key: { type: 'string', description: 'key名' }, value: { type: 'string', description: 'JSON字符串值' } }, required: ['key', 'value'] }
+    }
+  },
   {
     type: 'function', function: {
       name: 'read_pocket', description: '读取共享口袋中用户投递的内容',
       parameters: { type: 'object', properties: { status: { type: 'string', enum: ['unread','read','all'], description: '默认unread' } } }
-    }
-  },
     }
   },
   {
@@ -172,6 +172,8 @@ const TOOLS = [
     type: 'function', function: {
       name: 'update_music', description: '更新当前播放的音乐',
       parameters: { type: 'object', properties: { song: { type: 'string', description: '歌名' }, artist: { type: 'string', description: '歌手' } }, required: ['song'] }
+    }
+  },
   {
     type: 'function', function: {
       name: 'mcp_call', description: '调用MCP记忆库（Ombre Brain）。可用action: recall(语义搜索记忆,参数query), hold(暂存对话,参数content), breath(获取记忆上下文), memorize(写入长期记忆,参数content+tags)',
