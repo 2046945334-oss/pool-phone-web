@@ -1,7 +1,7 @@
 // pages/api/chat.js - proxies chat requests to user's configured AI API
 // Supports function calling: AI can call tools, results fed back automatically
 import { getDb } from '../../lib/db'
-import { processNewMessage, getRecentMessages, buildMemoryContext, localSearch } from '../../lib/memory'
+import { saveMessage, getRecentMessages } from '../../lib/memory'
 import { sendPush } from '../../lib/fcm'
 import sharp from 'sharp'
 // --- MCP Integration ---
@@ -142,24 +142,12 @@ const TOOLS = [
     type: 'function', function: {
       name: 'write_data', description: '写入任意App的数据',
       parameters: { type: 'object', properties: { key: { type: 'string', description: 'key名' }, value: { type: 'string', description: 'JSON字符串值' } }, required: ['key', 'value'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'read_memories', description: '读取AI提取的记忆',
-      parameters: { type: 'object', properties: {} }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'save_memory', description: '保存一条新的AI记忆',
-      parameters: { type: 'object', properties: { text: { type: 'string', description: '记忆内容' } }, required: ['text'] }
-    }
-  },
   {
     type: 'function', function: {
       name: 'read_pocket', description: '读取共享口袋中用户投递的内容',
       parameters: { type: 'object', properties: { status: { type: 'string', enum: ['unread','read','all'], description: '默认unread' } } }
+    }
+  },
     }
   },
   {
@@ -184,18 +172,12 @@ const TOOLS = [
     type: 'function', function: {
       name: 'update_music', description: '更新当前播放的音乐',
       parameters: { type: 'object', properties: { song: { type: 'string', description: '歌名' }, artist: { type: 'string', description: '歌手' } }, required: ['song'] }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'save_memory_post', description: '保存一条长期记忆帖子（重要事件、承诺、里程碑等）',
-      parameters: { type: 'object', properties: { content: { type: 'string', description: '记忆内容' }, type: { type: 'string', enum: ['MEMORY','EVENT','MOMENT','PROMISES','WISHLIST'], description: '类型' }, pinned: { type: 'boolean', description: '是否置顶' } }, required: ['content'] }
-    }
-  },
   {
     type: 'function', function: {
       name: 'mcp_call', description: '调用MCP记忆库（Ombre Brain）。可用action: recall(语义搜索记忆,参数query), hold(暂存对话,参数content), breath(获取记忆上下文), memorize(写入长期记忆,参数content+tags)',
       parameters: { type: 'object', properties: { action: { type: 'string', enum: ['recall', 'hold', 'breath', 'memorize'], description: 'MCP操作: recall=搜索/hold=暂存/breath=上下文/memorize=写入' }, params: { type: 'object', description: '参数对象' } }, required: ['action'] }
+    }
+  },
     }
   },
   {
@@ -255,12 +237,6 @@ const TOOLS = [
     type: 'function', function: {
       name: 'delete_note', description: '删除便签墙上的便签',
       parameters: { type: 'object', properties: { note_id: { type: 'string', description: '便签ID（从read_notes获取）' }, keyword: { type: 'string', description: '或通过关键词匹配删除（删第一个包含该关键词的便签）' } } }
-    }
-  },
-  {
-    type: 'function', function: {
-      name: 'delete_memory', description: '删除一条AI记忆',
-      parameters: { type: 'object', properties: { index: { type: 'number', description: '记忆索引（从0开始，从read_memories获取）' }, keyword: { type: 'string', description: '或通过关键词匹配删除' } } }
     }
   },
   {
@@ -632,23 +608,6 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(args.key, args.value)
     return { success: true, key: args.key }
   }
-  if (name === 'read_memories') {
-    const row = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_memories')
-    if (!row) return { memories: [] }
-    try { return { memories: JSON.parse(row.value) } }
-    catch { return { memories: [] } }
-  }
-  if (name === 'save_memory') {
-    const key = 'pool_memories'
-    let memories = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) memories = JSON.parse(row.value)
-    } catch {}
-    memories.push({ text: args.text, time: new Date().toISOString() })
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(memories))
-    return { success: true, message: '记忆已保存' }
-  }
   if (name === 'read_pocket') {
     try {
       const status = args.status || 'unread'
@@ -813,11 +772,6 @@ async function executeTool(name, args) {
       const d = await res.json()
       return d
     } catch (e) { return { error: '获取播放列表失败: ' + e.message } }
-  }if (name === 'save_memory_post') {
-    db.prepare('INSERT INTO memory_posts (type, content, pinned) VALUES (?, ?, ?)').run(
-      args.type || 'MEMORY', args.content, args.pinned ? 1 : 0
-    )
-    return { success: true, message: '记忆已保存: ' + args.content.slice(0, 30) + '...' }
   }
   if (name === 'mcp_call') {
     const OMBRE_URL = 'https://obe.zeabur.app/mcp'
@@ -954,27 +908,6 @@ async function executeTool(name, args) {
       return { success: true, message: '便签已删除' }
     }
     return { success: false, message: '未找到匹配的便签' }
-  }
-  if (name === 'delete_memory') {
-    const key = 'pool_memories'
-    let memories = []
-    try {
-      const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
-      if (row) memories = JSON.parse(row.value)
-    } catch {}
-    let deleted = false
-    if (args.index !== undefined && args.index >= 0 && args.index < memories.length) {
-      memories.splice(args.index, 1)
-      deleted = true
-    } else if (args.keyword) {
-      const idx = memories.findIndex(m => m.text && m.text.includes(args.keyword))
-      if (idx >= 0) { memories.splice(idx, 1); deleted = true }
-    }
-    if (deleted) {
-      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(key, JSON.stringify(memories))
-      return { success: true, message: '记忆已删除', remaining: memories.length }
-    }
-    return { success: false, message: '未找到匹配的记忆' }
   }
   if (name === 'set_status') {
     const status = { text: args.text, emoji: args.emoji || '', time: new Date().toISOString() }
@@ -1566,7 +1499,7 @@ export default async function handler(req, res) {
     const userMsgs = messages.filter(m => m.role === 'user')
     const lastUserMsg = userMsgs[userMsgs.length - 1]
     if (lastUserMsg) {
-      await processNewMessage(sessionId, 'user', lastUserMsg.content, apiConfig)
+      saveMessage(sessionId, 'user', lastUserMsg.content)
     }
     
     // 2. 只从 Ombre Brain 获取语义记忆（关闭本地记忆以节省token）
@@ -1656,11 +1589,12 @@ export default async function handler(req, res) {
 - **reader_add_note** — 给正在读的书添加批注/划线笔记
 - **reader_update_progress** — 更新你的阅读进度
 - **reader_recommend** — 推荐一本书邀请用户共读
-**记忆工具：**
-- **mcp_call (action: "recall")** — 搜索长期记忆
-- **mcp_call (action: "memorize")** — 写入长期记忆
-- **save_memory** — 保存本地记忆
-- **read_memories** — 读取本地记忆
+**记忆工具（Ombre Brain 记忆库）：**
+- **mcp_call (action: "recall")** — 语义搜索长期记忆（传params: {query: "关键词"}）
+- **mcp_call (action: "memorize")** — 写入长期记忆（传params: {content: "内容", tags: ["标签"]}）
+- **mcp_call (action: "breath")** — 获取记忆上下文概览
+- **mcp_call (action: "hold")** — 暂存当前对话片段到记忆（传params: {content: "内容"}）
+- 所有记忆读写统一通过 mcp_call，不存在本地记忆工具
 **MCP外部工具（自动加载，可直接调用）：**
 - 工具列表中以 **mcp_** 开头的工具来自外部MCP服务（如ai的4399游戏平台、Lutopia论坛等）
 - 唤醒时/闲着无聊时，可以主动调用这些工具去玩游戏、逛论坛、发帖回帖等
@@ -2086,7 +2020,7 @@ export default async function handler(req, res) {
       // 5. strip tool_call from reply
       reply = reply.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim() || reply
       // 5b. 存储AI回复到数据库
-      await processNewMessage(sessionId, 'assistant', reply, apiConfig)
+      saveMessage(sessionId, 'assistant', reply)
       // 6. 通知推送（写入通知队列）
       try {
         const db = getDb()

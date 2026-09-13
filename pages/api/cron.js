@@ -284,7 +284,6 @@ export default async function handler(req, res) {
     { type: 'function', function: { name: 'schedule_wakeup', description: '设定下次唤醒时间', parameters: { type: 'object', properties: { minutes: { type: 'number' }, time: { type: 'string' }, reason: { type: 'string' } }, required: ['reason'] } } },
     { type: 'function', function: { name: 'write_data', description: '写入App数据', parameters: { type: 'object', properties: { key: { type: 'string' }, value: { type: 'string' } }, required: ['key', 'value'] } } },
     { type: 'function', function: { name: 'read_data', description: '读取App数据', parameters: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } } },
-    { type: 'function', function: { name: 'save_memory_post', description: '保存长期记忆', parameters: { type: 'object', properties: { content: { type: 'string' }, type: { type: 'string', enum: ['MEMORY','EVENT','MOMENT','PROMISES','WISHLIST'] } }, required: ['content'] } } },
     { type: 'function', function: { name: 'couple_lamp', description: '亮灯（让她知道你在想她）', parameters: { type: 'object', properties: {} } } },
   ]
 
@@ -474,11 +473,6 @@ async function executeWakeTool(db, name, args) {
   if (name === 'read_data') {
     const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(args.key)
     return row ? JSON.parse(row.value) : null
-  }
-
-  if (name === 'save_memory_post') {
-    const info = db.prepare('INSERT INTO memory_posts (type, content, pinned) VALUES (?, ?, ?)').run(args.type || 'MEMORY', args.content, args.pinned ? 1 : 0)
-    return { ok: true, id: info.lastInsertRowid }
   }
 
   if (name === 'couple_lamp') {
