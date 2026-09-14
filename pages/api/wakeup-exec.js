@@ -240,5 +240,57 @@ async function executeTool(name, args) {
     return { event: pool[Math.floor(Math.random() * pool.length)], type }
   }
 
+  // === 共读工具 ===
+  if (name === 'reader_get_state') {
+    try {
+      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const state = stateRow ? JSON.parse(stateRow.value) : { active: false }
+      const booksRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_books'").get()
+      const books = booksRow ? JSON.parse(booksRow.value) : []
+      const notesRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_notes'").get()
+      const notes = notesRow ? JSON.parse(notesRow.value) : []
+      const currentBook = state.currentBookId ? books.find(b => b.id === state.currentBookId) : null
+      return { active: !!state.active, currentBook: currentBook ? { id: currentBook.id, title: currentBook.title, totalChapters: currentBook.chapters?.length || 0 } : null, userChapter: state.userChapter || 0, aiChapter: state.aiChapter || 0, bookshelf: books.map(b => ({ id: b.id, title: b.title, chapters: b.chapters?.length || 0 })), recentNotes: notes.slice(-5) }
+    } catch (e) { return { error: e.message } }
+  }
+
+  if (name === 'reader_read_chapter') {
+    try {
+      const booksRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_books'").get()
+      const books = booksRow ? JSON.parse(booksRow.value) : []
+      const book = books.find(b => b.id === args.book_id)
+      if (!book) return { error: '书籍不存在' }
+      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const state = stateRow ? JSON.parse(stateRow.value) : {}
+      const ch = parseInt(args.chapter) || 0
+      if (ch > (state.userChapter || 0)) return { error: '用户还没读到这一章，你不能提前看' }
+      const chapter = book.chapters[ch]
+      if (!chapter) return { error: '章节不存在' }
+      return { title: chapter.title, content: chapter.content.slice(0, 3000), chapterIndex: ch, totalChapters: book.chapters.length }
+    } catch (e) { return { error: e.message } }
+  }
+
+  if (name === 'reader_add_note') {
+    try {
+      const notesRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_notes'").get()
+      const notes = notesRow ? JSON.parse(notesRow.value) : []
+      notes.push({ id: Date.now(), bookId: args.book_id, chapter: parseInt(args.chapter) || 0, text: args.text, quote: args.quote || '', author: 'ai', time: Date.now() })
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_notes', JSON.stringify(notes))
+      return { success: true, message: '批注已添加' }
+    } catch (e) { return { error: e.message } }
+  }
+
+  if (name === 'reader_update_progress') {
+    try {
+      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const state = stateRow ? JSON.parse(stateRow.value) : {}
+      const ch = parseInt(args.chapter) || 0
+      if (ch > (state.userChapter || 0)) return { error: '不能超过用户的阅读进度' }
+      state.aiChapter = ch; state.aiLastRead = Date.now()
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_state', JSON.stringify(state))
+      return { success: true, aiChapter: ch }
+    } catch (e) { return { error: e.message } }
+  }
+
   return { error: 'unknown tool: ' + name }
 }
