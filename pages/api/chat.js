@@ -1525,6 +1525,7 @@ export default async function handler(req, res) {
             arguments: { 
               query,
               max_results: 5,
+              max_tokens: 2000,
               mode: 'automatic'  // 自动模式：尊重 dont_surface 和 digested 标记
             } 
           }
@@ -1537,7 +1538,9 @@ export default async function handler(req, res) {
         if (ombreResp.ok) {
           const ombreData = await ombreResp.json()
           if (ombreData.result && ombreData.result.content) {
-            const text = ombreData.result.content.map(c => c.text || '').join('\n')
+            let text = ombreData.result.content.map(c => c.text || '').join('\n')
+            // Strip OB internal budget warnings
+            text = text.replace(/\[token 预算不足[^\]]*\]\s*/g, '')
             // 统计实际返回的记忆条数（每条记忆以 [bucket_id: 开头）
             ombreCount = (text.match(/\[bucket_id:/g) || []).length
             if (text.trim() && text.trim() !== '[]' && text.length > 10) {
