@@ -471,15 +471,23 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         </div>
 
         <div ref={contentRef} style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
-          {chapterNotes.filter(n => !n.quote || pageContent.includes(n.quote.slice(0, 30))).map((n, i) => (
-            <div key={n.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'0 0 10px', borderRadius:'0 8px 8px 0' }}>
+          <div style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c', minHeight:'60%' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
+
+          {/* Show chapter notes that match current page, or all at end of chapter */}
+          {chapterNotes.filter(n => {
+            if (!n.quote) return true
+            // Show on the page that contains the quoted text
+            if (pageContent.includes(n.quote.slice(0, 20))) return true
+            // Also show all notes on the last page of the chapter as fallback
+            if (safePageIdx === pages.length - 1) return true
+            return false
+          }).map((n, i) => (
+            <div key={n.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'10px 0 0', borderRadius:'0 8px 8px 0' }}>
               <div style={{ fontSize:12, color:'#c2185b', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
               {n.quote && <div style={{ fontSize:12, color:'#777', fontStyle:'italic', marginBottom:4 }}>「{n.quote}」</div>}
               <p style={{ fontSize:13, color:'#444', margin:0 }}>{n.text}</p>
             </div>
           ))}
-
-          <div style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c', minHeight:'60%' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
 
           {chapterBookmarks.filter(b => !b.quote || pageContent.includes(b.quote.slice(0, 30))).map((b, i) => (
             <div key={b.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #ffa726', padding:'8px 12px', margin:'10px 0', borderRadius:'0 8px 8px 0' }}>
