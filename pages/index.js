@@ -819,7 +819,7 @@ function ChatView({ theme }) {
     // If recent messages contain reading sync, add reading discussion prompt
     const hasReading = userMessages.some(m => m.isReadingSync)
     if (hasReading) {
-      parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻了几页后，会把内容发给你。你不需要每次都回应——只在觉得内容有意思、有感触、有想讨论的时候才说。如果内容平淡或只是过渡段落，可以只回一个“嘿”或“嘶”，甚至不回复也可以（回复[无话]表示跳过）。回应要自然随意，像和女朋友窝在一起读同一本书时的对话，2-3句就好。' })
+      parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻了几页后，偶尔会把内容发给你。你不需要每次都回应——大多数时候安静陪读就好。只在真正觉得内容有意思、有感触、想讨论的时候才开口。如果没什么想说的，就回复"[无话]"跳过。不要为了说话而说话，不要每次都评论，安静也是陪伴。偶尔冒出一句才自然。' })
     }
     return parts
   }
@@ -834,9 +834,13 @@ function ChatView({ theme }) {
       if (!snippet.trim()) return
       const accum = readerAccumRef.current
       accum.pages.push({ bookTitle, chapterTitle, page, totalPages, content: snippet })
-      // Only consider triggering after accumulating 3+ pages and 15s since last trigger
+      // Need at least 3 pages and 30s cooldown
       const now = Date.now()
-      if (accum.pages.length < 3 || now - accum.lastTrigger < 15000) return
+      if (accum.pages.length < 3 || now - accum.lastTrigger < 30000) return
+      // Probabilistic trigger: ~40% chance per eligible check
+      // This means AI won't mechanically comment every 3 pages
+      // On average triggers every 7-8 pages, but with natural variance
+      if (Math.random() > 0.4) return
       // Build accumulated content summary for AI to decide
       const accumulated = accum.pages.map(p =>
         p.chapterTitle + ' (' + p.page + '/' + p.totalPages + '):\n' + p.content
