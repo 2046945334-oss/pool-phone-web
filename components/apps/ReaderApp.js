@@ -471,23 +471,58 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         </div>
 
         <div ref={contentRef} style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
-          <div style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c', minHeight:'60%' }} dangerouslySetInnerHTML={{ __html: '<p>' + escHtml(pageContent).split('\n').join( '</p><p>') + '</p>' }} />
+          {(() => {
+            // Split page content into paragraphs and inline notes after matching paragraphs
+            const paragraphs = pageContent.split('\n').filter(p => p.trim())
+            const pageNotes = chapterNotes.filter(n => {
+              if (!n.quote) return false
+              return pageContent.includes(n.quote.slice(0, 20))
+            })
+            // Track which notes have been placed inline
+            const placedNoteIds = new Set()
+            const elements = []
 
-          {/* Show chapter notes that match current page, or all at end of chapter */}
-          {chapterNotes.filter(n => {
-            if (!n.quote) return true
-            // Show on the page that contains the quoted text
-            if (pageContent.includes(n.quote.slice(0, 20))) return true
-            // Also show all notes on the last page of the chapter as fallback
-            if (safePageIdx === pages.length - 1) return true
-            return false
-          }).map((n, i) => (
-            <div key={n.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'10px 0 0', borderRadius:'0 8px 8px 0' }}>
-              <div style={{ fontSize:12, color:'#c2185b', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
-              {n.quote && <div style={{ fontSize:12, color:'#777', fontStyle:'italic', marginBottom:4 }}>「{n.quote}」</div>}
-              <p style={{ fontSize:13, color:'#444', margin:0 }}>{n.text}</p>
-            </div>
-          ))}
+            paragraphs.forEach((para, pi) => {
+              // Render the paragraph
+              elements.push(
+                <p key={'p' + pi} style={{ lineHeight:1.85, fontSize:15, color:'#2c2c2c', margin:'0 0 8px' }}>{para}</p>
+              )
+              // Check if any notes' quote appears in this paragraph
+              pageNotes.forEach(n => {
+                if (placedNoteIds.has(n.id)) return
+                if (para.includes(n.quote.slice(0, 20))) {
+                  placedNoteIds.add(n.id)
+                  elements.push(
+                    <div key={'n' + n.id} style={{ background:'#fff0f3', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'4px 0 10px', borderRadius:'0 8px 8px 0' }}>
+                      <div style={{ fontSize:12, color:'#c2185b', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
+                      <div style={{ fontSize:12, color:'#777', fontStyle:'italic', marginBottom:4 }}>「{n.quote}」</div>
+                      <p style={{ fontSize:13, color:'#444', margin:0 }}>{n.text}</p>
+                    </div>
+                  )
+                }
+              })
+            })
+
+            // Append unplaced notes (no quote or quote not found on this page) at the bottom
+            const unplacedNotes = chapterNotes.filter(n => {
+              if (placedNoteIds.has(n.id)) return false
+              if (!n.quote) return true
+              // Show on last page as fallback
+              if (safePageIdx === pages.length - 1) return true
+              return false
+            })
+            unplacedNotes.forEach(n => {
+              elements.push(
+                <div key={'n' + (n.id || Math.random())} style={{ background:'#fff0f3', borderLeft:'3px solid #66bb6a', padding:'8px 12px', margin:'10px 0 0', borderRadius:'0 8px 8px 0' }}>
+                  <div style={{ fontSize:12, color:'#c2185b', fontWeight:600, marginBottom:3 }}>📝 池的批注</div>
+                  {n.quote && <div style={{ fontSize:12, color:'#777', fontStyle:'italic', marginBottom:4 }}>「{n.quote}」</div>}
+                  <p style={{ fontSize:13, color:'#444', margin:0 }}>{n.text}</p>
+                </div>
+              )
+            })
+
+            return elements
+          })()}
 
           {chapterBookmarks.filter(b => !b.quote || pageContent.includes(b.quote.slice(0, 30))).map((b, i) => (
             <div key={b.id || i} style={{ background:'#fff0f3', borderLeft:'3px solid #ffa726', padding:'8px 12px', margin:'10px 0', borderRadius:'0 8px 8px 0' }}>
