@@ -1525,8 +1525,7 @@ export default async function handler(req, res) {
             arguments: { 
               query,
               max_results: 5,
-              max_tokens: 2000,
-              mode: 'automatic'  // 自动模式：尊重 dont_surface 和 digested 标记
+              mode: 'automatic'
             } 
           }
         }
