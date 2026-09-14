@@ -25,7 +25,26 @@ export default async function handler(req, res) {
     const state = getVal(db, KEY_STATE) || { currentBookId: null, userChapter: 0, aiChapter: 0, active: false }
     const books = getVal(db, KEY_BOOKS) || []
     const bookmarks = getVal(db, KEY_BOOKMARKS) || []
-    const notes = getVal(db, KEY_NOTES) || []
+    let notes = getVal(db, KEY_NOTES) || []
+
+    // Auto-fix notes with wrong bookId (AI often passes made-up IDs)
+    const bookIds = new Set(books.map(b => b.id))
+    let dirty = false
+    for (const n of notes) {
+      if (n.bookId && !bookIds.has(n.bookId)) {
+        // Try fuzzy match: check if note bookId is substring of any book title or vice versa
+        const match = books.find(b => {
+          const t = (b.title || '').toLowerCase()
+          const nid = (n.bookId || '').toLowerCase()
+          return t.includes(nid) || nid.includes(t.replace(/[[\]()（）《》「」『』\s]/g, '').slice(0, 10))
+        })
+        if (match) { n.bookId = match.id; dirty = true }
+        // If state has currentBookId, assign orphan notes to it as last resort
+        else if (state.currentBookId) { n.bookId = state.currentBookId; dirty = true }
+      }
+    }
+    if (dirty) setVal(db, KEY_NOTES, notes)
+
     return res.json({ state, books: books.map(b => ({ id: b.id, title: b.title, chapterCount: b.chapters?.length || 0 })), bookmarks, notes })
   }
 

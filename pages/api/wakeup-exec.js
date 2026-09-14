@@ -272,9 +272,13 @@ async function executeTool(name, args) {
 
   if (name === 'reader_add_note') {
     try {
+      // Always use actual current book ID from state, not AI's (often wrong) book_id
+      const stRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const rs = stRow ? JSON.parse(stRow.value) : {}
+      const actualBookId = rs.currentBookId || args.book_id
       const notesRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_notes'").get()
       const notes = notesRow ? JSON.parse(notesRow.value) : []
-      notes.push({ id: Date.now(), bookId: args.book_id, chapter: parseInt(args.chapter) || 0, text: args.text, quote: args.quote || '', author: 'ai', time: Date.now() })
+      notes.push({ id: Date.now(), bookId: actualBookId, chapter: parseInt(args.chapter) || 0, text: args.text, quote: args.quote || '', author: 'ai', time: Date.now() })
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_notes', JSON.stringify(notes))
       return { success: true, message: '批注已添加' }
     } catch (e) { return { error: e.message } }
