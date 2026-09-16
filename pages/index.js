@@ -961,12 +961,15 @@ function ChatView({ theme }) {
       // Protect URLs from being split on dots
       const urlBlocks = []
       safeReply = safeReply.replace(/https?:\/\/\S+/g, (m) => { urlBlocks.push(m); return `__URL_${urlBlocks.length-1}__` })
+      // Protect decimal numbers (e.g. 11.9, 6.5) from being split on the dot
+      const decimalBlocks = []
+      safeReply = safeReply.replace(/(\d+\.\d+)/g, (m) => { decimalBlocks.push(m); return `__DEC_${decimalBlocks.length-1}__` })
       // Protect repeated punctuation (???, !!!, ......, etc.) from being split
       const punctBlocks = []
       safeReply = safeReply.replace(/([.。!！?？]{2,}|…+)/g, (m) => { punctBlocks.push(m); return `__PUNCT_${punctBlocks.length-1}__` })
       const sentences = safeReply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
       // Restore all protected blocks
-      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]).replace(/__URL_(\d+)__/g, (_, idx) => urlBlocks[parseInt(idx)]).replace(/__PUNCT_(\d+)__/g, (_, idx) => punctBlocks[parseInt(idx)]))
+      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]).replace(/__URL_(\d+)__/g, (_, idx) => urlBlocks[parseInt(idx)]).replace(/__PUNCT_(\d+)__/g, (_, idx) => punctBlocks[parseInt(idx)]).replace(/__DEC_(\d+)__/g, (_, idx) => decimalBlocks[parseInt(idx)]))
       let current = [...newMessages]
       for (let i = 0; i < restored.length; i++) {
         current = [...current, { role: 'assistant', content: restored[i].trim(), ts: i === 0 ? Date.now() : undefined, ...(i === 0 && mergedReasoning ? { reasoning: mergedReasoning } : {}) }]
