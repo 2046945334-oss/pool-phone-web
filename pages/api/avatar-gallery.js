@@ -60,6 +60,7 @@ export default async function handler(req, res) {
       gallery.avatars.push({
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
         url: u,
+        desc: body.desc || '',
         tags: tags || (tag ? [tag] : []),
         owner: owner || 'both',
         addedAt: now,
@@ -85,6 +86,13 @@ export default async function handler(req, res) {
     const { target, url } = body
     // target: 'ai' or 'user'
     if (!target || !url) return res.status(400).json({ error: 'target and url required' })
+    // Check owner permission
+    const gallery = getGallery(db)
+    const avatar = gallery.avatars.find(a => a.url === url)
+    if (avatar && avatar.owner !== 'both') {
+      if (target === 'ai' && avatar.owner === 'user') return res.status(403).json({ error: '这张头像只给用户用，不能设为AI头像' })
+      if (target === 'user' && avatar.owner === 'ai') return res.status(403).json({ error: '这张头像只给AI用，不能设为用户头像' })
+    }
     const theme = getTheme(db)
     if (target === 'ai') {
       theme.avatarAI = url
