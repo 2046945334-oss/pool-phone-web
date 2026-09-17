@@ -2095,11 +2095,12 @@ export default async function handler(req, res) {
         const errText = await response.text()
         return res.status(response.status).json({ error: errText, debug: { url: reqUrl, model: reqModel } })
       }
-      const data = await response.json()
+       const data = await response.json()
       const choice = data.choices && data.choices[0]
       if (choice && choice.message && choice.message.tool_calls && choice.message.tool_calls.length) {
         // 执行工具，但不把tool_call/tool消息放回（中转站不支持这些role）
         const toolResults = []
+        const imageUrls = [] // collect image URLs from avatar tools for vision
         for (const tc of choice.message.tool_calls) {
           let args = {}
           try { args = JSON.parse(tc.function.arguments) } catch {}
@@ -2113,12 +2114,36 @@ export default async function handler(req, res) {
           toolLogs.push({ name: tc.function.name, args, result })
           console.log('[TOOL]', tc.function.name, 'result:', JSON.stringify(result).substring(0, 200))
           toolResults.push(`[${tc.function.name}] ${JSON.stringify(result)}`)
+          // Collect avatar image URLs so model can see them
+          if (tc.function.name === 'avatar_list' && result && result.avatars) {
+            for (const a of result.avatars) {
+              if (a.url) imageUrls.push({ url: a.url.startsWith('/') ? ('https://chi.zeabur.app' + a.url) : a.url, id: a.id, desc: a.desc })
+            }
+          }
+          if (tc.function.name === 'avatar_search' && result && result.images) {
+            for (const img of result.images) {
+              if (img.url) imageUrls.push({ url: img.url, id: String(img.index) })
+            }
+          }
         }
         // 将工具结果作为纯文本user消息注入（中转站友好）
-        currentMessages.push({
-          role: 'user',
-          content: `[系统：工具执行结果如下，请基于结果回复用户]\n\n${toolResults.join('\n\n')}`
-        })
+        // If there are avatar images, attach them as image_url parts so model can see
+        if (imageUrls.length > 0) {
+          const contentParts = [
+            { type: 'text', text: `[系统：工具执行结果如下，请基于结果回复用户。下面附带了头像库图片，你可以看到每张图的内容。]\n\n${toolResults.join('\n\n')}` }
+          ]
+          // Limit to 12 images to avoid token explosion
+          for (const img of imageUrls.slice(0, 12)) {
+            contentParts.push({ type: 'text', text: `[图片 ${img.id}${img.desc && img.desc !== '(无描述)' ? ' - ' + img.desc : ''}]:` })
+            contentParts.push({ type: 'image_url', image_url: { url: img.url } })
+          }
+          currentMessages.push({ role: 'user', content: contentParts })
+        } else {
+          currentMessages.push({
+            role: 'user',
+            content: `[系统：工具执行结果如下，请基于结果回复用户]\n\n${toolResults.join('\n\n')}`
+          })
+        }
         continue
       }
       let reply = (choice && choice.message && choice.message.content) || '无响应'
@@ -2134,7 +2159,8 @@ export default async function handler(req, res) {
       }
       if (textToolCalls.length > 0) {
         console.log('[TOOL] Parsed', textToolCalls.length, 'tool calls from text')
-        const toolResults = []
+        const toolResults2 = []
+        const imageUrls2 = []
         for (const tc of textToolCalls) {
           const args = tc.args || tc.arguments || {}
           let result
@@ -2145,13 +2171,28 @@ export default async function handler(req, res) {
           }
           toolLogs.push({ name: tc.name, args, result })
           console.log('[TOOL]', tc.name, 'result:', JSON.stringify(result).substring(0, 200))
-          toolResults.push(`[${tc.name}] ${JSON.stringify(result)}`)
+          toolResults2.push(`[${tc.name}] ${JSON.stringify(result)}`)
+          if (tc.name === 'avatar_list' && result && result.avatars) {
+            for (const a of result.avatars) {
+              if (a.url) imageUrls2.push({ url: a.url.startsWith('/') ? ('https://chi.zeabur.app' + a.url) : a.url, id: a.id, desc: a.desc })
+            }
+          }
+          if (tc.name === 'avatar_search' && result && result.images) {
+            for (const img of result.images) {
+              if (img.url) imageUrls2.push({ url: img.url, id: String(img.index) })
+            }
+          }
         }
-        // 将工具结果注入并继续循环
-        currentMessages.push({
-          role: 'user',
-          content: `[系统：工具执行结果如下，请基于结果回复用户]\n\n${toolResults.join('\n\n')}`
-        })
+        if (imageUrls2.length > 0) {
+          const cp = [{ type: 'text', text: `[系统：工具执行结果如下，请基于结果回复用户。下面附带了头像库图片，你可以看到每张图的内容。]\n\n${toolResults2.join('\n\n')}` }]
+          for (const img of imageUrls2.slice(0, 12)) {
+            cp.push({ type: 'text', text: `[图片 ${img.id}${img.desc && img.desc !== '(无描述)' ? ' - ' + img.desc : ''}]:` })
+            cp.push({ type: 'image_url', image_url: { url: img.url } })
+          }
+          currentMessages.push({ role: 'user', content: cp })
+        } else {
+          currentMessages.push({ role: 'user', content: `[系统：工具执行结果如下，请基于结果回复用户]\n\n${toolResults2.join('\n\n')}` })
+        }
         continue
       }
       console.log('[AI RAW]', reply.substring(0, 300))
