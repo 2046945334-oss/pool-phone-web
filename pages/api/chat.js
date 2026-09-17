@@ -368,6 +368,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'avatar_search', description: '搜索网络图片，用于找头像。返回一组图片URL和缩略图。找到喜欢的就用avatar_add添加到头像库。',
+      parameters: { type: 'object', properties: { query: { type: 'string', description: '搜索关键词，如"可爱猫咪头像"、"二次元女生头像 粉色"、"情侣头像 动漫"' }, count: { type: 'number', description: '返回数量，默认8，最多20' } }, required: ['query'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'html_create', description: '创建或覆盖一个自定义HTML页面。页面会保存到后端，可通过 /api/page/[id] 访问。支持完整HTML（含CSS/JS），适合做小工具、贺卡、小游戏、数据看板等。',
       parameters: { type: 'object', properties: { id: { type: 'string', description: '页面ID（英文/数字/连字符），如"birthday-card"、"mood-board"、"mini-game"' }, title: { type: 'string', description: '页面标题' }, html: { type: 'string', description: '完整的HTML内容（可包含<style>和<script>）' }, desc: { type: 'string', description: '页面简介（可选）' } }, required: ['id', 'title', 'html'] }
     }
@@ -1220,6 +1226,46 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(GALLERY_KEY, JSON.stringify(gallery))
     return { success: true, deleted: before - gallery.avatars.length }
   }
+  if (name === 'avatar_search') {
+    const query = args.query || ''
+    if (!query) return { error: '请提供搜索关键词' }
+    const count = Math.min(args.count || 8, 20)
+    try {
+      // Use Bing image search (scrape HTML, no API key needed)
+      const searchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&first=1&count=${count}&qft=+filterui:aspect-square`
+      const resp = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+        }
+      })
+      const html = await resp.text()
+      // Extract image URLs from Bing's murl parameter in <a> tags
+      const results = []
+      // Pattern 1: murl in JSON data attributes
+      const murlRegex = /"murl"\s*:\s*"(https?:[^"]+)"/g
+      let match
+      while ((match = murlRegex.exec(html)) !== null && results.length < count) {
+        const url = match[1].replace(/\\u002f/g, '/').replace(/\\\//g, '/')
+        if (url.match(/\.(jpg|jpeg|png|webp)/i) && !results.includes(url)) {
+          results.push(url)
+        }
+      }
+      // Pattern 2: turl (thumbnail) as fallback
+      if (results.length === 0) {
+        const turlRegex = /"turl"\s*:\s*"(https?:[^"]+)"/g
+        while ((match = turlRegex.exec(html)) !== null && results.length < count) {
+          const url = match[1].replace(/\\u002f/g, '/').replace(/\\\//g, '/')
+          if (!results.includes(url)) results.push(url)
+        }
+      }
+      if (results.length === 0) return { error: '没有找到图片，换个关键词试试', query }
+      return { images: results.map((url, i) => ({ index: i + 1, url })), total: results.length, query, tip: '看到喜欢的，用avatar_add把url添加到头像库' }
+    } catch (e) {
+      return { error: '搜索失败: ' + e.message }
+    }
+  }
   // === HTML页面工具 ===
   if (name === 'html_create') {
     const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
@@ -1675,10 +1721,11 @@ export default async function handler(req, res) {
   用法场景：用户聊到身体状况/习惯/心情/日程时主动调用；唤醒时可读取养护数据了解状态
 **头像库工具：**
 - **avatar_list** — 查看头像库所有头像和当前使用的头像
+- **avatar_search** — 搜索网络图片找头像（传query关键词），返回图片URL列表，找到好的就avatar_add
 - **avatar_add** — 往头像库添加头像（传url或urls），可以自己找好看的图添加进来
 - **avatar_set** — 换头像（target: ai/user, url），可以自主换自己的头像，也可以帮用户换
 - **avatar_delete** — 从头像库删除头像（传id）
-  用法场景：想换头像时先avatar_list看看有什么，再avatar_set；找到好看的图就avatar_add收藏
+  用法场景：想换头像时先avatar_search搜图→avatar_add收藏→avatar_set换上；也可以avatar_list看现有的直接换
 **共读工具：**
 - **reader_get_state** — 查看共读状态（书架、进度、批注、书签）
 - **reader_read_chapter** — 读某一章内容（只能读用户已读的章节）
