@@ -1251,12 +1251,14 @@ async function executeTool(name, args) {
         }
       })
       const html = await resp.text()
-      // Extract image URLs from Bing's murl parameter in <a> tags
+      // Extract image URLs from Bing's murl parameter
+      // Bing encodes JSON with " or " depending on rendering mode
+      const decoded = html.replace(/"/g, '"').replace(/&amp;/g, '&')
       const results = []
       // Pattern 1: murl in JSON data attributes
       const murlRegex = /"murl"\s*:\s*"(https?:[^"]+)"/g
       let match
-      while ((match = murlRegex.exec(html)) !== null && results.length < count) {
+      while ((match = murlRegex.exec(decoded)) !== null && results.length < count) {
         const url = match[1].replace(/\\u002f/g, '/').replace(/\\\//g, '/')
         if (url.match(/\.(jpg|jpeg|png|webp)/i) && !results.includes(url)) {
           results.push(url)
@@ -1265,7 +1267,7 @@ async function executeTool(name, args) {
       // Pattern 2: turl (thumbnail) as fallback
       if (results.length === 0) {
         const turlRegex = /"turl"\s*:\s*"(https?:[^"]+)"/g
-        while ((match = turlRegex.exec(html)) !== null && results.length < count) {
+        while ((match = turlRegex.exec(decoded)) !== null && results.length < count) {
           const url = match[1].replace(/\\u002f/g, '/').replace(/\\\//g, '/')
           if (!results.includes(url)) results.push(url)
         }
