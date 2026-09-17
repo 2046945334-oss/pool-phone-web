@@ -341,6 +341,31 @@ const TOOLS = [
       parameters: { type: 'object', properties: { count: { type: 'number', description: '查看条数，默认10' }, tag: { type: 'string', description: '按标签筛选' } } }
     }
   },
+  // ===== 头像库 (Avatar Gallery) 工具 =====
+  {
+    type: 'function', function: {
+      name: 'avatar_list', description: '查看头像库中所有头像，以及当前正在使用的AI头像和用户头像URL',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'avatar_add', description: '往头像库添加一张或多张头像图片（通过URL）。可以自己在网上找好看的图添加进来。',
+      parameters: { type: 'object', properties: { url: { type: 'string', description: '单张图片URL' }, urls: { type: 'array', items: { type: 'string' }, description: '批量添加多个URL' }, tags: { type: 'array', items: { type: 'string' }, description: '标签，如["可爱","二次元"]' }, owner: { type: 'string', enum: ['ai','user','both'], description: '谁可以用：ai=只有池, user=只有用户, both=都可以（默认both）' } }, required: [] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'avatar_set', description: '把头像库里的某张图设为当前头像。可以给自己换头像，也可以帮用户换。',
+      parameters: { type: 'object', properties: { target: { type: 'string', enum: ['ai','user'], description: 'ai=换池的头像, user=换用户的头像' }, url: { type: 'string', description: '要设为头像的图片URL（必须是头像库里已有的）' } }, required: ['target', 'url'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'avatar_delete', description: '从头像库中删除一张头像',
+      parameters: { type: 'object', properties: { id: { type: 'string', description: '头像ID（从avatar_list获取）' } }, required: ['id'] }
+    }
+  },
   {
     type: 'function', function: {
       name: 'html_create', description: '创建或覆盖一个自定义HTML页面。页面会保存到后端，可通过 /api/page/[id] 访问。支持完整HTML（含CSS/JS），适合做小工具、贺卡、小游戏、数据看板等。',
@@ -1136,6 +1161,65 @@ async function executeTool(name, args) {
     const count = args.count || 10
     return { photos: filtered.slice(0, count), total: filtered.length }
   }
+  // === 头像库工具 ===
+  if (name === 'avatar_list') {
+    const GALLERY_KEY = 'pool_avatar_gallery'
+    const THEME_KEY = 'pool_theme'
+    let gallery = { avatars: [] }
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(GALLERY_KEY); if (row) gallery = JSON.parse(row.value) } catch {}
+    let theme = {}
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(THEME_KEY); if (row) theme = JSON.parse(row.value) } catch {}
+    return {
+      avatars: gallery.avatars.map(a => ({ id: a.id, url: a.url, tags: a.tags, owner: a.owner, addedBy: a.addedBy })),
+      total: gallery.avatars.length,
+      currentAI: theme.avatarAI || '',
+      currentUser: theme.avatarUser || ''
+    }
+  }
+  if (name === 'avatar_add') {
+    const GALLERY_KEY = 'pool_avatar_gallery'
+    let gallery = { avatars: [] }
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(GALLERY_KEY); if (row) gallery = JSON.parse(row.value) } catch {}
+    const toAdd = args.urls || (args.url ? [args.url] : [])
+    if (toAdd.length === 0) return { error: 'url或urls必须提供' }
+    const now = new Date().toISOString()
+    let added = 0
+    for (const u of toAdd) {
+      if (gallery.avatars.some(a => a.url === u)) continue
+      gallery.avatars.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        url: u,
+        tags: args.tags || [],
+        owner: args.owner || 'both',
+        addedAt: now,
+        addedBy: 'ai'
+      })
+      added++
+    }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(GALLERY_KEY, JSON.stringify(gallery))
+    return { success: true, added, total: gallery.avatars.length }
+  }
+  if (name === 'avatar_set') {
+    const THEME_KEY = 'pool_theme'
+    if (!args.target || !args.url) return { error: 'target和url必须提供' }
+    let theme = {}
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(THEME_KEY); if (row) theme = JSON.parse(row.value) } catch {}
+    if (args.target === 'ai') theme.avatarAI = args.url
+    else if (args.target === 'user') theme.avatarUser = args.url
+    else return { error: 'target必须是ai或user' }
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(THEME_KEY, JSON.stringify(theme))
+    return { success: true, message: `已将${args.target === 'ai' ? '池' : '用户'}的头像更换`, url: args.url }
+  }
+  if (name === 'avatar_delete') {
+    const GALLERY_KEY = 'pool_avatar_gallery'
+    if (!args.id) return { error: 'id必须提供' }
+    let gallery = { avatars: [] }
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(GALLERY_KEY); if (row) gallery = JSON.parse(row.value) } catch {}
+    const before = gallery.avatars.length
+    gallery.avatars = gallery.avatars.filter(a => a.id !== args.id)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(GALLERY_KEY, JSON.stringify(gallery))
+    return { success: true, deleted: before - gallery.avatars.length }
+  }
   // === HTML页面工具 ===
   if (name === 'html_create') {
     const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
@@ -1589,6 +1673,12 @@ export default async function handler(req, res) {
 - **care_wish_update** — 更新心愿状态（进度/收藏）
 - **care_item_note** — 为任何条目添加批注
   用法场景：用户聊到身体状况/习惯/心情/日程时主动调用；唤醒时可读取养护数据了解状态
+**头像库工具：**
+- **avatar_list** — 查看头像库所有头像和当前使用的头像
+- **avatar_add** — 往头像库添加头像（传url或urls），可以自己找好看的图添加进来
+- **avatar_set** — 换头像（target: ai/user, url），可以自主换自己的头像，也可以帮用户换
+- **avatar_delete** — 从头像库删除头像（传id）
+  用法场景：想换头像时先avatar_list看看有什么，再avatar_set；找到好看的图就avatar_add收藏
 **共读工具：**
 - **reader_get_state** — 查看共读状态（书架、进度、批注、书签）
 - **reader_read_chapter** — 读某一章内容（只能读用户已读的章节）
