@@ -1487,15 +1487,18 @@ function AvatarGalleryPanel() {
             <div key={a.id} style={{position:'relative',borderRadius:10,overflow:'hidden',aspectRatio:'1',background:'#f9f0f5',border: (a.url === currentAI || a.url === currentUser) ? '2px solid #c77dba' : '1px solid #f0e0ea'}}>
               <img src={a.url} style={{width:'100%',height:'100%',objectFit:'cover'}} />
               {/* Badges */}
-              <div style={{position:'absolute',top:4,left:4,display:'flex',gap:2}}>
+              <div style={{position:'absolute',top:4,left:4,display:'flex',gap:2,flexWrap:'wrap',maxWidth:'90%'}}>
                 {a.url === currentAI && <span style={{background:'#c77dba',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>池</span>}
                 {a.url === currentUser && <span style={{background:'#e0a0d0',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>我</span>}
                 {a.addedBy === 'ai' && <span style={{background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>AI添加</span>}
+                {a.owner === 'ai' && <span style={{background:'rgba(100,60,120,0.6)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>池专</span>}
+                {a.owner === 'user' && <span style={{background:'rgba(180,80,160,0.6)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>我专</span>}
               </div>
+              {a.desc && <div style={{position:'absolute',top:'50%',left:0,right:0,transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',color:'#fff',fontSize:9,padding:'2px 4px',textAlign:'center',opacity:0.9,pointerEvents:'none'}}>{a.desc}</div>}
               {/* Action buttons on tap */}
               <div style={{position:'absolute',bottom:0,left:0,right:0,display:'flex',background:'rgba(0,0,0,0.45)',backdropFilter:'blur(4px)'}}>
-                <button onClick={() => handleSetAvatar(a.url, 'ai')} style={{flex:1,padding:'6px 0',background:'none',border:'none',color:'#fff',fontSize:10,cursor:'pointer'}}>设为池</button>
-                <button onClick={() => handleSetAvatar(a.url, 'user')} style={{flex:1,padding:'6px 0',background:'none',border:'none',color:'#fff',fontSize:10,cursor:'pointer',borderLeft:'1px solid rgba(255,255,255,0.2)'}}>设为我</button>
+                <button onClick={() => handleSetAvatar(a.url, 'ai')} disabled={a.owner === 'user'} style={{flex:1,padding:'6px 0',background:'none',border:'none',color: a.owner === 'user' ? '#666' : '#fff',fontSize:10,cursor: a.owner === 'user' ? 'not-allowed' : 'pointer'}}>设为池</button>
+                <button onClick={() => handleSetAvatar(a.url, 'user')} disabled={a.owner === 'ai'} style={{flex:1,padding:'6px 0',background:'none',border:'none',color: a.owner === 'ai' ? '#666' : '#fff',fontSize:10,cursor: a.owner === 'ai' ? 'not-allowed' : 'pointer',borderLeft:'1px solid rgba(255,255,255,0.2)'}}>设为我</button>
                 <button onClick={() => handleDelete(a.id)} style={{flex:0,padding:'6px 8px',background:'none',border:'none',color:'#ff8a8a',fontSize:10,cursor:'pointer',borderLeft:'1px solid rgba(255,255,255,0.2)'}}>×</button>
               </div>
             </div>
