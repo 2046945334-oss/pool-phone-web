@@ -999,7 +999,7 @@ function ChatView({ theme }) {
           fetch('/api/wakeup-reschedule?minutes=' + (mins || 60)).catch(() => {})
         }
         // If avatar tools were called, refresh theme from backend so chat UI updates immediately
-        if (toolLogs.some(l => l.name === 'avatar_set')) {
+        if (toolLogs && toolLogs.some(l => l.name === 'avatar_set')) {
           try {
             const themeResp = await fetch('/api/data/pool_theme')
             const themeData = await themeResp.json()
