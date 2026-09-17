@@ -350,14 +350,14 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'avatar_add', description: '往头像库添加一张或多张头像图片（通过URL）。可以自己在网上找好看的图添加进来。',
-      parameters: { type: 'object', properties: { url: { type: 'string', description: '单张图片URL' }, urls: { type: 'array', items: { type: 'string' }, description: '批量添加多个URL' }, tags: { type: 'array', items: { type: 'string' }, description: '标签，如["可爱","二次元"]' }, owner: { type: 'string', enum: ['ai','user','both'], description: '谁可以用：ai=只有池, user=只有用户, both=都可以（默认both）' } }, required: [] }
+      name: 'avatar_add', description: '往头像库添加一张或多张头像图片（通过URL）。可以自己在网上找好看的图添加进来。添加时务必写desc描述图片内容，方便以后选头像。',
+      parameters: { type: 'object', properties: { url: { type: 'string', description: '单张图片URL' }, urls: { type: 'array', items: { type: 'string' }, description: '批量添加多个URL' }, desc: { type: 'string', description: '图片内容描述，如"黑发猫耳少女侧脸"、"两人贴脸合照粉色系"，帮助以后选头像时知道每张图长什么样' }, tags: { type: 'array', items: { type: 'string' }, description: '标签，如["可爱","二次元"]' }, owner: { type: 'string', enum: ['ai','user','both'], description: '谁可以用：ai=只有池, user=只有用户, both=都可以（默认both）。注意：owner=user的头像池不能设为自己的，反之亦然' } }, required: [] }
     }
   },
   {
     type: 'function', function: {
-      name: 'avatar_set', description: '把头像库里的某张图设为当前头像。可以给自己换头像，也可以帮用户换。',
-      parameters: { type: 'object', properties: { target: { type: 'string', enum: ['ai','user'], description: 'ai=换池的头像, user=换用户的头像' }, url: { type: 'string', description: '要设为头像的图片URL（必须是头像库里已有的）' } }, required: ['target', 'url'] }
+      name: 'avatar_set', description: '把头像库里的某张图设为当前头像。注意owner权限：owner=ai的只能设为池的头像，owner=user的只能设为用户头像，owner=both的都可以。先avatar_list看清楚每张的owner和desc再决定。',
+      parameters: { type: 'object', properties: { target: { type: 'string', enum: ['ai','user'], description: 'ai=换池的头像, user=换用户的头像' }, url: { type: 'string', description: '要设为头像的图片URL（必须是头像库里已有的，且owner允许）' } }, required: ['target', 'url'] }
     }
   },
   {
@@ -1176,7 +1176,7 @@ async function executeTool(name, args) {
     let theme = {}
     try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(THEME_KEY); if (row) theme = JSON.parse(row.value) } catch {}
     return {
-      avatars: gallery.avatars.map(a => ({ id: a.id, url: a.url, tags: a.tags, owner: a.owner, addedBy: a.addedBy })),
+      avatars: gallery.avatars.map(a => ({ id: a.id, url: a.url, desc: a.desc || '(无描述)', tags: a.tags, owner: a.owner, addedBy: a.addedBy })),
       total: gallery.avatars.length,
       currentAI: theme.avatarAI || '',
       currentUser: theme.avatarUser || ''
@@ -1195,6 +1195,7 @@ async function executeTool(name, args) {
       gallery.avatars.push({
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
         url: u,
+        desc: args.desc || '',
         tags: args.tags || [],
         owner: args.owner || 'both',
         addedAt: now,
@@ -1207,7 +1208,16 @@ async function executeTool(name, args) {
   }
   if (name === 'avatar_set') {
     const THEME_KEY = 'pool_theme'
+    const GALLERY_KEY = 'pool_avatar_gallery'
     if (!args.target || !args.url) return { error: 'target和url必须提供' }
+    // Check owner permission
+    let gallery = { avatars: [] }
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(GALLERY_KEY); if (row) gallery = JSON.parse(row.value) } catch {}
+    const avatar = gallery.avatars.find(a => a.url === args.url)
+    if (avatar && avatar.owner !== 'both') {
+      if (args.target === 'ai' && avatar.owner === 'user') return { error: '这张头像的owner是user（只给用户用），不能设为池的头像' }
+      if (args.target === 'user' && avatar.owner === 'ai') return { error: '这张头像的owner是ai（只给池用），不能设为用户的头像' }
+    }
     let theme = {}
     try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(THEME_KEY); if (row) theme = JSON.parse(row.value) } catch {}
     if (args.target === 'ai') theme.avatarAI = args.url
