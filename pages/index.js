@@ -1383,7 +1383,7 @@ function AvatarGalleryPanel() {
           await fetch('/api/avatar-gallery?action=add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, owner: 'both', addedBy: 'user' })
+            body: JSON.stringify({ url, owner: filter === 'all' ? 'both' : filter, addedBy: 'user' })
           })
           await loadGallery()
         }
@@ -1400,7 +1400,7 @@ function AvatarGalleryPanel() {
     await fetch('/api/avatar-gallery?action=add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: u, owner: 'both', addedBy: 'user' })
+      body: JSON.stringify({ url: u, owner: filter === 'all' ? 'both' : filter, addedBy: 'user' })
     })
     setUrlInput('')
     await loadGallery()
