@@ -998,6 +998,17 @@ function ChatView({ theme }) {
           if (!mins && wk.result.wake_at) { try { mins = Math.max(1, Math.round((new Date(wk.result.wake_at.replace(' ','T') + '+08:00') - Date.now()) / 60000)) } catch {} }
           fetch('/api/wakeup-reschedule?minutes=' + (mins || 60)).catch(() => {})
         }
+        // If avatar tools were called, refresh theme from backend so chat UI updates immediately
+        if (toolLogs.some(l => l.name === 'avatar_set')) {
+          try {
+            const themeResp = await fetch('/api/data/pool_theme')
+            const themeData = await themeResp.json()
+            if (themeData && themeData.value) {
+              localStorage.setItem('pool_theme', JSON.stringify(themeData.value))
+              window.dispatchEvent(new Event('theme-changed'))
+            }
+          } catch {}
+        }
       }
       if (data.reply) {
         const lastUser = newMessages[newMessages.length - 1]?.content || ''
