@@ -1334,11 +1334,175 @@ function LockScreen({ onUnlock, theme }) {
   )
 }
 
+function AvatarGalleryPanel() {
+  const [avatars, setAvatars] = useState([])
+  const [currentAI, setCurrentAI] = useState('')
+  const [currentUser, setCurrentUser] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [urlInput, setUrlInput] = useState('')
+  const [filter, setFilter] = useState('all') // all | ai | user
+
+  async function loadGallery() {
+    try {
+      const r = await fetch('/api/avatar-gallery?action=list')
+      const d = await r.json()
+      setAvatars(d.avatars || [])
+      setCurrentAI(d.currentAI || '')
+      setCurrentUser(d.currentUser || '')
+    } catch {}
+    setLoading(false)
+  }
+  useEffect(() => { loadGallery() }, [])
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        const resp = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: reader.result, filename: file.name })
+        })
+        const { url } = await resp.json()
+        if (url) {
+          await fetch('/api/avatar-gallery?action=add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, owner: 'both', addedBy: 'user' })
+          })
+          await loadGallery()
+        }
+        setUploading(false)
+      }
+      reader.readAsDataURL(file)
+    } catch { setUploading(false) }
+    e.target.value = ''
+  }
+
+  async function handleAddUrl() {
+    const u = urlInput.trim()
+    if (!u) return
+    await fetch('/api/avatar-gallery?action=add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: u, owner: 'both', addedBy: 'user' })
+    })
+    setUrlInput('')
+    await loadGallery()
+  }
+
+  async function handleSetAvatar(url, target) {
+    await fetch('/api/avatar-gallery?action=set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target, url })
+    })
+    // Also update localStorage theme so UI updates immediately
+    try {
+      const theme = JSON.parse(localStorage.getItem('pool_theme') || '{}')
+      if (target === 'ai') theme.avatarAI = url
+      if (target === 'user') theme.avatarUser = url
+      localStorage.setItem('pool_theme', JSON.stringify(theme))
+      window.dispatchEvent(new Event('theme-changed'))
+    } catch {}
+    await loadGallery()
+  }
+
+  async function handleDelete(id) {
+    await fetch('/api/avatar-gallery?action=delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
+    await loadGallery()
+  }
+
+  const filtered = filter === 'all' ? avatars : avatars.filter(a => a.owner === filter || a.owner === 'both')
+
+  if (loading) return <div style={{padding:20,textAlign:'center',color:'#999'}}>加载中...</div>
+
+  return (
+    <div style={{padding:'12px 16px',maxHeight:'100%',overflowY:'auto'}}>
+      {/* Current avatars */}
+      <div style={{display:'flex',gap:16,marginBottom:16,justifyContent:'center'}}>
+        <div style={{textAlign:'center'}}>
+          <div style={{width:64,height:64,borderRadius:12,overflow:'hidden',border: currentAI ? '2px solid #c77dba' : '2px dashed #ddd',background:'#f9f0f5',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            {currentAI ? <img src={currentAI} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <span style={{color:'#ccc',fontSize:24}}>池</span>}
+          </div>
+          <div style={{fontSize:11,color:'#999',marginTop:4}}>池的头像</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{width:64,height:64,borderRadius:12,overflow:'hidden',border: currentUser ? '2px solid #c77dba' : '2px dashed #ddd',background:'#f9f0f5',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            {currentUser ? <img src={currentUser} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <span style={{color:'#ccc',fontSize:24}}>我</span>}
+          </div>
+          <div style={{fontSize:11,color:'#999',marginTop:4}}>我的头像</div>
+        </div>
+      </div>
+
+      {/* Upload controls */}
+      <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+        <label style={{flex:'0 0 auto',padding:'8px 14px',background:'linear-gradient(135deg,#f0d0e8,#e8c0d8)',borderRadius:8,fontSize:13,color:'#8a4878',cursor:'pointer',border:'none',fontWeight:500}}>
+          {uploading ? '上传中...' : '📷 上传图片'}
+          <input type="file" accept="image/*" onChange={handleUpload} hidden disabled={uploading} />
+        </label>
+        <input
+          value={urlInput}
+          onChange={e => setUrlInput(e.target.value)}
+          placeholder="粘贴图片URL..."
+          style={{flex:1,minWidth:100,padding:'8px 10px',borderRadius:8,border:'1px solid #eee',fontSize:12,outline:'none',background:'#faf5f8'}}
+          onKeyDown={e => e.key === 'Enter' && handleAddUrl()}
+        />
+        {urlInput && <button onClick={handleAddUrl} style={{padding:'8px 12px',background:'#c77dba',color:'#fff',border:'none',borderRadius:8,fontSize:12,cursor:'pointer'}}>添加</button>}
+      </div>
+
+      {/* Filter */}
+      <div style={{display:'flex',gap:6,marginBottom:12}}>
+        {[['all','全部'],['ai','池可用'],['user','我可用']].map(([k,v]) => (
+          <button key={k} onClick={() => setFilter(k)} style={{padding:'4px 12px',borderRadius:6,border:'1px solid '+(filter===k?'#c77dba':'#eee'),background:filter===k?'#f8e0f0':'#fff',color:filter===k?'#8a4878':'#999',fontSize:11,cursor:'pointer'}}>{v}</button>
+        ))}
+        <span style={{marginLeft:'auto',fontSize:11,color:'#bbb'}}>{filtered.length}张</span>
+      </div>
+
+      {/* Gallery grid */}
+      {filtered.length === 0 ? (
+        <div style={{textAlign:'center',color:'#ccc',padding:40,fontSize:13}}>还没有头像呢，上传一些吧 ✨</div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+          {filtered.map(a => (
+            <div key={a.id} style={{position:'relative',borderRadius:10,overflow:'hidden',aspectRatio:'1',background:'#f9f0f5',border: (a.url === currentAI || a.url === currentUser) ? '2px solid #c77dba' : '1px solid #f0e0ea'}}>
+              <img src={a.url} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+              {/* Badges */}
+              <div style={{position:'absolute',top:4,left:4,display:'flex',gap:2}}>
+                {a.url === currentAI && <span style={{background:'#c77dba',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>池</span>}
+                {a.url === currentUser && <span style={{background:'#e0a0d0',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>我</span>}
+                {a.addedBy === 'ai' && <span style={{background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>AI添加</span>}
+              </div>
+              {/* Action buttons on tap */}
+              <div style={{position:'absolute',bottom:0,left:0,right:0,display:'flex',background:'rgba(0,0,0,0.45)',backdropFilter:'blur(4px)'}}>
+                <button onClick={() => handleSetAvatar(a.url, 'ai')} style={{flex:1,padding:'6px 0',background:'none',border:'none',color:'#fff',fontSize:10,cursor:'pointer'}}>设为池</button>
+                <button onClick={() => handleSetAvatar(a.url, 'user')} style={{flex:1,padding:'6px 0',background:'none',border:'none',color:'#fff',fontSize:10,cursor:'pointer',borderLeft:'1px solid rgba(255,255,255,0.2)'}}>设为我</button>
+                <button onClick={() => handleDelete(a.id)} style={{flex:0,padding:'6px 8px',background:'none',border:'none',color:'#ff8a8a',fontSize:10,cursor:'pointer',borderLeft:'1px solid rgba(255,255,255,0.2)'}}>×</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{marginTop:16,padding:10,background:'#faf5f8',borderRadius:8,fontSize:11,color:'#bba'}}>
+        💡 池也可以自己找图片添加到头像库，或者自主换头像哦
+      </div>
+    </div>
+  )
+}
 function ThemePanel() {
   const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
   const [saved, setSaved] = useState(false)
-  const APP_LIST = ['notes','messages','music','couple','system','fishing','reader','theme','memoryMgr','diary','garden','cabin','starmap','screenTime','care','stickers']
-  const APP_NAMES = {notes:'\u4fbf\u7b7e',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',theme:'\u7f8e\u5316',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',screenTime:'屏幕时间',care:'养护手册',stickers:'表情包管理'}
+  const APP_LIST = ['notes','messages','music','couple','system','fishing','reader','theme','avatarGallery','memoryMgr','diary','garden','cabin','starmap','screenTime','care','stickers']
+  const APP_NAMES = {notes:'\u4fbf\u7b7e',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',theme:'\u7f8e\u5316',avatarGallery:'\u5934\u50cf\u5e93',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',screenTime:'屏幕时间',care:'养护手册',stickers:'表情包管理'}
 
   function save() {
     try {
@@ -2258,7 +2422,7 @@ function EmotionMonitor() {
 }
 
 function AppContent({ appId, onBack }) {
-  const appNames = { notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', system:'系统', fishing:'钓鱼', reader:'阅读', theme:'美化', memoryMgr:'记忆管理', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', screenTime:'屏幕时间' }
+  const appNames = { notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', system:'系统', fishing:'钓鱼', reader:'阅读', theme:'美化', avatarGallery:'头像库', memoryMgr:'记忆管理', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', screenTime:'屏幕时间' }
   const appFiles = { notes:'_notes.html', fishing:'_fishing.html', music:'_music_player.html', messages:'_messages.html', couple:'_couple.html', reader:'_reader.html', diary:'_diary.html', garden:'_garden.html', system:'__settings__', theme:'__theme__', memoryMgr:'__memory__' }
   const htmlFile = appFiles[appId]
 
@@ -2308,6 +2472,7 @@ function HomeScreen({ onOpenApp, theme }) {
     { id: 'fishing', icon: '/icons/fishing.png', name: '\u9493\u9c7c' },
     { id: 'reader', icon: '/icons/reader.png', name: '\u9605\u8bfb' },
     { id: 'theme', icon: '/icons/theme.png', name: '\u7f8e\u5316' },
+    { id: 'avatarGallery', icon: '/icons/couple.png', name: '\u5934\u50cf\u5e93' },
     { id: 'memoryMgr', icon: '/icons/system.png', name: '\u8bb0\u5fc6' },
   ]
   const page3Apps = [
@@ -2523,6 +2688,15 @@ export default function Home() {
     if (currentApp === 'system') return <AppContent appId="system" onBack={handleBack} />
     if (currentApp === 'theme') return <AppContent appId="theme" onBack={handleBack} />
     if (currentApp === 'memoryMgr') return <AppContent appId="memoryMgr" onBack={handleBack} />
+    if (currentApp === 'avatarGallery') return (
+      <div className="app-page">
+        <div className="app-page-header">
+          <button className="back-btn" onClick={handleBack}>{'←'}</button>
+          <span className="app-page-title">头像库</span>
+        </div>
+        <div className="app-page-body"><AvatarGalleryPanel /></div>
+      </div>
+    )
     if (currentApp === 'screenTime') return (
       <div className="app-page">
         <div className="app-page-header">
