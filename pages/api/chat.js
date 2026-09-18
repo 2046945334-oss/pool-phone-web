@@ -1184,27 +1184,30 @@ async function executeTool(name, args) {
   }
   if (name === 'avatar_add') {
     const GALLERY_KEY = 'pool_avatar_gallery'
-    let gallery = { avatars: [] }
-    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(GALLERY_KEY); if (row) gallery = JSON.parse(row.value) } catch {}
     const toAdd = args.urls || (args.url ? [args.url] : [])
     if (toAdd.length === 0) return { error: 'url或urls必须提供' }
     const now = new Date().toISOString()
-    let added = 0
-    for (const u of toAdd) {
-      if (gallery.avatars.some(a => a.url === u)) continue
-      gallery.avatars.push({
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        url: u,
-        desc: args.desc || '',
-        tags: args.tags || [],
-        owner: args.owner || 'both',
-        addedAt: now,
-        addedBy: 'ai'
-      })
-      added++
-    }
-    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(GALLERY_KEY, JSON.stringify(gallery))
-    return { success: true, added, total: gallery.avatars.length }
+    const result = db.transaction(() => {
+      let gallery = { avatars: [] }
+      try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(GALLERY_KEY); if (row) gallery = JSON.parse(row.value) } catch {}
+      let added = 0
+      for (const u of toAdd) {
+        if (gallery.avatars.some(a => a.url === u)) continue
+        gallery.avatars.push({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          url: u,
+          desc: args.desc || '',
+          tags: args.tags || [],
+          owner: args.owner || 'both',
+          addedAt: now,
+          addedBy: 'ai'
+        })
+        added++
+      }
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(GALLERY_KEY, JSON.stringify(gallery))
+      return { success: true, added, total: gallery.avatars.length }
+    })()
+    return result
   }
   if (name === 'avatar_set') {
     const THEME_KEY = 'pool_theme'
