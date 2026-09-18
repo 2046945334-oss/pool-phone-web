@@ -1356,7 +1356,7 @@ function AvatarGalleryPanel() {
 
   async function loadGallery() {
     try {
-      const r = await fetch('/api/avatar-gallery?action=list')
+      const r = await fetch('/api/avatar-gallery?action=list', { cache: 'no-store' })
       const d = await r.json()
       console.log('[AvatarGallery] loaded', (d.avatars || []).length, 'avatars')
       setAvatars(d.avatars || [])
