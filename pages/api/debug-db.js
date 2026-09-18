@@ -1,3 +1,4 @@
+// Persistence verification trigger
 // pages/api/debug-db.js - Temporary debug endpoint
 import { getDb } from '../../lib/db'
 const path = require('path')
