@@ -15,6 +15,16 @@ function saveGallery(db, gallery) {
   db.prepare("INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())").run(GALLERY_KEY, JSON.stringify(gallery))
 }
 
+// Atomic read-modify-write helper to prevent race conditions
+function withGalleryLock(db, fn) {
+  return db.transaction(() => {
+    const gallery = getGallery(db)
+    const result = fn(gallery)
+    saveGallery(db, gallery)
+    return result
+  })()
+}
+
 function getTheme(db) {
   const row = db.prepare("SELECT value FROM kv WHERE key = ?").get(THEME_KEY)
   if (!row) return {}
@@ -49,35 +59,36 @@ export default async function handler(req, res) {
   // POST action=add — add avatar(s) to gallery
   if (action === 'add') {
     const { url, urls, tag, tags, owner } = body
-    // owner: 'ai' | 'user' | 'both' (default 'both')
-    const gallery = getGallery(db)
     const toAdd = urls || (url ? [url] : [])
     if (toAdd.length === 0) return res.status(400).json({ error: 'url or urls required' })
     const now = new Date().toISOString()
-    for (const u of toAdd) {
-      // Deduplicate
-      if (gallery.avatars.some(a => a.url === u)) continue
-      gallery.avatars.push({
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        url: u,
-        desc: body.desc || '',
-        tags: tags || (tag ? [tag] : []),
-        owner: owner || 'both',
-        addedAt: now,
-        addedBy: body.addedBy || 'user'
-      })
-    }
-    saveGallery(db, gallery)
-    return res.json({ ok: true, count: gallery.avatars.length })
+    const result = withGalleryLock(db, (gallery) => {
+      let added = 0
+      for (const u of toAdd) {
+        if (gallery.avatars.some(a => a.url === u)) continue
+        gallery.avatars.push({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          url: u,
+          desc: body.desc || '',
+          tags: tags || (tag ? [tag] : []),
+          owner: owner || 'both',
+          addedAt: now,
+          addedBy: body.addedBy || 'user'
+        })
+        added++
+      }
+      return { ok: true, added, count: gallery.avatars.length }
+    })
+    return res.json(result)
   }
 
   // POST action=delete — remove avatar by id
   if (action === 'delete') {
     const { id } = body
     if (!id) return res.status(400).json({ error: 'id required' })
-    const gallery = getGallery(db)
-    gallery.avatars = gallery.avatars.filter(a => a.id !== id)
-    saveGallery(db, gallery)
+    withGalleryLock(db, (gallery) => {
+      gallery.avatars = gallery.avatars.filter(a => a.id !== id)
+    })
     return res.json({ ok: true })
   }
 
