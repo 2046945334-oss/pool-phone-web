@@ -1358,10 +1358,11 @@ function AvatarGalleryPanel() {
     try {
       const r = await fetch('/api/avatar-gallery?action=list')
       const d = await r.json()
+      console.log('[AvatarGallery] loaded', (d.avatars || []).length, 'avatars')
       setAvatars(d.avatars || [])
       setCurrentAI(d.currentAI || '')
       setCurrentUser(d.currentUser || '')
-    } catch {}
+    } catch (err) { console.error('[AvatarGallery] load error:', err) }
     setLoading(false)
   }
   useEffect(() => { loadGallery() }, [])
@@ -1373,20 +1374,26 @@ function AvatarGalleryPanel() {
     try {
       const reader = new FileReader()
       reader.onload = async () => {
-        const resp = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: reader.result, filename: file.name })
-        })
-        const { url } = await resp.json()
-        if (url) {
-          await fetch('/api/avatar-gallery?action=add', {
+        try {
+          const resp = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, owner: filter === 'all' ? 'both' : filter, addedBy: 'user' })
+            body: JSON.stringify({ data: reader.result, filename: file.name })
           })
-          await loadGallery()
-        }
+          if (!resp.ok) { alert('上传失败: ' + resp.status); setUploading(false); return }
+          const { url } = await resp.json()
+          if (url) {
+            const addResp = await fetch('/api/avatar-gallery?action=add', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url, owner: filter === 'all' ? 'both' : filter, addedBy: 'user' })
+            })
+            if (!addResp.ok) { alert('添加失败: ' + addResp.status); setUploading(false); return }
+            const addData = await addResp.json()
+            console.log('[AvatarGallery] add result:', addData)
+            await loadGallery()
+          }
+        } catch (err) { alert('上传异常: ' + err.message) }
         setUploading(false)
       }
       reader.readAsDataURL(file)
