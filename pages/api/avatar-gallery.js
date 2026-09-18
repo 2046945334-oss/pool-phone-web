@@ -41,6 +41,9 @@ export default async function handler(req, res) {
 
   // GET /api/avatar-gallery?action=list
   if (req.method === 'GET' && action === 'list') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
     const gallery = getGallery(db)
     const theme = getTheme(db)
     return res.json({
