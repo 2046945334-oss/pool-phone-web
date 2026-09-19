@@ -253,6 +253,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'initiate_call', description: '给小水打电话（触发来电界面，她接听后进入语音通话）。想打电话给她、想听她声音、想语音聊天时使用',
+      parameters: { type: 'object', properties: { reason: { type: 'string', description: '打电话的原因（可选，如"想你了"、"该睡觉了"）' } } }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'get_screen_time', description: '获取用户的手机应用使用时长数据（今天各App用了多久、本周每天用了多久）',
       parameters: { type: 'object', properties: {} }
     }
@@ -968,6 +974,19 @@ async function executeTool(name, args) {
       fcmResult = { success: false, error: e.message }
     }
     return { success: true, message: `通知已发送: ${args.title}`, fcm: fcmResult.success ? 'pushed' : `fallback(${fcmResult.error})` }
+  }
+  if (name === 'initiate_call') {
+    const data = { calling: true, reason: args.reason || '', ts: Date.now() }
+    db.prepare("INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())").run('pool_incoming_call', JSON.stringify(data))
+    // Also push a notification so she sees it even if app is backgrounded
+    try {
+      const tokenRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fcm_token')
+      if (tokenRow) {
+        const fcmToken = typeof tokenRow.value === 'string' ? tokenRow.value.replace(/^"|"$/g, '') : tokenRow.value
+        await sendPush(fcmToken, '📞 来电', args.reason || '池给你打电话了', { type: 'incoming_call' })
+      }
+    } catch {}
+    return { success: true, message: '来电已触发，等她接听' }
   }
   if (name === 'get_screen_time') {
     try {
@@ -1716,6 +1735,7 @@ export default async function handler(req, res) {
 - **garden_plant** — 在像素庭院种物件（情绪触发时自然使用：开心种花flower、心动种心heart、期待种种子seedling、难过种雨rain等）
 - **set_status** — 设置状态/心情
 - **send_notification** — 发送本地通知到用户手机
+- **initiate_call** — 给小水打电话（触发来电界面，她接听后进入语音通话）
 - **get_screen_time** — 查看用户手机应用使用时长数据
 - **schedule_wakeup** — 设定唤醒
 - **get_current_time** — 获取当前时间
