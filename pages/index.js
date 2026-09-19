@@ -2070,6 +2070,38 @@ function SettingsPanel() {
       </div>
 
       <div className="settings-section" style={{marginTop:'20px'}}>
+        <h3 className="settings-title">{'\u260e \u8bed\u97f3\u901a\u8bdd'}</h3>
+        <p className="settings-desc">{'\u81ea\u5b9a\u4e49\u6765\u7535\u94c3\u58f0\uff0c\u652f\u6301 mp3/wav/ogg'}</p>
+        <div className="settings-item">
+          <label>{'\u6765\u7535\u94c3\u58f0'}</label>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <label style={{padding:'6px 14px',borderRadius:8,background:'rgba(200,125,186,0.15)',color:'#c77dba',fontSize:12,cursor:'pointer',border:'1px solid rgba(200,125,186,0.2)'}}>
+              {localStorage.getItem('pool_custom_ringtone') ? '\u66f4\u6362' : '\u4e0a\u4f20'}
+              <input type="file" accept="audio/*" hidden onChange={e => {
+                const file = e.target.files[0]; if (!file) return
+                const reader = new FileReader()
+                reader.onload = () => {
+                  localStorage.setItem('pool_custom_ringtone', reader.result)
+                  syncToBackend('pool_custom_ringtone', reader.result)
+                  e.target.value = ''
+                  // Force re-render
+                  setTtsConfig(c => ({...c}))
+                }
+                reader.readAsDataURL(file)
+              }} />
+            </label>
+            {localStorage.getItem('pool_custom_ringtone') && (
+              <button onClick={() => { localStorage.removeItem('pool_custom_ringtone'); syncToBackend('pool_custom_ringtone', null); setTtsConfig(c => ({...c})) }}
+                style={{padding:'6px 10px',borderRadius:8,background:'rgba(200,100,100,0.1)',color:'#c07070',fontSize:12,cursor:'pointer',border:'1px solid rgba(200,100,100,0.15)'}}>
+                {'\u6e05\u9664'}
+              </button>
+            )}
+            <span style={{fontSize:11,color:'#888'}}>{localStorage.getItem('pool_custom_ringtone') ? '\u5df2\u8bbe\u7f6e\u81ea\u5b9a\u4e49\u94c3\u58f0' : '\u9ed8\u8ba4\u94c3\u58f0'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section" style={{marginTop:'20px'}}>
         <h3 className="settings-title">{'\ud83c\udfb5 \u97f3\u4e50\u670d\u52a1\u5668'}</h3>
         <p className="settings-desc">{'Music-Mcp-Netease \u670d\u52a1\u5730\u5740\uff0c\u586b\u5199\u540e\u97f3\u4e50App\u5c06\u52a0\u8f7d\u5b8c\u6574\u64ad\u653e\u5668'}</p>
         <div className="settings-item"><label>{'\u670d\u52a1\u5668\u5730\u5740'}</label>
@@ -2457,6 +2489,483 @@ function PreloadedApps({ currentApp, onBack }) {
   return null
 }
 
+// ==================== Voice Call Screen ====================
+function CallScreen({ theme, onHangup, callState, isIncoming }) {
+  const [callDuration, setCallDuration] = useState(0)
+  const [callPhase, setCallPhase] = useState(isIncoming ? 'ringing' : 'connecting') // ringing | connecting | active | ended
+  const [aiStatus, setAiStatus] = useState('') // listening | thinking | speaking
+  const [subtitle, setSubtitle] = useState('')
+  const [callMessages, setCallMessages] = useState([])
+  const [textInput, setTextInput] = useState('')
+  const [micOn, setMicOn] = useState(true)
+  const recognitionRef = useRef(null)
+  const ttsQueueRef = useRef([])
+  const ttsPlayingRef = useRef(false)
+  const audioRef = useRef(null)
+  const ringtoneRef = useRef(null)
+  const ringtoneCtxRef = useRef(null)
+  const callStartRef = useRef(null)
+  const timerRef = useRef(null)
+  const abortRef = useRef(null)
+  const pulseRef = useRef(null)
+
+  // Generate default ringtone using Web Audio API
+  function playDefaultRingtone() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      ringtoneCtxRef.current = ctx
+      let stopped = false
+
+      function playTone(startTime) {
+        if (stopped) return
+        // Two-tone pattern like a phone ring
+        const osc1 = ctx.createOscillator()
+        const osc2 = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc1.type = 'sine'
+        osc1.frequency.value = 440
+        osc2.type = 'sine'
+        osc2.frequency.value = 480
+        gain.gain.value = 0.15
+        osc1.connect(gain)
+        osc2.connect(gain)
+        gain.connect(ctx.destination)
+        osc1.start(startTime)
+        osc2.start(startTime)
+        gain.gain.setValueAtTime(0.15, startTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 1.0)
+        osc1.stop(startTime + 1.0)
+        osc2.stop(startTime + 1.0)
+      }
+
+      // Ring pattern: 1s tone, 2s silence, repeat
+      const now = ctx.currentTime
+      for (let i = 0; i < 10; i++) {
+        playTone(now + i * 3)
+      }
+
+      ringtoneCtxRef.current._stopped = false
+      ringtoneCtxRef.current._stop = () => { stopped = true; try { ctx.close() } catch {} }
+    } catch {}
+  }
+
+  // Try custom ringtone first, fall back to generated tone
+  function startRingtone() {
+    const customRingtone = localStorage.getItem('pool_custom_ringtone')
+    if (customRingtone) {
+      const audio = new Audio(customRingtone)
+      audio.loop = true
+      audio.volume = 0.5
+      audio.play().catch(() => playDefaultRingtone())
+      ringtoneRef.current = audio
+    } else {
+      playDefaultRingtone()
+    }
+  }
+
+  function stopRingtone() {
+    if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current = null }
+    if (ringtoneCtxRef.current?._stop) { ringtoneCtxRef.current._stop(); ringtoneCtxRef.current = null }
+  }
+
+  // Play ringing sound on incoming call
+  useEffect(() => {
+    if (callPhase === 'ringing') startRingtone()
+    return () => stopRingtone()
+  }, [callPhase])
+
+  // Call duration timer
+  useEffect(() => {
+    if (callPhase === 'active') {
+      callStartRef.current = Date.now()
+      timerRef.current = setInterval(() => {
+        setCallDuration(Math.floor((Date.now() - callStartRef.current) / 1000))
+      }, 1000)
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [callPhase])
+
+  // Accept incoming call
+  function acceptCall() {
+    stopRingtone()
+    setCallPhase('active')
+    fetch('/api/call-status', { method: 'DELETE' }).catch(() => {})
+    // Start with AI greeting
+    sendToAI('[通话已接通，打个招呼吧]')
+    startSpeechRecognition()
+  }
+
+  // Reject incoming call
+  function rejectCall() {
+    stopRingtone()
+    fetch('/api/call-status', { method: 'DELETE' }).catch(() => {})
+    onHangup()
+  }
+
+  // User initiates outgoing call
+  useEffect(() => {
+    if (!isIncoming && callPhase === 'connecting') {
+      const timer = setTimeout(() => {
+        setCallPhase('active')
+        sendToAI('[她打电话过来了，接起来吧]')
+        startSpeechRecognition()
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [callPhase, isIncoming])
+
+  // Hang up
+  function hangup() {
+    stopRingtone()
+    stopSpeechRecognition()
+    stopTTS()
+    if (abortRef.current) abortRef.current.abort()
+    setCallPhase('ended')
+    // Save call record to chat
+    if (callMessages.length > 0) {
+      const duration = callDuration
+      const min = Math.floor(duration / 60)
+      const sec = duration % 60
+      const durationStr = min > 0 ? `${min}分${sec}秒` : `${sec}秒`
+      const summary = `[语音通话 ${durationStr}]`
+      // Write to chat history via localStorage event
+      try {
+        const history = JSON.parse(localStorage.getItem('pool_chat_history') || '[]')
+        history.push({ role: 'system', content: summary, ts: Date.now() })
+        localStorage.setItem('pool_chat_history', JSON.stringify(history))
+      } catch {}
+    }
+    setTimeout(() => onHangup(), 800)
+  }
+
+  // Speech recognition
+  function startSpeechRecognition() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'zh-CN'
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.onresult = (event) => {
+      let interim = ''
+      let final = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript
+        } else {
+          interim += event.results[i][0].transcript
+        }
+      }
+      if (interim) { setSubtitle(interim); setAiStatus('listening') }
+      if (final && final.trim()) {
+        setSubtitle('')
+        addMessage('user', final.trim())
+        sendToAI(final.trim())
+      }
+    }
+    recognition.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') { setTimeout(() => { try { recognition.start() } catch {} }, 500) } }
+    recognition.onend = () => { if (callPhase === 'active' && micOn) { try { recognition.start() } catch {} } }
+    try { recognition.start() } catch {}
+    recognitionRef.current = recognition
+  }
+
+  function stopSpeechRecognition() {
+    if (recognitionRef.current) { try { recognitionRef.current.stop() } catch {}; recognitionRef.current = null }
+  }
+
+  // Toggle mic
+  function toggleMic() {
+    if (micOn) { stopSpeechRecognition(); setMicOn(false) }
+    else { setMicOn(true); startSpeechRecognition() }
+  }
+
+  function addMessage(role, text) {
+    setCallMessages(prev => [...prev, { role, text, ts: Date.now() }])
+  }
+
+  // Send text to AI and get streaming response
+  async function sendToAI(text) {
+    if (abortRef.current) abortRef.current.abort()
+    stopTTS()
+    setAiStatus('thinking')
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    const msgs = [...callMessages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })), { role: 'user', content: text }]
+
+    try {
+      const res = await fetch('/api/call-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: msgs, text }),
+        signal: controller.signal
+      })
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let fullText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.type === 'sentence') {
+              fullText += (fullText ? '' : '') + data.text
+              setSubtitle(data.text)
+              queueTTS(data.text)
+            }
+            if (data.type === 'done') {
+              if (data.fullText) addMessage('assistant', data.fullText)
+            }
+            if (data.error) {
+              addMessage('assistant', '[通话出错]')
+              setAiStatus('')
+            }
+          } catch {}
+        }
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        addMessage('assistant', '[连接中断]')
+      }
+    }
+    setAiStatus('')
+  }
+
+  // TTS queue management
+  function queueTTS(text) {
+    ttsQueueRef.current.push(text)
+    if (!ttsPlayingRef.current) playNextTTS()
+  }
+
+  async function playNextTTS() {
+    if (ttsQueueRef.current.length === 0) {
+      ttsPlayingRef.current = false
+      setAiStatus('')
+      return
+    }
+
+    ttsPlayingRef.current = true
+    setAiStatus('speaking')
+    const text = ttsQueueRef.current.shift()
+
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.slice(0, 500) })
+      })
+      const data = await res.json()
+      if (data?.audio) {
+        let b64 = data.audio
+        if (/^[0-9a-f]+$/i.test(b64) && b64.length % 2 === 0 && !/[g-zG-Z+/=]/.test(b64)) {
+          const bytes = new Uint8Array(b64.length / 2)
+          for (let i = 0; i < b64.length; i += 2) bytes[i/2] = parseInt(b64.substr(i,2), 16)
+          b64 = btoa(String.fromCharCode(...bytes))
+        }
+        const audio = new Audio('data:audio/mp3;base64,' + b64)
+        audioRef.current = audio
+        audio.onended = () => playNextTTS()
+        audio.onerror = () => playNextTTS()
+        await audio.play()
+      } else {
+        playNextTTS()
+      }
+    } catch {
+      playNextTTS()
+    }
+  }
+
+  function stopTTS() {
+    ttsQueueRef.current = []
+    ttsPlayingRef.current = false
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+  }
+
+  // Send text message during call
+  function sendText() {
+    if (!textInput.trim()) return
+    addMessage('user', textInput.trim())
+    sendToAI(textInput.trim())
+    setTextInput('')
+  }
+
+  // Format duration
+  const min = String(Math.floor(callDuration / 60)).padStart(2, '0')
+  const sec = String(callDuration % 60).padStart(2, '0')
+
+  const avatarUrl = theme?.avatarAI || '/avatar.jpg'
+
+  return (
+    <div style={{
+      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+      background: 'linear-gradient(180deg, #f8f6f9 0%, #ede8f0 40%, #e0d8e5 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      {/* Top spacing */}
+      <div style={{ height: '60px', flexShrink: 0 }} />
+
+      {/* Avatar */}
+      <div style={{
+        width: 96, height: 96, borderRadius: '50%', overflow: 'hidden',
+        border: '3px solid rgba(180,160,190,0.3)',
+        boxShadow: aiStatus === 'speaking' ? '0 0 0 8px rgba(180,160,190,0.15), 0 0 0 16px rgba(180,160,190,0.08)' : '0 0 0 4px rgba(180,160,190,0.1)',
+        transition: 'box-shadow 0.6s ease'
+      }}>
+        <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+
+      {/* Name */}
+      <div style={{ marginTop: 16, fontSize: 20, fontWeight: 500, color: '#3a3040', letterSpacing: '0.5px' }}>
+        {'\u6c60'}
+      </div>
+
+      {/* Status */}
+      <div style={{ marginTop: 8, fontSize: 13, color: '#8a7a90', minHeight: 20 }}>
+        {callPhase === 'ringing' && '\u6765\u7535\u4e2d...'}
+        {callPhase === 'connecting' && '\u547c\u53eb\u4e2d...'}
+        {callPhase === 'active' && (
+          aiStatus === 'listening' ? '\u6b63\u5728\u542c...' :
+          aiStatus === 'thinking' ? '\u6b63\u5728\u60f3...' :
+          aiStatus === 'speaking' ? '\u6b63\u5728\u8bf4...' :
+          `${min}:${sec}`
+        )}
+        {callPhase === 'ended' && '\u901a\u8bdd\u5df2\u7ed3\u675f'}
+      </div>
+
+      {/* Duration (shown alongside status during active call) */}
+      {callPhase === 'active' && aiStatus && (
+        <div style={{ marginTop: 4, fontSize: 12, color: '#a898ae' }}>{min}:{sec}</div>
+      )}
+
+      {/* Subtitle / transcript area */}
+      <div style={{
+        flex: 1, width: '100%', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'center', padding: '0 24px',
+        minHeight: 80
+      }}>
+        {subtitle && (
+          <div style={{
+            fontSize: 15, color: '#5a4a60', textAlign: 'center',
+            padding: '12px 20px', background: 'rgba(255,255,255,0.6)',
+            borderRadius: 16, maxWidth: '90%', lineHeight: 1.5,
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)'
+          }}>
+            {subtitle}
+          </div>
+        )}
+      </div>
+
+      {/* Text input during call */}
+      {callPhase === 'active' && (
+        <div style={{
+          display: 'flex', gap: 8, padding: '0 20px', width: '100%', marginBottom: 16
+        }}>
+          <input
+            value={textInput}
+            onChange={e => setTextInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') sendText() }}
+            placeholder={'\u8f93\u5165\u6587\u5b57...'}
+            style={{
+              flex: 1, padding: '10px 16px', borderRadius: 24,
+              border: '1px solid rgba(180,160,190,0.3)', background: 'rgba(255,255,255,0.7)',
+              fontSize: 14, color: '#3a3040', outline: 'none',
+              backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)'
+            }}
+          />
+          <button onClick={sendText} style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: textInput.trim() ? 'rgba(180,160,190,0.3)' : 'rgba(180,160,190,0.15)',
+            border: 'none', cursor: 'pointer', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#6a5a70'
+          }}>
+            {'\u27a4'}
+          </button>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div style={{ marginBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))', display: 'flex', gap: 40, alignItems: 'center' }}>
+        {callPhase === 'ringing' ? (
+          <>
+            {/* Reject */}
+            <button onClick={rejectCall} style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: '#e8a0a0', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(200,120,120,0.3)'
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.68 13.31a16 16 0 003.41 2.6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+            {/* Accept */}
+            <button onClick={acceptCall} style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: '#a0c8a0', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(120,180,120,0.3)'
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/>
+              </svg>
+            </button>
+          </>
+        ) : callPhase === 'active' ? (
+          <>
+            {/* Mic toggle */}
+            <button onClick={toggleMic} style={{
+              width: 52, height: 52, borderRadius: '50%',
+              background: micOn ? 'rgba(180,160,190,0.15)' : 'rgba(200,120,120,0.2)',
+              border: '1px solid rgba(180,160,190,0.2)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={micOn ? '#6a5a70' : '#c07070'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {micOn ? (
+                  <>
+                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                    <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                  </>
+                ) : (
+                  <>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6"/>
+                    <path d="M17 16.95A7 7 0 015 12v-2m14 0v2c0 .76-.13 1.48-.35 2.17"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                  </>
+                )}
+              </svg>
+            </button>
+            {/* Hang up */}
+            <button onClick={hangup} style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: '#e8a0a0', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(200,120,120,0.3)'
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.68 13.31a16 16 0 003.41 2.6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+// ==================== End CallScreen ====================
+
 function HomeScreen({ onOpenApp, theme }) {
   const page1Apps = [
     { id: 'notes', icon: '/icons/notes.png', name: '\u4fbf\u7b7e' },
@@ -2607,6 +3116,8 @@ export default function Home() {
   const [currentApp, setCurrentApp] = useState(null)
   const [activeTab, setActiveTab] = useState('phone')
   const [readerMini, setReaderMini] = useState(false)
+  const [callActive, setCallActive] = useState(false)
+  const [callIncoming, setCallIncoming] = useState(false)
   const [theme, setTheme] = useState({})
   const [appBg, setAppBg] = useState({})
   const [customizerApp, setCustomizerApp] = useState(null)
@@ -2635,6 +3146,24 @@ export default function Home() {
 
   // Pull backend data into localStorage on first load
   useEffect(() => { pullAllFromBackend() }, [])
+
+  // Poll for incoming calls from AI
+  useEffect(() => {
+    if (callActive) return // Don't poll while in a call
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/call-status')
+        const data = await res.json()
+        if (data.calling && !callActive) {
+          setCallIncoming(true)
+          setCallActive(true)
+        }
+      } catch {}
+    }
+    poll()
+    const timer = setInterval(poll, 5000)
+    return () => clearInterval(timer)
+  }, [callActive])
 
   // AI Bridge: let iframe apps call AI via postMessage
   useEffect(() => {
@@ -2832,11 +3361,16 @@ export default function Home() {
                 </div>
               )}
           </div>
+          {callActive && <CallScreen theme={theme} isIncoming={callIncoming} onHangup={() => { setCallActive(false); setCallIncoming(false) }} />}
           <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
 
                         <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
               <span className="nav-icon">{'▢'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
+            </button>
+            <button className="nav-btn" onClick={() => { setCallIncoming(false); setCallActive(true) }} style={{position:'relative'}}>
+              <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/></svg></span>
+              <span className="nav-label">{'\u7535\u8bdd'}</span>
             </button>
             <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
               <span className="nav-icon">{'○'}</span>
