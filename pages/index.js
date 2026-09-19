@@ -2769,7 +2769,7 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
 
   async function sendAudioToASR(blob) {
     setAiStatus('thinking')
-    setSubtitle('...')
+    setSubtitle('识别中...')
     try {
       // Convert blob to base64
       const reader = new FileReader()
@@ -2788,13 +2788,17 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         setSubtitle('')
         addMessage('user', text)
         sendToAI(text)
+      } else if (data.error) {
+        // Show error briefly so user knows what happened
+        setSubtitle('STT: ' + (data.error || '').slice(0, 60))
+        setTimeout(() => { setSubtitle(''); setAiStatus('') }, 4000)
       } else {
-        setSubtitle('')
-        setAiStatus('')
+        setSubtitle('(未识别到语音)')
+        setTimeout(() => { setSubtitle(''); setAiStatus('') }, 2000)
       }
-    } catch {
-      setSubtitle('')
-      setAiStatus('')
+    } catch (e) {
+      setSubtitle('ASR错误: ' + (e.message || '').slice(0, 40))
+      setTimeout(() => { setSubtitle(''); setAiStatus('') }, 3000)
     }
   }
 
