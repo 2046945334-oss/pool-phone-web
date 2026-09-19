@@ -2662,18 +2662,29 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
     stopTTS()
     if (abortRef.current) abortRef.current.abort()
     setCallPhase('ended')
-    // Save call record to chat
+    // Save full call record to chat history + backend
     if (callMessages.length > 0) {
       const duration = callDuration
       const min = Math.floor(duration / 60)
       const sec = duration % 60
       const durationStr = min > 0 ? `${min}分${sec}秒` : `${sec}秒`
-      const summary = `[语音通话 ${durationStr}]`
-      // Write to chat history via localStorage event
       try {
         const history = JSON.parse(localStorage.getItem('pool_chat_history') || '[]')
-        history.push({ role: 'system', content: summary, ts: Date.now() })
+        // Add call start marker
+        history.push({ role: 'system', content: `[语音通话开始]`, ts: callMessages[0]?.ts || Date.now() })
+        // Add all call messages to main chat history
+        for (const m of callMessages) {
+          history.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text, ts: m.ts || Date.now() })
+        }
+        // Add call end marker with duration
+        history.push({ role: 'system', content: `[语音通话结束 ${durationStr}]`, ts: Date.now() })
         localStorage.setItem('pool_chat_history', JSON.stringify(history))
+        // Sync to backend
+        fetch('/api/data/pool_chat_history', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: history.slice(-50) })
+        }).catch(() => {})
       } catch {}
     }
     setTimeout(() => onHangup(), 800)
@@ -3288,6 +3299,7 @@ export default function Home() {
   const [callActive, setCallActive] = useState(false)
   const [callIncoming, setCallIncoming] = useState(false)
   const [callMinimized, setCallMinimized] = useState(false)
+  const [showCallConfirm, setShowCallConfirm] = useState(false)
   const [theme, setTheme] = useState({})
   const [appBg, setAppBg] = useState({})
   const [customizerApp, setCustomizerApp] = useState(null)
@@ -3547,6 +3559,19 @@ export default function Home() {
               <span style={{ color: '#fff', fontSize: 12, fontWeight: 500 }}>{'\u901a\u8bdd\u4e2d'}</span>
             </div>
           )}
+          {showCallConfirm && (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(6px)' }} onClick={() => setShowCallConfirm(false)}>
+              <div onClick={e => e.stopPropagation()} style={{ background:'rgba(255,255,255,0.95)', borderRadius:16, padding:'28px 24px 20px', width:'min(280px, 80vw)', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>📞</div>
+                <div style={{ fontSize:15, fontWeight:600, color:'#333', marginBottom:6 }}>{'拨打电话给池？'}</div>
+                <div style={{ fontSize:12, color:'#999', marginBottom:20 }}>{'语音通话将开始录音'}</div>
+                <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+                  <button onClick={() => setShowCallConfirm(false)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #ddd', background:'#f5f5f5', fontSize:14, color:'#666', cursor:'pointer' }}>{'取消'}</button>
+                  <button onClick={() => { setShowCallConfirm(false); setCallIncoming(false); setCallActive(true); setCallMinimized(false) }} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg, #6c5ce7, #a78bfa)', fontSize:14, color:'#fff', fontWeight:600, cursor:'pointer' }}>{'拨打'}</button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
 
                         <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
@@ -3557,7 +3582,7 @@ export default function Home() {
               <span className="nav-icon">{'○'}</span>
               <span className="nav-label">{'\u804a\u5929'}</span>
             </button>
-            <button className="nav-btn" onClick={() => { setCallIncoming(false); setCallActive(true); setCallMinimized(false) }} style={{position:'relative'}}>
+            <button className="nav-btn" onClick={() => { if (callActive) { setCallMinimized(false) } else { setShowCallConfirm(true) } }} style={{position:'relative'}}>
               <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/></svg></span>
               <span className="nav-label">{'\u7535\u8bdd'}</span>
             </button>
