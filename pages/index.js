@@ -918,7 +918,14 @@ function ChatView({ theme }) {
       }
       const rawReply = data.reply || '\u65e0\u54cd\u5e94'
       const thinkParsed = parseThinkTags(rawReply)
-      const reply = thinkParsed.content || rawReply
+      const reply0 = thinkParsed.content || rawReply
+      // Normalize various image formats to [img]URL[/img]
+      const reply = reply0
+        .replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg)(?:\?[^)]*)?)\)/gi, '[img]$2[/img]')
+        .replace(/\[([^\]]*)\]\((https?:\/\/[^)\s]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg)(?:\?[^)]*)?)\)/gi, '[img]$2[/img]')
+        .replace(/!\[([^\]]*)\]\((\/api\/img\/[^)\s]+)\)/gi, '[img]$2[/img]')
+        .replace(/\[([^\]]*)\]\((\/api\/img\/[^)\s]+)\)/gi, '[img]$2[/img]')
+        .replace(/<br\s*\/?>/gi, '\n')
       const mergedReasoning = data.reasoning || thinkParsed.reasoning
       const toolLogs = data.toolLogs || null
       // Split reply into sentences and show one by one
