@@ -1648,7 +1648,7 @@ async function executeTool(name, args) {
 }
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, fcmToken: reqFcmToken } = req.body
+  const { messages, apiBase, apiKey, model, sessionId: reqSessionId, fcmToken: reqFcmToken, stream: reqStream } = req.body
   if (!apiBase || !apiKey) return res.status(400).json({ error: 'Missing API configuration' })
   // 顺便存 FCM token（前端每次请求都带，确保 token 始终最新）
   if (reqFcmToken) {
@@ -2262,9 +2262,31 @@ export default async function handler(req, res) {
       // 返回响应，包含记忆命中信息
       const memoryHit = ombreRecall ? {
         source: 'Ombre Brain',
-        count: ombreCount || 1,  // 使用实际返回的记忆条数
+        count: ombreCount || 1,
         preview: ombreRecall.slice(0, 150) + (ombreRecall.length > 150 ? '...' : '')
       } : null
+      // Stream mode: SSE sentence-by-sentence for voice call TTS
+      if (reqStream) {
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Cache-Control', 'no-cache')
+        res.setHeader('Connection', 'keep-alive')
+        res.setHeader('X-Accel-Buffering', 'no')
+        const cleanText = reply
+          .replace(/\[img\][^\[]*\[\/img\]/g, '')
+          .replace(/\[voice\][^\[]*\[\/voice\]/g, '')
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/\*([^*]+)\*/g, '$1')
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/`[^`]+`/g, '')
+          .trim()
+        const parts = cleanText.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
+        const sentences = parts.length > 0 ? parts : (cleanText ? [cleanText] : [])
+        for (const s of sentences) {
+          if (s.trim()) res.write(`data: ${JSON.stringify({ type: 'sentence', text: s.trim() })}\n\n`)
+        }
+        res.write(`data: ${JSON.stringify({ type: 'done', fullText: cleanText, toolLogs: toolLogs.length ? toolLogs : undefined })}\n\n`)
+        return res.end()
+      }
       return res.status(200).json({ 
         reply, 
         reasoning, 
