@@ -2508,6 +2508,11 @@ function CallScreen({ theme, onHangup, callState, isIncoming }) {
   const timerRef = useRef(null)
   const abortRef = useRef(null)
   const pulseRef = useRef(null)
+  const callPhaseRef = useRef(callPhase)
+  const micOnRef = useRef(micOn)
+
+  useEffect(() => { callPhaseRef.current = callPhase }, [callPhase])
+  useEffect(() => { micOnRef.current = micOn }, [micOn])
 
   // Generate default ringtone using Web Audio API
   function playDefaultRingtone() {
@@ -2664,7 +2669,7 @@ function CallScreen({ theme, onHangup, callState, isIncoming }) {
       }
     }
     recognition.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') { setTimeout(() => { try { recognition.start() } catch {} }, 500) } }
-    recognition.onend = () => { if (callPhase === 'active' && micOn) { try { recognition.start() } catch {} } }
+    recognition.onend = () => { if (callPhaseRef.current === 'active' && micOnRef.current) { setTimeout(() => { try { recognition.start() } catch {} }, 300) } }
     try { recognition.start() } catch {}
     recognitionRef.current = recognition
   }
@@ -2694,11 +2699,32 @@ function CallScreen({ theme, onHangup, callState, isIncoming }) {
 
     const msgs = [...callMessages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })), { role: 'user', content: text }]
 
+    // Read API config from localStorage
+    let apiBase = '', apiKey = '', model = ''
+    try {
+      const chatCfg = JSON.parse(localStorage.getItem('pool_api_configs') || '{}')
+      if (chatCfg.chat?.apiBase && chatCfg.chat?.apiKey) {
+        apiBase = chatCfg.chat.apiBase; apiKey = chatCfg.chat.apiKey; model = chatCfg.chat.model || ''
+      }
+      if (!apiBase || !apiKey) {
+        const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
+        apiBase = apiBase || cfg.apiBase || cfg.base || ''
+        apiKey = apiKey || cfg.apiKey || cfg.key || ''
+        model = model || cfg.model || ''
+      }
+    } catch {}
+
+    if (!apiBase || !apiKey) {
+      addMessage('assistant', '[API未配置，无法通话]')
+      setAiStatus('')
+      return
+    }
+
     try {
       const res = await fetch('/api/call-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: msgs, text }),
+        body: JSON.stringify({ messages: msgs, text, apiBase, apiKey, model }),
         signal: controller.signal
       })
 
