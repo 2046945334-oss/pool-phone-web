@@ -1896,6 +1896,7 @@ function SettingsPanel() {
     { key: 'summary', label: '\u4e0a\u4e0b\u6587\u603b\u7ed3', desc: '\u538b\u7f29\u4e0a\u4e0b\u6587\uff0c\u751f\u6210\u6458\u8981' },
     { key: 'memory', label: '\u8bb0\u5fc6\u63d0\u53d6', desc: '\u4ece\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u5173\u952e\u4fe1\u606f' },
     { key: 'wakeup', label: '\u5524\u9192\u6a21\u578b', desc: '\u81ea\u4e3b\u5524\u9192\u65f6\u4f7f\u7528\uff08\u9700\u652f\u6301tools\uff09' },
+    { key: 'stt', label: '\u8bed\u97f3\u8bc6\u522b(STT)', desc: '\u901a\u8bdd\u8bed\u97f3\u8f6c\u6587\u5b57\uff08\u63a8\u8350Groq\u514d\u8d39Whisper\uff09' },
   ]
   const [configs, setConfigs] = useState(() => JSON.parse(localStorage.getItem('pool_api_configs') || '{}'))
   const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
@@ -1926,6 +1927,10 @@ function SettingsPanel() {
     syncToBackend('pool_api_configs', configs)
     syncToBackend('pool_tts_config', ttsConfig)
     syncToBackend('pool_inject_config', injectCfg)
+    // Sync STT config to backend so asr.js can read it
+    if (configs.stt && (configs.stt.apiBase || configs.stt.apiKey)) {
+      syncToBackend('pool_stt_config', configs.stt)
+    }
     // Sync wakeup-compatible config (wakeup.js reads baseUrl, frontend stores apiBase)
     const wkCfg = configs['wakeup'] || {}
     const chatCfg = configs['chat'] || {}
