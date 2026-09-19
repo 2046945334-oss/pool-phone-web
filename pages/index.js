@@ -2710,7 +2710,8 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         isRecording = true
         setAiStatus('listening')
         const chunks = []
-        recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' })
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
+        recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 16000 })
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
         recorder.onstop = () => {
           isRecording = false
