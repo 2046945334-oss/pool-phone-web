@@ -2081,21 +2081,22 @@ function SettingsPanel() {
         <div className="settings-item">
           <label>{'\u6765\u7535\u94c3\u58f0'}</label>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <label style={{padding:'6px 14px',borderRadius:8,background:'rgba(200,125,186,0.15)',color:'#c77dba',fontSize:12,cursor:'pointer',border:'1px solid rgba(200,125,186,0.2)'}}>
+            <input type="file" accept="audio/*" id="ringtone-upload-input" style={{display:'none'}} onChange={e => {
+              const file = e.target.files[0]; if (!file) return
+              const reader = new FileReader()
+              reader.onload = () => {
+                localStorage.setItem('pool_custom_ringtone', reader.result)
+                syncToBackend('pool_custom_ringtone', reader.result)
+                e.target.value = ''
+                // Force re-render
+                setTtsConfig(c => ({...c}))
+              }
+              reader.readAsDataURL(file)
+            }} />
+            <button onClick={() => document.getElementById('ringtone-upload-input')?.click()}
+              style={{padding:'6px 14px',borderRadius:8,background:'rgba(200,125,186,0.15)',color:'#c77dba',fontSize:12,cursor:'pointer',border:'1px solid rgba(200,125,186,0.2)'}}>
               {localStorage.getItem('pool_custom_ringtone') ? '\u66f4\u6362' : '\u4e0a\u4f20'}
-              <input type="file" accept="audio/*" hidden onChange={e => {
-                const file = e.target.files[0]; if (!file) return
-                const reader = new FileReader()
-                reader.onload = () => {
-                  localStorage.setItem('pool_custom_ringtone', reader.result)
-                  syncToBackend('pool_custom_ringtone', reader.result)
-                  e.target.value = ''
-                  // Force re-render
-                  setTtsConfig(c => ({...c}))
-                }
-                reader.readAsDataURL(file)
-              }} />
-            </label>
+            </button>
             {localStorage.getItem('pool_custom_ringtone') && (
               <button onClick={() => { localStorage.removeItem('pool_custom_ringtone'); syncToBackend('pool_custom_ringtone', null); setTtsConfig(c => ({...c})) }}
                 style={{padding:'6px 10px',borderRadius:8,background:'rgba(200,100,100,0.1)',color:'#c07070',fontSize:12,cursor:'pointer',border:'1px solid rgba(200,100,100,0.15)'}}>
