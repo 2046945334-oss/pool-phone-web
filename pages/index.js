@@ -2490,7 +2490,7 @@ function PreloadedApps({ currentApp, onBack }) {
 }
 
 // ==================== Voice Call Screen ====================
-function CallScreen({ theme, onHangup, callState, isIncoming }) {
+function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimized }) {
   const [callDuration, setCallDuration] = useState(0)
   const [callPhase, setCallPhase] = useState(isIncoming ? 'ringing' : 'connecting') // ringing | connecting | active | ended
   const [aiStatus, setAiStatus] = useState('') // listening | thinking | speaking
@@ -2930,10 +2930,23 @@ function CallScreen({ theme, onHangup, callState, isIncoming }) {
     <div style={{
       position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
       background: 'linear-gradient(180deg, #f8f6f9 0%, #ede8f0 40%, #e0d8e5 100%)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      display: minimized ? 'none' : 'flex', flexDirection: 'column', alignItems: 'center',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      {/* Top spacing */}
+      {/* Minimize button - top right */}
+      {callPhase === 'active' && onMinimize && (
+        <button onClick={onMinimize} style={{
+          position: 'absolute', top: 16, right: 16, zIndex: 10,
+          width: 32, height: 32, borderRadius: 8,
+          background: 'rgba(180,160,190,0.15)', border: '1px solid rgba(180,160,190,0.2)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a7a90" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
+            <line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        </button>
+      )}
       <div style={{ height: '60px', flexShrink: 0 }} />
 
       {/* Avatar */}
@@ -3240,6 +3253,7 @@ export default function Home() {
   const [readerMini, setReaderMini] = useState(false)
   const [callActive, setCallActive] = useState(false)
   const [callIncoming, setCallIncoming] = useState(false)
+  const [callMinimized, setCallMinimized] = useState(false)
   const [theme, setTheme] = useState({})
   const [appBg, setAppBg] = useState({})
   const [customizerApp, setCustomizerApp] = useState(null)
@@ -3279,6 +3293,7 @@ export default function Home() {
         if (data.calling && !callActive) {
           setCallIncoming(true)
           setCallActive(true)
+          setCallMinimized(false)
         }
       } catch {}
     }
@@ -3483,20 +3498,34 @@ export default function Home() {
                 </div>
               )}
           </div>
-          {callActive && <CallScreen theme={theme} isIncoming={callIncoming} onHangup={() => { setCallActive(false); setCallIncoming(false) }} />}
+          {callActive && <CallScreen theme={theme} isIncoming={callIncoming} onHangup={() => { setCallActive(false); setCallIncoming(false); setCallMinimized(false) }} onMinimize={() => setCallMinimized(true)} minimized={callMinimized} />}
+          {callActive && callMinimized && (
+            <div onClick={() => setCallMinimized(false)} style={{
+              position: 'absolute', top: 50, right: 12, zIndex: 8000,
+              background: 'rgba(180,160,190,0.9)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+              borderRadius: 20, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 8,
+              cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+              animation: 'callFloatPulse 2s ease-in-out infinite'
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/>
+              </svg>
+              <span style={{ color: '#fff', fontSize: 12, fontWeight: 500 }}>{'\u901a\u8bdd\u4e2d'}</span>
+            </div>
+          )}
           <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
 
                         <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
               <span className="nav-icon">{'▢'}</span>
               <span className="nav-label">{'\u624b\u673a'}</span>
             </button>
-            <button className="nav-btn" onClick={() => { setCallIncoming(false); setCallActive(true) }} style={{position:'relative'}}>
-              <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/></svg></span>
-              <span className="nav-label">{'\u7535\u8bdd'}</span>
-            </button>
             <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
               <span className="nav-icon">{'○'}</span>
               <span className="nav-label">{'\u804a\u5929'}</span>
+            </button>
+            <button className="nav-btn" onClick={() => { setCallIncoming(false); setCallActive(true); setCallMinimized(false) }} style={{position:'relative'}}>
+              <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/></svg></span>
+              <span className="nav-label">{'\u7535\u8bdd'}</span>
             </button>
           </div>
         </div>
@@ -3522,6 +3551,7 @@ export default function Home() {
         .lock-quote { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 20px; position: relative; z-index: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.4); font-style: italic; }
         .lock-hint { position: absolute; bottom: 30px; z-index: 1; font-size: 12px; color: rgba(255,255,255,0.5); animation: pulse 2s infinite; }
         @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes callFloatPulse { 0%,100% { opacity: 0.85; } 50% { opacity: 1; } }
 
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(180deg, #1a1520 0%, #12101a 100%); overflow: hidden; }
         .home-cards-area { flex-shrink: 0; padding: 0 12px; overflow-y: auto; max-height: 52%; }
