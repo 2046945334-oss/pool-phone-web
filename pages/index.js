@@ -2595,8 +2595,12 @@ function CallScreen({ theme, onHangup, callState, isIncoming }) {
     stopRingtone()
     setCallPhase('active')
     fetch('/api/call-status', { method: 'DELETE' }).catch(() => {})
-    // Start with AI greeting
-    sendToAI('[通话已接通，打个招呼吧]')
+    // AI greets based on context (time, who called)
+    const hour = new Date().getHours()
+    const greet = hour >= 22 || hour < 6 ? '[她接了电话，现在很晚了，温柔地说几句]' :
+                  hour >= 6 && hour < 10 ? '[她接了电话，早上好，随意聊几句]' :
+                  '[她接了你的电话，自然地打个招呼]'
+    sendToAI(greet)
     startSpeechRecognition()
   }
 
@@ -2612,7 +2616,11 @@ function CallScreen({ theme, onHangup, callState, isIncoming }) {
     if (!isIncoming && callPhase === 'connecting') {
       const timer = setTimeout(() => {
         setCallPhase('active')
-        sendToAI('[她打电话过来了，接起来吧]')
+        const hour = new Date().getHours()
+        const greet = hour >= 22 || hour < 6 ? '[她主动打来了电话，现在很晚了，关心一下她]' :
+                      hour >= 6 && hour < 10 ? '[她打电话来了，早上好，像刚睡醒的样子]' :
+                      '[她打电话过来了，随意自然地接起来]'
+        sendToAI(greet)
         startSpeechRecognition()
       }, 1500)
       return () => clearTimeout(timer)
@@ -2643,35 +2651,123 @@ function CallScreen({ theme, onHangup, callState, isIncoming }) {
     setTimeout(() => onHangup(), 800)
   }
 
-  // Speech recognition
+  // Speech recognition via MediaRecorder + backend Whisper ASR
+  // Includes volume-based VAD (voice activity detection)
   function startSpeechRecognition() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    const recognition = new SpeechRecognition()
-    recognition.lang = 'zh-CN'
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.onresult = (event) => {
-      let interim = ''
-      let final = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript
-        } else {
-          interim += event.results[i][0].transcript
+    if (typeof window === 'undefined' || !navigator.mediaDevices) return
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      const source = audioCtx.createMediaStreamSource(stream)
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 512
+      source.connect(analyser)
+      const dataArr = new Uint8Array(analyser.frequencyBinCount)
+      
+      let recorder = null
+      let isRecording = false
+      let silenceTimer = null
+      const SILENCE_THRESHOLD = 15 // Volume below this = silence
+      const SILENCE_DURATION = 1200 // ms of silence before stopping
+      const MIN_RECORD_TIME = 600 // minimum recording ms
+
+      function getVolume() {
+        analyser.getByteFrequencyData(dataArr)
+        let sum = 0
+        for (let i = 0; i < dataArr.length; i++) sum += dataArr[i]
+        return sum / dataArr.length
+      }
+
+      function startRecording() {
+        if (isRecording) return
+        isRecording = true
+        setAiStatus('listening')
+        const chunks = []
+        recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' })
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+        recorder.onstop = () => {
+          isRecording = false
+          if (chunks.length > 0) {
+            const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+            sendAudioToASR(blob)
+          }
+        }
+        recorder.start()
+      }
+
+      function stopRecording() {
+        if (recorder && recorder.state === 'recording') {
+          recorder.stop()
+        }
+        isRecording = false
+      }
+
+      // VAD loop
+      const vadInterval = setInterval(() => {
+        if (!micOnRef.current || callPhaseRef.current !== 'active') return
+        // Don't listen while AI is speaking
+        if (ttsPlayingRef.current) return
+        
+        const vol = getVolume()
+        
+        if (vol > SILENCE_THRESHOLD) {
+          // Voice detected
+          if (!isRecording) startRecording()
+          if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null }
+        } else if (isRecording) {
+          // Silence while recording - start countdown
+          if (!silenceTimer) {
+            silenceTimer = setTimeout(() => {
+              stopRecording()
+              silenceTimer = null
+            }, SILENCE_DURATION)
+          }
+        }
+      }, 100)
+
+      // Store cleanup function
+      recognitionRef.current = {
+        stop: () => {
+          clearInterval(vadInterval)
+          if (silenceTimer) clearTimeout(silenceTimer)
+          stopRecording()
+          stream.getTracks().forEach(t => t.stop())
+          try { audioCtx.close() } catch {}
         }
       }
-      if (interim) { setSubtitle(interim); setAiStatus('listening') }
-      if (final && final.trim()) {
+    }).catch(() => {
+      // Mic access denied - silent fail, text input still works
+    })
+  }
+
+  async function sendAudioToASR(blob) {
+    setAiStatus('thinking')
+    setSubtitle('...')
+    try {
+      // Convert blob to base64
+      const reader = new FileReader()
+      const base64 = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result.split(',')[1])
+        reader.readAsDataURL(blob)
+      })
+      const res = await fetch('/api/asr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio: base64 })
+      })
+      const data = await res.json()
+      if (data.text && data.text.trim()) {
+        const text = data.text.trim()
         setSubtitle('')
-        addMessage('user', final.trim())
-        sendToAI(final.trim())
+        addMessage('user', text)
+        sendToAI(text)
+      } else {
+        setSubtitle('')
+        setAiStatus('')
       }
+    } catch {
+      setSubtitle('')
+      setAiStatus('')
     }
-    recognition.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') { setTimeout(() => { try { recognition.start() } catch {} }, 500) } }
-    recognition.onend = () => { if (callPhaseRef.current === 'active' && micOnRef.current) { setTimeout(() => { try { recognition.start() } catch {} }, 300) } }
-    try { recognition.start() } catch {}
-    recognitionRef.current = recognition
   }
 
   function stopSpeechRecognition() {
