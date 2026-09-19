@@ -2695,8 +2695,8 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
       let isRecording = false
       let silenceTimer = null
       const SILENCE_THRESHOLD = 15 // Volume below this = silence
-      const SILENCE_DURATION = 1200 // ms of silence before stopping
-      const MIN_RECORD_TIME = 600 // minimum recording ms
+      const SILENCE_DURATION = 800 // ms of silence before stopping
+      const MIN_RECORD_TIME = 500 // minimum recording ms
 
       function getVolume() {
         analyser.getByteFrequencyData(dataArr)
@@ -2771,16 +2771,12 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
     setAiStatus('thinking')
     setSubtitle('识别中...')
     try {
-      // Convert blob to base64
-      const reader = new FileReader()
-      const base64 = await new Promise((resolve) => {
-        reader.onloadend = () => resolve(reader.result.split(',')[1])
-        reader.readAsDataURL(blob)
-      })
+      // Send as FormData directly (skip base64 encoding for speed)
+      const formData = new FormData()
+      formData.append('file', blob, 'audio.webm')
       const res = await fetch('/api/asr', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audio: base64 })
+        body: formData
       })
       const data = await res.json()
       if (data.text && data.text.trim()) {
@@ -2789,7 +2785,6 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         addMessage('user', text)
         sendToAI(text)
       } else if (data.error) {
-        // Show error briefly so user knows what happened
         setSubtitle('STT: ' + (data.error || '').slice(0, 60))
         setTimeout(() => { setSubtitle(''); setAiStatus('') }, 4000)
       } else {
