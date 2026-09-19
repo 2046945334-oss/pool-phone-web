@@ -9,6 +9,8 @@ import android.webkit.WebView;
 import android.webkit.WebSettings;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
+import android.webkit.ValueCallback;
+import android.net.Uri;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
@@ -25,9 +27,13 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "ChiFcm";
     private static final int AUDIO_PERMISSION_REQUEST_CODE = 1001;
+    private ValueCallback<Uri[]> fileUploadCallback;
+    private ActivityResultLauncher<Intent> fileChooserLauncher;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(UsageStatsPlugin.class);
@@ -38,6 +44,22 @@ public class MainActivity extends BridgeActivity {
         uploadFcmToken();
         // Request audio permission early so it's ready for voice calls
         requestAudioPermission();
+        // Register file chooser launcher before configuring WebView
+        fileChooserLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (fileUploadCallback == null) return;
+                Uri[] results = null;
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String dataString = result.getData().getDataString();
+                    if (dataString != null) {
+                        results = new Uri[]{Uri.parse(dataString)};
+                    }
+                }
+                fileUploadCallback.onReceiveValue(results);
+                fileUploadCallback = null;
+            }
+        );
         // Configure WebView for audio playback and microphone access
         configureWebView();
     }
@@ -48,8 +70,7 @@ public class MainActivity extends BridgeActivity {
                 WebSettings settings = webView.getSettings();
                 // Allow audio/video to autoplay without user gesture
                 settings.setMediaPlaybackRequiresUserGesture(false);
-
-                // Handle WebView permission requests (microphone, camera)
+                // Handle WebView permission requests (microphone, camera) and file upload
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {
@@ -64,6 +85,24 @@ public class MainActivity extends BridgeActivity {
                             }
                             request.deny();
                         });
+                    }
+                    @Override
+                    public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                        // Cancel any existing callback
+                        if (fileUploadCallback != null) {
+                            fileUploadCallback.onReceiveValue(null);
+                        }
+                        fileUploadCallback = callback;
+                        try {
+                            Intent intent = params.createIntent();
+                            fileChooserLauncher.launch(intent);
+                        } catch (Exception e) {
+                            Log.e(TAG, "File chooser failed: " + e.getMessage());
+                            fileUploadCallback.onReceiveValue(null);
+                            fileUploadCallback = null;
+                            return false;
+                        }
+                        return true;
                     }
                 });
             }
