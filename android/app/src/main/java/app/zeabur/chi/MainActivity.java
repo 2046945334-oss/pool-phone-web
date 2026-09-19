@@ -5,6 +5,14 @@ import android.app.NotificationManager;
 import android.content.Intent;
 import android.os.Build;
 import android.util.Log;
+import android.webkit.WebView;
+import android.webkit.WebSettings;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
@@ -19,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "ChiFcm";
+    private static final int AUDIO_PERMISSION_REQUEST_CODE = 1001;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(UsageStatsPlugin.class);
@@ -27,6 +36,48 @@ public class MainActivity extends BridgeActivity {
         scheduleNotificationWorker();
         startPollService();
         uploadFcmToken();
+        // Request audio permission early so it's ready for voice calls
+        requestAudioPermission();
+        // Configure WebView for audio playback and microphone access
+        configureWebView();
+    }
+    private void configureWebView() {
+        try {
+            WebView webView = getBridge().getWebView();
+            if (webView != null) {
+                WebSettings settings = webView.getSettings();
+                // Allow audio/video to autoplay without user gesture
+                settings.setMediaPlaybackRequiresUserGesture(false);
+
+                // Handle WebView permission requests (microphone, camera)
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        // Auto-grant audio capture permission to our own domain
+                        runOnUiThread(() -> {
+                            String[] resources = request.getResources();
+                            for (String r : resources) {
+                                if (r.equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                                    request.grant(resources);
+                                    return;
+                                }
+                            }
+                            request.deny();
+                        });
+                    }
+                });
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to configure WebView: " + e.getMessage());
+        }
+    }
+    private void requestAudioPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    AUDIO_PERMISSION_REQUEST_CODE);
+        }
     }
     private void createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
