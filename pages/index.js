@@ -2504,6 +2504,7 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
   const audioRef = useRef(null)
   const ringtoneRef = useRef(null)
   const ringtoneCtxRef = useRef(null)
+  const audioCtxRef = useRef(null) // Shared AudioContext for TTS playback
   const callStartRef = useRef(null)
   const timerRef = useRef(null)
   const abortRef = useRef(null)
@@ -2590,8 +2591,27 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [callPhase])
 
+  // Unlock audio playback on user gesture (Android WebView requires this)
+  function unlockAudio() {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      }
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume()
+      }
+      // Play a silent buffer to fully unlock
+      const buf = audioCtxRef.current.createBuffer(1, 1, 22050)
+      const src = audioCtxRef.current.createBufferSource()
+      src.buffer = buf
+      src.connect(audioCtxRef.current.destination)
+      src.start(0)
+    } catch {}
+  }
+
   // Accept incoming call
   function acceptCall() {
+    unlockAudio()
     stopRingtone()
     setCallPhase('active')
     fetch('/api/call-status', { method: 'DELETE' }).catch(() => {})
@@ -2615,6 +2635,7 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
   useEffect(() => {
     if (!isIncoming && callPhase === 'connecting') {
       const timer = setTimeout(() => {
+        unlockAudio()
         setCallPhase('active')
         const hour = new Date().getHours()
         const greet = hour >= 22 || hour < 6 ? '[她主动打来了电话，现在很晚了，关心一下她]' :
@@ -2897,7 +2918,13 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         audioRef.current = audio
         audio.onended = () => playNextTTS()
         audio.onerror = () => playNextTTS()
-        await audio.play()
+        try {
+          await audio.play()
+        } catch (playErr) {
+          // Autoplay blocked - try unlocking and retrying once
+          unlockAudio()
+          try { await audio.play() } catch { playNextTTS() }
+        }
       } else {
         playNextTTS()
       }
