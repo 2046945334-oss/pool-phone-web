@@ -89,55 +89,7 @@ export default async function handler(req, res) {
 
   const base = apiBase.replace(/\/+$/, '').replace(/\/v1$/, '')
 
-  // Detect DashScope (Alibaba Cloud) ASR - uses chat completions format instead of Whisper
-  const isDashScope = base.includes('dashscope') || base.includes('aliyuncs') || base.includes('maas.')
-
-  if (isDashScope) {
-    // DashScope ASR: send audio as base64 in chat completions format
-    const chatUrl = base + '/v1/chat/completions'
-    const audioBase64 = audioBuffer.toString('base64')
-    const chatBody = {
-      model,
-      messages: [{
-        role: 'user',
-        content: [{
-          type: 'input_audio',
-          input_audio: {
-            data: `data:audio/webm;base64,${audioBase64}`
-          }
-        }]
-      }],
-      stream: false,
-      asr_options: {
-        language: 'zh',
-        enable_itn: true
-      }
-    }
-    try {
-      const dsRes = await fetch(chatUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(chatBody)
-      })
-      if (!dsRes.ok) {
-        const errText = await dsRes.text()
-        return res.status(dsRes.status).json({
-          error: `DashScope ASR error (${dsRes.status}): ${errText}`,
-          configSource, url: chatUrl, model
-        })
-      }
-      const data = await dsRes.json()
-      const text = data.choices?.[0]?.message?.content || ''
-      return res.json({ text, configSource })
-    } catch (err) {
-      return res.status(500).json({ error: 'DashScope ASR failed: ' + err.message, configSource, url: chatUrl, model })
-    }
-  }
-
-  // Standard Whisper-compatible API
+  // Standard Whisper-compatible API (works with DashScope compatible-mode too)
   const url = base + '/v1/audio/transcriptions'
   try {
     const boundary = '----ASRBoundary' + Date.now().toString(36)
@@ -155,12 +107,19 @@ export default async function handler(req, res) {
     ))
     parts.push(Buffer.from(`--${boundary}--\r\n`))
     const body = Buffer.concat(parts)
+    const headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`
+    }
+    // DashScope workspace keys (sk-ws-*) need workspace ID extracted from apiBase
+    // e.g. https://1440889827237606.cn-beijing.maas.aliyuncs.com/compatible-mode
+    if (apiKey.startsWith('sk-ws-')) {
+      const wsMatch = apiBase.match(/^https?:\/\/(\d+)\./)
+      if (wsMatch) headers['X-DashScope-WorkSpace'] = wsMatch[1]
+    }
     const whisperRes = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': `multipart/form-data; boundary=${boundary}`
-      },
+      headers,
       body
     })
     if (!whisperRes.ok) {
@@ -176,3 +135,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'STT request failed: ' + err.message, configSource, url, model })
   }
 }
+
