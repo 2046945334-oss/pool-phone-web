@@ -77,7 +77,7 @@ function handleAsrWebSocket(clientWs) {
   const dashscopeWsUrl = config.wsUrl || 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
   
   let dashWs = null
-  let started = false
+  let taskStarted = false
 
   try {
     dashWs = new WebSocket(dashscopeWsUrl, {
@@ -93,7 +93,8 @@ function handleAsrWebSocket(clientWs) {
   }
 
   dashWs.on('open', () => {
-    // Send run-task directive
+    console.log('[ASR] DashScope WS connected, sending run-task, model:', config.model)
+    // Send run-task directive (JSON text frame)
     const startMsg = {
       header: {
         action: 'run-task',
@@ -108,13 +109,14 @@ function handleAsrWebSocket(clientWs) {
         parameters: {
           format: 'pcm',
           sample_rate: 16000,
+          channels: 1,
           language_hints: ['zh', 'en']
         },
         input: {}
       }
     }
     dashWs.send(JSON.stringify(startMsg))
-    started = true
+    // Tell client we're connecting (UI feedback), but don't enable audio yet
     clientWs.send(JSON.stringify({ type: 'ready' }))
   })
 
@@ -125,25 +127,28 @@ function handleAsrWebSocket(clientWs) {
       const output = msg.payload?.output || {}
       
       if (header.event === 'task-started') {
+        taskStarted = true
+        console.log('[ASR] Task started:', taskId.slice(0, 8))
         clientWs.send(JSON.stringify({ type: 'started' }))
       } else if (header.event === 'result-generated') {
-        // Extract transcript from sentence array
-        const sentence = output.sentence || {}
+        // Extract transcript — handle both object and array formats
+        const sentence = output.sentence || (output.results && output.results[0]) || {}
         const text = sentence.text || ''
-        const isFinal = sentence.end_time !== undefined && sentence.end_time > 0
+        // end_time >= 0 means sentence is finalized; -1 or absent means interim
+        const isFinal = typeof sentence.end_time === 'number' && sentence.end_time >= 0
         
         if (text) {
           clientWs.send(JSON.stringify({
             type: isFinal ? 'final' : 'interim',
-            text: text,
-            begin_time: sentence.begin_time,
-            end_time: sentence.end_time
+            text: text
           }))
         }
       } else if (header.event === 'task-finished') {
+        console.log('[ASR] Task finished:', taskId.slice(0, 8))
         clientWs.send(JSON.stringify({ type: 'finished' }))
       } else if (header.event === 'task-failed') {
-        const errMsg = header.error_message || output.message || 'ASR task failed'
+        const errMsg = header.error_message || header.message || output.message || 'ASR task failed'
+        console.error('[ASR] Task failed:', errMsg)
         clientWs.send(JSON.stringify({ type: 'error', message: errMsg }))
       }
     } catch (e) {
@@ -164,15 +169,20 @@ function handleAsrWebSocket(clientWs) {
   })
 
   // Receive PCM audio from frontend
-  clientWs.on('message', (data) => {
-    if (!started || !dashWs || dashWs.readyState !== WebSocket.OPEN) return
+  clientWs.on('message', (data, isBinary) => {
+    if (!taskStarted || !dashWs || dashWs.readyState !== WebSocket.OPEN) return
     
-    if (typeof data === 'string') {
-      // Control message from client
+    if (!isBinary && typeof data !== 'string') {
+      // Node ws may deliver Buffer even for text; check content
+      try { data = data.toString(); } catch {}
+    }
+
+    if (typeof data === 'string' || (!isBinary && Buffer.isBuffer(data) && data.length < 200)) {
+      // Control message from client (JSON text)
       try {
-        const ctrl = JSON.parse(data)
+        const text = typeof data === 'string' ? data : data.toString()
+        const ctrl = JSON.parse(text)
         if (ctrl.type === 'stop') {
-          // Send finish-task
           dashWs.send(JSON.stringify({
             header: {
               action: 'finish-task',
@@ -184,25 +194,14 @@ function handleAsrWebSocket(clientWs) {
         }
       } catch {}
     } else {
-      // Binary PCM data — wrap in continue-task and forward
-      const continueMsg = {
-        header: {
-          action: 'continue-task',
-          task_id: taskId,
-          streaming: 'duplex'
-        },
-        payload: {
-          input: {
-            audio: Buffer.from(data).toString('base64')
-          }
-        }
-      }
-      dashWs.send(JSON.stringify(continueMsg))
+      // Binary PCM data — DashScope requires raw binary frames, NOT base64 in JSON
+      const buf = Buffer.from(data)
+      dashWs.send(buf)
     }
   })
 
   clientWs.on('close', () => {
-    if (dashWs && dashWs.readyState === WebSocket.OPEN) {
+    if (dashWs && dashWs.readyState === WebSocket.OPEN && taskStarted) {
       try {
         dashWs.send(JSON.stringify({
           header: { action: 'finish-task', task_id: taskId, streaming: 'duplex' },
@@ -269,3 +268,4 @@ app.prepare().then(() => {
     }, 5000) // delay 5s to let Next.js fully warm up
   })
 })
+
