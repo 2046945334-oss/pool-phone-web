@@ -25,9 +25,8 @@ process.on('unhandledRejection', (reason) => {
 // Backend proxies to DashScope paraformer-realtime-v2 or qwen-audio-asr-flash-streaming
 function getAsrConfig() {
   try {
-    const dbPath = require('path').join(process.cwd(), 'data', 'pool.db')
-    const Database = require('better-sqlite3')
-    const db = new Database(dbPath, { readonly: true })
+    const { getDb } = require('./lib/db')
+    const db = getDb()
     let apiKey = '', model = 'paraformer-realtime-v2', wsUrl = ''
     
     // Try pool_api_configs.stt first
@@ -58,7 +57,6 @@ function getAsrConfig() {
         apiKey = cfg.apiKey || cfg.key || ''
       }
     }
-    db.close()
     return { apiKey, model, wsUrl }
   } catch (e) {
     console.error('[ASR] Failed to read config:', e.message)
