@@ -2722,8 +2722,11 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
   // receives interim/final transcription results
   function startSpeechRecognition() {
     if (typeof window === 'undefined' || !navigator.mediaDevices) return
-    navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true } }).then(async stream => {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 })
+    navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } }).then(async stream => {
+      // Don't force sampleRate - let browser use native rate, we'll resample to 16000
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      const actualRate = audioCtx.sampleRate
+      console.log('[ASR] AudioContext sampleRate:', actualRate)
       const source = audioCtx.createMediaStreamSource(stream)
 
       // Volume analyser for VAD
@@ -2746,6 +2749,24 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         return sum / dataArr.length
       }
 
+      // Resample helper: convert from actualRate to 16000Hz using linear interpolation
+      const TARGET_RATE = 16000
+      function resampleTo16k(float32) {
+        if (actualRate === TARGET_RATE) return float32
+        const ratio = actualRate / TARGET_RATE
+        const outLen = Math.round(float32.length / ratio)
+        const out = new Float32Array(outLen)
+        for (let i = 0; i < outLen; i++) {
+          const srcIdx = i * ratio
+          const idx = Math.floor(srcIdx)
+          const frac = srcIdx - idx
+          const a = float32[idx] || 0
+          const b = float32[Math.min(idx + 1, float32.length - 1)] || 0
+          out[i] = a + frac * (b - a)
+        }
+        return out
+      }
+
       // ScriptProcessor to capture PCM (widely supported fallback)
       const processor = audioCtx.createScriptProcessor(4096, 1, 1)
       source.connect(processor)
@@ -2758,10 +2779,11 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         if (ttsPlayingRef.current) return
 
         const float32 = e.inputBuffer.getChannelData(0)
-        // Convert float32 -> int16 PCM
-        const pcm16 = new Int16Array(float32.length)
-        for (let i = 0; i < float32.length; i++) {
-          const s = Math.max(-1, Math.min(1, float32[i]))
+        // Resample to 16kHz then convert float32 -> int16 PCM
+        const resampled = resampleTo16k(float32)
+        const pcm16 = new Int16Array(resampled.length)
+        for (let i = 0; i < resampled.length; i++) {
+          const s = Math.max(-1, Math.min(1, resampled[i]))
           pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
         }
         wsConn.send(pcm16.buffer)
