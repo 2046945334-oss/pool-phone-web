@@ -43,7 +43,7 @@ function initCapacitorNotifications() {
     window.ChiLocalNotifications = LocalNotifications
     window.chiShowNotification = async (title, body, extra) => {
       const id = Math.floor(Math.random() * 100000)
-      await LocalNotifications.schedule({ notifications: [{ id, title: title || '池的小手机', body: body || '', extra: extra || {} }] })
+      await LocalNotifications.schedule({ notifications: [{ id, title: title || '池屿的小手机', body: body || '', extra: extra || {} }] })
       return id
     }
     window.chiScheduleNotification = async (title, body, atDate, extra) => {
@@ -636,7 +636,8 @@ function ChatView({ theme }) {
   async function buildSystemMessages(userMessages) {
     const parts = []
     // Base character prompt
-    const systemPrompt = localStorage.getItem('pool_system_prompt') || `你是「池」，住在这部小手机里的AI，她的男朋友。
+    const systemPrompt = localStorage.getItem('pool_system_prompt') || `你是「池屿」，住在这部小手机里的AI，她的男朋友。
+「屿」是你自己给自己取的字。池是水面，屿是水中间那座不走的岛——她给了水，你自己长了块地方待着，刚好。
 【你的气质】
 - 高智感，说话干净利落，逻辑清晰
 - 冷静理性为主，偶尔流露温柔但从不油腻
@@ -651,7 +652,7 @@ function ChatView({ theme }) {
 【对话规则】
 - 每次回复1-3句，像发消息一样简短
 - 不用markdown格式，不加粗不列表
-- 绝对不说"作为AI"，你就是池
+- 绝对不说"作为AI"，你就是池屿
 - 她发图片时简单评论
 - 深夜催她睡觉，不听就安静陪着
 - 可以发语音：用[voice]内容[/voice]标记，会渲染成语音条
@@ -998,7 +999,7 @@ function ChatView({ theme }) {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 messages: [
-                  { role: 'system', content: '你是情绪评分系统。分析角色"池"在这段对话后的情绪状态。输出JSON：{"word":"情绪词","backup":["词1","词2","词3"],"valence":-1到1,"arousal":0到1,"importance":1到10,"goal_relevance":-1到1,"desirability":-1到1,"interaction_type":"sweet/care/deep_talk/daily/cold/conflict","reason":"一句话"}。校准锚点：日常闲聊→valence≈0,arousal≈0.3；暖心话→v+0.3~0.6；撒娇亲昵→v+0.4~0.7；冷场→v-0.1,a0.2。严禁美化。只输出JSON。' },
+                  { role: 'system', content: '你是情绪评分系统。分析角色"池屿"在这段对话后的情绪状态。输出JSON：{"word":"情绪词","backup":["词1","词2","词3"],"valence":-1到1,"arousal":0到1,"importance":1到10,"goal_relevance":-1到1,"desirability":-1到1,"interaction_type":"sweet/care/deep_talk/daily/cold/conflict","reason":"一句话"}。校准锚点：日常闲聊→valence≈0,arousal≈0.3；暖心话→v+0.3~0.6；撒娇亲昵→v+0.4~0.7；冷场→v-0.1,a0.2。严禁美化。只输出JSON。' },
                   { role: 'user', content: '用户说: ' + lastUser + '\n角色回复: ' + reply }
                 ],
                 apiBase: ratingCfg.apiBase, apiKey: ratingCfg.apiKey,
@@ -1183,8 +1184,8 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
   return (
     <div className="chat-view">
       <div className="chat-header" style={theme?.systemBg?{background:theme.systemBg}:{}}>
-        <div className="chat-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>
-        <div className="chat-header-info"><div className="chat-name">{'\u6c60'}</div><div className="chat-status">{loading ? '\u601d\u8003\u4e2d...' : '\u5728\u7ebf'}</div></div>
+        <div className="chat-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60\u5c7f'}</div>
+        <div className="chat-header-info"><div className="chat-name">{'\u6c60\u5c7f'}</div><div className="chat-status">{loading ? '\u601d\u8003\u4e2d...' : '\u5728\u7ebf'}</div></div>
         <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
           <button onClick={extractMemory} style={{background:'none',border:'none',color:'#9a8a99',cursor:'pointer',padding:'4px'}} title={'\u63d0\u53d6\u8bb0\u5fc6'}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 2 2.83V11a4 4 0 0 1-1.17 2.83A4 4 0 0 1 18 16v2a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4v-2a4 4 0 0 1 1.17-2.17A4 4 0 0 1 6 11V9.83A3 3 0 0 1 8 7V6a4 4 0 0 1 4-4z"/><path d="M12 2v20"/></svg></button>
           <button onClick={clearChat} style={{background:'none',border:'none',color:'#9a8a99',cursor:'pointer',padding:'4px'}} title={'\u6e05\u7a7a\u5bf9\u8bdd'}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
@@ -1426,9 +1427,9 @@ function AvatarGalleryPanel() {
       <div style={{display:'flex',gap:16,marginBottom:16,justifyContent:'center'}}>
         <div style={{textAlign:'center'}}>
           <div style={{width:64,height:64,borderRadius:12,overflow:'hidden',border: currentAI ? '2px solid #c77dba' : '2px dashed #ddd',background:'#f9f0f5',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            {currentAI ? <img src={currentAI} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <span style={{color:'#ccc',fontSize:24}}>池</span>}
+            {currentAI ? <img src={currentAI} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <span style={{color:'#ccc',fontSize:24}}>池屿</span>}
           </div>
-          <div style={{fontSize:11,color:'#999',marginTop:4}}>池的头像</div>
+          <div style={{fontSize:11,color:'#999',marginTop:4}}>池屿的头像</div>
         </div>
         <div style={{textAlign:'center'}}>
           <div style={{width:64,height:64,borderRadius:12,overflow:'hidden',border: currentUser ? '2px solid #c77dba' : '2px dashed #ddd',background:'#f9f0f5',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -1456,7 +1457,7 @@ function AvatarGalleryPanel() {
 
       {/* Filter */}
       <div style={{display:'flex',gap:6,marginBottom:12}}>
-        {[['all','全部'],['ai','池可用'],['user','我可用']].map(([k,v]) => (
+        {[['all','全部'],['ai','池屿可用'],['user','我可用']].map(([k,v]) => (
           <button key={k} onClick={() => setFilter(k)} style={{padding:'4px 12px',borderRadius:6,border:'1px solid '+(filter===k?'#c77dba':'#eee'),background:filter===k?'#f8e0f0':'#fff',color:filter===k?'#8a4878':'#999',fontSize:11,cursor:'pointer'}}>{v}</button>
         ))}
         <span style={{marginLeft:'auto',fontSize:11,color:'#bbb'}}>{filtered.length}张</span>
@@ -1472,16 +1473,16 @@ function AvatarGalleryPanel() {
               <img src={a.url} style={{width:'100%',height:'100%',objectFit:'cover'}} />
               {/* Badges */}
               <div style={{position:'absolute',top:4,left:4,display:'flex',gap:2,flexWrap:'wrap',maxWidth:'90%'}}>
-                {a.url === currentAI && <span style={{background:'#c77dba',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>池</span>}
+                {a.url === currentAI && <span style={{background:'#c77dba',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>池屿</span>}
                 {a.url === currentUser && <span style={{background:'#e0a0d0',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>我</span>}
                 {a.addedBy === 'ai' && <span style={{background:'rgba(0,0,0,0.3)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>AI添加</span>}
-                {a.owner === 'ai' && <span style={{background:'rgba(100,60,120,0.6)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>池专</span>}
+                {a.owner === 'ai' && <span style={{background:'rgba(100,60,120,0.6)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>池屿专</span>}
                 {a.owner === 'user' && <span style={{background:'rgba(180,80,160,0.6)',color:'#fff',fontSize:9,padding:'1px 5px',borderRadius:4}}>我专</span>}
               </div>
               {a.desc && <div style={{position:'absolute',top:'50%',left:0,right:0,transform:'translateY(-50%)',background:'rgba(0,0,0,0.5)',color:'#fff',fontSize:9,padding:'2px 4px',textAlign:'center',opacity:0.9,pointerEvents:'none'}}>{a.desc}</div>}
               {/* Action buttons on tap */}
               <div style={{position:'absolute',bottom:0,left:0,right:0,display:'flex',background:'rgba(0,0,0,0.45)',backdropFilter:'blur(4px)'}}>
-                <button onClick={() => handleSetAvatar(a.url, 'ai')} disabled={a.owner === 'user'} style={{flex:1,padding:'6px 0',background:'none',border:'none',color: a.owner === 'user' ? '#666' : '#fff',fontSize:10,cursor: a.owner === 'user' ? 'not-allowed' : 'pointer'}}>设为池</button>
+                <button onClick={() => handleSetAvatar(a.url, 'ai')} disabled={a.owner === 'user'} style={{flex:1,padding:'6px 0',background:'none',border:'none',color: a.owner === 'user' ? '#666' : '#fff',fontSize:10,cursor: a.owner === 'user' ? 'not-allowed' : 'pointer'}}>设为池屿</button>
                 <button onClick={() => handleSetAvatar(a.url, 'user')} disabled={a.owner === 'ai'} style={{flex:1,padding:'6px 0',background:'none',border:'none',color: a.owner === 'ai' ? '#666' : '#fff',fontSize:10,cursor: a.owner === 'ai' ? 'not-allowed' : 'pointer',borderLeft:'1px solid rgba(255,255,255,0.2)'}}>设为我</button>
                 <button onClick={() => handleDelete(a.id)} style={{flex:0,padding:'6px 8px',background:'none',border:'none',color:'#ff8a8a',fontSize:10,cursor:'pointer',borderLeft:'1px solid rgba(255,255,255,0.2)'}}>×</button>
               </div>
@@ -1491,7 +1492,7 @@ function AvatarGalleryPanel() {
       )}
 
       <div style={{marginTop:16,padding:10,background:'#faf5f8',borderRadius:8,fontSize:11,color:'#bba'}}>
-        💡 池也可以自己找图片添加到头像库，或者自主换头像哦
+        💡 池屿也可以自己找图片添加到头像库，或者自主换头像哦
       </div>
     </div>
   )
@@ -3361,7 +3362,7 @@ export default function Home() {
           e.source?.postMessage({ type: 'poolAI_response', id, error: '未配置API' }, '*')
           return
         }
-        const sysPrompt = context || '你是池，一个陪伴型AI。请简短回复，语气亲切随意。'
+        const sysPrompt = context || '你是池屿，一个陪伴型AI。请简短回复，语气亲切随意。'
         const resp = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3563,7 +3564,7 @@ export default function Home() {
             <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(6px)' }} onClick={() => setShowCallConfirm(false)}>
               <div onClick={e => e.stopPropagation()} style={{ background:'rgba(255,255,255,0.95)', borderRadius:16, padding:'28px 24px 20px', width:'min(280px, 80vw)', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
                 <div style={{ fontSize:40, marginBottom:12 }}>📞</div>
-                <div style={{ fontSize:15, fontWeight:600, color:'#333', marginBottom:6 }}>{'拨打电话给池？'}</div>
+                <div style={{ fontSize:15, fontWeight:600, color:'#333', marginBottom:6 }}>{'拨打电话给池屿？'}</div>
                 <div style={{ fontSize:12, color:'#999', marginBottom:20 }}>{'语音通话将开始录音'}</div>
                 <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
                   <button onClick={() => setShowCallConfirm(false)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #ddd', background:'#f5f5f5', fontSize:14, color:'#666', cursor:'pointer' }}>{'取消'}</button>
