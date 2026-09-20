@@ -1,5 +1,8 @@
-// pages/api/asr.js - HTTP POST endpoint for speech-to-text
+// pages/api/asr.js - HTTP POST /api/asr for speech-to-text
+// Uses OpenAI-compatible /v1/audio/transcriptions endpoint via user's configured API Base
 const https = require('https')
+const http = require('http')
+const { URL } = require('url')
 
 export const config = { api: { bodyParser: false } }
 
@@ -17,6 +20,10 @@ function getAsrConfig() {
         model = configs.stt.model || model
         apiBase = configs.stt.apiBase || ''
       }
+      // If no STT apiBase, try chat apiBase as fallback
+      if (!apiBase && configs.chat) {
+        apiBase = configs.chat.apiBase || ''
+      }
     }
     if (!apiKey) {
       const sttRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_stt_config'").get()
@@ -24,7 +31,7 @@ function getAsrConfig() {
         const sttCfg = JSON.parse(sttRow.value)
         apiKey = sttCfg.apiKey || sttCfg.key || ''
         model = sttCfg.model || model
-        apiBase = sttCfg.apiBase || ''
+        apiBase = sttCfg.apiBase || apiBase
       }
     }
     if (!apiKey) {
@@ -32,121 +39,133 @@ function getAsrConfig() {
       if (row) {
         const cfg = JSON.parse(row.value)
         apiKey = cfg.apiKey || cfg.key || ''
+        if (!apiBase) apiBase = cfg.apiBase || ''
       }
     }
 
-    let workspaceId = ''
-    if (apiBase) {
-      const m = apiBase.match(/https?:\/\/(\d{10,})\./) 
-      if (m) workspaceId = m[1]
-    }
-    if (!workspaceId && apiKey.startsWith('sk-ws-')) {
-      try {
-        const cfgRow2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
-        if (cfgRow2) {
-          const allCfgs = JSON.parse(cfgRow2.value)
-          for (const k of ['chat', 'tts', 'memory', 'stt']) {
-            const base = allCfgs[k]?.apiBase || ''
-            const m2 = base.match(/https?:\/\/(\d{10,})\./) 
-            if (m2) { workspaceId = m2[1]; break }
-          }
-        }
-      } catch {}
-    }
+    // paraformer-realtime-v2 is WS-only; for HTTP use paraformer-v2
+    if ((model || '').includes('realtime')) model = 'paraformer-v2'
 
-    return { apiKey, model, apiBase, workspaceId }
+    console.log('[ASR API] Config - apiBase:', apiBase, 'model:', model, 'key:', (apiKey||'').slice(0,10)+'...')
+    return { apiKey, model, apiBase }
   } catch (e) {
     console.error('[ASR API] Config error:', e.message)
-    return { apiKey: '', model: 'paraformer-v2', apiBase: '', workspaceId: '' }
+    return { apiKey: '', model: 'paraformer-v2', apiBase: '' }
   }
+}
+
+function parseMultipart(body, contentType) {
+  let audioBuffer = body
+  let audioFilename = 'audio.webm'
+  if (contentType.includes('multipart/form-data')) {
+    const bm = contentType.match(/boundary=([^;\s]+)/)
+    if (bm) {
+      const boundary = bm[1]
+      const raw = body.toString('binary')
+      const parts = raw.split('--' + boundary)
+      for (const part of parts) {
+        if (part.includes('filename=')) {
+          const nm = part.match(/filename="([^"]+)"/)
+          if (nm) audioFilename = nm[1]
+          const idx = part.indexOf('\r\n\r\n')
+          if (idx !== -1) {
+            let d = part.slice(idx + 4)
+            if (d.endsWith('\r\n')) d = d.slice(0, -2)
+            audioBuffer = Buffer.from(d, 'binary')
+          }
+        }
+      }
+    }
+  }
+  return { audioBuffer, audioFilename }
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const config = getAsrConfig()
-  if (!config.apiKey) return res.status(500).json({ error: 'STT API key not configured' })
+  const cfg = getAsrConfig()
+  if (!cfg.apiKey) return res.status(500).json({ error: 'STT API key not configured' })
+  if (!cfg.apiBase) return res.status(500).json({ error: 'STT API Base URL not configured' })
 
   try {
+    // Read raw body
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
     const body = Buffer.concat(chunks)
-
     const contentType = req.headers['content-type'] || ''
-    let audioBuffer = body
-    let audioFilename = 'audio.webm'
+    const { audioBuffer, audioFilename } = parseMultipart(body, contentType)
 
-    if (contentType.includes('multipart/form-data')) {
-      const boundaryMatch = contentType.match(/boundary=(.+)/)
-      if (boundaryMatch) {
-        const boundary = boundaryMatch[1]
-        const parts = body.toString('binary').split('--' + boundary)
-        for (const part of parts) {
-          if (part.includes('filename=')) {
-            const nameMatch = part.match(/filename="([^"]+)"/)
-            if (nameMatch) audioFilename = nameMatch[1]
-            const headerEnd = part.indexOf('\r\n\r\n')
-            if (headerEnd !== -1) {
-              const dataStr = part.slice(headerEnd + 4).replace(/\r\n$/, '')
-              audioBuffer = Buffer.from(dataStr, 'binary')
-            }
-          }
-        }
-      }
+    console.log('[ASR API] Audio:', audioBuffer.length, 'bytes, file:', audioFilename)
+
+    // Build multipart/form-data for OpenAI-compatible /v1/audio/transcriptions
+    const boundary = '----FormBoundary' + Date.now().toString(36)
+    const parts = []
+
+    // file part
+    parts.push(Buffer.from(
+      '--' + boundary + '\r\n' +
+      'Content-Disposition: form-data; name="file"; filename="' + audioFilename + '"\r\n' +
+      'Content-Type: audio/webm\r\n\r\n'
+    ))
+    parts.push(audioBuffer)
+    parts.push(Buffer.from('\r\n'))
+
+    // model part
+    parts.push(Buffer.from(
+      '--' + boundary + '\r\n' +
+      'Content-Disposition: form-data; name="model"\r\n\r\n' +
+      cfg.model + '\r\n'
+    ))
+
+    // close
+    parts.push(Buffer.from('--' + boundary + '--\r\n'))
+
+    const payload = Buffer.concat(parts)
+
+    // Build URL: apiBase + /v1/audio/transcriptions
+    let base = cfg.apiBase.replace(/\/+$/, '')
+    // If apiBase ends with /compatible-mode, keep it; append /v1/audio/transcriptions
+    // If apiBase already contains /v1, just append /audio/transcriptions
+    let transcriptionUrl
+    if (base.includes('/v1')) {
+      transcriptionUrl = base + '/audio/transcriptions'
+    } else {
+      transcriptionUrl = base + '/v1/audio/transcriptions'
     }
 
-    console.log('[ASR API] Audio received:', audioBuffer.length, 'bytes')
+    console.log('[ASR API] Calling:', transcriptionUrl)
 
-    const audioBase64 = audioBuffer.toString('base64')
-
-    let format = 'webm'
-    if (audioFilename.endsWith('.wav')) format = 'wav'
-    else if (audioFilename.endsWith('.mp3')) format = 'mp3'
-    else if (audioFilename.endsWith('.ogg')) format = 'ogg'
-
-    // Use paraformer-v2 for HTTP file recognition (not paraformer-realtime-v2 which is WS only)
-    const model = (config.model || '').includes('realtime') ? 'paraformer-v2' : config.model
-
-    const payload = JSON.stringify({
-      model: model,
-      input: {
-        audio: 'data:audio/' + format + ';base64,' + audioBase64
-      },
-      parameters: {
-        language_hints: ['zh', 'en']
-      }
-    })
-
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + config.apiKey,
-    }
-    if (config.workspaceId) {
-      headers['X-DashScope-WorkSpace'] = config.workspaceId
-    }
+    const url = new URL(transcriptionUrl)
+    const isHttps = url.protocol === 'https:'
+    const lib = isHttps ? https : http
 
     const result = await new Promise((resolve, reject) => {
       const reqOpt = {
-        hostname: 'dashscope.aliyuncs.com',
-        port: 443,
-        path: '/api/v1/services/audio/asr/recognition',
+        hostname: url.hostname,
+        port: url.port || (isHttps ? 443 : 80),
+        path: url.pathname + url.search,
         method: 'POST',
-        headers: { ...headers, 'Content-Length': Buffer.byteLength(payload) }
+        headers: {
+          'Content-Type': 'multipart/form-data; boundary=' + boundary,
+          'Content-Length': payload.length,
+          'Authorization': 'Bearer ' + cfg.apiKey
+        }
       }
 
-      const request = https.request(reqOpt, (response) => {
-        let data = ''
-        response.on('data', chunk => data += chunk)
+      const request = lib.request(reqOpt, (response) => {
+        const respChunks = []
+        response.on('data', c => respChunks.push(c))
         response.on('end', () => {
+          const data = Buffer.concat(respChunks).toString()
+          console.log('[ASR API] Response status:', response.statusCode, 'body:', data.slice(0, 300))
           try {
             const result = JSON.parse(data)
-            console.log('[ASR API] DashScope status:', response.statusCode)
             if (response.statusCode !== 200) {
-              resolve({ error: 'STT API error (' + response.statusCode + '): ' + (result.message || data.slice(0, 200)) })
+              resolve({ error: 'STT API error (' + response.statusCode + '): ' + (result.message || result.error?.message || data.slice(0, 200)) })
               return
             }
-            const text = result.output?.text || result.output?.sentence?.text || ''
-            resolve({ text })
+            // OpenAI format: { text: "..." }
+            resolve({ text: result.text || '' })
           } catch (e) {
             resolve({ error: 'Parse error: ' + data.slice(0, 200) })
           }
