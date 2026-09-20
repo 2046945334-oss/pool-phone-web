@@ -2068,10 +2068,13 @@ export default async function handler(req, res) {
                 msg.content[ci] = { type: 'image_url', image_url: { url: imgUrl } }
                 continue
               }
-              // For latest user message images: download, convert to PNG via sharp, send as data URI
+              // For recent user message images: download, convert to PNG via sharp, send as data URI
               // This ensures MIME type matches actual bytes (proxy always sets image/png)
-              const isLatestUserMsg = msg.role === 'user' && reqMessages.filter(m => m.role === 'user').pop() === msg
-              if (isLatestUserMsg) {
+              // Process last 3 user messages with images (not just the very last one)
+              const userMsgs = reqMessages.filter(m => m.role === 'user')
+              const recentUserMsgs = userMsgs.slice(-3)
+              const isRecentUserMsg = msg.role === 'user' && recentUserMsgs.includes(msg)
+              if (isRecentUserMsg) {
                 try {
                   let imgBuf
                   if (imgUrl.startsWith('data:')) {
@@ -2094,9 +2097,9 @@ export default async function handler(req, res) {
               // Fallback: text description
               const matched = allStickers.find(s => imgUrl.includes(s.url) || (s.url && imgUrl.includes(s.url.replace(/^https?:\/\/[^\/]+/, ''))))
               if (matched && (matched.meaning || matched.name)) {
-                msg.content[ci] = { type: 'text', text: '(用户发送了表情包: ' + (matched.meaning || matched.name) + ')' }
+                msg.content[ci] = { type: 'text', text: '[系统提示：用户发了表情包"' + (matched.meaning || matched.name) + '"，不要把这句话复述出来]' }
               } else {
-                msg.content[ci] = { type: 'text', text: '(用户分享了一张图片)' }
+                msg.content[ci] = { type: 'text', text: '[系统提示：用户发了一张图片，你看不到内容，不要把这句话复述出来]' }
               }
             }
           }
