@@ -2069,17 +2069,44 @@ function SettingsPanel() {
         <div className="settings-item">
           <label>{'\u6765\u7535\u94c3\u58f0'}</label>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <input type="file" accept="audio/*" id="ringtone-upload-input" style={{display:'none'}} onChange={e => {
+            <input type="file" accept="audio/*" id="ringtone-upload-input" style={{display:'none'}} onChange={async e => {
               const file = e.target.files[0]; if (!file) return
-              const reader = new FileReader()
-              reader.onload = () => {
-                localStorage.setItem('pool_custom_ringtone', reader.result)
-                syncToBackend('pool_custom_ringtone', reader.result)
-                e.target.value = ''
-                // Force re-render
-                setTtsConfig(c => ({...c}))
+              try {
+                const formData = new FormData()
+                formData.append('file', file)
+                const resp = await fetch('/api/upload-ringtone', { method: 'POST', body: formData })
+                if (resp.ok) {
+                  const data = await resp.json()
+                  localStorage.setItem('pool_custom_ringtone', data.url || '/ringtone-custom')
+                  syncToBackend('pool_custom_ringtone', data.url || '/ringtone-custom')
+                  setTtsConfig(c => ({...c}))
+                } else {
+                  // Fallback: store small files as data URL
+                  if (file.size < 500000) {
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      localStorage.setItem('pool_custom_ringtone', reader.result)
+                      syncToBackend('pool_custom_ringtone', reader.result)
+                      setTtsConfig(c => ({...c}))
+                    }
+                    reader.readAsDataURL(file)
+                  } else {
+                    alert('铃声文件过大，请选择小于500KB的文件')
+                  }
+                }
+              } catch (err) {
+                // Fallback for small files
+                if (file.size < 500000) {
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    localStorage.setItem('pool_custom_ringtone', reader.result)
+                    syncToBackend('pool_custom_ringtone', reader.result)
+                    setTtsConfig(c => ({...c}))
+                  }
+                  reader.readAsDataURL(file)
+                }
               }
-              reader.readAsDataURL(file)
+              e.target.value = ''
             }} />
             <button onClick={() => document.getElementById('ringtone-upload-input')?.click()}
               style={{padding:'6px 14px',borderRadius:8,background:'rgba(200,125,186,0.15)',color:'#c77dba',fontSize:12,cursor:'pointer',border:'1px solid rgba(200,125,186,0.2)'}}>
@@ -2690,120 +2717,25 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
     setTimeout(() => onHangup(), 800)
   }
 
-  // ========== Realtime ASR via WebSocket + ScriptProcessor ==========
-  // Streams PCM16 audio to /api/asr/stream, receives interim/final transcripts
-  // Uses ScriptProcessorNode for maximum WebView compatibility + proper downsampling
-  const asrWsRef = useRef(null)
-  const interimTextRef = useRef('')
-
+  // Speech recognition via MediaRecorder + backend Whisper ASR
+  // Includes volume-based VAD (voice activity detection)
   function startSpeechRecognition() {
     if (typeof window === 'undefined' || !navigator.mediaDevices) return
-    navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } }).then(stream => {
-      // Use native sample rate (usually 48000), we'll downsample to 16000 ourselves
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-      const nativeSR = audioCtx.sampleRate
-      const targetSR = 16000
       const source = audioCtx.createMediaStreamSource(stream)
-
-      // Analyser for VAD
       const analyser = audioCtx.createAnalyser()
       analyser.fftSize = 512
       source.connect(analyser)
       const dataArr = new Uint8Array(analyser.frequencyBinCount)
-
-      // ScriptProcessorNode: captures audio, downsamples, converts to PCM16
-      const bufSize = 4096
-      const processor = audioCtx.createScriptProcessor(bufSize, 1, 1)
-      let pcmSendFn = null // set after WS connects
-
-      // Downsampling + PCM16 conversion
-      function downsampleToPCM16(float32, fromRate, toRate) {
-        const ratio = fromRate / toRate
-        const newLen = Math.floor(float32.length / ratio)
-        const pcm16 = new Int16Array(newLen)
-        for (let i = 0; i < newLen; i++) {
-          const srcIdx = Math.floor(i * ratio)
-          const s = Math.max(-1, Math.min(1, float32[srcIdx]))
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
-        }
-        return pcm16
-      }
-
-      processor.onaudioprocess = (e) => {
-        if (!pcmSendFn) return
-        const input = e.inputBuffer.getChannelData(0)
-        const pcm16 = downsampleToPCM16(input, nativeSR, targetSR)
-        pcmSendFn(pcm16.buffer)
-      }
-
-      source.connect(processor)
-      processor.connect(audioCtx.destination) // required to keep processing alive
-
-      // WebSocket to backend ASR proxy
-      const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-      let ws = null
-      let wsReady = false
-      let sentenceBuffer = ''
+      
+      let recorder = null
+      let isRecording = false
       let silenceTimer = null
-      let voiceActive = false
-      const SILENCE_THRESHOLD = 12
-      const SILENCE_SEND_DELAY = 1200
+      const SILENCE_THRESHOLD = 15 // Volume below this = silence
+      const SILENCE_DURATION = 800 // ms of silence before stopping
+      const MIN_RECORD_TIME = 500 // minimum recording ms
 
-      function connectWs() {
-        if (ws && ws.readyState <= 1) { try { ws.close() } catch {} }
-        ws = new WebSocket(`${wsProto}//${location.host}/api/asr/stream`)
-        ws.binaryType = 'arraybuffer'
-        asrWsRef.current = ws
-
-        ws.onopen = () => {
-          setAiStatus('listening')
-        }
-
-        ws.onmessage = (evt) => {
-          try {
-            const msg = JSON.parse(evt.data)
-            if (msg.type === 'ready' || msg.type === 'started') {
-              wsReady = true
-              pcmSendFn = (buf) => {
-                if (ws && ws.readyState === 1) ws.send(buf)
-              }
-              setAiStatus('listening')
-            } else if (msg.type === 'interim') {
-              interimTextRef.current = msg.text
-              setSubtitle(sentenceBuffer + msg.text)
-            } else if (msg.type === 'final') {
-              sentenceBuffer += msg.text
-              interimTextRef.current = ''
-              setSubtitle(sentenceBuffer)
-            } else if (msg.type === 'error') {
-              setSubtitle('ASR: ' + (msg.message || '').slice(0, 50))
-              setTimeout(() => setSubtitle(''), 3000)
-            } else if (msg.type === 'finished') {
-              wsReady = false
-              pcmSendFn = null
-            }
-          } catch {}
-        }
-
-        ws.onerror = () => {
-          wsReady = false
-          pcmSendFn = null
-        }
-
-        ws.onclose = () => {
-          wsReady = false
-          pcmSendFn = null
-          if (callPhaseRef.current === 'active' && micOnRef.current) {
-            setTimeout(() => {
-              if (callPhaseRef.current === 'active' && micOnRef.current) connectWs()
-            }, 1500)
-          }
-        }
-      }
-
-      connectWs()
-
-      // VAD: detect silence to know when user finished speaking
       function getVolume() {
         analyser.getByteFrequencyData(dataArr)
         let sum = 0
@@ -2811,63 +2743,101 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         return sum / dataArr.length
       }
 
+      function startRecording() {
+        if (isRecording) return
+        isRecording = true
+        setAiStatus('listening')
+        const chunks = []
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
+        recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 16000 })
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+        recorder.onstop = () => {
+          isRecording = false
+          if (chunks.length > 0) {
+            const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+            sendAudioToASR(blob)
+          }
+        }
+        recorder.start()
+      }
+
+      function stopRecording() {
+        if (recorder && recorder.state === 'recording') {
+          recorder.stop()
+        }
+        isRecording = false
+      }
+
+      // VAD loop
       const vadInterval = setInterval(() => {
         if (!micOnRef.current || callPhaseRef.current !== 'active') return
+        // Don't listen while AI is speaking
         if (ttsPlayingRef.current) return
-
+        
         const vol = getVolume()
-
+        
         if (vol > SILENCE_THRESHOLD) {
-          voiceActive = true
+          // Voice detected
+          if (!isRecording) startRecording()
           if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null }
-        } else if (voiceActive) {
+        } else if (isRecording) {
+          // Silence while recording - start countdown
           if (!silenceTimer) {
             silenceTimer = setTimeout(() => {
-              const text = sentenceBuffer.trim()
-              if (text) {
-                addMessage('user', text)
-                sendToAI(text)
-                sentenceBuffer = ''
-                interimTextRef.current = ''
-                setSubtitle('')
-              }
-              voiceActive = false
+              stopRecording()
               silenceTimer = null
-              // Signal end of utterance, then reconnect for next one
-              if (ws && ws.readyState === 1) {
-                try { ws.send(JSON.stringify({ type: 'stop' })) } catch {}
-              }
-              pcmSendFn = null
-              setTimeout(() => {
-                if (callPhaseRef.current === 'active' && micOnRef.current) connectWs()
-              }, 500)
-            }, SILENCE_SEND_DELAY)
+            }, SILENCE_DURATION)
           }
         }
       }, 100)
 
-      // Cleanup
+      // Store cleanup function
       recognitionRef.current = {
         stop: () => {
           clearInterval(vadInterval)
           if (silenceTimer) clearTimeout(silenceTimer)
-          pcmSendFn = null
-          if (ws && ws.readyState <= 1) { try { ws.close() } catch {} }
-          try { processor.disconnect() } catch {}
+          stopRecording()
           stream.getTracks().forEach(t => t.stop())
           try { audioCtx.close() } catch {}
         }
       }
-    }).catch(err => {
-      console.error('[ASR] Mic access denied:', err)
-      setSubtitle('麦克风访问失败')
-      setTimeout(() => setSubtitle(''), 3000)
+    }).catch(() => {
+      // Mic access denied - silent fail, text input still works
     })
+  }
+
+  async function sendAudioToASR(blob) {
+    setAiStatus('thinking')
+    setSubtitle('识别中...')
+    try {
+      // Send as FormData directly (skip base64 encoding for speed)
+      const formData = new FormData()
+      formData.append('file', blob, 'audio.webm')
+      const res = await fetch('/api/asr', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (data.text && data.text.trim()) {
+        const text = data.text.trim()
+        setSubtitle('')
+        addMessage('user', text)
+        sendToAI(text)
+      } else if (data.error) {
+        setSubtitle('STT: ' + (data.error || '').slice(0, 60))
+        setTimeout(() => { setSubtitle(''); setAiStatus('') }, 4000)
+      } else {
+        setSubtitle('(未识别到语音)')
+        setTimeout(() => { setSubtitle(''); setAiStatus('') }, 2000)
+      }
+    } catch (e) {
+      setSubtitle('ASR错误: ' + (e.message || '').slice(0, 40))
+      setTimeout(() => { setSubtitle(''); setAiStatus('') }, 3000)
+    }
   }
 
   function stopSpeechRecognition() {
     if (recognitionRef.current) { try { recognitionRef.current.stop() } catch {}; recognitionRef.current = null }
-    if (asrWsRef.current) { try { asrWsRef.current.close() } catch {}; asrWsRef.current = null }
   }
 
   // Toggle mic
@@ -3601,7 +3571,7 @@ export default function Home() {
                 </div>
               )}
           </div>
-          {callActive && <CallScreen theme={theme} isIncoming={callIncoming} onHangup={() => { setCallActive(false); setCallIncoming(false); setCallMinimized(false) }} onMinimize={() => setCallMinimized(true)} minimized={callMinimized} />}
+          {callActive && <CallScreen theme={theme} isIncoming={callIncoming} onHangup={() => { setCallActive(false); setCallIncoming(false); setCallMinimized(false); try { const h = JSON.parse(localStorage.getItem('pool_chat_history') || '[]'); setMessages(h) } catch {} }} onMinimize={() => setCallMinimized(true)} minimized={callMinimized} />}
           {callActive && callMinimized && (
             <div onClick={() => setCallMinimized(false)} style={{
               position: 'absolute', top: 50, right: 12, zIndex: 8000,
