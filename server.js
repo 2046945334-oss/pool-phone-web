@@ -193,7 +193,10 @@ function handleAsrWebSocket(clientWs) {
           format: 'pcm',
           sample_rate: 16000,
           channels: 1,
-          language_hints: ['zh', 'en']
+          language_hints: ['zh', 'en'],
+          disfluency_removal_enabled: true,
+          enable_intermediate_result: true,
+          enable_punctuation_prediction: true
         },
         input: {}
       }
@@ -203,6 +206,9 @@ function handleAsrWebSocket(clientWs) {
     clientWs.send(JSON.stringify({ type: 'ready' }))
   })
 
+  let audioBytesSent = 0
+  let audioChunkCount = 0
+  
   dashWs.on('message', (data) => {
     try {
       const msg = JSON.parse(data.toString())
@@ -214,6 +220,8 @@ function handleAsrWebSocket(clientWs) {
         console.log('[ASR] Task started:', taskId.slice(0, 8))
         clientWs.send(JSON.stringify({ type: 'started' }))
       } else if (header.event === 'result-generated') {
+        // Log raw output for debugging
+        console.log('[ASR] result-generated:', JSON.stringify(output).slice(0, 300))
         // Extract transcript — handle both object and array formats
         const sentence = output.sentence || (output.results && output.results[0]) || {}
         const text = sentence.text || ''
@@ -279,6 +287,11 @@ function handleAsrWebSocket(clientWs) {
     } else {
       // Binary PCM data — DashScope requires raw binary frames, NOT base64 in JSON
       const buf = Buffer.from(data)
+      audioBytesSent += buf.length
+      audioChunkCount++
+      if (audioChunkCount % 20 === 1) {
+        console.log('[ASR] Audio chunk #' + audioChunkCount + ', size:', buf.length, ', total bytes:', audioBytesSent)
+      }
       dashWs.send(buf)
     }
   })
