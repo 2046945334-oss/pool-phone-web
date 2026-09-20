@@ -2508,6 +2508,16 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
   const micOnRef = useRef(micOn)
 
   useEffect(() => { callPhaseRef.current = callPhase }, [callPhase])
+
+  // Get recent chat context for greeting
+  function getRecentChatContext() {
+    try {
+      const history = JSON.parse(localStorage.getItem('pool_chat_history') || '[]')
+      const recent = history.filter(m => m.role === 'user' || m.role === 'assistant').slice(-6)
+      if (recent.length === 0) return ''
+      return recent.map(m => (m.role === 'user' ? '她：' : '你：') + (m.content || '').slice(0, 50)).join(' / ')
+    } catch { return '' }
+  }
   useEffect(() => { micOnRef.current = micOn }, [micOn])
 
   // Generate default ringtone using Web Audio API
@@ -2610,11 +2620,12 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
     stopRingtone()
     setCallPhase('active')
     fetch('/api/call-status', { method: 'DELETE' }).catch(() => {})
-    // AI greets based on context (time, who called)
+    // AI greets based on context (time, who called, recent chat)
     const hour = new Date().getHours()
-    const greet = hour >= 22 || hour < 6 ? '[她接了电话，现在很晚了，温柔地说几句]' :
-                  hour >= 6 && hour < 10 ? '[她接了电话，早上好，随意聊几句]' :
-                  '[她接了你的电话，自然地打个招呼]'
+    const recentChat = getRecentChatContext()
+    const timeHint = hour >= 22 || hour < 6 ? '现在很晚了' :
+                     hour >= 6 && hour < 10 ? '现在是早上' : ''
+    const greet = `[她接了电话。${timeHint ? timeHint + '。' : ''}${recentChat ? '你们刚才在聊：' + recentChat + '。' : ''}自然地打个招呼，可以根据最近聊天内容接着聊，也可以重新起话题]`
     sendToAI(greet)
     startSpeechRecognition()
   }
@@ -2633,9 +2644,10 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         unlockAudio()
         setCallPhase('active')
         const hour = new Date().getHours()
-        const greet = hour >= 22 || hour < 6 ? '[她主动打来了电话，现在很晚了，关心一下她]' :
-                      hour >= 6 && hour < 10 ? '[她打电话来了，早上好，像刚睡醒的样子]' :
-                      '[她打电话过来了，随意自然地接起来]'
+        const recentChat = getRecentChatContext()
+        const timeHint = hour >= 22 || hour < 6 ? '现在很晚了' :
+                         hour >= 6 && hour < 10 ? '现在是早上' : ''
+        const greet = `[她打电话过来了。${timeHint ? timeHint + '。' : ''}${recentChat ? '你们刚才在聊：' + recentChat + '。' : ''}自然地接起来，可以根据最近聊天内容接着聊]`
         sendToAI(greet)
         startSpeechRecognition()
       }, 1500)
@@ -2994,7 +3006,7 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
 
       {/* Name */}
       <div style={{ marginTop: 16, fontSize: 20, fontWeight: 500, color: '#3a3040', letterSpacing: '0.5px' }}>
-        {'\u6c60'}
+        {'\u6c60\u5c7f'}
       </div>
 
       {/* Status */}
