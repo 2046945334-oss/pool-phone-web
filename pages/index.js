@@ -2690,25 +2690,108 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
     setTimeout(() => onHangup(), 800)
   }
 
-  // Speech recognition via MediaRecorder + backend Whisper ASR
-  // Includes volume-based VAD (voice activity detection)
+  // ========== Realtime ASR via WebSocket + AudioWorklet ==========
+  // Streams PCM16 audio to /api/asr/stream, receives interim/final transcripts
+  const asrWsRef = useRef(null)
+  const interimTextRef = useRef('')
+
   function startSpeechRecognition() {
     if (typeof window === 'undefined' || !navigator.mediaDevices) return
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true } }).then(async stream => {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 })
       const source = audioCtx.createMediaStreamSource(stream)
+
+      // Analyser for VAD
       const analyser = audioCtx.createAnalyser()
       analyser.fftSize = 512
       source.connect(analyser)
       const dataArr = new Uint8Array(analyser.frequencyBinCount)
-      
-      let recorder = null
-      let isRecording = false
-      let silenceTimer = null
-      const SILENCE_THRESHOLD = 15 // Volume below this = silence
-      const SILENCE_DURATION = 800 // ms of silence before stopping
-      const MIN_RECORD_TIME = 500 // minimum recording ms
 
+      // AudioWorklet for PCM capture
+      let workletReady = false
+      try {
+        await audioCtx.audioWorklet.addModule('/js/pcm-worklet.js')
+        workletReady = true
+      } catch (e) {
+        console.error('[ASR] Worklet load failed:', e)
+      }
+
+      let pcmNode = null
+      if (workletReady) {
+        pcmNode = new AudioWorkletNode(audioCtx, 'pcm-capture')
+        source.connect(pcmNode)
+        pcmNode.connect(audioCtx.destination) // needed to keep processing alive
+      }
+
+      // WebSocket to backend ASR proxy
+      const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+      let ws = null
+      let wsReady = false
+      let currentTranscript = ''
+      let sentenceBuffer = '' // accumulates final sentences
+      let silenceTimer = null
+      let voiceActive = false
+      const SILENCE_THRESHOLD = 12
+      const SILENCE_SEND_DELAY = 1200 // ms of silence before sending accumulated text to AI
+
+      function connectWs() {
+        ws = new WebSocket(`${wsProto}//${location.host}/api/asr/stream`)
+        ws.binaryType = 'arraybuffer'
+
+        ws.onopen = () => {
+          setAiStatus('listening')
+        }
+
+        ws.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data)
+            if (msg.type === 'ready' || msg.type === 'started') {
+              wsReady = true
+              setAiStatus('listening')
+            } else if (msg.type === 'interim') {
+              interimTextRef.current = msg.text
+              setSubtitle(sentenceBuffer + msg.text)
+            } else if (msg.type === 'final') {
+              sentenceBuffer += msg.text
+              interimTextRef.current = ''
+              setSubtitle(sentenceBuffer)
+            } else if (msg.type === 'error') {
+              setSubtitle('ASR: ' + (msg.message || '').slice(0, 50))
+              setTimeout(() => setSubtitle(''), 3000)
+            } else if (msg.type === 'finished') {
+              wsReady = false
+            }
+          } catch {}
+        }
+
+        ws.onerror = () => {
+          wsReady = false
+        }
+
+        ws.onclose = () => {
+          wsReady = false
+          // Auto-reconnect if still in call
+          if (callPhaseRef.current === 'active' && micOnRef.current) {
+            setTimeout(() => {
+              if (callPhaseRef.current === 'active' && micOnRef.current) connectWs()
+            }, 1000)
+          }
+        }
+      }
+
+      connectWs()
+      asrWsRef.current = ws
+
+      // Forward PCM from worklet to WebSocket
+      if (pcmNode) {
+        pcmNode.port.onmessage = (evt) => {
+          if (wsReady && ws && ws.readyState === 1) {
+            ws.send(evt.data) // ArrayBuffer of Int16
+          }
+        }
+      }
+
+      // VAD: detect silence to know when user finished speaking
       function getVolume() {
         analyser.getByteFrequencyData(dataArr)
         let sum = 0
@@ -2716,101 +2799,67 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         return sum / dataArr.length
       }
 
-      function startRecording() {
-        if (isRecording) return
-        isRecording = true
-        setAiStatus('listening')
-        const chunks = []
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
-        recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 16000 })
-        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-        recorder.onstop = () => {
-          isRecording = false
-          if (chunks.length > 0) {
-            const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
-            sendAudioToASR(blob)
-          }
-        }
-        recorder.start()
-      }
-
-      function stopRecording() {
-        if (recorder && recorder.state === 'recording') {
-          recorder.stop()
-        }
-        isRecording = false
-      }
-
-      // VAD loop
       const vadInterval = setInterval(() => {
         if (!micOnRef.current || callPhaseRef.current !== 'active') return
-        // Don't listen while AI is speaking
         if (ttsPlayingRef.current) return
-        
+
         const vol = getVolume()
-        
+
         if (vol > SILENCE_THRESHOLD) {
-          // Voice detected
-          if (!isRecording) startRecording()
+          voiceActive = true
           if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null }
-        } else if (isRecording) {
-          // Silence while recording - start countdown
+        } else if (voiceActive) {
+          // Silence detected after speech
           if (!silenceTimer) {
             silenceTimer = setTimeout(() => {
-              stopRecording()
+              // User stopped talking - send accumulated transcript to AI
+              const text = sentenceBuffer.trim()
+              if (text) {
+                addMessage('user', text)
+                sendToAI(text)
+                sentenceBuffer = ''
+                interimTextRef.current = ''
+                setSubtitle('')
+              }
+              voiceActive = false
               silenceTimer = null
-            }, SILENCE_DURATION)
+              // Reconnect WS for next utterance
+              if (ws && ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'stop' }))
+              }
+              // Small delay then reconnect for next utterance
+              setTimeout(() => {
+                if (callPhaseRef.current === 'active' && micOnRef.current) {
+                  connectWs()
+                  asrWsRef.current = ws
+                }
+              }, 300)
+            }, SILENCE_SEND_DELAY)
           }
         }
       }, 100)
 
-      // Store cleanup function
+      // Store cleanup
       recognitionRef.current = {
         stop: () => {
           clearInterval(vadInterval)
           if (silenceTimer) clearTimeout(silenceTimer)
-          stopRecording()
+          if (ws && ws.readyState <= 1) { try { ws.close() } catch {} }
+          if (pcmNode) { try { pcmNode.disconnect() } catch {} }
           stream.getTracks().forEach(t => t.stop())
           try { audioCtx.close() } catch {}
         }
       }
-    }).catch(() => {
-      // Mic access denied - silent fail, text input still works
+    }).catch(err => {
+      console.error('[ASR] Mic access denied:', err)
+      setSubtitle('麦克风访问失败')
+      setTimeout(() => setSubtitle(''), 3000)
     })
-  }
-
-  async function sendAudioToASR(blob) {
-    setAiStatus('thinking')
-    setSubtitle('识别中...')
-    try {
-      // Send as FormData directly (skip base64 encoding for speed)
-      const formData = new FormData()
-      formData.append('file', blob, 'audio.webm')
-      const res = await fetch('/api/asr', {
-        method: 'POST',
-        body: formData
-      })
-      const data = await res.json()
-      if (data.text && data.text.trim()) {
-        const text = data.text.trim()
-        setSubtitle('')
-        addMessage('user', text)
-        sendToAI(text)
-      } else if (data.error) {
-        setSubtitle('STT: ' + (data.error || '').slice(0, 60))
-        setTimeout(() => { setSubtitle(''); setAiStatus('') }, 4000)
-      } else {
-        setSubtitle('(未识别到语音)')
-        setTimeout(() => { setSubtitle(''); setAiStatus('') }, 2000)
-      }
-    } catch (e) {
-      setSubtitle('ASR错误: ' + (e.message || '').slice(0, 40))
-      setTimeout(() => { setSubtitle(''); setAiStatus('') }, 3000)
-    }
   }
 
   function stopSpeechRecognition() {
     if (recognitionRef.current) { try { recognitionRef.current.stop() } catch {}; recognitionRef.current = null }
+    if (asrWsRef.current) { try { asrWsRef.current.close() } catch {}; asrWsRef.current = null }
   }
 
   // Toggle mic
