@@ -101,18 +101,7 @@ function handleAsrWebSocket(clientWs) {
 
   const taskId = crypto.randomUUID()
   // DashScope realtime ASR WebSocket URL
-  // For workspace-scoped keys, use workspace-specific WS endpoint
-  let dashscopeWsUrl = config.wsUrl || ''
-  if (!dashscopeWsUrl && config.apiBase && config.workspaceId) {
-    // e.g. https://1440889827237606.cn-beijing.maas.aliyuncs.com/compatible-mode
-    // -> wss://1440889827237606.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference/
-    try {
-      const u = new URL(config.apiBase)
-      dashscopeWsUrl = 'wss://' + u.hostname + '/api-ws/v1/inference/'
-    } catch {}
-  }
-  if (!dashscopeWsUrl) dashscopeWsUrl = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
-  console.log('[ASR] Using WS URL:', dashscopeWsUrl)
+  const dashscopeWsUrl = config.wsUrl || 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
   
   let dashWs = null
   let taskStarted = false
