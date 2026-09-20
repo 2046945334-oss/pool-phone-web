@@ -1124,7 +1124,7 @@ function ChatView({ theme }) {
     setLoading(false)
   }
 
-  async function extractMemory(silent = false) {
+   async function extractMemory(silent = false) {
     setMenuIdx(-1)
     const cfg = getApiConfig('memory')
     if (!cfg.apiBase || !cfg.apiKey) return
@@ -1146,25 +1146,12 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
       })
       const data = await res.json()
       if (data.reply) {
-        // Parse extracted memories into entries
         const lines = data.reply.split('\n').filter(l => l.trim())
-        const newEntries = lines.map(line => {
-          const colonIdx = line.indexOf(':')
-          const keyword = colonIdx > 0 ? line.slice(0, colonIdx).replace(/^[-*\d.]\s*/, '').trim() : line.trim()
-          const content = colonIdx > 0 ? line.slice(colonIdx + 1).trim() : line.trim()
-          return { keyword, content, type: 'always', id: Date.now() + Math.random(), enabled: true, source: 'ai_extracted', time: new Date().toLocaleString() }
-        })
 
-        // Add to memory entries list
-        const existing = JSON.parse(localStorage.getItem('pool_memory_entries') || '[]')
-        const updated = [...existing, ...newEntries]
-        localStorage.setItem('pool_memory_entries', JSON.stringify(updated))
-        syncToBackend('pool_memory_entries', updated)
-
-        // Also write to Ombre Brain
+        // Write to Ombre Brain only (localStorage memory list removed)
         callMemory('hold', { content: data.reply })
 
-        if (!silent) setMessages([...messages, { role: 'system', content: '[记忆已提取] ' + newEntries.length + '条新记忆已保存' }])
+        if (!silent) setMessages([...messages, { role: 'system', content: '[记忆已提取] ' + lines.length + '条新记忆已写入OB' }])
       }
     } catch(e) {
       if (!silent) setMessages([...messages, { role: 'system', content: '记忆提取失败: ' + e.message }])
@@ -3929,3 +3916,4 @@ export default function Home() {
     </>
   )
 }
+
