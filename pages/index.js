@@ -2735,8 +2735,8 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
       source.connect(analyser)
       const dataArr = new Uint8Array(analyser.frequencyBinCount)
 
-      const SILENCE_THRESHOLD = 15
-      const SILENCE_DURATION = 1200 // slightly longer for streaming
+      const SILENCE_THRESHOLD = 8
+      const SILENCE_DURATION = 1500
       let isSpeaking = false
       let silenceTimer = null
       let wsConn = null
@@ -2767,25 +2767,52 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
         return out
       }
 
-      // ScriptProcessor to capture PCM (widely supported fallback)
-      const processor = audioCtx.createScriptProcessor(4096, 1, 1)
-      source.connect(processor)
-      processor.connect(audioCtx.destination)
+      // Pre-roll buffer: always cache recent audio chunks so we don't lose speech onset
+      const PRE_ROLL_CHUNKS = 5 // ~5 chunks * 4096 samples ≈ 1.3s at 16kHz
+      const preRollBuffer = []
 
-      processor.onaudioprocess = (e) => {
-        if (!wsConn || wsConn.readyState !== WebSocket.OPEN) return
-        if (!isSpeaking) return
-        // Don't send while AI is speaking
-        if (ttsPlayingRef.current) return
-
-        const float32 = e.inputBuffer.getChannelData(0)
-        // Resample to 16kHz then convert float32 -> int16 PCM
+      function float32ToPcm16(float32) {
         const resampled = resampleTo16k(float32)
         const pcm16 = new Int16Array(resampled.length)
         for (let i = 0; i < resampled.length; i++) {
           const s = Math.max(-1, Math.min(1, resampled[i]))
           pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
         }
+        return pcm16
+      }
+
+      // ScriptProcessor to capture PCM (widely supported fallback)
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1)
+      source.connect(processor)
+      processor.connect(audioCtx.destination)
+
+      let preRollFlushed = false
+
+      processor.onaudioprocess = (e) => {
+        if (!wsConn || wsConn.readyState !== WebSocket.OPEN) return
+        // Don't send while AI is speaking
+        if (ttsPlayingRef.current) return
+
+        const float32 = e.inputBuffer.getChannelData(0)
+        const pcm16 = float32ToPcm16(float32)
+
+        if (!isSpeaking) {
+          // Not speaking yet — store in pre-roll buffer (ring buffer)
+          preRollBuffer.push(pcm16.buffer.slice(0)) // copy
+          if (preRollBuffer.length > PRE_ROLL_CHUNKS) preRollBuffer.shift()
+          preRollFlushed = false
+          return
+        }
+
+        // Speaking — flush pre-roll buffer first (captures speech onset)
+        if (!preRollFlushed) {
+          preRollFlushed = true
+          for (const buf of preRollBuffer) {
+            wsConn.send(buf)
+          }
+          preRollBuffer.length = 0
+        }
+
         wsConn.send(pcm16.buffer)
       }
 
