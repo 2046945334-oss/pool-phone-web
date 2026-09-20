@@ -60,30 +60,44 @@ function getAsrConfig() {
       }
     }
     
-    // If no apiBase from STT config, fallback to chat/tts apiBase
-    if (!apiBase) {
-      try {
-        const cfgRow3 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
-        if (cfgRow3) {
-          const allCfgs = JSON.parse(cfgRow3.value)
-          for (const k of ['chat', 'tts', 'memory']) {
-            if (allCfgs[k]?.apiBase) { apiBase = allCfgs[k].apiBase; break }
-          }
+    // Collect all apiBase URLs from all configs, find the best one for WebSocket
+    // ws-* domain supports WebSocket, numeric ID domain does NOT
+    let allBases = []
+    if (apiBase) allBases.push(apiBase)
+    try {
+      const cfgRow3 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
+      if (cfgRow3) {
+        const allCfgs = JSON.parse(cfgRow3.value)
+        for (const k of ['chat', 'tts', 'memory', 'stt']) {
+          if (allCfgs[k]?.apiBase) allBases.push(allCfgs[k].apiBase)
         }
-      } catch {}
-    }
-    if (!apiBase) {
-      try {
-        const row2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
-        if (row2) { apiBase = JSON.parse(row2.value).apiBase || '' }
-      } catch {}
-    }
+      }
+    } catch {}
+    try {
+      const row2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
+      if (row2) {
+        const b = JSON.parse(row2.value).apiBase
+        if (b) allBases.push(b)
+      }
+    } catch {}
     
-    // Extract workspace ID from apiBase URL (e.g. https://1440889827237606.cn-beijing.maas.aliyuncs.com/...)
+    // Prefer ws-* domain (supports WebSocket), fallback to any .maas domain, then original apiBase
+    let wsApiBase = ''
+    let anyMaasBase = ''
+    for (const b of allBases) {
+      try {
+        const h = new URL(b).hostname
+        if (h.startsWith('ws-') && h.includes('.maas.aliyuncs.com')) { wsApiBase = b; break }
+        if (!anyMaasBase && h.includes('.maas.aliyuncs.com')) anyMaasBase = b
+      } catch {}
+    }
+    if (!apiBase && anyMaasBase) apiBase = anyMaasBase
+    
+    // Extract workspace ID from any numeric-ID apiBase
     let workspaceId = ''
-    if (apiBase) {
-      const m = apiBase.match(/https?:\/\/(\d{10,})\./)
-      if (m) workspaceId = m[1]
+    for (const b of allBases) {
+      const m = b.match(/https?:\/\/(\d{10,})\./)
+      if (m) { workspaceId = m[1]; break }
     }
     // If key is workspace-scoped (sk-ws-*) but no workspace ID from STT apiBase,
     // try to extract from other API configs (chat/tts apiBase may have it)
@@ -101,9 +115,9 @@ function getAsrConfig() {
       } catch {}
     }
     
-    console.log('[ASR] Config loaded - key:', apiKey.slice(0, 10) + '...', 'model:', model, 'workspaceId:', workspaceId || 'NONE')
+    console.log('[ASR] Config loaded - key:', apiKey.slice(0, 10) + '...', 'model:', model, 'workspaceId:', workspaceId || 'NONE', 'wsApiBase:', wsApiBase || 'NONE', 'apiBase:', apiBase || 'NONE')
     
-    return { apiKey, model, wsUrl, workspaceId, apiBase }
+    return { apiKey, model, wsUrl, workspaceId, apiBase, wsApiBase }
   } catch (e) {
     console.error('[ASR] Failed to read config:', e.message)
     return { apiKey: '', model: 'paraformer-realtime-v2', wsUrl: '' }
@@ -120,16 +134,20 @@ function handleAsrWebSocket(clientWs) {
 
   const taskId = crypto.randomUUID()
   // Build DashScope realtime ASR WebSocket URL
-  // For workspace-scoped keys (sk-ws-*), use workspace domain instead of dashscope.aliyuncs.com
+  // Priority: 1) explicit wsUrl, 2) ws-* domain from configs, 3) apiBase domain, 4) default
   let dashscopeWsUrl = config.wsUrl || ''
-  if (!dashscopeWsUrl && config.apiBase) {
-    // Extract hostname from apiBase (e.g. https://ws-xxx.cn-beijing.maas.aliyuncs.com/compatible-mode/v1)
-    try {
-      const baseHost = new URL(config.apiBase).hostname
-      if (baseHost.includes('.maas.aliyuncs.com')) {
-        dashscopeWsUrl = 'wss://' + baseHost + '/api-ws/v1/inference/'
-      }
-    } catch {}
+  if (!dashscopeWsUrl) {
+    // First try wsApiBase (ws-* domain that we know supports WebSocket)
+    const baseToParse = config.wsApiBase || config.apiBase || ''
+    if (baseToParse) {
+      try {
+        const baseHost = new URL(baseToParse).hostname
+        if (baseHost.includes('.maas.aliyuncs.com') && !(/^\d+\./.test(baseHost))) {
+          // Only use non-numeric domains (ws-xxx works, 1440xxx does NOT)
+          dashscopeWsUrl = 'wss://' + baseHost + '/api-ws/v1/inference/'
+        }
+      } catch {}
+    }
   }
   if (!dashscopeWsUrl) {
     dashscopeWsUrl = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
