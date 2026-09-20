@@ -84,7 +84,7 @@ function getAsrConfig() {
     
     console.log('[ASR] Config loaded - key:', apiKey.slice(0, 10) + '...', 'model:', model, 'workspaceId:', workspaceId || 'NONE')
     
-    return { apiKey, model, wsUrl, workspaceId }
+    return { apiKey, model, wsUrl, workspaceId, apiBase }
   } catch (e) {
     console.error('[ASR] Failed to read config:', e.message)
     return { apiKey: '', model: 'paraformer-realtime-v2', wsUrl: '' }
@@ -101,7 +101,18 @@ function handleAsrWebSocket(clientWs) {
 
   const taskId = crypto.randomUUID()
   // DashScope realtime ASR WebSocket URL
-  const dashscopeWsUrl = config.wsUrl || 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
+  // For workspace-scoped keys, use workspace-specific WS endpoint
+  let dashscopeWsUrl = config.wsUrl || ''
+  if (!dashscopeWsUrl && config.apiBase && config.workspaceId) {
+    // e.g. https://1440889827237606.cn-beijing.maas.aliyuncs.com/compatible-mode
+    // -> wss://1440889827237606.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference/
+    try {
+      const u = new URL(config.apiBase)
+      dashscopeWsUrl = 'wss://' + u.hostname + '/api-ws/v1/inference/'
+    } catch {}
+  }
+  if (!dashscopeWsUrl) dashscopeWsUrl = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
+  console.log('[ASR] Using WS URL:', dashscopeWsUrl)
   
   let dashWs = null
   let taskStarted = false
