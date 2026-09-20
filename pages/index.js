@@ -2690,15 +2690,19 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
     setTimeout(() => onHangup(), 800)
   }
 
-  // ========== Realtime ASR via WebSocket + AudioWorklet ==========
+  // ========== Realtime ASR via WebSocket + ScriptProcessor ==========
   // Streams PCM16 audio to /api/asr/stream, receives interim/final transcripts
+  // Uses ScriptProcessorNode for maximum WebView compatibility + proper downsampling
   const asrWsRef = useRef(null)
   const interimTextRef = useRef('')
 
   function startSpeechRecognition() {
     if (typeof window === 'undefined' || !navigator.mediaDevices) return
-    navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true } }).then(async stream => {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 })
+    navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } }).then(stream => {
+      // Use native sample rate (usually 48000), we'll downsample to 16000 ourselves
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      const nativeSR = audioCtx.sampleRate
+      const targetSR = 16000
       const source = audioCtx.createMediaStreamSource(stream)
 
       // Analyser for VAD
@@ -2707,36 +2711,49 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
       source.connect(analyser)
       const dataArr = new Uint8Array(analyser.frequencyBinCount)
 
-      // AudioWorklet for PCM capture
-      let workletReady = false
-      try {
-        await audioCtx.audioWorklet.addModule('/js/pcm-worklet.js')
-        workletReady = true
-      } catch (e) {
-        console.error('[ASR] Worklet load failed:', e)
+      // ScriptProcessorNode: captures audio, downsamples, converts to PCM16
+      const bufSize = 4096
+      const processor = audioCtx.createScriptProcessor(bufSize, 1, 1)
+      let pcmSendFn = null // set after WS connects
+
+      // Downsampling + PCM16 conversion
+      function downsampleToPCM16(float32, fromRate, toRate) {
+        const ratio = fromRate / toRate
+        const newLen = Math.floor(float32.length / ratio)
+        const pcm16 = new Int16Array(newLen)
+        for (let i = 0; i < newLen; i++) {
+          const srcIdx = Math.floor(i * ratio)
+          const s = Math.max(-1, Math.min(1, float32[srcIdx]))
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
+        }
+        return pcm16
       }
 
-      let pcmNode = null
-      if (workletReady) {
-        pcmNode = new AudioWorkletNode(audioCtx, 'pcm-capture')
-        source.connect(pcmNode)
-        pcmNode.connect(audioCtx.destination) // needed to keep processing alive
+      processor.onaudioprocess = (e) => {
+        if (!pcmSendFn) return
+        const input = e.inputBuffer.getChannelData(0)
+        const pcm16 = downsampleToPCM16(input, nativeSR, targetSR)
+        pcmSendFn(pcm16.buffer)
       }
+
+      source.connect(processor)
+      processor.connect(audioCtx.destination) // required to keep processing alive
 
       // WebSocket to backend ASR proxy
       const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
       let ws = null
       let wsReady = false
-      let currentTranscript = ''
-      let sentenceBuffer = '' // accumulates final sentences
+      let sentenceBuffer = ''
       let silenceTimer = null
       let voiceActive = false
       const SILENCE_THRESHOLD = 12
-      const SILENCE_SEND_DELAY = 1200 // ms of silence before sending accumulated text to AI
+      const SILENCE_SEND_DELAY = 1200
 
       function connectWs() {
+        if (ws && ws.readyState <= 1) { try { ws.close() } catch {} }
         ws = new WebSocket(`${wsProto}//${location.host}/api/asr/stream`)
         ws.binaryType = 'arraybuffer'
+        asrWsRef.current = ws
 
         ws.onopen = () => {
           setAiStatus('listening')
@@ -2747,6 +2764,9 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
             const msg = JSON.parse(evt.data)
             if (msg.type === 'ready' || msg.type === 'started') {
               wsReady = true
+              pcmSendFn = (buf) => {
+                if (ws && ws.readyState === 1) ws.send(buf)
+              }
               setAiStatus('listening')
             } else if (msg.type === 'interim') {
               interimTextRef.current = msg.text
@@ -2760,36 +2780,28 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
               setTimeout(() => setSubtitle(''), 3000)
             } else if (msg.type === 'finished') {
               wsReady = false
+              pcmSendFn = null
             }
           } catch {}
         }
 
         ws.onerror = () => {
           wsReady = false
+          pcmSendFn = null
         }
 
         ws.onclose = () => {
           wsReady = false
-          // Auto-reconnect if still in call
+          pcmSendFn = null
           if (callPhaseRef.current === 'active' && micOnRef.current) {
             setTimeout(() => {
               if (callPhaseRef.current === 'active' && micOnRef.current) connectWs()
-            }, 1000)
+            }, 1500)
           }
         }
       }
 
       connectWs()
-      asrWsRef.current = ws
-
-      // Forward PCM from worklet to WebSocket
-      if (pcmNode) {
-        pcmNode.port.onmessage = (evt) => {
-          if (wsReady && ws && ws.readyState === 1) {
-            ws.send(evt.data) // ArrayBuffer of Int16
-          }
-        }
-      }
 
       // VAD: detect silence to know when user finished speaking
       function getVolume() {
@@ -2809,10 +2821,8 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
           voiceActive = true
           if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null }
         } else if (voiceActive) {
-          // Silence detected after speech
           if (!silenceTimer) {
             silenceTimer = setTimeout(() => {
-              // User stopped talking - send accumulated transcript to AI
               const text = sentenceBuffer.trim()
               if (text) {
                 addMessage('user', text)
@@ -2823,29 +2833,27 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
               }
               voiceActive = false
               silenceTimer = null
-              // Reconnect WS for next utterance
+              // Signal end of utterance, then reconnect for next one
               if (ws && ws.readyState === 1) {
-                ws.send(JSON.stringify({ type: 'stop' }))
+                try { ws.send(JSON.stringify({ type: 'stop' })) } catch {}
               }
-              // Small delay then reconnect for next utterance
+              pcmSendFn = null
               setTimeout(() => {
-                if (callPhaseRef.current === 'active' && micOnRef.current) {
-                  connectWs()
-                  asrWsRef.current = ws
-                }
-              }, 300)
+                if (callPhaseRef.current === 'active' && micOnRef.current) connectWs()
+              }, 500)
             }, SILENCE_SEND_DELAY)
           }
         }
       }, 100)
 
-      // Store cleanup
+      // Cleanup
       recognitionRef.current = {
         stop: () => {
           clearInterval(vadInterval)
           if (silenceTimer) clearTimeout(silenceTimer)
+          pcmSendFn = null
           if (ws && ws.readyState <= 1) { try { ws.close() } catch {} }
-          if (pcmNode) { try { pcmNode.disconnect() } catch {} }
+          try { processor.disconnect() } catch {}
           stream.getTracks().forEach(t => t.stop())
           try { audioCtx.close() } catch {}
         }
