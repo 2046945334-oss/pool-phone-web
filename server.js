@@ -60,6 +60,25 @@ function getAsrConfig() {
       }
     }
     
+    // If no apiBase from STT config, fallback to chat/tts apiBase
+    if (!apiBase) {
+      try {
+        const cfgRow3 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
+        if (cfgRow3) {
+          const allCfgs = JSON.parse(cfgRow3.value)
+          for (const k of ['chat', 'tts', 'memory']) {
+            if (allCfgs[k]?.apiBase) { apiBase = allCfgs[k].apiBase; break }
+          }
+        }
+      } catch {}
+    }
+    if (!apiBase) {
+      try {
+        const row2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
+        if (row2) { apiBase = JSON.parse(row2.value).apiBase || '' }
+      } catch {}
+    }
+    
     // Extract workspace ID from apiBase URL (e.g. https://1440889827237606.cn-beijing.maas.aliyuncs.com/...)
     let workspaceId = ''
     if (apiBase) {
@@ -100,8 +119,21 @@ function handleAsrWebSocket(clientWs) {
   }
 
   const taskId = crypto.randomUUID()
-  // DashScope realtime ASR WebSocket URL
-  const dashscopeWsUrl = config.wsUrl || 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
+  // Build DashScope realtime ASR WebSocket URL
+  // For workspace-scoped keys (sk-ws-*), use workspace domain instead of dashscope.aliyuncs.com
+  let dashscopeWsUrl = config.wsUrl || ''
+  if (!dashscopeWsUrl && config.apiBase) {
+    // Extract hostname from apiBase (e.g. https://ws-xxx.cn-beijing.maas.aliyuncs.com/compatible-mode/v1)
+    try {
+      const baseHost = new URL(config.apiBase).hostname
+      if (baseHost.includes('.maas.aliyuncs.com')) {
+        dashscopeWsUrl = 'wss://' + baseHost + '/api-ws/v1/inference/'
+      }
+    } catch {}
+  }
+  if (!dashscopeWsUrl) {
+    dashscopeWsUrl = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference/'
+  }
   
   let dashWs = null
   let taskStarted = false
@@ -115,6 +147,7 @@ function handleAsrWebSocket(clientWs) {
     if (config.workspaceId) {
       wsHeaders['X-DashScope-WorkSpace'] = config.workspaceId
     }
+    console.log('[ASR] Connecting to:', dashscopeWsUrl)
     dashWs = new WebSocket(dashscopeWsUrl, {
       headers: wsHeaders
     })
