@@ -3002,11 +3002,13 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
             const data = JSON.parse(line.slice(6))
             if (data.type === 'sentence') {
               fullText += (fullText ? '' : '') + data.text
-              setSubtitle(data.text)
+              setSubtitle(fullText)
               queueTTS(data.text)
             }
             if (data.type === 'done') {
               if (data.fullText) addMessage('assistant', data.fullText)
+              // Clear subtitle after a short delay (TTS will keep playing)
+              setTimeout(() => setSubtitle(''), 800)
             }
             if (data.error) {
               addMessage('assistant', '[通话出错]')
