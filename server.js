@@ -27,7 +27,7 @@ function getAsrConfig() {
   try {
     const { getDb } = require('./lib/db')
     const db = getDb()
-    let apiKey = '', model = 'paraformer-realtime-v2', wsUrl = ''
+    let apiKey = '', model = 'paraformer-realtime-v2', wsUrl = '', apiBase = ''
     
     // Try pool_api_configs.stt first
     const cfgRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
@@ -37,6 +37,7 @@ function getAsrConfig() {
         apiKey = configs.stt.apiKey || ''
         model = configs.stt.model || model
         wsUrl = configs.stt.wsUrl || ''
+        apiBase = configs.stt.apiBase || ''
       }
     }
     // Fallback to pool_stt_config
@@ -47,6 +48,7 @@ function getAsrConfig() {
         apiKey = sttCfg.apiKey || sttCfg.key || ''
         model = sttCfg.model || model
         wsUrl = sttCfg.wsUrl || ''
+        apiBase = sttCfg.apiBase || ''
       }
     }
     // Fallback to pool_api_config (main API key)
@@ -57,7 +59,32 @@ function getAsrConfig() {
         apiKey = cfg.apiKey || cfg.key || ''
       }
     }
-    return { apiKey, model, wsUrl }
+    
+    // Extract workspace ID from apiBase URL (e.g. https://1440889827237606.cn-beijing.maas.aliyuncs.com/...)
+    let workspaceId = ''
+    if (apiBase) {
+      const m = apiBase.match(/https?:\/\/(\d{10,})\./)
+      if (m) workspaceId = m[1]
+    }
+    // If key is workspace-scoped (sk-ws-*) but no workspace ID from STT apiBase,
+    // try to extract from other API configs (chat/tts apiBase may have it)
+    if (!workspaceId && apiKey.startsWith('sk-ws-')) {
+      try {
+        const cfgRow2 = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
+        if (cfgRow2) {
+          const allCfgs = JSON.parse(cfgRow2.value)
+          for (const k of ['chat', 'tts', 'memory', 'stt']) {
+            const base = allCfgs[k]?.apiBase || ''
+            const m2 = base.match(/https?:\/\/(\d{10,})\./)
+            if (m2) { workspaceId = m2[1]; break }
+          }
+        }
+      } catch {}
+    }
+    
+    console.log('[ASR] Config loaded - key:', apiKey.slice(0, 10) + '...', 'model:', model, 'workspaceId:', workspaceId || 'NONE')
+    
+    return { apiKey, model, wsUrl, workspaceId }
   } catch (e) {
     console.error('[ASR] Failed to read config:', e.message)
     return { apiKey: '', model: 'paraformer-realtime-v2', wsUrl: '' }
@@ -80,11 +107,16 @@ function handleAsrWebSocket(clientWs) {
   let taskStarted = false
 
   try {
+    const wsHeaders = {
+      'Authorization': 'bearer ' + config.apiKey,
+      'X-DashScope-DataInspection': 'enable'
+    }
+    // Workspace-scoped keys (sk-ws-*) require workspace ID header
+    if (config.workspaceId) {
+      wsHeaders['X-DashScope-WorkSpace'] = config.workspaceId
+    }
     dashWs = new WebSocket(dashscopeWsUrl, {
-      headers: {
-        'Authorization': 'bearer ' + config.apiKey,
-        'X-DashScope-DataInspection': 'enable'
-      }
+      headers: wsHeaders
     })
   } catch (e) {
     clientWs.send(JSON.stringify({ type: 'error', message: 'Failed to connect to ASR: ' + e.message }))
