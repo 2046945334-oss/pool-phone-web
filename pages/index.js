@@ -936,6 +936,11 @@ function ChatView({ theme }) {
       let safeReply = reply.replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, (m) => { voiceBlocks.push(m); return `__VOICE_${voiceBlocks.length-1}__` })
       const imgBlocks = []
       safeReply = safeReply.replace(/\[img\]([\s\S]*?)\[\/img\]/g, (m) => { imgBlocks.push(m); return `__IMG_${imgBlocks.length-1}__` })
+      // Protect [html ...] and [file ...]...[/file] from splitting
+      const htmlBlocks = []
+      safeReply = safeReply.replace(/\[html\s+[^\]]*\]/g, (m) => { htmlBlocks.push(m); return `__HTML_${htmlBlocks.length-1}__` })
+      const fileBlocks = []
+      safeReply = safeReply.replace(/\[file\s+[^\]]*\][^\[]*\[\/file\]/g, (m) => { fileBlocks.push(m); return `__FILE_${fileBlocks.length-1}__` })
       // Protect URLs from being split on dots
       const urlBlocks = []
       safeReply = safeReply.replace(/https?:\/\/\S+/g, (m) => { urlBlocks.push(m); return `__URL_${urlBlocks.length-1}__` })
@@ -947,7 +952,7 @@ function ChatView({ theme }) {
       safeReply = safeReply.replace(/([.。!！?？]{2,}|…+)/g, (m) => { punctBlocks.push(m); return `__PUNCT_${punctBlocks.length-1}__` })
       const sentences = safeReply.split(/(?<=[。！？\n.!?])/g).filter(s => s.trim())
       // Restore all protected blocks
-      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]).replace(/__URL_(\d+)__/g, (_, idx) => urlBlocks[parseInt(idx)]).replace(/__PUNCT_(\d+)__/g, (_, idx) => punctBlocks[parseInt(idx)]).replace(/__DEC_(\d+)__/g, (_, idx) => decimalBlocks[parseInt(idx)]))
+      const restored = sentences.map(s => s.replace(/__VOICE_(\d+)__/g, (_, idx) => voiceBlocks[parseInt(idx)]).replace(/__IMG_(\d+)__/g, (_, idx) => imgBlocks[parseInt(idx)]).replace(/__HTML_(\d+)__/g, (_, idx) => htmlBlocks[parseInt(idx)]).replace(/__FILE_(\d+)__/g, (_, idx) => fileBlocks[parseInt(idx)]).replace(/__URL_(\d+)__/g, (_, idx) => urlBlocks[parseInt(idx)]).replace(/__PUNCT_(\d+)__/g, (_, idx) => punctBlocks[parseInt(idx)]).replace(/__DEC_(\d+)__/g, (_, idx) => decimalBlocks[parseInt(idx)]))
       let current = [...newMessages]
       for (let i = 0; i < restored.length; i++) {
         current = [...current, { role: 'assistant', content: restored[i].trim(), ts: i === 0 ? Date.now() : undefined, ...(i === 0 && mergedReasoning ? { reasoning: mergedReasoning } : {}) }]
