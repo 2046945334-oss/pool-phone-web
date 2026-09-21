@@ -3393,6 +3393,7 @@ function HomeScreen({ onOpenApp, theme }) {
   const [page, setPage] = useState(0)
   const [swipeX, setSwipeX] = useState(null)
   const [nowPlaying, setNowPlaying] = useState(null)
+  const [listenMin, setListenMin] = useState(0)
   const [latestNote, setLatestNote] = useState(null)
   const [latestDiary, setLatestDiary] = useState(null)
   const [wakeLog, setWakeLog] = useState(null)
@@ -3404,7 +3405,7 @@ function HomeScreen({ onOpenApp, theme }) {
     let active = true
     const poll = () => {
       fetch('/api/data/pool_music_now').then(r=>r.json()).then(d=>{
-        if(active && d && d.value) setNowPlaying(d.value)
+        if(active && d && d.value) { setNowPlaying(d.value); if(typeof d.value.togetherMinutes === 'number') setListenMin(d.value.togetherMinutes) }
       }).catch(()=>{})
     }
     poll()
@@ -3483,18 +3484,26 @@ function HomeScreen({ onOpenApp, theme }) {
         {/* ===== PAGE 0 ===== */}
         {page === 0 && (<>
 
-          {/* Dynamic Island - avatar + name + status */}
-          <div className="hs-island" onClick={() => onOpenApp('couple')}>
-            <div className="hs-island-avatar">
-              {theme?.avatarAI ? <img src={theme.avatarAI} alt="" /> : <span style={{color:'rgba(255,200,220,0.8)', fontSize:13}}><SvgUser /></span>}
+          {/* Listen Together Card */}
+          <div className="hs-listen-card" onClick={() => onOpenApp('music')}>
+            <div className="hs-listen-top">
+              <div className="hs-listen-avatars">
+                {theme?.avatarAI ? <img src={theme.avatarAI} className="hs-listen-ava" alt="" /> : <div className="hs-listen-ava hs-listen-ava-fb">{'池'}</div>}
+                {theme?.avatarUser ? <img src={theme.avatarUser} className="hs-listen-ava hs-listen-ava-r" alt="" /> : <div className="hs-listen-ava hs-listen-ava-r hs-listen-ava-fb">{'我'}</div>}
+              </div>
+              <div className="hs-listen-together">
+                {(() => { const h = Math.floor(listenMin / 60); const m = listenMin % 60; return h > 0 ? <>{'一起听了 '}<span className="hs-listen-num">{h}</span>{' 小时 '}<span className="hs-listen-num">{m}</span>{' 分钟'}</> : <>{'一起听了 '}<span className="hs-listen-num">{m}</span>{' 分钟'}</> })()}
+              </div>
             </div>
-            <div className="hs-island-info">
-              <div className="hs-island-name">{'Chi'}</div>
-              <div className="hs-island-status">{nowPlaying?.playing ? (nowPlaying.name || 'listening') : 'online'}</div>
-            </div>
-            <div className="hs-island-music" onClick={e => { e.stopPropagation(); onOpenApp('music') }}>
-              <SvgMusic />
-            </div>
+            <div className="hs-listen-song">{nowPlaying?.name || '未播放'}</div>
+            <div className="hs-listen-artist">{nowPlaying?.artist || ''}</div>
+            {nowPlaying?.duration > 0 && (
+              <div className="hs-listen-progress">
+                <span className="hs-listen-time">{(() => { const s = nowPlaying?.position||0; return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0') })()}</span>
+                <div className="hs-listen-bar"><div className="hs-listen-fill" style={{width: (nowPlaying.duration > 0 ? Math.min(nowPlaying.position||0, nowPlaying.duration)/nowPlaying.duration*100 : 0)+'%'}} /></div>
+                <span className="hs-listen-time">{(() => { const s = nowPlaying?.duration||0; return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0') })()}</span>
+              </div>
+            )}
           </div>
 
           {/* Couple days bar */}
@@ -4071,6 +4080,21 @@ export default function Home() {
         .hs-island-status { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
+        .hs-listen-card { padding: 16px 18px 14px; background: rgba(255,230,245,0.40); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,220,240,0.30); border-radius: 20px; cursor: pointer; box-shadow: 0 2px 12px rgba(200,125,186,0.15); }
+        .hs-listen-card:active { transform: scale(0.98); }
+        .hs-listen-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .hs-listen-avatars { display: flex; align-items: center; }
+        .hs-listen-ava { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.5); }
+        .hs-listen-ava-r { margin-left: -10px; }
+        .hs-listen-ava-fb { background: linear-gradient(135deg, rgba(240,180,210,0.4), rgba(200,140,180,0.3)); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; }
+        .hs-listen-together { font-size: 12px; color: rgba(255,255,255,0.8); font-weight: 500; }
+        .hs-listen-num { font-size: 16px; font-weight: 700; color: #c77dba; }
+        .hs-listen-song { font-size: 16px; font-weight: 600; color: #fff; text-align: center; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hs-listen-artist { font-size: 11px; color: rgba(255,255,255,0.6); text-align: center; margin-bottom: 10px; }
+        .hs-listen-progress { display: flex; align-items: center; gap: 8px; }
+        .hs-listen-bar { flex: 1; height: 3px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
+        .hs-listen-fill { height: 100%; background: #c77dba; border-radius: 2px; transition: width 1s linear; }
+        .hs-listen-time { font-size: 10px; color: rgba(255,255,255,0.5); min-width: 28px; }
 
         /* Couple bar */
         .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; background: rgba(255,220,240,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,200,220,0.1); border-radius: 12px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 500; letter-spacing: 0.8px; }
