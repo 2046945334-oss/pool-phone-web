@@ -3522,6 +3522,12 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
           </div>
 
+          {/* Diary preview card */}
+          <div className="hs-card-diary" onClick={() => onOpenApp('diary')} style={{marginBottom:8}}>
+            <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
+            <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
+          </div>
+
           {/* Small app buttons row */}
           <div className="hs-chip-row">
             <div className="hs-chip" onClick={() => onOpenApp('fishing')}><SvgFish /><span>{'fishing'}</span></div>
@@ -3990,10 +3996,10 @@ export default function Home() {
         .shell { width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; }
         .phone-frame { width: 100%; max-width: 420px; height: 100vh; background: #111; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         @media (min-width: 768px) { .phone-frame { height: 90vh; max-height: 844px; border-radius: 40px; border: 3px solid #333; box-shadow: 0 20px 60px rgba(0,0,0,0.8); } }
-        .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 4px; font-size: 12px; color: #999; background: rgba(17,17,17,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); flex-shrink: 0; }
+        .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 4px; font-size: 12px; color: rgba(255,255,255,0.7); background: rgba(255,220,240,0.15); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); flex-shrink: 0; }
         .phone-screen { flex: 1; overflow: hidden; position: relative; background: #0d0d0d; }
         .bottom-nav-wrap { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; z-index: 100; pointer-events: none; padding: 0 20px calc(env(safe-area-inset-bottom, 0px)); }
-        .bottom-nav-pill { display: flex; justify-content: space-around; align-items: center; padding: 8px 16px; background: rgba(255,240,248,0.2); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,220,240,0.25); border-radius: 28px; width: 100%; max-width: 280px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .bottom-nav-pill { display: flex; justify-content: space-around; align-items: center; padding: 8px 16px; background: rgba(255,230,245,0.35); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid rgba(255,220,240,0.3); border-radius: 28px; width: 100%; max-width: 280px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
         .nav-btn { background: none; border: none; color: rgba(255,230,240,0.5); display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 16px; transition: color 0.2s; position: relative; }
         .nav-btn.active { color: #fff; }
         .nav-icon { font-size: 18px; font-weight: 300; display: flex; align-items: center; justify-content: center; }
@@ -4113,7 +4119,7 @@ export default function Home() {
         .hs-card-mini-label { font-size: 12px; color: #fff; font-weight: 500; }
 
         /* Polaroid area */
-        .hs-polaroid-area { background: rgba(255,240,248,0.12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.14); border-radius: 18px; padding: 14px 10px 12px; }
+        .hs-polaroid-area { background: rgba(255,240,248,0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.2); border-radius: 18px; padding: 14px 10px 12px; }
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
@@ -4162,7 +4168,7 @@ export default function Home() {
         .msg-bubble { max-width: 78%; padding: 11px 14px; border-radius: 4px; font-size: 14px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em; }
         .msg-bubble.user { background: #95ec69; color: #111; }
         .msg-bubble.assistant { background: rgba(255,255,255,0.92); color: #1a1a1a; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,0,0,0.05); }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 52px; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 62px; }
         .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
         .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
