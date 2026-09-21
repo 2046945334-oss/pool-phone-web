@@ -4125,7 +4125,7 @@ export default function Home() {
         /* Chip row */
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,240,248,0.10); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.15); border-radius: 14px; }
-        .home-word-card.ai-word-card { flex-direction: row-reverse !important; text-align: right; }
+        .home-word-card.ai-word-card { text-align: right; }
         .word-card-avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(255,220,240,0.3); }
         .word-card-ava-img { width: 100%; height: 100%; object-fit: cover; }
         .word-card-ava-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,220,240,0.15); color: rgba(255,255,255,0.6); font-size: 13px; }
@@ -4196,7 +4196,7 @@ export default function Home() {
         .msg-bubble { max-width: 78%; padding: 11px 14px; border-radius: 4px; font-size: 14px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em; }
         .msg-bubble.user { background: #95ec69; color: #111; }
         .msg-bubble.assistant { background: rgba(255,255,255,0.92); color: #1a1a1a; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,0,0,0.05); }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(255,230,245,0.35); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid rgba(255,220,240,0.3); border-radius: 28px; position: absolute; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); left: 12px; right: 12px; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.06); pointer-events: auto; overflow: hidden; }
+        .chat-input-area { display: flex; align-items: center; gap: 4px; padding: 6px 8px; background: rgba(255,230,245,0.35); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid rgba(255,220,240,0.3); border-radius: 28px; position: absolute; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); left: 8px; right: 8px; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.06); pointer-events: auto; overflow: visible; }
         .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
         .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
@@ -4204,7 +4204,7 @@ export default function Home() {
         .fetch-models-btn { padding: 5px 9px; background: #07c160; color: #fff; border: none; border-radius: 8px; font-size: 11px; cursor: pointer; white-space: nowrap; }
         .chat-input { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 8px 12px; color: #eee; font-size: 14px; outline: none; font-family: inherit; min-height: 30px; max-height: 96px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
         .chat-input:focus { border-color: rgba(200,125,186,0.5); box-shadow: 0 0 0 3px rgba(200,125,186,0.15); }
-        .chat-send { width: 32px; height: 32px; border-radius: 50%; background: #07c160; color: #fff; border: none; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+        .chat-send { flex-shrink: 0; min-width: 32px; width: 32px; height: 32px; border-radius: 50%; background: #07c160; color: #fff; border: none; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
         .chat-send:disabled { opacity: 0.45; background: #a3a3a3; }
       
         .app-full { width: 100%; height: 100%; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
