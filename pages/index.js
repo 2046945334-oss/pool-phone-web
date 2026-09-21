@@ -3390,35 +3390,13 @@ function CallScreen({ theme, onHangup, callState, isIncoming, onMinimize, minimi
 // ==================== End CallScreen ====================
 
 function HomeScreen({ onOpenApp, theme }) {
-  const page1Apps = [
-    { id: 'notes', icon: '/icons/notes.png', name: '\u4fbf\u7b7e' },
-    { id: 'messages', icon: '/icons/messages.png', name: '\u670b\u53cb\u5708' },
-    { id: 'music', icon: '/icons/music.png', name: '\u97f3\u4e50' },
-    { id: 'couple', icon: '/icons/couple.png', name: '\u60c5\u4fa3' },
-    { id: 'system', icon: '/icons/system.png', name: '\u7cfb\u7edf' },
-  ]
-  const page2Apps = [
-    { id: 'fishing', icon: '/icons/fishing.png', name: '\u9493\u9c7c' },
-    { id: 'reader', icon: '/icons/reader.png', name: '\u9605\u8bfb' },
-    { id: 'theme', icon: '/icons/theme.png', name: '\u7f8e\u5316' },
-    { id: 'avatarGallery', icon: '/icons/couple.png', name: '\u5934\u50cf\u5e93' },
-    { id: 'memoryMgr', icon: '/icons/system.png', name: '\u8bb0\u5fc6' },
-  ]
-  const page3Apps = [
-    { id: 'diary', icon: '/icons/notes.png', name: '\u65e5\u8bb0' },
-    { id: 'garden', icon: '/icons/notes.png', name: '\u5ead\u9662' },
-    { id: 'cabin', icon: '/icons/couple.png', name: '唤醒日志' },
-    { id: 'starmap', icon: '/icons/music.png', name: '\u661f\u56fe' },
-    { id: 'screenTime', icon: '/icons/system.png', name: '屏幕时间' },
-    { id: 'care', icon: '/icons/couple.png', name: '养护' },
-    { id: 'stickers', icon: '/icons/system.png', name: '表情包管理' },
-  ]
-  const allPages = [page1Apps, page2Apps, page3Apps]
-  const icons = theme?.icons || {}
-  const getIcon = (app) => icons[app.id] || app.icon
   const [page, setPage] = useState(0)
   const [swipeX, setSwipeX] = useState(null)
   const [nowPlaying, setNowPlaying] = useState(null)
+  const [latestNote, setLatestNote] = useState(null)
+  const [latestDiary, setLatestDiary] = useState(null)
+  const [wakeLog, setWakeLog] = useState(null)
+
   useEffect(() => {
     let active = true
     const poll = () => {
@@ -3428,106 +3406,214 @@ function HomeScreen({ onOpenApp, theme }) {
     }
     poll()
     const iv = setInterval(poll, 8000)
+    // fetch latest note
+    fetch('/api/data/pool_notes').then(r=>r.json()).then(d=>{
+      if(active && d && d.value) {
+        const notes = typeof d.value === 'string' ? JSON.parse(d.value) : d.value
+        if(Array.isArray(notes) && notes.length > 0) setLatestNote(notes[notes.length-1])
+      }
+    }).catch(()=>{})
+    // fetch latest diary
+    fetch('/api/data/pool_diary_latest').then(r=>r.json()).then(d=>{
+      if(active && d && d.value) setLatestDiary(d.value)
+    }).catch(()=>{})
+    // fetch wake log
+    fetch('/api/data/pool_wake_log_latest').then(r=>r.json()).then(d=>{
+      if(active && d && d.value) setWakeLog(d.value)
+    }).catch(()=>{})
     return () => { active = false; clearInterval(iv) }
   }, [])
+
   const startDate = new Date(2026, 6, 21)
   const today = new Date()
   const coupleDays = Math.floor((today - startDate) / (1000*60*60*24))
+  const allPages = [0,1,2]
 
   function handleSwipeStart(e) { setSwipeX(e.touches[0].clientX) }
   function handleSwipeEnd(e) {
     if (swipeX !== null) {
       const diff = swipeX - e.changedTouches[0].clientX
-      if (diff > 50 && page < allPages.length - 1) setPage(page + 1)
+      if (diff > 50 && page < 2) setPage(page + 1)
       if (diff < -50 && page > 0) setPage(page - 1)
     }
     setSwipeX(null)
   }
 
+  const icons = theme?.icons || {}
+
+  // --- SVG icon components (no emoji) ---
+  const SvgNote = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  const SvgMusic = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+  const SvgHeart = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+  const SvgSettings = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+  const SvgFish = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6.5 12c0 0 3-6 9.5-6 0 0-1 3.5 0 6 1 2.5 0 6 0 6-6.5 0-9.5-6-9.5-6z"/><circle cx="14" cy="10" r="1" fill="currentColor"/></svg>
+  const SvgBook = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+  const SvgCamera = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+  const SvgPalette = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12" r="2.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.38-.15-.75-.38-1.02-.22-.27-.35-.62-.35-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.52-4.48-9.96-10-9.98z"/></svg>
+  const SvgUser = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  const SvgBrain = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2a7 7 0 00-7 7c0 3 2 5 4 7l3 4 3-4c2-2 4-4 4-7a7 7 0 00-7-7z"/><circle cx="12" cy="9" r="2"/></svg>
+  const SvgPen = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+  const SvgSun = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  const SvgLeaf = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75"/></svg>
+  const SvgSmile = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+  const SvgSword = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></svg>
+  const SvgClock = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  const SvgMail = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+  const SvgList = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+
+  // Glass card helper
+  const glass = { background: 'rgba(255,240,248,0.12)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255,220,240,0.15)', borderRadius: 16 }
+  const glassLight = { background: 'rgba(255,240,248,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,220,240,0.1)', borderRadius: 14 }
+
   return (
-    <div className="home-screen" style={theme?.wallpaper ? {backgroundImage:`url(${theme.wallpaper})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}>
-      <div className="home-cards-area">
+    <div className="home-screen" style={theme?.wallpaper ? {backgroundImage:`url(${theme.wallpaper})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}
+      onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
+
+      <div className="hs-scroll">
+        {/* ===== PAGE 0 ===== */}
         {page === 0 && (<>
-        <div className="home-banner"><img src={theme?.bannerImg || '/header_bg.jpg'} alt="" className="banner-img" /></div>
-<div className="music-card" onClick={() => onOpenApp('music')} style={theme?.musicCardBg?(theme.musicCardBg.startsWith('data:')||theme.musicCardBg.startsWith('http')||theme.musicCardBg.startsWith('/')?{backgroundImage:`url(${theme.musicCardBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.musicCardBg}):{}}>
-          <div className="music-icon">{'\u266a'}</div>
-          <div className="music-info" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>
-            <div className="music-title" style={theme?.musicTextColor?{color:theme.musicTextColor}:{}}>{nowPlaying?.name ? `${nowPlaying.name}${nowPlaying.artist ? ' - '+nowPlaying.artist : ''}` : '\u5bc2\u5bde\u7684\u5b63\u8282 - \u9676\u55c6'}</div>
-            <div className="music-status" style={theme?.musicTextColor?{color:theme.musicTextColor,opacity:0.7}:{}}>{nowPlaying?.playing ? '\u6b63\u5728\u64ad\u653e' : nowPlaying ? '\u5df2\u6682\u505c' : '\u6b63\u5728\u64ad\u653e'}</div>
+
+          {/* Dynamic Island - avatar + name + status */}
+          <div className="hs-island" onClick={() => onOpenApp('couple')}>
+            <div className="hs-island-avatar">
+              {theme?.avatarImg ? <img src={theme.avatarImg} alt="" /> : <span style={{color:'rgba(255,200,220,0.8)', fontSize:13}}><SvgUser /></span>}
+            </div>
+            <div className="hs-island-info">
+              <div className="hs-island-name">{'Chi'}</div>
+              <div className="hs-island-status">{nowPlaying?.playing ? (nowPlaying.name || 'listening') : 'online'}</div>
+            </div>
+            <div className="hs-island-music" onClick={e => { e.stopPropagation(); onOpenApp('music') }}>
+              <SvgMusic />
+            </div>
           </div>
-        </div>
-        <div className="couple-card" onClick={() => onOpenApp('couple')}>
-          <div className="couple-bg"><img src={theme?.coupleBg || '/couple_bg.jpg'} alt="" /></div>
-          <div className="couple-overlay">
-            <div className="couple-days">{'\u2764\ufe0f'} {coupleDays}{'\u5929'}</div>
-            <div className="couple-hint">{'\u70b9\u51fb\u8fdb\u5165\u60c5\u4fa3\u7a7a\u95f4'}</div>
+
+          {/* Couple days bar */}
+          <div className="hs-couple-bar" onClick={() => onOpenApp('couple')}>
+            <SvgHeart />
+            <span>{coupleDays + ' days together'}</span>
           </div>
-        </div>
-<div className="memo-card">
-          <div className="memo-label">{'\ud83c\udf3f \u6c60\u7684\u788e\u788e\u5ff5'}</div>
-          <div className="memo-text">{'\u4eca\u5929\u5979\u5976\u8336\u559d\u4e86\u51e0\u676f\u6765\u7740\u2026'}</div>
-        </div>
+
+          {/* Moments card (large) */}
+          <div className="hs-card-moments" onClick={() => onOpenApp('messages')}>
+            <div className="hs-card-moments-bg">
+              <img src={theme?.coupleBg || '/couple_bg.jpg'} alt="" />
+            </div>
+            <div className="hs-card-moments-overlay">
+              <div className="hs-card-moments-title">{'Moments'}</div>
+            </div>
+          </div>
+
+          {/* Sticky note card + system btn side by side */}
+          <div className="hs-row" style={{gap:10}}>
+            <div className="hs-card-note" onClick={() => onOpenApp('notes')}>
+              <div className="hs-card-note-label"><SvgNote /> <span>{'memo'}</span></div>
+              <div className="hs-card-note-text">{latestNote?.text ? latestNote.text.slice(0,60) : 'tap to write...'}</div>
+            </div>
+            <div className="hs-btn-system" onClick={() => onOpenApp('system')}>
+              <SvgSettings />
+            </div>
+          </div>
+
+          {/* Small app buttons row */}
+          <div className="hs-chip-row">
+            <div className="hs-chip" onClick={() => onOpenApp('fishing')}><SvgFish /><span>{'fishing'}</span></div>
+            <div className="hs-chip" onClick={() => onOpenApp('cabin')}><SvgList /><span>{'habits'}</span></div>
+            <div className="hs-chip" onClick={() => onOpenApp('screenTime')}><SvgClock /><span>{'self-edit'}</span></div>
+            <div className="hs-chip" onClick={() => onOpenApp('reader')}><SvgMail /><span>{'letter'}</span></div>
+          </div>
+
         </>)}
+
+        {/* ===== PAGE 1 ===== */}
         {page === 1 && (<>
-        <div className="deco-grid">
-          <div className="deco-card" style={theme?.decoCard1Bg?(theme.decoCard1Bg.startsWith('data:')||theme.decoCard1Bg.startsWith('http')||theme.decoCard1Bg.startsWith('/')?{backgroundImage:`url(${theme.decoCard1Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard1Bg}):{}}>
-            <div className="deco-card-icon">{"\u2601\ufe0f"}</div>
-            <div className="deco-card-text">{"\u4eca\u5929\u4e5f\u8981\u5f00\u5fc3"}</div>
+
+          {/* Score display card */}
+          <div className="hs-row" style={{gap:10}}>
+            <div className="hs-card-mini" onClick={() => onOpenApp('fishing')}>
+              <div className="hs-card-mini-icon"><SvgFish /></div>
+              <div className="hs-card-mini-label">{'fishing'}</div>
+            </div>
+            <div className="hs-card-mini" onClick={() => onOpenApp('reader')}>
+              <div className="hs-card-mini-icon"><SvgBook /></div>
+              <div className="hs-card-mini-label">{'reader'}</div>
+            </div>
           </div>
-          <div className="deco-card" style={theme?.decoCard2Bg?(theme.decoCard2Bg.startsWith('data:')||theme.decoCard2Bg.startsWith('http')||theme.decoCard2Bg.startsWith('/')?{backgroundImage:`url(${theme.decoCard2Bg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoCard2Bg}):{}}>
-            <div className="deco-card-icon">{"\u2728"}</div>
-            <div className="deco-card-text">{"\u5c0f\u5c0f\u7684\u5e78\u798f"}</div>
+
+          {/* Polaroid area - 3 photos */}
+          <div className="hs-polaroid-area">
+            <div className="hs-polaroid-title">{'photos'}</div>
+            <div className="polaroid-wall">
+              <div className="polaroid-card" style={{transform:'rotate(-4deg)'}}>
+                <div className="polaroid-tape tape-left"></div>
+                {theme?.polaroid1 ? <img src={theme.polaroid1} className="polaroid-img" alt="" /> : <div className="polaroid-empty">{'+'}</div>}
+                <div className="polaroid-caption">{theme?.polaroidCaption1 || ''}</div>
+              </div>
+              <div className="polaroid-card" style={{transform:'rotate(2deg)',marginTop:'12px'}}>
+                <div className="polaroid-tape tape-center"></div>
+                {theme?.polaroid2 ? <img src={theme.polaroid2} className="polaroid-img" alt="" /> : <div className="polaroid-empty">{'+'}</div>}
+                <div className="polaroid-caption">{theme?.polaroidCaption2 || ''}</div>
+              </div>
+              <div className="polaroid-card" style={{transform:'rotate(-2deg)',marginTop:'-8px'}}>
+                <div className="polaroid-tape tape-right"></div>
+                {theme?.polaroid3 ? <img src={theme.polaroid3} className="polaroid-img" alt="" /> : <div className="polaroid-empty">{'+'}</div>}
+                <div className="polaroid-caption">{theme?.polaroidCaption3 || ''}</div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="deco-wide-card" onClick={() => onOpenApp('starmap')} style={theme?.decoWideBg?(theme.decoWideBg.startsWith('data:')||theme.decoWideBg.startsWith('http')||theme.decoWideBg.startsWith('/')?{backgroundImage:`url(${theme.decoWideBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoWideBg}):{}}>
-          <div className="deco-wide-inner">
-            <div className="deco-wide-title">{"\u2b50 \u661f\u56fe"}</div>
-            <div className="deco-wide-sub">{"\u70b9\u51fb\u67e5\u770b\u6211\u4eec\u7684\u661f\u7a7a"}</div>
+
+          {/* Bottom row: theme / avatar / memory */}
+          <div className="hs-chip-row">
+            <div className="hs-chip" onClick={() => onOpenApp('theme')}><SvgPalette /><span>{'theme'}</span></div>
+            <div className="hs-chip" onClick={() => onOpenApp('avatarGallery')}><SvgUser /><span>{'avatar'}</span></div>
+            <div className="hs-chip" onClick={() => onOpenApp('memoryMgr')}><SvgBrain /><span>{'memory'}</span></div>
           </div>
-        </div>
+
         </>)}
+
+        {/* ===== PAGE 2 ===== */}
         {page === 2 && (<>
-        <div className="deco-tall-card" style={theme?.decoTallBg?(theme.decoTallBg.startsWith('data:')||theme.decoTallBg.startsWith('http')||theme.decoTallBg.startsWith('/')?{backgroundImage:`url(${theme.decoTallBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.decoTallBg}):{}}>
-          <div className="deco-tall-overlay">
-            <div className="deco-tall-text">{"\u6211\u4eec\u7684\u5c0f\u5c4b"}</div>
+
+          {/* Diary card */}
+          <div className="hs-card-diary" onClick={() => onOpenApp('diary')}>
+            <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
+            <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
           </div>
-        </div>
+
+          {/* Garden + Wake log side by side */}
+          <div className="hs-row" style={{gap:10}}>
+            <div className="hs-card-half" onClick={() => onOpenApp('garden')}>
+              <div className="hs-card-half-icon"><SvgSword /></div>
+              <div className="hs-card-half-label">{'challenge'}</div>
+            </div>
+            <div className="hs-card-half" onClick={() => onOpenApp('cabin')}>
+              <div className="hs-card-half-icon"><SvgSun /></div>
+              <div className="hs-card-half-label">{'wake log'}</div>
+              {wakeLog && <div className="hs-card-half-sub">{wakeLog.slice(0,30)}</div>}
+            </div>
+          </div>
+
+          {/* Starmap / essay */}
+          <div className="hs-card-wide" onClick={() => onOpenApp('starmap')}>
+            <SvgPen />
+            <span>{'essay'}</span>
+          </div>
+
+          {/* Care + Stickers row */}
+          <div className="hs-chip-row">
+            <div className="hs-chip" onClick={() => onOpenApp('care')}><SvgLeaf /><span>{'care'}</span></div>
+            <div className="hs-chip" onClick={() => onOpenApp('stickers')}><SvgSmile /><span>{'stickers'}</span></div>
+            <div className="hs-chip" onClick={() => onOpenApp('screenTime')}><SvgClock /><span>{'screen time'}</span></div>
+          </div>
+
         </>)}
+
       </div>
-      <div className="home-apps-area" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
-        <div className="home-section-title">{page === 0 ? '\ud83c\udf19 \u6c60\u7684\u624b\u673a' : '\u66f4\u591a\u5e94\u7528'}</div>
-        <div className="app-grid">
-          {(allPages[page] || []).map(app => (
-            <div key={app.id} className="app-item" onClick={() => onOpenApp(app.id)}>
-              <div className="app-icon"><img src={getIcon(app)} alt={app.name} /></div>
-              <div className="app-label">{app.name}</div>
-            </div>
-          ))}
-        </div>
-        {page === 1 && (
-          <div className="polaroid-wall">
-            <div className="polaroid-card" style={{transform:'rotate(-4deg)'}}>
-              <div className="polaroid-tape tape-left"></div>
-              {theme?.polaroid1 ? <img src={theme.polaroid1} className="polaroid-img" /> : <div className="polaroid-empty">{'+'}</div>}
-              <div className="polaroid-caption">{theme?.polaroidCaption1 || ''}</div>
-            </div>
-            <div className="polaroid-card" style={{transform:'rotate(2deg)',marginTop:'12px'}}>
-              <div className="polaroid-tape tape-center"></div>
-              {theme?.polaroid2 ? <img src={theme.polaroid2} className="polaroid-img" /> : <div className="polaroid-empty">{'+'}</div>}
-              <div className="polaroid-caption">{theme?.polaroidCaption2 || ''}</div>
-            </div>
-            <div className="polaroid-card" style={{transform:'rotate(-2deg)',marginTop:'-8px'}}>
-              <div className="polaroid-tape tape-right"></div>
-              {theme?.polaroid3 ? <img src={theme.polaroid3} className="polaroid-img" /> : <div className="polaroid-empty">{'+'}</div>}
-              <div className="polaroid-caption">{theme?.polaroidCaption3 || ''}</div>
-            </div>
-          </div>
-        )}
-        <div className="page-dots">
-          {allPages.map((_, i) => (
-            <div key={i} className={`dot ${page === i ? 'active' : ''}`} onClick={() => setPage(i)} />
-          ))}
-        </div>
+
+      {/* Page dots */}
+      <div className="page-dots">
+        {allPages.map((_, i) => (
+          <div key={i} className={`dot ${page === i ? 'active' : ''}`} onClick={() => setPage(i)} />
+        ))}
       </div>
     </div>
   )
@@ -3885,49 +3971,123 @@ export default function Home() {
         @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
         @keyframes callFloatPulse { 0%,100% { opacity: 0.85; } 50% { opacity: 1; } }
 
-        .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(180deg, #1a1520 0%, #12101a 100%); overflow: hidden; }
-        .home-cards-area { flex-shrink: 0; padding: 0 12px; overflow-y: auto; max-height: 52%; }
-        .deco-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .deco-card { border-radius: 14px; padding: 16px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 90px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(8px); }
-        .deco-card-icon { font-size: 22px; }
-        .deco-card-text { font-size: 11px; color: rgba(255,255,255,0.6); text-align: center; }
-        .deco-wide-card { margin-bottom: 8px; border-radius: 14px; padding: 18px 16px; background: linear-gradient(135deg, rgba(30,30,60,0.8), rgba(20,20,50,0.6)); border: 1px solid rgba(100,130,255,0.15); cursor: pointer; backdrop-filter: blur(8px); }
-        .deco-wide-card:active { opacity: 0.85; }
-        .deco-wide-inner { }
-        .deco-wide-title { font-size: 14px; font-weight: 600; color: #c8d8ff; }
-        .deco-wide-sub { font-size: 10px; color: rgba(200,216,255,0.5); margin-top: 4px; }
-        .deco-tall-card { border-radius: 14px; height: 140px; background: linear-gradient(180deg, rgba(180,140,200,0.15), rgba(100,80,150,0.1)); border: 1px solid rgba(255,255,255,0.08); position: relative; overflow: hidden; margin-bottom: 8px; display: flex; align-items: flex-end; }
-        .deco-tall-overlay { padding: 14px 16px; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.4)); }
-        .deco-tall-text { font-size: 13px; color: rgba(255,255,255,0.8); font-weight: 500; }
-        .home-banner { margin: 10px 0 8px; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.4); max-height: 120px; }
-        .banner-img { width: 100%; height: 100%; display: block; object-fit: cover; }
-        .music-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 8px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; }
-        .music-card:active { background: rgba(255,255,255,0.1); }
-        .music-icon { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f0c6d8, #e8a0bf); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
-        .music-info { flex: 1; }
-        .music-title { font-size: 12px; color: #f0e6ef; font-weight: 500; }
-        .music-status { font-size: 10px; color: #9a8a99; margin-top: 1px; }
-        .couple-card { margin-bottom: 8px; border-radius: 12px; overflow: hidden; position: relative; height: 80px; cursor: pointer; }
-        .couple-bg { position: absolute; inset: 0; }
-        .couple-bg img { width: 100%; height: 100%; object-fit: cover; }
-        .couple-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .couple-days { font-size: 20px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
-        .couple-hint { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 3px; }
-        .memo-card { padding: 10px 14px; margin-bottom: 6px; background: rgba(232,160,191,0.08); border-radius: 12px; border: 1px solid rgba(232,160,191,0.15); }
-        .memo-label { font-size: 10px; color: #9a8a99; margin-bottom: 3px; }
-        .memo-text { font-size: 12px; color: #e0d6de; }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
-        .home-apps-area { flex: 1; display: flex; flex-direction: column; padding: 0 12px; min-height: 0; }
-        .home-section-title { text-align: center; color: #e8a0bf; font-size: 13px; font-weight: 500; margin: 8px 0 10px; }
-        .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 4px; flex: 1; align-content: start; }
-        .app-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; padding: 4px; border-radius: 12px; transition: transform 0.1s; }
-        .app-item:active { transform: scale(0.92); }
-        .app-icon { width: 48px; height: 48px; border-radius: 13px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-        .app-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 13px; }
-        .app-label { font-size: 10px; color: #fff; text-align: center; }
+        
+        
+        
+        
+        
+        
+        
+        
         .page-dots { display: flex; justify-content: center; gap: 8px; padding: 10px 0 6px; flex-shrink: 0; }
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
         .dot.active { width: 16px; background: #c77dba; }
+        .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(160deg, #1c1520 0%, #150f1a 50%, #0f0d14 100%); overflow: hidden; }
+        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 14px 8px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
+
+        /* Dynamic Island */
+        .hs-island { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,240,248,0.1); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.12); border-radius: 28px; cursor: pointer; transition: background 0.2s; }
+        .hs-island:active { background: rgba(255,240,248,0.16); }
+        .hs-island-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, rgba(240,180,210,0.3), rgba(200,140,180,0.2)); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 1.5px solid rgba(255,200,220,0.2); }
+        .hs-island-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+        .hs-island-info { flex: 1; min-width: 0; }
+        .hs-island-name { font-size: 14px; font-weight: 600; color: rgba(255,240,248,0.9); letter-spacing: 0.5px; }
+        .hs-island-status { font-size: 10px; color: rgba(255,200,220,0.5); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
+        .hs-island-music:active { background: rgba(255,200,220,0.2); }
+
+        /* Couple bar */
+        .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; background: rgba(255,200,220,0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,200,220,0.1); border-radius: 12px; cursor: pointer; color: rgba(255,200,220,0.6); font-size: 12px; font-weight: 500; letter-spacing: 0.8px; }
+        .hs-couple-bar:active { background: rgba(255,200,220,0.14); }
+        .hs-couple-bar svg { color: rgba(240,160,180,0.7); }
+
+        /* Moments card */
+        .hs-card-moments { position: relative; border-radius: 16px; overflow: hidden; height: 130px; cursor: pointer; }
+        .hs-card-moments:active { opacity: 0.9; }
+        .hs-card-moments-bg { position: absolute; inset: 0; }
+        .hs-card-moments-bg img { width: 100%; height: 100%; object-fit: cover; }
+        .hs-card-moments-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.45) 100%); display: flex; align-items: flex-end; padding: 14px 16px; }
+        .hs-card-moments-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); letter-spacing: 1px; }
+
+        /* Row layout */
+        .hs-row { display: flex; align-items: stretch; }
+
+        /* Note card */
+        .hs-card-note { flex: 1; padding: 12px 14px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+        .hs-card-note:active { background: rgba(255,240,248,0.14); }
+        .hs-card-note-label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,200,220,0.5); font-weight: 500; }
+        .hs-card-note-label svg { color: rgba(255,200,220,0.4); }
+        .hs-card-note-text { font-size: 12px; color: rgba(255,240,248,0.7); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+        /* System button */
+        .hs-btn-system { width: 52px; display: flex; align-items: center; justify-content: center; background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; color: rgba(255,200,220,0.5); }
+        .hs-btn-system:active { background: rgba(255,240,248,0.12); }
+
+        /* Chip row */
+        .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 10px 8px; background: rgba(255,240,248,0.06); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.08); border-radius: 12px; cursor: pointer; font-size: 11px; color: rgba(255,220,240,0.55); font-weight: 500; white-space: nowrap; overflow: hidden; }
+        .hs-chip:active { background: rgba(255,240,248,0.12); }
+        .hs-chip svg { flex-shrink: 0; color: rgba(255,200,220,0.4); }
+
+        /* Page 2 mini cards */
+        .hs-card-mini { flex: 1; padding: 18px 14px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .hs-card-mini:active { background: rgba(255,240,248,0.14); }
+        .hs-card-mini-icon { color: rgba(255,200,220,0.6); }
+        .hs-card-mini-label { font-size: 11px; color: rgba(255,220,240,0.5); font-weight: 500; }
+
+        /* Polaroid area */
+        .hs-polaroid-area { background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 16px; padding: 12px 8px 8px; }
+        .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,200,220,0.4); font-weight: 500; letter-spacing: 1px; margin-bottom: 4px; }
+
+        /* Page 3 cards */
+        .hs-card-diary { padding: 14px 16px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; }
+        .hs-card-diary:active { background: rgba(255,240,248,0.14); }
+        .hs-card-diary-label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,200,220,0.5); font-weight: 500; margin-bottom: 6px; }
+        .hs-card-diary-label svg { color: rgba(255,200,220,0.4); }
+        .hs-card-diary-text { font-size: 12px; color: rgba(255,240,248,0.65); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+
+        .hs-card-half { flex: 1; padding: 16px 12px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .hs-card-half:active { background: rgba(255,240,248,0.14); }
+        .hs-card-half-icon { color: rgba(255,200,220,0.6); }
+        .hs-card-half-label { font-size: 11px; color: rgba(255,220,240,0.5); font-weight: 500; }
+        .hs-card-half-sub { font-size: 9px; color: rgba(255,200,220,0.35); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px 16px; background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; font-size: 12px; color: rgba(255,220,240,0.5); font-weight: 500; }
+        .hs-card-wide:active { background: rgba(255,240,248,0.12); }
+        .hs-card-wide svg { color: rgba(255,200,220,0.4); }
+
 
         .app-page { width: 100%; height: 100%; display: flex; flex-direction: column; background: #f5f0f5; }
         .app-page-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e8dce8; flex-shrink: 0; background: #fff; position: relative; z-index: 20; }
