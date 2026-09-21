@@ -3494,7 +3494,7 @@ function HomeScreen({ onOpenApp, theme }) {
           </div>
 
           {/* Moments card (large) */}
-          <div className="hs-card-moments" onClick={() => onOpenApp('music')}>
+          <div className="hs-card-moments" onClick={() => onOpenApp('messages')}>
             <div className="hs-card-moments-inner">
               <SvgMusic />
               <span>{'listening together'}</span>
