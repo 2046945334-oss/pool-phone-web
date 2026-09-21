@@ -1053,6 +1053,19 @@ function ChatView({ theme, setFilePreview }) {
   }
 
   function triggerAI() { sendMessage(messages) }
+  // Listen for file reply from file preview modal
+  useEffect(() => {
+    const handler = (e) => {
+      const fileContent = e.detail
+      if (!fileContent) return
+      const userMsg = { role: 'user', content: fileContent }
+      const updated = [...messages, userMsg]
+      setMessages(updated)
+      sendMessage(updated)
+    }
+    window.addEventListener('chi-send-file', handler)
+    return () => window.removeEventListener('chi-send-file', handler)
+  }, [messages])
   if (typeof window !== 'undefined') window.__chiTriggerAI = sendMessage
   async function addUserMsg() {
     const t = input.trim()
@@ -3795,7 +3808,22 @@ export default function Home() {
                   <span style={{ flex:1, fontSize:14, fontWeight:600, color:'#4a3a50', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{filePreview.name}</span>
                   <button onClick={() => setFilePreview(null)} style={{ background:'none', border:'none', fontSize:18, color:'#b8a0b8', cursor:'pointer', padding:'0 4px' }}>{'✕'}</button>
                 </div>
-                <pre style={{ margin:0, padding:'16px', fontSize:13, lineHeight:1.6, color:'#3a2a40', background:'#fdf8fa', overflow:'auto', flex:1, whiteSpace:'pre-wrap', wordBreak:'break-word', fontFamily:'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace' }}>{filePreview.content}</pre>
+                <textarea
+                  defaultValue={filePreview.content}
+                  id="file-preview-editor"
+                  style={{ margin:0, padding:'16px', fontSize:13, lineHeight:1.6, color:'#3a2a40', background:'#fdf8fa', overflow:'auto', flex:1, border:'none', outline:'none', resize:'none', whiteSpace:'pre-wrap', wordBreak:'break-word', fontFamily:'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace', minHeight:'200px' }}
+                />
+                <div style={{ display:'flex', gap:10, padding:'12px 16px', borderTop:'1px solid #f0e0ea', background:'#fdf6f9', flexShrink:0 }}>
+                  <button onClick={() => setFilePreview(null)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #e0d0d8', background:'#fff', fontSize:13, color:'#9a7a8a', cursor:'pointer', fontWeight:500 }}>{'关闭'}</button>
+                  <button onClick={() => {
+                    const text = document.getElementById('file-preview-editor')?.value || ''
+                    if (text.trim()) {
+                      const fileMsg = '[file name="' + filePreview.name + '"]\n' + text.trim() + '\n[/file]'
+                      window.dispatchEvent(new CustomEvent('chi-send-file', { detail: fileMsg }))
+                      setFilePreview(null)
+                    }
+                  }} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg, #f0a0c0, #e8b0d0)', fontSize:13, color:'#fff', fontWeight:600, cursor:'pointer', boxShadow:'0 4px 12px rgba(230,160,180,0.3)' }}>{'填好了，发回去'}</button>
+                </div>
               </div>
             </div>
           )}
