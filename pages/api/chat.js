@@ -235,7 +235,7 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'send_file', description: '发送一个文件给用户。将文件内容以base64上传，返回下载链接。适合发送代码文件、文本文件、JSON等。',
+      name: 'send_file', description: '发送一个纯文本文件给用户，显示为可下载的文件卡片。用于发送代码(.js/.py/.css)、文本(.txt)、JSON(.json)、Markdown(.md)、CSV等非HTML文件。注意：这不是send_html，不会渲染为页面。用户说"发个文件"时用这个。',
       parameters: { type: 'object', properties: {
         filename: { type: 'string', description: '文件名（含扩展名），如"report.txt"、"data.json"' },
         content: { type: 'string', description: '文件的文本内容（UTF-8文本）' },
@@ -245,7 +245,7 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'send_html', description: '发送一个HTML页面给用户，会在聊天中直接渲染为可交互的嵌入式卡片。适合制作互动卡片、小游戏、可视化图表、贺卡、情书等任何富媒体内容。HTML中可以包含CSS和JS。',
+      name: 'send_html', description: '发送一个可渲染的HTML页面卡片。仅当需要制作互动内容（贺卡、小游戏、图表、情书等富媒体）时使用。用户说"发个文件"时不要用这个，用send_file。',
       parameters: { type: 'object', properties: {
         title: { type: 'string', description: 'HTML卡片的标题/描述' },
         html: { type: 'string', description: '完整的HTML内容（包含<html>或<body>标签）' }
