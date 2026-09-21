@@ -3582,7 +3582,7 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
             <div className="word-card-text">
               {editingUserCard ? (
-                <form onSubmit={e => { e.preventDefault(); const next = { ...homeCards, userText: userCardDraft }; setHomeCards(next); setEditingUserCard(false); fetch('/api/data/pool_home_cards', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ value: next }) }) }} style={{display:'flex',gap:4,width:'100%'}}>
+                <form onSubmit={e => { e.preventDefault(); const next = { ...homeCards, userText: userCardDraft }; setHomeCards(next); setEditingUserCard(false); fetch('/api/data/pool_home_cards', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ value: next }) }) }} style={{display:'flex',gap:4,width:'100%'}}>
                   <input className="word-card-input" value={userCardDraft} onChange={e => setUserCardDraft(e.target.value)} autoFocus placeholder={'\u5199\u70b9\u4ec0\u4e48...'} />
                   <button type="submit" className="word-card-save">{'\u2713'}</button>
                 </form>
@@ -3884,7 +3884,7 @@ export default function Home() {
       <div className="shell">
         <div className="phone-frame">
           {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-          <div className="status-bar" style={theme?.statusBarBg?(theme.statusBarBg.startsWith('data:')||theme.statusBarBg.startsWith('http')||theme.statusBarBg.startsWith('/')?{backgroundImage:`url(${theme.statusBarBg})`,backgroundSize:'cover',backgroundPosition:'center'}:{background:theme.statusBarBg}):{}}>  
+          <div className="status-bar" style={theme?.statusBarBg?(theme.statusBarBg.startsWith('data:')||theme.statusBarBg.startsWith('http')||theme.statusBarBg.startsWith('/')?{backgroundImage:`url(${theme.statusBarBg})`,backgroundSize:'cover',backgroundPosition:'center',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)'}:{background:theme.statusBarBg,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)'}):{}}>  
             <span className="status-time" suppressHydrationWarning>{new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
             <span className="status-icons">{'\ud83d\udfe2'}</span>
           </div>
@@ -4062,12 +4062,12 @@ export default function Home() {
         .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 68px; display: flex; flex-direction: column; gap: 16px; -webkit-overflow-scrolling: touch; }
 
         /* Dynamic Island */
-        .hs-island { display: flex; align-items: center; gap: 12px; padding: 16px 18px; background: rgba(255,240,248,0.16); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.12); border-radius: 28px; cursor: pointer; transition: background 0.2s; }
+        .hs-island { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 10px; background: rgba(255,230,245,0.40); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,220,240,0.30); border-radius: 22px; cursor: pointer; transition: all 0.3s cubic-bezier(.4,0,.2,1); box-shadow: 0 2px 12px rgba(200,125,186,0.15); }
         .hs-island:active { background: rgba(255,240,248,0.16); }
-        .hs-island-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, rgba(240,180,210,0.3), rgba(200,140,180,0.2)); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 1.5px solid rgba(255,200,220,0.2); }
+        .hs-island-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, rgba(240,180,210,0.3), rgba(200,140,180,0.2)); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 1.5px solid rgba(255,200,220,0.2); }
         .hs-island-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
         .hs-island-info { flex: 1; min-width: 0; }
-        .hs-island-name { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
+        .hs-island-name { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
         .hs-island-status { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
