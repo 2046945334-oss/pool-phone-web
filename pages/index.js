@@ -4103,7 +4103,7 @@ export default function Home() {
         .hs-couple-bar svg { color: #fff; }
 
         /* Moments card */
-        .hs-card-moments { border-radius: 16px; overflow: hidden; cursor: pointer; background: rgba(255,240,248,0.14); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,220,240,0.15); padding: 36px 16px; }
+        .hs-card-moments { border-radius: 16px; overflow: hidden; cursor: pointer; background: linear-gradient(160deg, rgba(255,220,242,0.25), rgba(240,200,248,0.15)); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.25); padding: 36px 16px; box-shadow: 0 2px 10px rgba(200,125,186,0.08); }
         .hs-card-moments:active { background: rgba(255,240,248,0.16); }
         .hs-card-moments-inner { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; color: #fff; font-weight: 500; letter-spacing: 0.5px; }
         .hs-card-moments-inner svg { color: rgba(255,255,255,0.8); }
@@ -4139,7 +4139,7 @@ export default function Home() {
         .hs-chip svg { flex-shrink: 0; color: rgba(255,255,255,0.7); }
 
         /* Page 2 mini cards */
-        .hs-card-mini { flex: 1; padding: 30px 14px; min-height: 90px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .hs-card-mini { flex: 1; padding: 30px 14px; min-height: 90px; background: linear-gradient(145deg, rgba(255,225,242,0.38), rgba(235,200,240,0.28)); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1.5px solid rgba(255,255,255,0.35); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 3px 14px rgba(200,125,186,0.12), inset 0 1px 0 rgba(255,255,255,0.2); }
         .hs-card-mini:active { background: rgba(255,240,248,0.14); }
         .hs-card-mini-icon { color: #fff; }
         .hs-card-mini-label { font-size: 12px; color: #fff; font-weight: 500; }
@@ -4155,13 +4155,13 @@ export default function Home() {
         .hs-card-diary-label svg { color: rgba(255,255,255,0.7); }
         .hs-card-diary-text { font-size: 12px; color: rgba(255,240,248,0.85); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
-        .hs-card-half { flex: 1; padding: 28px 14px; min-height: 95px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .hs-card-half { flex: 1; padding: 28px 14px; min-height: 95px; background: linear-gradient(145deg, rgba(255,230,245,0.32), rgba(230,195,240,0.22)); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1.5px solid rgba(255,255,255,0.30); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 2px 12px rgba(200,125,186,0.10), inset 0 1px 0 rgba(255,255,255,0.18); }
         .hs-card-half:active { background: rgba(255,240,248,0.14); }
         .hs-card-half-icon { color: #fff; }
         .hs-card-half-label { font-size: 12px; color: #fff; font-weight: 500; }
         .hs-card-half-sub { font-size: 10px; color: rgba(255,255,255,0.6); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
-        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 22px 16px; background: rgba(255,240,248,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; font-size: 13px; color: #fff; font-weight: 500; }
+        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 22px 16px; background: rgba(255,240,248,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.06); border-radius: 14px; cursor: pointer; font-size: 13px; color: #fff; font-weight: 500; }
         .hs-card-wide:active { background: rgba(255,240,248,0.12); }
         .hs-card-wide svg { color: rgba(255,255,255,0.7); }
 
