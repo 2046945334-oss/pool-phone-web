@@ -3476,7 +3476,7 @@ function HomeScreen({ onOpenApp, theme }) {
           {/* Dynamic Island - avatar + name + status */}
           <div className="hs-island" onClick={() => onOpenApp('couple')}>
             <div className="hs-island-avatar">
-              {theme?.avatarAI ? <img src={theme.avatarImg} alt="" /> : <span style={{color:'rgba(255,200,220,0.8)', fontSize:13}}><SvgUser /></span>}
+              {theme?.avatarAI ? <img src={theme.avatarAI} alt="" /> : <span style={{color:'rgba(255,200,220,0.8)', fontSize:13}}><SvgUser /></span>}
             </div>
             <div className="hs-island-info">
               <div className="hs-island-name">{'Chi'}</div>
@@ -3848,12 +3848,12 @@ export default function Home() {
             <span className="status-icons">{'\ud83d\udfe2'}</span>
           </div>
           <div className="phone-screen">
-            <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%', position:'relative'}}>
+            <div style={{display: activeTab === 'phone' ? 'block' : 'none', height:'100%', position:'relative', paddingBottom:'0'}}>
               {renderPhoneContent()}
               <PreloadedApps currentApp={currentApp} onBack={handleBack} />
               {(() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe id="persistent-music-iframe" src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} allow="autoplay; encrypted-media" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',zIndex: currentApp === 'music' ? 10 : -1,opacity: currentApp === 'music' ? 1 : 0,pointerEvents: currentApp === 'music' ? 'auto' : 'none'}} /> } } catch {} return null })()}
             </div>
-            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} setFilePreview={setFilePreview} /></div>
+            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column', paddingBottom:'56px'}}><ChatView theme={theme} setFilePreview={setFilePreview} /></div>
               {readerMini && (
                 <div style={{
                   position:'absolute', top:0, left:0, right:0, height:'55%',
@@ -4018,7 +4018,7 @@ export default function Home() {
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
         .dot.active { width: 16px; background: #c77dba; }
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(160deg, #1c1520 0%, #150f1a 50%, #0f0d14 100%); overflow: hidden; }
-        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 68px; display: flex; flex-direction: column; gap: 10px; justify-content: center; -webkit-overflow-scrolling: touch; }
+        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 68px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
 
         /* Dynamic Island */
         .hs-island { display: flex; align-items: center; gap: 12px; padding: 16px 18px; background: rgba(255,240,248,0.16); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.12); border-radius: 28px; cursor: pointer; transition: background 0.2s; }
@@ -4027,20 +4027,20 @@ export default function Home() {
         .hs-island-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
         .hs-island-info { flex: 1; min-width: 0; }
         .hs-island-name { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
-        .hs-island-status { font-size: 11px; color: rgba(255,230,240,0.7); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hs-island-status { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
 
         /* Couple bar */
-        .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; background: rgba(255,220,240,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,200,220,0.1); border-radius: 12px; cursor: pointer; color: rgba(255,240,248,0.85); font-size: 13px; font-weight: 500; letter-spacing: 0.8px; }
+        .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; background: rgba(255,220,240,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,200,220,0.1); border-radius: 12px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 500; letter-spacing: 0.8px; }
         .hs-couple-bar:active { background: rgba(255,200,220,0.14); }
-        .hs-couple-bar svg { color: rgba(255,200,220,0.9); }
+        .hs-couple-bar svg { color: #fff; }
 
         /* Moments card */
         .hs-card-moments { border-radius: 16px; overflow: hidden; cursor: pointer; background: rgba(255,240,248,0.14); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,220,240,0.15); padding: 36px 16px; }
         .hs-card-moments:active { background: rgba(255,240,248,0.16); }
-        .hs-card-moments-inner { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; color: rgba(255,240,248,0.85); font-weight: 500; letter-spacing: 0.5px; }
-        .hs-card-moments-inner svg { color: rgba(255,220,240,0.8); }
+        .hs-card-moments-inner { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; color: #fff; font-weight: 500; letter-spacing: 0.5px; }
+        .hs-card-moments-inner svg { color: rgba(255,255,255,0.8); }
 
         /* Row layout */
         .hs-row { display: flex; align-items: stretch; }
@@ -4048,46 +4048,46 @@ export default function Home() {
         /* Note card */
         .hs-card-note { flex: 1; padding: 20px 16px; min-height: 80px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
         .hs-card-note:active { background: rgba(255,240,248,0.14); }
-        .hs-card-note-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(255,230,240,0.75); font-weight: 500; }
-        .hs-card-note-label svg { color: rgba(255,220,240,0.7); }
+        .hs-card-note-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #fff; font-weight: 500; }
+        .hs-card-note-label svg { color: rgba(255,255,255,0.7); }
         .hs-card-note-text { font-size: 13px; color: rgba(255,240,248,0.85); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
         /* System button */
-        .hs-btn-system { width: 56px; display: flex; align-items: center; justify-content: center; background: rgba(255,240,248,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; color: rgba(255,230,240,0.8); }
+        .hs-btn-system { width: 56px; display: flex; align-items: center; justify-content: center; background: rgba(255,240,248,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; color: #fff; }
         .hs-btn-system:active { background: rgba(255,240,248,0.12); }
 
         /* Chip row */
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px 10px; background: rgba(255,240,248,0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.15); border-radius: 12px; cursor: pointer; font-size: 12px; color: rgba(255,240,248,0.8); font-weight: 500; white-space: nowrap; overflow: hidden; }
+        .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px 10px; background: rgba(255,240,248,0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.15); border-radius: 12px; cursor: pointer; font-size: 12px; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; }
         .hs-chip:active { background: rgba(255,240,248,0.12); }
-        .hs-chip svg { flex-shrink: 0; color: rgba(255,220,240,0.7); }
+        .hs-chip svg { flex-shrink: 0; color: rgba(255,255,255,0.7); }
 
         /* Page 2 mini cards */
         .hs-card-mini { flex: 1; padding: 30px 14px; min-height: 90px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .hs-card-mini:active { background: rgba(255,240,248,0.14); }
-        .hs-card-mini-icon { color: rgba(255,220,240,0.8); }
-        .hs-card-mini-label { font-size: 12px; color: rgba(255,240,248,0.8); font-weight: 500; }
+        .hs-card-mini-icon { color: #fff; }
+        .hs-card-mini-label { font-size: 12px; color: #fff; font-weight: 500; }
 
         /* Polaroid area */
         .hs-polaroid-area { background: rgba(255,240,248,0.12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.14); border-radius: 18px; padding: 14px 10px 12px; }
-        .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,230,240,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
+        .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
         .hs-card-diary { padding: 24px 18px; min-height: 100px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; }
         .hs-card-diary:active { background: rgba(255,240,248,0.14); }
-        .hs-card-diary-label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,200,220,0.5); font-weight: 500; margin-bottom: 6px; }
-        .hs-card-diary-label svg { color: rgba(255,220,240,0.7); }
+        .hs-card-diary-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #fff; font-weight: 500; margin-bottom: 6px; }
+        .hs-card-diary-label svg { color: rgba(255,255,255,0.7); }
         .hs-card-diary-text { font-size: 12px; color: rgba(255,240,248,0.85); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
         .hs-card-half { flex: 1; padding: 28px 14px; min-height: 95px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
         .hs-card-half:active { background: rgba(255,240,248,0.14); }
-        .hs-card-half-icon { color: rgba(255,220,240,0.8); }
-        .hs-card-half-label { font-size: 12px; color: rgba(255,240,248,0.8); font-weight: 500; }
-        .hs-card-half-sub { font-size: 10px; color: rgba(255,230,240,0.6); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+        .hs-card-half-icon { color: #fff; }
+        .hs-card-half-label { font-size: 12px; color: #fff; font-weight: 500; }
+        .hs-card-half-sub { font-size: 10px; color: rgba(255,255,255,0.6); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
-        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 22px 16px; background: rgba(255,240,248,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; font-size: 13px; color: rgba(255,240,248,0.8); font-weight: 500; }
+        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 22px 16px; background: rgba(255,240,248,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; font-size: 13px; color: #fff; font-weight: 500; }
         .hs-card-wide:active { background: rgba(255,240,248,0.12); }
-        .hs-card-wide svg { color: rgba(255,220,240,0.7); }
+        .hs-card-wide svg { color: rgba(255,255,255,0.7); }
 
 
         .app-page { width: 100%; height: 100%; display: flex; flex-direction: column; background: #f5f0f5; }
@@ -4118,7 +4118,7 @@ export default function Home() {
         .msg-bubble { max-width: 78%; padding: 11px 14px; border-radius: 4px; font-size: 14px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em; }
         .msg-bubble.user { background: #95ec69; color: #111; }
         .msg-bubble.assistant { background: rgba(255,255,255,0.92); color: #1a1a1a; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,0,0,0.05); }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(50px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; }
         .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
         .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
