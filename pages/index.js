@@ -940,7 +940,7 @@ function ChatView({ theme, setFilePreview }) {
       const htmlBlocks = []
       safeReply = safeReply.replace(/\[html\s+[^\]]*\]/g, (m) => { htmlBlocks.push(m); return `__HTML_${htmlBlocks.length-1}__` })
       const fileBlocks = []
-      safeReply = safeReply.replace(/\[file\s+[^\]]*\][^\[]*\[\/file\]/g, (m) => { fileBlocks.push(m); return `__FILE_${fileBlocks.length-1}__` })
+      safeReply = safeReply.replace(/\[file\s+[^\]]*\][\s\S]*?\[\/file\]/g, (m) => { fileBlocks.push(m); return `__FILE_${fileBlocks.length-1}__` })
       // Protect URLs from being split on dots
       const urlBlocks = []
       safeReply = safeReply.replace(/https?:\/\/\S+/g, (m) => { urlBlocks.push(m); return `__URL_${urlBlocks.length-1}__` })
@@ -1091,7 +1091,7 @@ function ChatView({ theme, setFilePreview }) {
     // Split on all special tags: [img]...[/img], [file ...]...[/file], [html ...]
     const parts = []
     let remaining = content
-    const tagRegex = /\[img\](.*?)\[\/img\]|\[file\s+url="([^"]*)"(?:\s+name="([^"]*)")?\](.*?)\[\/file\]|\[html\s+url="([^"]*)"(?:\s+title="([^"]*)")?\]/g
+    const tagRegex = /\[img\](.*?)\[\/img\]|\[file\s+url="([^"]*)"(?:\s+name="([^"]*)")?\](.*?)\[\/file\]|\[file\s+name="([^"]*)"\]([\s\S]*?)\[\/file\]|\[html\s+url="([^"]*)"(?:\s+title="([^"]*)")?\]/g
     let lastIndex = 0
     let match
     while ((match = tagRegex.exec(content)) !== null) {
@@ -1106,8 +1106,11 @@ function ChatView({ theme, setFilePreview }) {
         // [file url="..." name="..."]text[/file]
         parts.push({ type: 'file', url: match[2], name: match[3] || 'file', label: match[4] || match[3] || 'file' })
       } else if (match[5] !== undefined) {
+        // [file name="..."]content[/file] — inline file (user reply), render as file card with inline content
+        parts.push({ type: 'inlinefile', name: match[5], content: match[6] || '' })
+      } else if (match[7] !== undefined) {
         // [html url="..." title="..."]
-        parts.push({ type: 'html', url: match[5], title: match[6] || 'HTML' })
+        parts.push({ type: 'html', url: match[7], title: match[8] || 'HTML' })
       }
       lastIndex = tagRegex.lastIndex
     }
@@ -1130,6 +1133,21 @@ function ChatView({ theme, setFilePreview }) {
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
           <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:13}}>{p.label}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </div>
+      )
+      if (p.type === 'inlinefile') return (
+        <div key={j} onClick={() => setFilePreview({ name: p.name, content: p.content.trim() })} style={{
+          display:'flex', alignItems:'center', gap:8, padding:'10px 14px', margin:'6px 0',
+          background:'rgba(240,214,226,0.2)', border:'1px solid rgba(240,214,226,0.5)',
+          borderRadius:12, cursor:'pointer', maxWidth:'100%'
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:13}}>{p.name}</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
