@@ -3820,7 +3820,7 @@ export default function Home() {
           )}
           {filePreview && (
             <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(6px)' }} onClick={() => setFilePreview(null)}>
-              <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, width:'min(420px, 92vw)', maxHeight:'85vh', display:'flex', flexDirection:'column', boxShadow:'0 12px 40px rgba(0,0,0,0.15)', overflow:'hidden' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, width:'96vw', maxHeight:'92vh', display:'flex', flexDirection:'column', boxShadow:'0 12px 40px rgba(0,0,0,0.15)', overflow:'hidden' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 16px', borderBottom:'1px solid #f0e0ea', flexShrink:0 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   <span style={{ flex:1, fontSize:14, fontWeight:600, color:'#4a3a50', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{filePreview.name}</span>
@@ -3829,7 +3829,7 @@ export default function Home() {
                 <textarea
                   defaultValue={filePreview.content}
                   id="file-preview-editor"
-                  style={{ margin:0, padding:'16px', fontSize:13, lineHeight:1.6, color:'#3a2a40', background:'#fdf8fa', overflow:'auto', flex:1, border:'none', outline:'none', resize:'none', whiteSpace:'pre-wrap', wordBreak:'break-word', fontFamily:'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace', minHeight:'40vh' }}
+                  style={{ margin:0, padding:'16px', fontSize:13, lineHeight:1.6, color:'#3a2a40', background:'#fdf8fa', overflow:'auto', flex:1, border:'none', outline:'none', resize:'none', whiteSpace:'pre-wrap', wordBreak:'break-word', fontFamily:'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace', minHeight:'60vh' }}
                 />
                 <div style={{ display:'flex', gap:10, padding:'12px 16px', borderTop:'1px solid #f0e0ea', background:'#fdf6f9', flexShrink:0 }}>
                   <button onClick={() => setFilePreview(null)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #e0d0d8', background:'#fff', fontSize:13, color:'#9a7a8a', cursor:'pointer', fontWeight:500 }}>{'关闭'}</button>
