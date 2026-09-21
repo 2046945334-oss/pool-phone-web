@@ -367,7 +367,7 @@ function MusicIsland({ theme }) {
           if (songKey !== lastSongKey.current || now - lastKvSync.current > 30000) {
             lastSongKey.current = songKey
             lastKvSync.current = now
-            fetch('/api/data/pool_music_now', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify({ playing: !!d.playing, name: d.name || '', artist: d.artist || '', songId: d.songId || '', position: d.position || 0, duration: d.duration || 0, time: new Date().toISOString() }) }) }).catch(() => {})
+            fetch('/api/data/pool_music_now', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: JSON.stringify({ playing: !!d.playing, name: d.name || '', artist: d.artist || '', songId: d.songId || '', position: d.position || 0, duration: d.duration || 0, togetherMinutes: d.togetherMinutes || 0, time: new Date().toISOString() }) }) }).catch(() => {})
           }
         }
       } catch {}
@@ -3883,7 +3883,7 @@ export default function Home() {
       <Head>
         <title>{'\u6c60\u7684\u5c0f\u624b\u673a'}</title>
         <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-        <meta name="theme-color" content="#0a0a0a" />
+        <meta name="theme-color" content="#f8e0ef" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/pwa-icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -4007,7 +4007,7 @@ export default function Home() {
         @media (min-width: 768px) { .phone-frame { height: 90vh; max-height: 844px; border-radius: 40px; border: 3px solid #333; box-shadow: 0 20px 60px rgba(0,0,0,0.8); } }
         .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 4px; font-size: 12px; color: rgba(255,255,255,0.7); background: rgba(255,220,240,0.15); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); flex-shrink: 0; }
         .phone-screen { flex: 1; overflow: hidden; position: relative; background: #0d0d0d; }
-        .bottom-nav-wrap { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; z-index: 100; pointer-events: none; padding: 10px 20px calc(10px + env(safe-area-inset-bottom, 0px)); background: rgba(255,230,245,0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .bottom-nav-wrap { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; z-index: 100; pointer-events: none; padding: 10px 20px calc(10px + env(safe-area-inset-bottom, 0px)); background: transparent; }
         .bottom-nav-pill { display: flex; justify-content: space-around; align-items: center; padding: 8px 16px; background: rgba(255,230,245,0.35); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid rgba(255,220,240,0.3); border-radius: 28px; width: 100%; max-width: 280px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
         .nav-btn { background: none; border: none; color: rgba(255,230,240,0.5); display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 16px; transition: color 0.2s; position: relative; }
         .nav-btn.active { color: #fff; }
@@ -4143,7 +4143,7 @@ export default function Home() {
         .hs-card-mini-label { font-size: 12px; color: #fff; font-weight: 500; }
 
         /* Polaroid area */
-        .hs-polaroid-area { background: rgba(255,240,248,0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.2); border-radius: 18px; padding: 14px 10px 12px; }
+        .hs-polaroid-area { background: transparent; border: none; border-radius: 18px; padding: 14px 10px 12px; }
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
@@ -4192,7 +4192,7 @@ export default function Home() {
         .msg-bubble { max-width: 78%; padding: 11px 14px; border-radius: 4px; font-size: 14px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em; }
         .msg-bubble.user { background: #95ec69; color: #111; }
         .msg-bubble.assistant { background: rgba(255,255,255,0.92); color: #1a1a1a; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,0,0,0.05); }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 62px; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 72px; }
         .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
         .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
@@ -4424,8 +4424,8 @@ export default function Home() {
 
         /* Polaroid Photo Wall */
         .polaroid-wall { display: flex; justify-content: center; align-items: flex-start; gap: 8px; padding: 8px 8px 10px; flex-wrap: wrap; }
-        .polaroid-card { position: relative; width: 28%; background: rgba(255,255,255,0.92); border-radius: 4px; padding: 5px 5px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); transition: transform 0.3s; }
-        .polaroid-tape { position: absolute; width: 32px; height: 12px; background: rgba(200,220,240,0.6); top: -6px; border-radius: 1px; }
+        .polaroid-card { position: relative; width: 28%; background: rgba(255,255,255,0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 6px; padding: 5px 5px 16px; box-shadow: 0 2px 12px rgba(200,125,186,0.12); border: 1px solid rgba(255,255,255,0.5); transition: transform 0.3s; }
+        .polaroid-tape { position: absolute; width: 32px; height: 12px; background: rgba(240,200,220,0.5); top: -6px; border-radius: 1px; }
         .tape-left { left: 12px; transform: rotate(-8deg); }
         .tape-center { left: 50%; margin-left: -16px; transform: rotate(3deg); }
         .tape-right { right: 10px; transform: rotate(6deg); }
