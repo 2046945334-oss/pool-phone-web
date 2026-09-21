@@ -567,6 +567,7 @@ function ChatView({ theme }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
+  const [filePreview, setFilePreview] = useState(null) // {url, name, content}
   const [showEmoji, setShowEmoji] = useState(false)
   const [readStatus, setReadStatus] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pool_read_status') || '{}') } catch { return {} }
@@ -1106,19 +1107,21 @@ function ChatView({ theme }) {
       if (p.type === 'text') return <span key={j}>{stripThink(p.value)}</span>
       if (p.type === 'img') return <img key={j} src={p.url} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />
       if (p.type === 'file') return (
-        <a key={j} href={p.url} download={p.name} target="_blank" rel="noopener" style={{
+        <div key={j} onClick={() => {
+          fetch(p.url).then(r => r.text()).then(text => setFilePreview({ name: p.name, content: text })).catch(() => setFilePreview({ name: p.name, content: '无法加载文件内容' }))
+        }} style={{
           display:'flex', alignItems:'center', gap:8, padding:'10px 14px', margin:'6px 0',
           background:'rgba(240,214,226,0.2)', border:'1px solid rgba(240,214,226,0.5)',
-          borderRadius:12, textDecoration:'none', color:'inherit', maxWidth:'100%'
+          borderRadius:12, cursor:'pointer', maxWidth:'100%'
         }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
           <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:13}}>{p.label}</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
           </svg>
-        </a>
+        </div>
       )
       if (p.type === 'html') return (
         <div key={j} style={{ margin:'8px 0', borderRadius:12, overflow:'hidden', border:'1px solid rgba(240,214,226,0.4)', background:'#fff' }}>
@@ -3781,6 +3784,18 @@ export default function Home() {
                   <button onClick={() => setShowCallConfirm(false)} style={{ flex:1, padding:'10px 0', borderRadius:12, border:'1px solid #f0d6e2', background:'#fdf6f9', fontSize:14, color:'#9a7a8a', cursor:'pointer', fontWeight:500 }}>{'取消'}</button>
                   <button onClick={() => { setShowCallConfirm(false); setCallIncoming(false); setCallActive(true); setCallMinimized(false) }} style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none', background:'linear-gradient(135deg, #f0a0c0, #e8b0d0)', fontSize:14, color:'#fff', fontWeight:600, cursor:'pointer', boxShadow:'0 4px 12px rgba(230,160,180,0.3)' }}>{'拨打'}</button>
                 </div>
+              </div>
+            </div>
+          )}
+          {filePreview && (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(6px)' }} onClick={() => setFilePreview(null)}>
+              <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, width:'min(360px, 90vw)', maxHeight:'80vh', display:'flex', flexDirection:'column', boxShadow:'0 12px 40px rgba(0,0,0,0.15)', overflow:'hidden' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 16px', borderBottom:'1px solid #f0e0ea', flexShrink:0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span style={{ flex:1, fontSize:14, fontWeight:600, color:'#4a3a50', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{filePreview.name}</span>
+                  <button onClick={() => setFilePreview(null)} style={{ background:'none', border:'none', fontSize:18, color:'#b8a0b8', cursor:'pointer', padding:'0 4px' }}>{'✕'}</button>
+                </div>
+                <pre style={{ margin:0, padding:'16px', fontSize:13, lineHeight:1.6, color:'#3a2a40', background:'#fdf8fa', overflow:'auto', flex:1, whiteSpace:'pre-wrap', wordBreak:'break-word', fontFamily:'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace' }}>{filePreview.content}</pre>
               </div>
             </div>
           )}
