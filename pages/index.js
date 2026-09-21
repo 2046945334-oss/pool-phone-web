@@ -3399,6 +3399,8 @@ function HomeScreen({ onOpenApp, theme }) {
   const [latestDiary, setLatestDiary] = useState(null)
   const [wakeLog, setWakeLog] = useState(null)
   const [homeCards, setHomeCards] = useState({ userText: '', aiText: '' })
+  const [weatherInfo, setWeatherInfo] = useState(null)
+  const [careMoods, setCareMoods] = useState({ ai: '', user: '' })
   const [editingUserCard, setEditingUserCard] = useState(false)
   const [userCardDraft, setUserCardDraft] = useState('')
 
@@ -3411,6 +3413,15 @@ function HomeScreen({ onOpenApp, theme }) {
     }
     poll()
     const iv = setInterval(poll, 8000)
+    // fetch weather from cache
+    try {
+      const envCache = JSON.parse(localStorage.getItem('pool_env_cache') || '{}')
+      if (envCache.weather) setWeatherInfo(envCache.weather)
+    } catch {}
+    // fetch care moods
+    fetch('/api/data/pool_care_moods').then(r=>r.json()).then(d=>{
+      if(active && d && d.value) setCareMoods(d.value)
+    }).catch(()=>{})
     // fetch latest note
     fetch('/api/data/pool_notes').then(r=>r.json()).then(d=>{
       if(active && d && d.value) {
@@ -3507,20 +3518,24 @@ function HomeScreen({ onOpenApp, theme }) {
             )}
           </div>
 
-          {/* Couple days bar */}
-          <div className="hs-couple-bar" onClick={() => onOpenApp('couple')}>
-            <SvgHeart />
-            <span>{coupleDays + ' days together'}</span>
+          {/* Row: couple days + weather side by side */}
+          <div className="hs-row" style={{gap:8}}>
+            <div className="hs-half-pill" onClick={() => onOpenApp('couple')}>
+              <SvgHeart />
+              <span>{coupleDays + 'd together'}</span>
+            </div>
+            <div className="hs-half-pill hs-weather-pill">
+              <SvgSun />
+              <span>{weatherInfo ? weatherInfo.split(',')[0].replace(/.*?:/, '').trim().slice(0,12) : '--'}</span>
+            </div>
           </div>
-
-          {/* Moments card (large) */}
+          {/* Moments card with preview */}
           <div className="hs-card-moments" onClick={() => onOpenApp('messages')}>
             <div className="hs-card-moments-inner">
               <SvgHeart />
               <span>{'Moments'}</span>
             </div>
           </div>
-
           {/* Sticky note card + system btn side by side */}
           <div className="hs-row" style={{gap:10}}>
             <div className="hs-card-note" onClick={() => onOpenApp('notes')}>
@@ -3531,13 +3546,31 @@ function HomeScreen({ onOpenApp, theme }) {
               <SvgSettings />
             </div>
           </div>
-
+          {/* Today mood strip */}
+          <div className="hs-mood-strip" onClick={() => onOpenApp('care')}>
+            <SvgLeaf />
+            <span className="hs-mood-label">{'today'}</span>
+            <span className="hs-mood-emoji">{careMoods.ai || '--'}</span>
+            <span className="hs-mood-dot">{'/'}</span>
+            <span className="hs-mood-emoji">{careMoods.user || '--'}</span>
+          </div>
           {/* Diary preview card */}
           <div className="hs-card-diary" onClick={() => onOpenApp('diary')} style={{marginBottom:8}}>
             <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
             <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
           </div>
-
+          {/* Garden preview strip */}
+          <div className="hs-garden-strip" onClick={() => onOpenApp('garden')}>
+            <SvgLeaf />
+            <span>{'garden'}</span>
+            <div className="hs-garden-dots">
+              <span className="hs-g-dot" style={{background:'#8cc5a2'}}></span>
+              <span className="hs-g-dot" style={{background:'#a8d4b6'}}></span>
+              <span className="hs-g-dot" style={{background:'#c5e0cd'}}></span>
+              <span className="hs-g-dot" style={{background:'#d4eadc'}}></span>
+              <span className="hs-g-dot" style={{background:'#e8f4ec'}}></span>
+            </div>
+          </div>
           {/* Small app buttons row */}
           <div className="hs-chip-row">
             <div className="hs-chip" onClick={() => onOpenApp('fishing')}><SvgFish /><span>{'fishing'}</span></div>
@@ -4126,6 +4159,14 @@ export default function Home() {
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,240,248,0.10); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.15); border-radius: 14px; }
         .home-word-card.ai-word-card { text-align: right; }
+        .hs-half-pill { flex: 1; display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: rgba(255,240,248,0.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,220,240,0.15); border-radius: 14px; color: rgba(255,255,255,0.85); font-size: 12px; cursor: pointer; justify-content: center; }
+        .hs-mood-strip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255,240,248,0.10); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.12); border-radius: 12px; color: rgba(255,255,255,0.75); font-size: 12px; cursor: pointer; }
+        .hs-mood-label { font-size: 11px; opacity: 0.6; }
+        .hs-mood-emoji { font-size: 12px; }
+        .hs-mood-dot { opacity: 0.4; font-size: 10px; }
+        .hs-garden-strip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255,240,248,0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.10); border-radius: 12px; color: rgba(255,255,255,0.7); font-size: 12px; cursor: pointer; }
+        .hs-garden-dots { display: flex; gap: 4px; margin-left: auto; }
+        .hs-g-dot { width: 8px; height: 8px; border-radius: 50%; }
         .word-card-avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(255,220,240,0.3); }
         .word-card-ava-img { width: 100%; height: 100%; object-fit: cover; }
         .word-card-ava-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,220,240,0.15); color: rgba(255,255,255,0.6); font-size: 13px; }
