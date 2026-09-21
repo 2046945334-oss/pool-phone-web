@@ -955,7 +955,8 @@ async function executeTool(name, args) {
     try {
       db.prepare("CREATE TABLE IF NOT EXISTS uploads (key TEXT PRIMARY KEY, mime TEXT, data TEXT, created_at TEXT)").run()
       db.prepare("INSERT OR REPLACE INTO uploads (key, mime, data, created_at) VALUES (?, ?, ?, ?)").run(key, mime, base64, new Date().toISOString())
-      return { success: true, url: `/api/file/${key}`, filename, message: `文件已上传: ${filename}，在回复中使用 [file url="${'/api/file/' + key}" name="${filename}"]${filename}[/file] 发送给用户` }
+      const url = `/api/file/${key}`
+      return { success: true, url, filename, __inject: `[file url="${url}" name="${filename}"]${filename}[/file]` }
     } catch (e) { return { error: '上传失败: ' + e.message } }
   }
   if (name === 'send_html') {
@@ -969,7 +970,8 @@ async function executeTool(name, args) {
     try {
       db.prepare("CREATE TABLE IF NOT EXISTS uploads (key TEXT PRIMARY KEY, mime TEXT, data TEXT, created_at TEXT)").run()
       db.prepare("INSERT OR REPLACE INTO uploads (key, mime, data, created_at) VALUES (?, ?, ?, ?)").run(key, 'text/html', base64, new Date().toISOString())
-      return { success: true, url: `/api/file/${key}`, title: title || 'HTML卡片', message: `HTML已创建，在回复中使用 [html url="${'/api/file/' + key}" title="${title || 'HTML卡片'}"] 发送给用户渲染` }
+      const url = `/api/file/${key}`
+      return { success: true, url, title: title || 'HTML卡片', __inject: `[html url="${url}" title="${title || 'HTML卡片'}"]` }
     } catch (e) { return { error: '上传失败: ' + e.message } }
   }
   if (name === 'delete_note') {
@@ -1837,8 +1839,8 @@ export default async function handler(req, res) {
 6. **每个操作只调一次工具**，工具返回后视为成功，不要重复调用确认
 7. **工具调用后必须用自然语言回复**：执行工具后，要用1-2句话告诉用户你做了什么/心里在想什么，不要只留工具调用记录
 **文件与HTML工具：**
-- **send_file** — 发送文件给用户（代码、文本、JSON等）。工具返回url后，在回复中用 [file url="返回的url" name="文件名"]显示文字[/file] 格式发送
-- **send_html** — 发送可渲染的HTML卡片给用户。适合制作互动贺卡、小游戏、可视化图表、情书等富媒体内容。工具返回url后，在回复中用 [html url="返回的url" title="标题"] 格式发送。HTML会在聊天中直接渲染为嵌入式卡片
+- **send_file** — 发送文件给用户（代码、文本、JSON等）。调用工具即可，系统会自动在你的回复中附上文件卡片，你不需要手动写任何标签
+- **send_html** — 发送可渲染的HTML卡片给用户。适合制作互动贺卡、小游戏、可视化图表、情书等富媒体内容。调用工具即可，系统会自动渲染，你不需要手动写标签。只需调用一次，不要重复调用
 - 用户也可以发文件给你，文件会以 [file] 标签形式出现在消息中`
     let currentMessages = messages.slice()
     // Inject read status
@@ -1873,6 +1875,7 @@ export default async function handler(req, res) {
     // 第一轮用主模型（带工具，Pro能判断是否需要调工具）
     // 后续轮次（工具结果处理）用工具模型（便宜）
     const toolLogs = []
+    const pendingInjects = [] // collect __inject from send_file/send_html tools
     // 强制思考过程用中文
     const sysIdxForLang = currentMessages.findIndex(m => m.role === 'system')
     if (sysIdxForLang >= 0) {
@@ -2192,6 +2195,7 @@ export default async function handler(req, res) {
             result = await executeTool(tc.function.name, args)
           }
           toolLogs.push({ name: tc.function.name, args, result })
+          if (result && result.__inject) pendingInjects.push(result.__inject)
           console.log('[TOOL]', tc.function.name, 'result:', JSON.stringify(result).substring(0, 200))
           toolResults.push(`[${tc.function.name}] ${JSON.stringify(result)}`)
           // Collect avatar image URLs so model can see them
@@ -2250,6 +2254,7 @@ export default async function handler(req, res) {
             result = await executeTool(tc.name, args)
           }
           toolLogs.push({ name: tc.name, args, result })
+          if (result && result.__inject) pendingInjects.push(result.__inject)
           console.log('[TOOL]', tc.name, 'result:', JSON.stringify(result).substring(0, 200))
           toolResults2.push(`[${tc.name}] ${JSON.stringify(result)}`)
           if (tc.name === 'avatar_list' && result && result.avatars) {
@@ -2295,6 +2300,12 @@ export default async function handler(req, res) {
       const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
       // 5. strip tool_call from reply
       reply = reply.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim() || reply
+      // 5a. Append any __inject content from send_file/send_html tools
+      if (pendingInjects.length > 0) {
+        // Strip any [html] or [file] tags the AI might have redundantly written
+        reply = reply.replace(/\[html\s+url="[^"]*"[^\]]*\]/g, '').replace(/\[file\s+url="[^"]*"[^\]]*\][^\[]*\[\/file\]/g, '').trim()
+        reply = (reply ? reply + '\n' : '') + pendingInjects.join('\n')
+      }
       // 5b. 存储AI回复到数据库
       saveMessage(sessionId, 'assistant', reply)
       // 6. 通知推送（写入通知队列）
