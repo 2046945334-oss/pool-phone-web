@@ -16,6 +16,10 @@ import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
+import android.view.Window;
+import android.view.WindowManager;
+import android.graphics.Color;
+import android.view.View;
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.NetworkType;
@@ -38,6 +42,14 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(UsageStatsPlugin.class);
         super.onCreate(savedInstanceState);
+        // Set status bar to pink/transparent
+        Window window = getWindow();
+        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        window.setStatusBarColor(Color.parseColor("#f8e0ef"));
+        // Light status bar (dark icons on light bg)
+        View decorView = window.getDecorView();
+        decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         createNotificationChannels();
         scheduleNotificationWorker();
         startPollService();
