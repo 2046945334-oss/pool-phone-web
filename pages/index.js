@@ -4081,7 +4081,7 @@ export default function Home() {
         .hs-island-status { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
-        .hs-listen-card { padding: 16px 18px 14px; background: rgba(255,230,245,0.40); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,220,240,0.30); border-radius: 20px; cursor: pointer; box-shadow: 0 2px 12px rgba(200,125,186,0.15); }
+        .hs-listen-card { padding: 16px 18px 14px; background: linear-gradient(135deg, rgba(255,220,240,0.50), rgba(230,190,240,0.40)); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1.5px solid rgba(255,255,255,0.45); border-radius: 20px; cursor: pointer; box-shadow: 0 4px 20px rgba(200,125,186,0.20), inset 0 1px 0 rgba(255,255,255,0.3); }
         .hs-listen-card:active { transform: scale(0.98); }
         .hs-listen-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
         .hs-listen-avatars { display: flex; align-items: center; }
@@ -4098,7 +4098,7 @@ export default function Home() {
         .hs-listen-time { font-size: 10px; color: rgba(255,255,255,0.5); min-width: 28px; }
 
         /* Couple bar */
-        .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; background: rgba(255,220,240,0.14); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,200,220,0.1); border-radius: 12px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 500; letter-spacing: 0.8px; }
+        .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; background: linear-gradient(135deg, rgba(255,210,235,0.45), rgba(220,180,240,0.35)); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1.5px solid rgba(255,255,255,0.4); border-radius: 12px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 500; letter-spacing: 0.8px; box-shadow: 0 3px 16px rgba(200,125,186,0.15), inset 0 1px 0 rgba(255,255,255,0.25); }
         .hs-couple-bar:active { background: rgba(255,200,220,0.14); }
         .hs-couple-bar svg { color: #fff; }
 
@@ -4112,7 +4112,7 @@ export default function Home() {
         .hs-row { display: flex; align-items: stretch; }
 
         /* Note card */
-        .hs-card-note { flex: 1; padding: 20px 16px; min-height: 80px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+        .hs-card-note { flex: 1; padding: 20px 16px; min-height: 80px; background: rgba(255,240,248,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
         .hs-card-note:active { background: rgba(255,240,248,0.14); }
         .hs-card-note-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #fff; font-weight: 500; }
         .hs-card-note-label svg { color: rgba(255,255,255,0.7); }
@@ -4125,6 +4125,7 @@ export default function Home() {
         /* Chip row */
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,240,248,0.10); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.15); border-radius: 14px; }
+        .home-word-card.ai-word-card { flex-direction: row-reverse; text-align: right; }
         .word-card-avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(255,220,240,0.3); }
         .word-card-ava-img { width: 100%; height: 100%; object-fit: cover; }
         .word-card-ava-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,220,240,0.15); color: rgba(255,255,255,0.6); font-size: 13px; }
@@ -4133,7 +4134,7 @@ export default function Home() {
         .word-card-input { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,220,240,0.2); border-radius: 8px; padding: 4px 8px; font-size: 12px; color: #fff; outline: none; }
         .word-card-save { background: rgba(255,180,220,0.25); border: 1px solid rgba(255,220,240,0.3); border-radius: 6px; color: #fff; padding: 4px 10px; font-size: 12px; cursor: pointer; }
         .user-word-card { cursor: pointer; }
-        .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px 10px; background: rgba(255,240,248,0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.15); border-radius: 12px; cursor: pointer; font-size: 12px; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; }
+        .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px 10px; background: rgba(255,225,242,0.55); border: none; border-radius: 20px; cursor: pointer; font-size: 12px; color: rgba(140,100,130,0.9); font-weight: 600; white-space: nowrap; overflow: hidden; box-shadow: 0 2px 8px rgba(200,125,186,0.12); }
         .hs-chip:active { background: rgba(255,240,248,0.12); }
         .hs-chip svg { flex-shrink: 0; color: rgba(255,255,255,0.7); }
 
@@ -4148,7 +4149,7 @@ export default function Home() {
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
-        .hs-card-diary { padding: 24px 18px; min-height: 100px; background: rgba(255,240,248,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; }
+        .hs-card-diary { padding: 24px 18px; min-height: 100px; background: rgba(255,240,248,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; }
         .hs-card-diary:active { background: rgba(255,240,248,0.14); }
         .hs-card-diary-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #fff; font-weight: 500; margin-bottom: 6px; }
         .hs-card-diary-label svg { color: rgba(255,255,255,0.7); }
@@ -4181,7 +4182,7 @@ export default function Home() {
         .chat-view::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.28), transparent 30%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.18), transparent 24%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02)); pointer-events: none; opacity: 0.75; }
         .chat-back-btn { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; padding: 4px; margin-right: 4px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
         .chat-back-btn:active { background: rgba(255,255,255,0.1); }
-        .chat-header { display: flex; align-items: center; padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.12); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; }
+        .chat-header { display: flex; align-items: center; padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px; background: rgba(255,230,245,0.35); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: none; border-bottom: 1px solid rgba(255,220,240,0.2); flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
         .chat-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 13px; color: #666; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
         .chat-header-info { margin-left: 8px; flex: 1; min-width: 0; }
         .chat-name { font-size: 14px; font-weight: 600; color: #111; line-height: 1.2; }
@@ -4195,7 +4196,7 @@ export default function Home() {
         .msg-bubble { max-width: 78%; padding: 11px 14px; border-radius: 4px; font-size: 14px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em; }
         .msg-bubble.user { background: #95ec69; color: #111; }
         .msg-bubble.assistant { background: rgba(255,255,255,0.92); color: #1a1a1a; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,0,0,0.05); }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 0; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); background: rgba(255,230,245,0.35); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: none; border-top: 1px solid rgba(255,220,240,0.2); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 0; box-shadow: 0 -2px 12px rgba(0,0,0,0.04); }
         .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
         .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
