@@ -3998,7 +3998,7 @@ export default function Home() {
         @media (min-width: 768px) { .phone-frame { height: 90vh; max-height: 844px; border-radius: 40px; border: 3px solid #333; box-shadow: 0 20px 60px rgba(0,0,0,0.8); } }
         .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 4px; font-size: 12px; color: rgba(255,255,255,0.7); background: rgba(255,220,240,0.15); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); flex-shrink: 0; }
         .phone-screen { flex: 1; overflow: hidden; position: relative; background: #0d0d0d; }
-        .bottom-nav-wrap { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; z-index: 100; pointer-events: none; padding: 0 20px calc(env(safe-area-inset-bottom, 0px)); }
+        .bottom-nav-wrap { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; z-index: 100; pointer-events: none; padding: 10px 20px calc(10px + env(safe-area-inset-bottom, 0px)); background: rgba(255,230,245,0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
         .bottom-nav-pill { display: flex; justify-content: space-around; align-items: center; padding: 8px 16px; background: rgba(255,230,245,0.35); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid rgba(255,220,240,0.3); border-radius: 28px; width: 100%; max-width: 280px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
         .nav-btn { background: none; border: none; color: rgba(255,230,240,0.5); display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 16px; transition: color 0.2s; position: relative; }
         .nav-btn.active { color: #fff; }
@@ -4059,7 +4059,7 @@ export default function Home() {
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
         .dot.active { width: 16px; background: #c77dba; }
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(160deg, #1c1520 0%, #150f1a 50%, #0f0d14 100%); overflow: hidden; }
-        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 68px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
+        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 68px; display: flex; flex-direction: column; gap: 16px; -webkit-overflow-scrolling: touch; }
 
         /* Dynamic Island */
         .hs-island { display: flex; align-items: center; gap: 12px; padding: 16px 18px; background: rgba(255,240,248,0.16); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.12); border-radius: 28px; cursor: pointer; transition: background 0.2s; }
@@ -4229,10 +4229,10 @@ export default function Home() {
         @keyframes mi-bounce { 0%,100% { height: 4px; } 50% { height: 14px; } }
         .mi-pill { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 200;
           display: flex; align-items: center; gap: 6px;
-          background: linear-gradient(135deg, #fff5f9 0%, #fce4ef 100%); border-radius: 22px; box-shadow: 0 2px 12px rgba(199,125,186,0.2);
+          background: rgba(255,230,245,0.45); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-radius: 22px;
           padding: 5px 14px 5px 6px; cursor: pointer;
-          box-shadow: 0 2px 12px rgba(200,125,186,0.35); transition: all .3s cubic-bezier(.4,0,.2,1);
-          border: 1px solid rgba(200,125,186,0.25); }
+          box-shadow: 0 2px 12px rgba(200,125,186,0.2); transition: all .3s cubic-bezier(.4,0,.2,1);
+          border: 1px solid rgba(255,220,240,0.35); }
         .mi-pill:active { transform: translateX(-50%) scale(0.96); }
         .mi-pill-avatars { display: flex; align-items: center; }
         .mi-ava { width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
@@ -4247,7 +4247,7 @@ export default function Home() {
         /* ── Expanded Panel ── */
         .mi-panel { position: absolute; top: 0; left: 0; right: 0; z-index: 200;
           padding: 8px 12px; }
-        .mi-panel-inner { background: linear-gradient(160deg, #fff5f9 0%, #fce4ef 50%, #f8dae6 100%); box-shadow: 0 4px 24px rgba(199,125,186,0.25);
+        .mi-panel-inner { background: rgba(255,230,245,0.55); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); box-shadow: 0 4px 24px rgba(199,125,186,0.15);
           border-radius: 22px; padding: 12px 16px 10px;
           box-shadow: 0 4px 24px rgba(200,125,186,0.3);
           border: 1px solid rgba(200,125,186,0.15);
