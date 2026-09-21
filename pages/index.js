@@ -3401,6 +3401,7 @@ function HomeScreen({ onOpenApp, theme }) {
   const [homeCards, setHomeCards] = useState({ userText: '', aiText: '' })
   const [weatherInfo, setWeatherInfo] = useState(null)
   const [careMoods, setCareMoods] = useState({ ai: '', user: '' })
+  const [latestChatMsg, setLatestChatMsg] = useState('')
   const [editingUserCard, setEditingUserCard] = useState(false)
   const [userCardDraft, setUserCardDraft] = useState('')
 
@@ -3413,10 +3414,32 @@ function HomeScreen({ onOpenApp, theme }) {
     }
     poll()
     const iv = setInterval(poll, 8000)
+    // fetch latest chat msg for Moments preview
+    fetch('/api/data/pool_chat_history').then(r=>r.json()).then(d=>{
+      if(active && d && d.value) {
+        const msgs = typeof d.value === 'string' ? JSON.parse(d.value) : d.value
+        if(Array.isArray(msgs) && msgs.length > 0) {
+          const last = msgs.filter(m => m.role === 'assistant' || m.role === 'user').pop()
+          if(last) setLatestChatMsg(last.content?.slice(0,40) || '')
+        }
+      }
+    }).catch(()=>{})
     // fetch weather from cache
     try {
       const envCache = JSON.parse(localStorage.getItem('pool_env_cache') || '{}')
-      if (envCache.weather) setWeatherInfo(envCache.weather)
+      if (envCache.weather && typeof envCache.weather === 'string' && !envCache.weather.startsWith('<')) {
+        setWeatherInfo(envCache.weather)
+      } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            const lat = pos.coords.latitude.toFixed(4)
+            const lon = pos.coords.longitude.toFixed(4)
+            const wr = await fetch('https://wttr.in/' + lat + ',' + lon + '?format=%C+%t&lang=zh')
+            const wt = await wr.text()
+            if (wt && !wt.startsWith('<')) { setWeatherInfo(wt.trim()); localStorage.setItem('pool_env_cache', JSON.stringify({ ts: Date.now(), lat: pos.coords.latitude, lon: pos.coords.longitude, weather: wt.trim() })) }
+          } catch {}
+        }, () => {}, { timeout: 5000 })
+      }
     } catch {}
     // fetch care moods
     fetch('/api/data/pool_care_moods').then(r=>r.json()).then(d=>{
@@ -3526,15 +3549,13 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
             <div className="hs-half-pill hs-weather-pill">
               <SvgSun />
-              <span>{weatherInfo ? weatherInfo.split(',')[0].replace(/.*?:/, '').trim().slice(0,12) : '--'}</span>
+              <span>{weatherInfo ? weatherInfo.replace(/\+/g,'').trim().slice(0,14) : '--'}</span>
             </div>
           </div>
-          {/* Moments card with preview */}
+          {/* Moments - latest chat preview */}
           <div className="hs-card-moments" onClick={() => onOpenApp('messages')}>
-            <div className="hs-card-moments-inner">
-              <SvgHeart />
-              <span>{'Moments'}</span>
-            </div>
+            <div className="hs-card-moments-header"><SvgHeart /> <span>{'Moments'}</span></div>
+            <div className="hs-card-moments-preview">{latestChatMsg || 'no moments yet...'}</div>
           </div>
           {/* Sticky note card + system btn side by side */}
           <div className="hs-row" style={{gap:10}}>
@@ -3546,38 +3567,14 @@ function HomeScreen({ onOpenApp, theme }) {
               <SvgSettings />
             </div>
           </div>
-          {/* Today mood strip */}
-          <div className="hs-mood-strip" onClick={() => onOpenApp('care')}>
-            <SvgLeaf />
-            <span className="hs-mood-label">{'today'}</span>
-            <span className="hs-mood-emoji">{careMoods.ai || '--'}</span>
-            <span className="hs-mood-dot">{'/'}</span>
-            <span className="hs-mood-emoji">{careMoods.user || '--'}</span>
-          </div>
-          {/* Diary preview card */}
-          <div className="hs-card-diary" onClick={() => onOpenApp('diary')} style={{marginBottom:8}}>
+
+          {/* Diary - thick book style */}
+          <div className="hs-card-diary hs-diary-book" onClick={() => onOpenApp('diary')}>
             <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
             <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
           </div>
-          {/* Garden preview strip */}
-          <div className="hs-garden-strip" onClick={() => onOpenApp('garden')}>
-            <SvgLeaf />
-            <span>{'garden'}</span>
-            <div className="hs-garden-dots">
-              <span className="hs-g-dot" style={{background:'#8cc5a2'}}></span>
-              <span className="hs-g-dot" style={{background:'#a8d4b6'}}></span>
-              <span className="hs-g-dot" style={{background:'#c5e0cd'}}></span>
-              <span className="hs-g-dot" style={{background:'#d4eadc'}}></span>
-              <span className="hs-g-dot" style={{background:'#e8f4ec'}}></span>
-            </div>
-          </div>
-          {/* Small app buttons row */}
-          <div className="hs-chip-row">
-            <div className="hs-chip" onClick={() => onOpenApp('fishing')}><SvgFish /><span>{'fishing'}</span></div>
-            <div className="hs-chip" onClick={() => onOpenApp('cabin')}><SvgList /><span>{'habits'}</span></div>
-            <div className="hs-chip" onClick={() => onOpenApp('screenTime')}><SvgClock /><span>{'self-edit'}</span></div>
-            <div className="hs-chip" onClick={() => onOpenApp('reader')}><SvgMail /><span>{'letter'}</span></div>
-          </div>
+
+
 
         </>)}
 
@@ -4136,16 +4133,17 @@ export default function Home() {
         .hs-couple-bar svg { color: #fff; }
 
         /* Moments card */
-        .hs-card-moments { border-radius: 16px; overflow: hidden; cursor: pointer; background: linear-gradient(160deg, rgba(255,220,242,0.25), rgba(240,200,248,0.15)); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.25); padding: 36px 16px; box-shadow: 0 2px 10px rgba(200,125,186,0.08); }
+        .hs-card-moments { padding: 14px 18px; background: rgba(255,240,248,0.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,220,240,0.15); border-radius: 16px; cursor: pointer; }
         .hs-card-moments:active { background: rgba(255,240,248,0.16); }
-        .hs-card-moments-inner { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; color: #fff; font-weight: 500; letter-spacing: 0.5px; }
+        .hs-card-moments-header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 6px; }
+        .hs-card-moments-preview { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-card-moments-inner svg { color: rgba(255,255,255,0.8); }
 
         /* Row layout */
         .hs-row { display: flex; align-items: stretch; }
 
         /* Note card */
-        .hs-card-note { flex: 1; padding: 20px 16px; min-height: 80px; background: rgba(255,240,248,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+        .hs-card-note { flex: 1; padding: 14px 16px; background: rgba(255,255,255,0.18); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,240,245,0.2); border-left: 3px solid rgba(255,160,180,0.6); border-radius: 14px; cursor: pointer; }
         .hs-card-note:active { background: rgba(255,240,248,0.14); }
         .hs-card-note-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #fff; font-weight: 500; }
         .hs-card-note-label svg { color: rgba(255,255,255,0.7); }
@@ -4159,7 +4157,9 @@ export default function Home() {
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,240,248,0.10); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.15); border-radius: 14px; }
         .home-word-card.ai-word-card { text-align: right; }
-        .hs-half-pill { flex: 1; display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: rgba(255,240,248,0.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,220,240,0.15); border-radius: 14px; color: rgba(255,255,255,0.85); font-size: 12px; cursor: pointer; justify-content: center; }
+        .hs-half-pill { flex: 1; display: flex; align-items: center; gap: 6px; padding: 10px 14px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 14px; color: rgba(255,255,255,0.9); font-size: 12px; cursor: pointer; justify-content: center; }
+        .hs-half-pill:first-child { background: rgba(255,190,200,0.3); border: 1px solid rgba(255,180,200,0.25); }
+        .hs-weather-pill { background: rgba(190,210,240,0.22); border: 1px solid rgba(180,200,230,0.2); }
         .hs-mood-strip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255,240,248,0.10); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.12); border-radius: 12px; color: rgba(255,255,255,0.75); font-size: 12px; cursor: pointer; }
         .hs-mood-label { font-size: 11px; opacity: 0.6; }
         .hs-mood-emoji { font-size: 12px; }
@@ -4190,7 +4190,7 @@ export default function Home() {
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
-        .hs-card-diary { padding: 24px 18px; min-height: 100px; background: rgba(255,240,248,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; }
+        .hs-card-diary { padding: 18px 18px; background: rgba(160,130,150,0.28); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(200,170,190,0.25); border-radius: 20px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         .hs-card-diary:active { background: rgba(255,240,248,0.14); }
         .hs-card-diary-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #fff; font-weight: 500; margin-bottom: 6px; }
         .hs-card-diary-label svg { color: rgba(255,255,255,0.7); }
