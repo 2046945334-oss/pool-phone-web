@@ -516,7 +516,7 @@ function MusicIsland({ theme }) {
   )
 }
 
-function ChatView({ theme, setFilePreview }) {
+function ChatView({ theme, setFilePreview, onBack }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
@@ -1271,6 +1271,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
   return (
     <div className="chat-view">
       <div className="chat-header" style={theme?.systemBg?{background:theme.systemBg}:{}}>
+        <button className="chat-back-btn" onClick={onBack}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
         <div className="chat-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60\u5c7f'}</div>
         <div className="chat-header-info"><div className="chat-name">{'\u6c60\u5c7f'}</div><div className="chat-status">{loading ? '\u601d\u8003\u4e2d...' : '\u5728\u7ebf'}</div></div>
         <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
@@ -3887,7 +3888,7 @@ export default function Home() {
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/pwa-icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content={'\u5c0f\u624b\u673a'} />
        </Head>
       <div className="shell">
@@ -3903,7 +3904,7 @@ export default function Home() {
               <PreloadedApps currentApp={currentApp} onBack={handleBack} />
               {(() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe id="persistent-music-iframe" src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} allow="autoplay; encrypted-media" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',zIndex: currentApp === 'music' ? 10 : -1,opacity: currentApp === 'music' ? 1 : 0,pointerEvents: currentApp === 'music' ? 'auto' : 'none'}} /> } } catch {} return null })()}
             </div>
-            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} setFilePreview={setFilePreview} /></div>
+            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} setFilePreview={setFilePreview} onBack={() => setActiveTab("phone")} /></div>
               {readerMini && (
                 <div style={{
                   position:'absolute', top:0, left:0, right:0, height:'55%',
@@ -3979,7 +3980,7 @@ export default function Home() {
               </div>
             </div>
           )}
-          <div className="bottom-nav-wrap" style={{display: currentApp ? 'none' : 'flex'}}>
+          <div className="bottom-nav-wrap" style={{display: (currentApp || activeTab === 'chat') ? 'none' : 'flex'}}>
             <div className="bottom-nav-pill">
               <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
                 <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
@@ -4178,6 +4179,8 @@ export default function Home() {
 
         .chat-view { width: 100%; height: 100%; display: flex; flex-direction: column; background: #e5ddd5; position: relative; }
         .chat-view::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.28), transparent 30%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.18), transparent 24%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02)); pointer-events: none; opacity: 0.75; }
+        .chat-back-btn { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; padding: 4px; margin-right: 4px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .chat-back-btn:active { background: rgba(255,255,255,0.1); }
         .chat-header { display: flex; align-items: center; padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.12); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; }
         .chat-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #ededed, #d8d8d8); display: flex; align-items: center; justify-content: center; font-size: 13px; color: #666; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
         .chat-header-info { margin-left: 8px; flex: 1; min-width: 0; }
@@ -4192,7 +4195,7 @@ export default function Home() {
         .msg-bubble { max-width: 78%; padding: 11px 14px; border-radius: 4px; font-size: 14px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em; }
         .msg-bubble.user { background: #95ec69; color: #111; }
         .msg-bubble.assistant { background: rgba(255,255,255,0.92); color: #1a1a1a; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid rgba(0,0,0,0.05); }
-        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 72px; }
+        .chat-input-area { display: flex; align-items: center; gap: 6px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); flex-shrink: 0; position: relative; z-index: 1; overflow: hidden; margin-bottom: 0; }
         .chat-plus-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .emoji-panel { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; background: rgba(246,246,246,0.98); border-top: 1px solid rgba(0,0,0,0.08); position: relative; z-index: 1; }
         .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
