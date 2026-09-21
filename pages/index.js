@@ -4187,7 +4187,7 @@ export default function Home() {
         .chat-header-info { margin-left: 8px; flex: 1; min-width: 0; }
         .chat-name { font-size: 14px; font-weight: 600; color: #111; line-height: 1.2; }
         .chat-status { font-size: 10px; color: #6b7280; margin-top: 1px; }
-        .chat-messages { padding-top: 68px; padding-bottom: 64px; flex: 1; overflow-y: auto; padding: 14px 12px 10px; position: relative; z-index: 1; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 72px 12px 80px; position: relative; z-index: 1; }
         .chat-empty { text-align: center; color: rgba(17,17,17,0.45); margin-top: 40%; font-size: 14px; }
         .msg-row { position: relative; display: flex; flex-direction: column; margin-bottom: 3px; padding: 0 12px; }
         .msg-row.user { align-items: flex-end; }
