@@ -516,7 +516,7 @@ function MusicIsland({ theme }) {
   )
 }
 
-function ChatView({ theme }) {
+function ChatView({ theme, setFilePreview }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
@@ -567,7 +567,6 @@ function ChatView({ theme }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [menuIdx, setMenuIdx] = useState(-1)
-  const [filePreview, setFilePreview] = useState(null) // {url, name, content}
   const [showEmoji, setShowEmoji] = useState(false)
   const [readStatus, setReadStatus] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pool_read_status') || '{}') } catch { return {} }
@@ -1119,7 +1118,7 @@ function ChatView({ theme }) {
           </svg>
           <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:13}}>{p.label}</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
         </div>
       )
@@ -3513,6 +3512,7 @@ export default function Home() {
   const [callIncoming, setCallIncoming] = useState(false)
   const [callMinimized, setCallMinimized] = useState(false)
   const [showCallConfirm, setShowCallConfirm] = useState(false)
+  const [filePreview, setFilePreview] = useState(null)
   const [theme, setTheme] = useState({})
   const [appBg, setAppBg] = useState({})
   const [customizerApp, setCustomizerApp] = useState(null)
@@ -3738,7 +3738,7 @@ export default function Home() {
               <PreloadedApps currentApp={currentApp} onBack={handleBack} />
               {(() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe id="persistent-music-iframe" src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} allow="autoplay; encrypted-media" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',zIndex: currentApp === 'music' ? 10 : -1,opacity: currentApp === 'music' ? 1 : 0,pointerEvents: currentApp === 'music' ? 'auto' : 'none'}} /> } } catch {} return null })()}
             </div>
-            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} /></div>
+            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} setFilePreview={setFilePreview} /></div>
               {readerMini && (
                 <div style={{
                   position:'absolute', top:0, left:0, right:0, height:'55%',
