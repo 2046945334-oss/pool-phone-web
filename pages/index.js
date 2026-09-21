@@ -3476,7 +3476,7 @@ function HomeScreen({ onOpenApp, theme }) {
           {/* Dynamic Island - avatar + name + status */}
           <div className="hs-island" onClick={() => onOpenApp('couple')}>
             <div className="hs-island-avatar">
-              {theme?.avatarImg ? <img src={theme.avatarImg} alt="" /> : <span style={{color:'rgba(255,200,220,0.8)', fontSize:13}}><SvgUser /></span>}
+              {theme?.avatarAI ? <img src={theme.avatarImg} alt="" /> : <span style={{color:'rgba(255,200,220,0.8)', fontSize:13}}><SvgUser /></span>}
             </div>
             <div className="hs-island-info">
               <div className="hs-island-name">{'Chi'}</div>
@@ -3494,12 +3494,10 @@ function HomeScreen({ onOpenApp, theme }) {
           </div>
 
           {/* Moments card (large) */}
-          <div className="hs-card-moments" onClick={() => onOpenApp('messages')}>
-            <div className="hs-card-moments-bg">
-              <img src={theme?.coupleBg || '/couple_bg.jpg'} alt="" />
-            </div>
-            <div className="hs-card-moments-overlay">
-              <div className="hs-card-moments-title">{'Moments'}</div>
+          <div className="hs-card-moments" onClick={() => onOpenApp('music')}>
+            <div className="hs-card-moments-inner">
+              <SvgMusic />
+              <span>{'listening together'}</span>
             </div>
           </div>
 
@@ -3931,20 +3929,23 @@ export default function Home() {
               </div>
             </div>
           )}
-          <div className="bottom-nav" style={theme?.systemBg?{background:theme.systemBg}:{}}>
-
-                        <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
-              <span className="nav-icon">{'▢'}</span>
-              <span className="nav-label">{'\u624b\u673a'}</span>
-            </button>
-            <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
-              <span className="nav-icon">{'○'}</span>
-              <span className="nav-label">{'\u804a\u5929'}</span>
-            </button>
-            <button className="nav-btn" onClick={() => { if (callActive) { setCallMinimized(false) } else { setShowCallConfirm(true) } }} style={{position:'relative'}}>
-              <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/></svg></span>
-              <span className="nav-label">{'\u7535\u8bdd'}</span>
-            </button>
+          <div className="bottom-nav-wrap">
+            <div className="bottom-nav-pill">
+              <button className={`nav-btn ${activeTab === 'phone' ? 'active' : ''}`} onClick={() => setActiveTab('phone')}>
+                <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+                <span className="nav-label">{'\u624b\u673a'}</span>
+                {activeTab === 'phone' && <div className="nav-dot-indicator" />}
+              </button>
+              <button className={`nav-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setLocked(false) }}>
+                <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
+                <span className="nav-label">{'\u804a\u5929'}</span>
+                {activeTab === 'chat' && <div className="nav-dot-indicator" />}
+              </button>
+              <button className="nav-btn" onClick={() => { if (callActive) { setCallMinimized(false) } else { setShowCallConfirm(true) } }}>
+                <span className="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.42 19.42 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2z"/></svg></span>
+                <span className="nav-label">{'\u7535\u8bdd'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3956,11 +3957,13 @@ export default function Home() {
         @media (min-width: 768px) { .phone-frame { height: 90vh; max-height: 844px; border-radius: 40px; border: 3px solid #333; box-shadow: 0 20px 60px rgba(0,0,0,0.8); } }
         .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 4px; font-size: 12px; color: #999; background: rgba(17,17,17,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); flex-shrink: 0; }
         .phone-screen { flex: 1; overflow: hidden; position: relative; background: #0d0d0d; }
-        .bottom-nav { display: flex; justify-content: space-around; align-items: center; padding: 4px 0 calc(6px + env(safe-area-inset-bottom, 0px)); background: rgba(17,17,17,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
-        .nav-btn { background: none; border: none; color: #666; display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; padding: 3px 16px; transition: color 0.2s; }
-        .nav-btn.active { color: #e8a0bf; }
-        .nav-icon { font-size: 18px; font-weight: 300; }
-        .nav-label { font-size: 9px; }
+        .bottom-nav-wrap { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; z-index: 100; pointer-events: none; padding: 0 20px calc(env(safe-area-inset-bottom, 0px)); }
+        .bottom-nav-pill { display: flex; justify-content: space-around; align-items: center; padding: 6px 12px; background: rgba(255,240,248,0.12); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,220,240,0.15); border-radius: 28px; width: 100%; max-width: 320px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .nav-btn { background: none; border: none; color: rgba(180,160,180,0.6); display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 16px; transition: color 0.2s; position: relative; }
+        .nav-btn.active { color: rgba(240,180,200,0.9); }
+        .nav-icon { font-size: 18px; font-weight: 300; display: flex; align-items: center; justify-content: center; }
+        .nav-label { font-size: 9px; font-weight: 500; letter-spacing: 0.3px; }
+        .nav-dot-indicator { width: 4px; height: 4px; border-radius: 50%; background: rgba(240,180,200,0.8); position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); }
 
         .lock-screen { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: url('/wallpaper_lock.jpg') center/cover no-repeat; color: #fff; cursor: pointer; user-select: none; position: relative; }
         .lock-screen::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.15); }
@@ -4015,76 +4018,74 @@ export default function Home() {
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
         .dot.active { width: 16px; background: #c77dba; }
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(160deg, #1c1520 0%, #150f1a 50%, #0f0d14 100%); overflow: hidden; }
-        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 14px 8px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
+        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 14px 80px; display: flex; flex-direction: column; gap: 12px; -webkit-overflow-scrolling: touch; }
 
         /* Dynamic Island */
-        .hs-island { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,240,248,0.1); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.12); border-radius: 28px; cursor: pointer; transition: background 0.2s; }
+        .hs-island { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: rgba(255,240,248,0.1); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,220,240,0.12); border-radius: 28px; cursor: pointer; transition: background 0.2s; }
         .hs-island:active { background: rgba(255,240,248,0.16); }
-        .hs-island-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, rgba(240,180,210,0.3), rgba(200,140,180,0.2)); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 1.5px solid rgba(255,200,220,0.2); }
+        .hs-island-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, rgba(240,180,210,0.3), rgba(200,140,180,0.2)); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 1.5px solid rgba(255,200,220,0.2); }
         .hs-island-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
         .hs-island-info { flex: 1; min-width: 0; }
-        .hs-island-name { font-size: 14px; font-weight: 600; color: rgba(255,240,248,0.9); letter-spacing: 0.5px; }
+        .hs-island-name { font-size: 16px; font-weight: 600; color: rgba(255,240,248,0.9); letter-spacing: 0.5px; }
         .hs-island-status { font-size: 10px; color: rgba(255,200,220,0.5); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
 
         /* Couple bar */
-        .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; background: rgba(255,200,220,0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,200,220,0.1); border-radius: 12px; cursor: pointer; color: rgba(255,200,220,0.6); font-size: 12px; font-weight: 500; letter-spacing: 0.8px; }
+        .hs-couple-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; background: rgba(255,200,220,0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,200,220,0.1); border-radius: 12px; cursor: pointer; color: rgba(255,200,220,0.6); font-size: 13px; font-weight: 500; letter-spacing: 0.8px; }
         .hs-couple-bar:active { background: rgba(255,200,220,0.14); }
         .hs-couple-bar svg { color: rgba(240,160,180,0.7); }
 
         /* Moments card */
-        .hs-card-moments { position: relative; border-radius: 16px; overflow: hidden; height: 130px; cursor: pointer; }
-        .hs-card-moments:active { opacity: 0.9; }
-        .hs-card-moments-bg { position: absolute; inset: 0; }
-        .hs-card-moments-bg img { width: 100%; height: 100%; object-fit: cover; }
-        .hs-card-moments-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.45) 100%); display: flex; align-items: flex-end; padding: 14px 16px; }
-        .hs-card-moments-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); letter-spacing: 1px; }
+        .hs-card-moments { border-radius: 16px; overflow: hidden; cursor: pointer; background: rgba(255,240,248,0.1); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,220,240,0.12); padding: 24px 16px; }
+        .hs-card-moments:active { background: rgba(255,240,248,0.16); }
+        .hs-card-moments-inner { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; color: rgba(255,220,240,0.6); font-weight: 500; letter-spacing: 0.5px; }
+        .hs-card-moments-inner svg { color: rgba(255,200,220,0.5); }
 
         /* Row layout */
         .hs-row { display: flex; align-items: stretch; }
 
         /* Note card */
-        .hs-card-note { flex: 1; padding: 12px 14px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+        .hs-card-note { flex: 1; padding: 16px 16px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
         .hs-card-note:active { background: rgba(255,240,248,0.14); }
         .hs-card-note-label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,200,220,0.5); font-weight: 500; }
         .hs-card-note-label svg { color: rgba(255,200,220,0.4); }
-        .hs-card-note-text { font-size: 12px; color: rgba(255,240,248,0.7); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .hs-card-note-text { font-size: 13px; color: rgba(255,240,248,0.7); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
         /* System button */
-        .hs-btn-system { width: 52px; display: flex; align-items: center; justify-content: center; background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; color: rgba(255,200,220,0.5); }
+        .hs-btn-system { width: 56px; display: flex; align-items: center; justify-content: center; background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; color: rgba(255,200,220,0.5); }
         .hs-btn-system:active { background: rgba(255,240,248,0.12); }
 
         /* Chip row */
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 10px 8px; background: rgba(255,240,248,0.06); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.08); border-radius: 12px; cursor: pointer; font-size: 11px; color: rgba(255,220,240,0.55); font-weight: 500; white-space: nowrap; overflow: hidden; }
+        .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px 10px; background: rgba(255,240,248,0.06); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.08); border-radius: 12px; cursor: pointer; font-size: 12px; color: rgba(255,220,240,0.55); font-weight: 500; white-space: nowrap; overflow: hidden; }
         .hs-chip:active { background: rgba(255,240,248,0.12); }
         .hs-chip svg { flex-shrink: 0; color: rgba(255,200,220,0.4); }
 
         /* Page 2 mini cards */
-        .hs-card-mini { flex: 1; padding: 18px 14px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .hs-card-mini { flex: 1; padding: 24px 14px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .hs-card-mini:active { background: rgba(255,240,248,0.14); }
         .hs-card-mini-icon { color: rgba(255,200,220,0.6); }
         .hs-card-mini-label { font-size: 11px; color: rgba(255,220,240,0.5); font-weight: 500; }
 
         /* Polaroid area */
-        .hs-polaroid-area { background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 16px; padding: 12px 8px 8px; }
-        .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,200,220,0.4); font-weight: 500; letter-spacing: 1px; margin-bottom: 4px; }
+        .hs-polaroid-area { background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 18px; padding: 14px 10px 12px; }
+        .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,200,220,0.4); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
-        .hs-card-diary { padding: 14px 16px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; }
+        .hs-card-diary { padding: 18px 18px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; }
         .hs-card-diary:active { background: rgba(255,240,248,0.14); }
         .hs-card-diary-label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,200,220,0.5); font-weight: 500; margin-bottom: 6px; }
         .hs-card-diary-label svg { color: rgba(255,200,220,0.4); }
         .hs-card-diary-text { font-size: 12px; color: rgba(255,240,248,0.65); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
-        .hs-card-half { flex: 1; padding: 16px 12px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .hs-card-half { flex: 1; padding: 22px 14px; background: rgba(255,240,248,0.08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.1); border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
         .hs-card-half:active { background: rgba(255,240,248,0.14); }
         .hs-card-half-icon { color: rgba(255,200,220,0.6); }
         .hs-card-half-label { font-size: 11px; color: rgba(255,220,240,0.5); font-weight: 500; }
         .hs-card-half-sub { font-size: 9px; color: rgba(255,200,220,0.35); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
-        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px 16px; background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; font-size: 12px; color: rgba(255,220,240,0.5); font-weight: 500; }
+        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 18px 16px; background: rgba(255,240,248,0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,220,240,0.08); border-radius: 14px; cursor: pointer; font-size: 12px; color: rgba(255,220,240,0.5); font-weight: 500; }
         .hs-card-wide:active { background: rgba(255,240,248,0.12); }
         .hs-card-wide svg { color: rgba(255,200,220,0.4); }
 
@@ -4348,8 +4349,8 @@ export default function Home() {
         .customizer-section-title { font-size: 14px; font-weight: 600; color: #333; margin: 4px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #f0e8f0; }
 
         /* Polaroid Photo Wall */
-        .polaroid-wall { display: flex; justify-content: center; align-items: flex-start; gap: 6px; padding: 16px 12px 20px; flex-wrap: wrap; }
-        .polaroid-card { position: relative; width: 30%; background: #fff; border-radius: 3px; padding: 6px 6px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); transition: transform 0.3s; }
+        .polaroid-wall { display: flex; justify-content: center; align-items: flex-start; gap: 8px; padding: 8px 8px 10px; flex-wrap: wrap; }
+        .polaroid-card { position: relative; width: 28%; background: rgba(255,255,255,0.92); border-radius: 4px; padding: 5px 5px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); transition: transform 0.3s; }
         .polaroid-tape { position: absolute; width: 32px; height: 12px; background: rgba(200,220,240,0.6); top: -6px; border-radius: 1px; }
         .tape-left { left: 12px; transform: rotate(-8deg); }
         .tape-center { left: 50%; margin-left: -16px; transform: rotate(3deg); }
