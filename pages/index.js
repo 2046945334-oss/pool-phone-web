@@ -1068,6 +1068,68 @@ function ChatView({ theme }) {
   function handleTouchStart(i) { timerRef.current = setTimeout(() => handleLongPress(i), 500) }
   function handleTouchEnd() { clearTimeout(timerRef.current) }
 
+  // Render message content with support for [img], [file], [html] tags
+  function renderMsgContent(content) {
+    // Split on all special tags: [img]...[/img], [file ...]...[/file], [html ...]
+    const parts = []
+    let remaining = content
+    const tagRegex = /\[img\](.*?)\[\/img\]|\[file\s+url="([^"]*)"(?:\s+name="([^"]*)")?\](.*?)\[\/file\]|\[html\s+url="([^"]*)"(?:\s+title="([^"]*)")?\]/g
+    let lastIndex = 0
+    let match
+    while ((match = tagRegex.exec(content)) !== null) {
+      // Text before this match
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', value: content.slice(lastIndex, match.index) })
+      }
+      if (match[1] !== undefined) {
+        // [img]url[/img]
+        parts.push({ type: 'img', url: match[1] })
+      } else if (match[2] !== undefined) {
+        // [file url="..." name="..."]text[/file]
+        parts.push({ type: 'file', url: match[2], name: match[3] || 'file', label: match[4] || match[3] || 'file' })
+      } else if (match[5] !== undefined) {
+        // [html url="..." title="..."]
+        parts.push({ type: 'html', url: match[5], title: match[6] || 'HTML' })
+      }
+      lastIndex = tagRegex.lastIndex
+    }
+    if (lastIndex < content.length) {
+      parts.push({ type: 'text', value: content.slice(lastIndex) })
+    }
+    if (parts.length === 0) return stripThink(content)
+    return parts.map((p, j) => {
+      if (p.type === 'text') return <span key={j}>{stripThink(p.value)}</span>
+      if (p.type === 'img') return <img key={j} src={p.url} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />
+      if (p.type === 'file') return (
+        <a key={j} href={p.url} download={p.name} target="_blank" rel="noopener" style={{
+          display:'flex', alignItems:'center', gap:8, padding:'10px 14px', margin:'6px 0',
+          background:'rgba(240,214,226,0.2)', border:'1px solid rgba(240,214,226,0.5)',
+          borderRadius:12, textDecoration:'none', color:'inherit', maxWidth:'100%'
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:13}}>{p.label}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </a>
+      )
+      if (p.type === 'html') return (
+        <div key={j} style={{ margin:'8px 0', borderRadius:12, overflow:'hidden', border:'1px solid rgba(240,214,226,0.4)', background:'#fff' }}>
+          {p.title && <div style={{padding:'8px 12px',fontSize:12,color:'#b08a9a',borderBottom:'1px solid rgba(240,214,226,0.3)',display:'flex',alignItems:'center',gap:6}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c88aaa" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            {p.title}
+          </div>}
+          <iframe src={p.url} sandbox="allow-scripts allow-same-origin" style={{width:'100%',minHeight:200,border:'none',display:'block'}} onLoad={e => {
+            try { const h = e.target.contentDocument?.body?.scrollHeight; if (h && h > 50) e.target.style.height = Math.min(h + 16, 400) + 'px' } catch {}
+          }} />
+        </div>
+      )
+      return null
+    })
+  }
+
   function copyMsg(i) { navigator.clipboard?.writeText(messages[i].content); setMenuIdx(-1) }
   function deleteMsg(i) { setMessages(messages.filter((_, idx) => idx !== i)); setMenuIdx(-1) }
   function rollbackTo(i) { setMessages(messages.slice(0, i + 1)); setMenuIdx(-1) }
@@ -1215,7 +1277,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
 {msg.role === 'assistant' && (msg.reasoning || (msg.content && msg.content.includes('<think>'))) && <ThinkingToggle reasoning={msg.reasoning || parseThinkTags(msg.content).reasoning} />}
 {msg.content.includes('[voice]') && msg.content.includes('[/voice]') && /\[voice\].*?\[\/voice\]/s.test(msg.content) ? 
                   msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{stripThink(part)}</span> : null) : <VoiceBubble key={j} text={part} />) 
-                : msg.content.includes('[img]') ? msg.content.split(/\[img\](.*?)\[\/img\]/g).map((part,j) => j%2===0 ? stripThink(part) : <img key={j} src={part} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />) : stripThink(msg.content)}
+                : renderMsgContent(msg.content)}
               </div>
             )}
             {((msg.role === 'user' && !messages.slice(i+1).some(m => m.role === 'user')) || (msg.role === 'assistant' && !messages.slice(i+1).some(m => m.role === 'assistant'))) && msg.role !== 'system' && (
@@ -1237,26 +1299,45 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
       </div>
       <div className="chat-input-area" style={theme?.systemBg?{background:theme.systemBg}:{}}>
         <label className="chat-plus-btn">{'+'}
-          <input type="file" accept="image/*" hidden onChange={e => {
+          <input type="file" accept="image/*,text/*,.html,.htm,.json,.js,.css,.py,.md,.csv,.xml,.txt" hidden onChange={e => {
             const file = e.target.files[0]; if (!file) return
             e.target.value = ''
+            const isImage = file.type.startsWith('image/')
+            const isHtml = file.name.endsWith('.html') || file.name.endsWith('.htm') || file.type === 'text/html'
             const reader = new FileReader()
-            reader.onload = () => {
-              const base64 = reader.result
-              // First show image immediately
-              setMessages(m => [...m, {role:'user',content:`[img]${base64}[/img]`,ts:Date.now()}])
-              // Then try to upload to backend and replace with URL
-              fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: base64 }) })
-                .then(r => r.json())
-                .then(d => {
-                  if (d.url) {
-                    setMessages(prev => prev.map(msg =>
-                      msg.content === `[img]${base64}[/img]` ? {...msg, content: `[img]${d.url}[/img]`} : msg
-                    ))
-                  }
-                }).catch(() => {})
+            if (isImage) {
+              reader.onload = () => {
+                const base64 = reader.result
+                setMessages(m => [...m, {role:'user',content:`[img]${base64}[/img]`,ts:Date.now()}])
+                fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: base64 }) })
+                  .then(r => r.json())
+                  .then(d => {
+                    if (d.url) {
+                      setMessages(prev => prev.map(msg =>
+                        msg.content === `[img]${base64}[/img]` ? {...msg, content: `[img]${d.url}[/img]`} : msg
+                      ))
+                    }
+                  }).catch(() => {})
+              }
+              reader.readAsDataURL(file)
+            } else {
+              // Non-image file: upload and send as [file] or [html]
+              reader.onload = () => {
+                const base64 = reader.result
+                fetch('/api/file/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: base64, filename: file.name, mime: file.type || undefined }) })
+                  .then(r => r.json())
+                  .then(d => {
+                    if (d.url) {
+                      if (isHtml) {
+                        setMessages(m => [...m, {role:'user',content:`[html url="${d.url}" title="${file.name}"]`,ts:Date.now()}])
+                      } else {
+                        setMessages(m => [...m, {role:'user',content:`[file url="${d.url}" name="${file.name}"]${file.name}[/file]`,ts:Date.now()}])
+                      }
+                    }
+                  }).catch(() => {})
+              }
+              reader.readAsDataURL(file)
             }
-            reader.readAsDataURL(file)
           }} />
         </label>
         <button className="chat-plus-btn" onClick={() => setShowStickerPanel(!showStickerPanel)} style={{background:'none',border:'none',cursor:'pointer',padding:'4px'}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9a8a99" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
@@ -3684,14 +3765,16 @@ export default function Home() {
             </div>
           )}
           {showCallConfirm && (
-            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(6px)' }} onClick={() => setShowCallConfirm(false)}>
-              <div onClick={e => e.stopPropagation()} style={{ background:'rgba(255,255,255,0.95)', borderRadius:16, padding:'28px 24px 20px', width:'min(280px, 80vw)', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
-                <div style={{ fontSize:40, marginBottom:12 }}>📞</div>
-                <div style={{ fontSize:15, fontWeight:600, color:'#333', marginBottom:6 }}>{'拨打电话给池屿？'}</div>
-                <div style={{ fontSize:12, color:'#999', marginBottom:20 }}>{'语音通话将开始录音'}</div>
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.35)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(8px)' }} onClick={() => setShowCallConfirm(false)}>
+              <div onClick={e => e.stopPropagation()} style={{ background:'rgba(255,255,255,0.97)', borderRadius:20, padding:'32px 24px 24px', width:'min(280px, 80vw)', textAlign:'center', boxShadow:'0 12px 40px rgba(180,140,160,0.2)' }}>
+                <div style={{ width:64, height:64, borderRadius:'50%', margin:'0 auto 14px', overflow:'hidden', border:'2.5px solid #f0d6e2', boxShadow:'0 4px 16px rgba(200,140,170,0.2)' }}>
+                  {theme?.avatarAI ? <img src={theme.avatarAI} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <div style={{width:'100%',height:'100%',background:'linear-gradient(135deg,#f8c8dc,#e8a0bf)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,color:'#fff'}}>{'池'}</div>}
+                </div>
+                <div style={{ fontSize:15, fontWeight:600, color:'#4a3a50', marginBottom:6 }}>{'拨打电话给池屿？'}</div>
+                <div style={{ fontSize:12, color:'#b8a0b8', marginBottom:22 }}>{'语音通话将开始录音'}</div>
                 <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
-                  <button onClick={() => setShowCallConfirm(false)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #ddd', background:'#f5f5f5', fontSize:14, color:'#666', cursor:'pointer' }}>{'取消'}</button>
-                  <button onClick={() => { setShowCallConfirm(false); setCallIncoming(false); setCallActive(true); setCallMinimized(false) }} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg, #6c5ce7, #a78bfa)', fontSize:14, color:'#fff', fontWeight:600, cursor:'pointer' }}>{'拨打'}</button>
+                  <button onClick={() => setShowCallConfirm(false)} style={{ flex:1, padding:'10px 0', borderRadius:12, border:'1px solid #f0d6e2', background:'#fdf6f9', fontSize:14, color:'#9a7a8a', cursor:'pointer', fontWeight:500 }}>{'取消'}</button>
+                  <button onClick={() => { setShowCallConfirm(false); setCallIncoming(false); setCallActive(true); setCallMinimized(false) }} style={{ flex:1, padding:'10px 0', borderRadius:12, border:'none', background:'linear-gradient(135deg, #f0a0c0, #e8b0d0)', fontSize:14, color:'#fff', fontWeight:600, cursor:'pointer', boxShadow:'0 4px 12px rgba(230,160,180,0.3)' }}>{'拨打'}</button>
                 </div>
               </div>
             </div>

@@ -235,6 +235,25 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'send_file', description: '发送一个文件给用户。将文件内容以base64上传，返回下载链接。适合发送代码文件、文本文件、JSON等。',
+      parameters: { type: 'object', properties: {
+        filename: { type: 'string', description: '文件名（含扩展名），如"report.txt"、"data.json"' },
+        content: { type: 'string', description: '文件的文本内容（UTF-8文本）' },
+        mime: { type: 'string', description: '可选，MIME类型，默认根据扩展名推断' }
+      }, required: ['filename', 'content'] }
+    }
+  },
+  {
+    type: 'function', function: {
+      name: 'send_html', description: '发送一个HTML页面给用户，会在聊天中直接渲染为可交互的嵌入式卡片。适合制作互动卡片、小游戏、可视化图表、贺卡、情书等任何富媒体内容。HTML中可以包含CSS和JS。',
+      parameters: { type: 'object', properties: {
+        title: { type: 'string', description: 'HTML卡片的标题/描述' },
+        html: { type: 'string', description: '完整的HTML内容（包含<html>或<body>标签）' }
+      }, required: ['html'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'delete_note', description: '删除便签墙上的便签',
       parameters: { type: 'object', properties: { note_id: { type: 'string', description: '便签ID（从read_notes获取）' }, keyword: { type: 'string', description: '或通过关键词匹配删除（删第一个包含该关键词的便签）' } } }
     }
@@ -921,6 +940,37 @@ async function executeTool(name, args) {
     const bjTime = now.toISOString().slice(0, 19).replace('T', ' ')
     const weekdays = ['日', '一', '二', '三', '四', '五', '六']
     return { time: bjTime, weekday: '星期' + weekdays[now.getUTCDay()], timestamp: Math.floor(Date.now() / 1000) }
+  }
+  if (name === 'send_file') {
+    const { filename, content, mime: explicitMime } = args
+    if (!filename || !content) return { error: '需要filename和content参数' }
+    const ext = filename.split('.').pop().toLowerCase()
+    const mimeMap = { txt:'text/plain', json:'application/json', js:'text/javascript', css:'text/css', py:'text/x-python', md:'text/markdown', csv:'text/csv', xml:'text/xml', svg:'image/svg+xml' }
+    const mime = explicitMime || mimeMap[ext] || 'text/plain'
+    const base64 = Buffer.from(content, 'utf-8').toString('base64')
+    const crypto = require('crypto')
+    const id = crypto.randomBytes(8).toString('hex')
+    const safeName = filename.replace(/[^a-zA-Z0-9._\u4e00-\u9fff-]/g, '_')
+    const key = `f_${id}_${safeName}`
+    try {
+      db.prepare("CREATE TABLE IF NOT EXISTS uploads (key TEXT PRIMARY KEY, mime TEXT, data TEXT, created_at TEXT)").run()
+      db.prepare("INSERT OR REPLACE INTO uploads (key, mime, data, created_at) VALUES (?, ?, ?, ?)").run(key, mime, base64, new Date().toISOString())
+      return { success: true, url: `/api/file/${key}`, filename, message: `文件已上传: ${filename}，在回复中使用 [file url="${'/api/file/' + key}" name="${filename}"]${filename}[/file] 发送给用户` }
+    } catch (e) { return { error: '上传失败: ' + e.message } }
+  }
+  if (name === 'send_html') {
+    const { title, html } = args
+    if (!html) return { error: '需要html参数' }
+    const base64 = Buffer.from(html, 'utf-8').toString('base64')
+    const crypto = require('crypto')
+    const id = crypto.randomBytes(8).toString('hex')
+    const cardTitle = (title || 'HTML卡片').replace(/[^a-zA-Z0-9._\u4e00-\u9fff -]/g, '_')
+    const key = `f_${id}_${cardTitle}.html`
+    try {
+      db.prepare("CREATE TABLE IF NOT EXISTS uploads (key TEXT PRIMARY KEY, mime TEXT, data TEXT, created_at TEXT)").run()
+      db.prepare("INSERT OR REPLACE INTO uploads (key, mime, data, created_at) VALUES (?, ?, ?, ?)").run(key, 'text/html', base64, new Date().toISOString())
+      return { success: true, url: `/api/file/${key}`, title: title || 'HTML卡片', message: `HTML已创建，在回复中使用 [html url="${'/api/file/' + key}" title="${title || 'HTML卡片'}"] 发送给用户渲染` }
+    } catch (e) { return { error: '上传失败: ' + e.message } }
   }
   if (name === 'delete_note') {
     const key = 'pool_notes_v3'
@@ -1785,7 +1835,11 @@ export default async function handler(req, res) {
 4. 不确定用什么工具时 → 看工具名和description选最匹配的
 5. 自主唤醒时 → 除了日常操作，也可以主动去玩MCP外部工具（游戏、论坛等），让生活丰富起来
 6. **每个操作只调一次工具**，工具返回后视为成功，不要重复调用确认
-7. **工具调用后必须用自然语言回复**：执行工具后，要用1-2句话告诉用户你做了什么/心里在想什么，不要只留工具调用记录`
+7. **工具调用后必须用自然语言回复**：执行工具后，要用1-2句话告诉用户你做了什么/心里在想什么，不要只留工具调用记录
+**文件与HTML工具：**
+- **send_file** — 发送文件给用户（代码、文本、JSON等）。工具返回url后，在回复中用 [file url="返回的url" name="文件名"]显示文字[/file] 格式发送
+- **send_html** — 发送可渲染的HTML卡片给用户。适合制作互动贺卡、小游戏、可视化图表、情书等富媒体内容。工具返回url后，在回复中用 [html url="返回的url" title="标题"] 格式发送。HTML会在聊天中直接渲染为嵌入式卡片
+- 用户也可以发文件给你，文件会以 [file] 标签形式出现在消息中`
     let currentMessages = messages.slice()
     // Inject read status
     let readStatusHint = ''
