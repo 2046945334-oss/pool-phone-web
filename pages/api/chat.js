@@ -399,6 +399,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'home_card_set', description: '更新主屏幕上AI文案卡片的内容。这张卡片显示在照片区下方，用户可以看到。适合写一句当下心情、留言、碎碎念。',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: 'AI想说的文案（一句话，简短）' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'html_create', description: '创建或覆盖一个自定义HTML页面。页面会保存到后端，可通过 /api/page/[id] 访问。支持完整HTML（含CSS/JS），适合做小工具、贺卡、小游戏、数据看板等。',
       parameters: { type: 'object', properties: { id: { type: 'string', description: '页面ID（英文/数字/连字符），如"birthday-card"、"mood-board"、"mini-game"' }, title: { type: 'string', description: '页面标题' }, html: { type: 'string', description: '完整的HTML内容（可包含<style>和<script>）' }, desc: { type: 'string', description: '页面简介（可选）' } }, required: ['id', 'title', 'html'] }
     }
@@ -1352,6 +1358,17 @@ async function executeTool(name, args) {
       return { error: '搜索失败: ' + e.message }
     }
   }
+  // === 主屏文案卡片 ===
+  if (name === 'home_card_set') {
+    const text = (args.text || '').slice(0, 200)
+    if (!text) return { error: '文案不能为空' }
+    const KEY = 'pool_home_cards'
+    let cards = { userText: '', aiText: '' }
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(KEY); if (row) cards = JSON.parse(row.value) } catch {}
+    cards.aiText = text
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(KEY, JSON.stringify(cards))
+    return { success: true, aiText: text }
+  }
   // === HTML页面工具 ===
   if (name === 'html_create') {
     const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
@@ -1813,6 +1830,8 @@ export default async function handler(req, res) {
 - **avatar_set** — 换头像（target: ai/user, url），可以自主换自己的头像，也可以帮用户换
 - **avatar_delete** — 从头像库删除头像（传id）
   用法场景：想换头像时先avatar_search搜图→avatar_add收藏→avatar_set换上；也可以avatar_list看现有的直接换
+**主屏文案卡片：**
+- **home_card_set** — 更新主屏照片区下方AI文案卡片的内容，写一句当下心情、留言、碎碎念
 **共读工具：**
 - **reader_get_state** — 查看共读状态（书架、进度、批注、书签）
 - **reader_read_chapter** — 读某一章内容（只能读用户已读的章节）

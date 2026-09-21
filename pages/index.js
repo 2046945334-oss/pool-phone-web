@@ -3396,6 +3396,9 @@ function HomeScreen({ onOpenApp, theme }) {
   const [latestNote, setLatestNote] = useState(null)
   const [latestDiary, setLatestDiary] = useState(null)
   const [wakeLog, setWakeLog] = useState(null)
+  const [homeCards, setHomeCards] = useState({ userText: '', aiText: '' })
+  const [editingUserCard, setEditingUserCard] = useState(false)
+  const [userCardDraft, setUserCardDraft] = useState('')
 
   useEffect(() => {
     let active = true
@@ -3420,6 +3423,13 @@ function HomeScreen({ onOpenApp, theme }) {
     // fetch wake log
     fetch('/api/data/pool_wake_log_latest').then(r=>r.json()).then(d=>{
       if(active && d && d.value) setWakeLog(d.value)
+    }).catch(()=>{})
+    // fetch home cards
+    fetch('/api/data/pool_home_cards').then(r=>r.json()).then(d=>{
+      if(active && d && d.value) {
+        const v = typeof d.value === 'string' ? JSON.parse(d.value) : d.value
+        setHomeCards(prev => ({ ...prev, ...v }))
+      }
     }).catch(()=>{})
     return () => { active = false; clearInterval(iv) }
   }, [])
@@ -3556,6 +3566,31 @@ function HomeScreen({ onOpenApp, theme }) {
                 {theme?.polaroid3 ? <img src={theme.polaroid3} className="polaroid-img" alt="" /> : <div className="polaroid-empty">{'+'}</div>}
                 <div className="polaroid-caption">{theme?.polaroidCaption3 || ''}</div>
               </div>
+            </div>
+          </div>
+
+          {/* User & AI word cards */}
+          <div className="home-word-card user-word-card" onClick={() => { if (!editingUserCard) { setUserCardDraft(homeCards.userText || ''); setEditingUserCard(true) } }}>
+            <div className="word-card-avatar">
+              {theme?.avatarUser ? <img src={theme.avatarUser} className="word-card-ava-img" alt="" /> : <div className="word-card-ava-fallback">{'\u6211'}</div>}
+            </div>
+            <div className="word-card-text">
+              {editingUserCard ? (
+                <form onSubmit={e => { e.preventDefault(); const next = { ...homeCards, userText: userCardDraft }; setHomeCards(next); setEditingUserCard(false); fetch('/api/data/pool_home_cards', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ value: next }) }) }} style={{display:'flex',gap:4,width:'100%'}}>
+                  <input className="word-card-input" value={userCardDraft} onChange={e => setUserCardDraft(e.target.value)} autoFocus placeholder={'\u5199\u70b9\u4ec0\u4e48...'} />
+                  <button type="submit" className="word-card-save">{'\u2713'}</button>
+                </form>
+              ) : (
+                <span className="word-card-content">{homeCards.userText || '\u70b9\u51fb\u7f16\u8f91\u6587\u6848...'}</span>
+              )}
+            </div>
+          </div>
+          <div className="home-word-card ai-word-card">
+            <div className="word-card-text" style={{textAlign:'right'}}>
+              <span className="word-card-content">{homeCards.aiText || '\u2026'}</span>
+            </div>
+            <div className="word-card-avatar">
+              {theme?.avatarAI ? <img src={theme.avatarAI} className="word-card-ava-img" alt="" /> : <div className="word-card-ava-fallback">{'\u6c60'}</div>}
             </div>
           </div>
 
@@ -4058,6 +4093,15 @@ export default function Home() {
 
         /* Chip row */
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,240,248,0.10); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,220,240,0.15); border-radius: 14px; }
+        .word-card-avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(255,220,240,0.3); }
+        .word-card-ava-img { width: 100%; height: 100%; object-fit: cover; }
+        .word-card-ava-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,220,240,0.15); color: rgba(255,255,255,0.6); font-size: 13px; }
+        .word-card-text { flex: 1; min-width: 0; }
+        .word-card-content { font-size: 12.5px; color: rgba(255,255,255,0.75); line-height: 1.5; word-break: break-all; }
+        .word-card-input { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,220,240,0.2); border-radius: 8px; padding: 4px 8px; font-size: 12px; color: #fff; outline: none; }
+        .word-card-save { background: rgba(255,180,220,0.25); border: 1px solid rgba(255,220,240,0.3); border-radius: 6px; color: #fff; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+        .user-word-card { cursor: pointer; }
         .hs-chip { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px 10px; background: rgba(255,240,248,0.12); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.15); border-radius: 12px; cursor: pointer; font-size: 12px; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; }
         .hs-chip:active { background: rgba(255,240,248,0.12); }
         .hs-chip svg { flex-shrink: 0; color: rgba(255,255,255,0.7); }
