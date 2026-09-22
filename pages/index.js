@@ -4057,8 +4057,15 @@ export default function Home() {
             <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.9)', zIndex:10000, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }} onClick={() => setImgPreview(null)}>
               <img src={imgPreview} style={{ maxWidth:'96vw', maxHeight:'80vh', objectFit:'contain', borderRadius:4 }} onClick={e => e.stopPropagation()} />
               <div style={{ display:'flex', gap:20, marginTop:20 }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => {
-                  const a = document.createElement('a'); a.href = imgPreview; a.download = 'image_' + Date.now() + '.png'; a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a)
+                <button onClick={async () => {
+                  try {
+                    const downloadUrl = '/api/img-download?url=' + encodeURIComponent(imgPreview)
+                    const a = document.createElement('a')
+                    a.href = downloadUrl; a.download = 'chi_image_' + Date.now() + '.png'
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+                  } catch (e) {
+                    window.open(imgPreview, '_blank')
+                  }
                 }} style={{ padding:'10px 28px', borderRadius:20, border:'none', background:'rgba(255,255,255,0.15)', color:'#fff', fontSize:14, cursor:'pointer', backdropFilter:'blur(4px)' }}>{'⬇ 保存图片'}</button>
                 <button onClick={() => setImgPreview(null)} style={{ padding:'10px 28px', borderRadius:20, border:'1px solid rgba(255,255,255,0.3)', background:'transparent', color:'#fff', fontSize:14, cursor:'pointer' }}>{'✕ 关闭'}</button>
               </div>
