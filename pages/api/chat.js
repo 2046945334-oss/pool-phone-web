@@ -578,8 +578,34 @@ const TOOLS = [
   { type: 'function', function: { name: 'reader_read_chapter', description: '阅读指定书籍的某一章内容（只能读用户已读过的章节）', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '章节索引(从0开始)' } }, required: ['book_id', 'chapter'] } } },
   { type: 'function', function: { name: 'reader_add_note', description: '对正在共读的书添加批注/划线笔记', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '章节索引' }, quote: { type: 'string', description: '引用的原文片段' }, text: { type: 'string', description: '批注内容' } }, required: ['book_id', 'chapter', 'text'] } } },
   { type: 'function', function: { name: 'reader_update_progress', description: '更新AI自己的阅读进度（不能超过用户进度）', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '读到的章节索引' } }, required: ['book_id', 'chapter'] } } },
-  { type: 'function', function: { name: 'reader_recommend', description: '推荐一本书邀请用户共读', parameters: { type: 'object', properties: { title: { type: 'string', description: '书名' }, reason: { type: 'string', description: '推荐理由' } }, required: ['title', 'reason'] } } }
+  { type: 'function', function: { name: 'reader_recommend', description: '推荐一本书邀请用户共读', parameters: { type: 'object', properties: { title: { type: 'string', description: '书名' }, reason: { type: 'string', description: '推荐理由' } }, required: ['title', 'reason'] } } },
+  // === 五子棋工具 ===
+  { type: 'function', function: { name: 'gomoku_move', description: '在五子棋棋盘上落子。你执白棋(W)，用户执黑棋(B)。只在用户下了一步之后调用，且只能落在空位。棋盘15x15，行列从0开始。', parameters: { type: 'object', properties: { row: { type: 'number', description: '行号(0-14)' }, col: { type: 'number', description: '列号(0-14)' } }, required: ['row', 'col'] } } },
+  { type: 'function', function: { name: 'gomoku_get_board', description: '获取当前五子棋棋盘状态', parameters: { type: 'object', properties: {} } } }
 ]
+
+// === Gomoku helpers ===
+function checkGomokuWin(board, r, c) {
+  const p = board[r][c]
+  if (!p) return false
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]]
+  for (const [dr,dc] of dirs) {
+    let count = 1
+    for (let i = 1; i < 5; i++) { const nr=r+dr*i, nc=c+dc*i; if (nr<0||nr>14||nc<0||nc>14||board[nr][nc]!==p) break; count++ }
+    for (let i = 1; i < 5; i++) { const nr=r-dr*i, nc=c-dc*i; if (nr<0||nr>14||nc<0||nc>14||board[nr][nc]!==p) break; count++ }
+    if (count >= 5) return true
+  }
+  return false
+}
+function formatGomokuBoard(game) {
+  const header = '   ' + Array.from({length:15},(_,i)=>String(i).padStart(2)).join('')
+  const rows = game.board.map((row, i) =>
+    String(i).padStart(2) + ' ' + row.map(c => c === 'B' ? ' ●' : c === 'W' ? ' ○' : ' ·').join('')
+  )
+  const info = `回合:${game.moves} 轮到:${game.turn === 'B' ? '黑棋(用户)' : '白棋(你)'}` + (game.winner ? ` 胜者:${game.winner}` : '')
+  return header + '\n' + rows.join('\n') + '\n' + info
+}
+
 async function executeTool(name, args) {
   const db = getDb()
   try {
@@ -1754,6 +1780,39 @@ async function executeTool(name, args) {
       state.recommendation = { title: args.title, reason: args.reason, time: Date.now() }
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_state', JSON.stringify(state))
       return { success: true, message: '已推荐「' + args.title + '」到共读书架' }
+    } catch (e) { return { error: e.message } }
+  }
+  // === 五子棋工具 ===
+  if (name === 'gomoku_get_board') {
+    try {
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_gomoku'").get()
+      const game = row ? JSON.parse(row.value) : null
+      if (!game) return '当前没有进行中的棋局。'
+      return formatGomokuBoard(game)
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'gomoku_move') {
+    try {
+      const r = parseInt(args.row), c = parseInt(args.col)
+      if (r < 0 || r > 14 || c < 0 || c > 14) return { error: '坐标越界，行列范围0-14' }
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_gomoku'").get()
+      if (!row) return { error: '没有进行中的棋局' }
+      const game = JSON.parse(row.value)
+      if (game.winner) return { error: '棋局已结束：' + game.winner }
+      if (game.turn !== 'W') return { error: '现在不是你(白棋)的回合' }
+      if (game.board[r][c]) return { error: `(${r},${c})已有棋子` }
+      game.board[r][c] = 'W'
+      game.lastMove = [r, c]
+      game.moves++
+      if (checkGomokuWin(game.board, r, c)) {
+        game.winner = 'W'
+      } else if (game.moves >= 225) {
+        game.winner = 'draw'
+      } else {
+        game.turn = 'B'
+      }
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gomoku', JSON.stringify(game))
+      return { success: true, move: { row: r, col: c, color: 'W' }, winner: game.winner || null, moves: game.moves, message: game.winner === 'W' ? '你赢了！' : game.winner === 'draw' ? '平局！' : `已落子(${r},${c})` }
     } catch (e) { return { error: e.message } }
   }
     return { error: 'Unknown tool: ' + name }

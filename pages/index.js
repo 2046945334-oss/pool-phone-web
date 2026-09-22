@@ -797,11 +797,6 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     if (hasReading) {
       parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻了几页后，偶尔会把内容发给你。你不需要每次都回应——大多数时候安静陪读就好。只在真正觉得内容有意思、有感触、想讨论的时候才开口。如果没什么想说的，就回复"[无话]"跳过。不要为了说话而说话，不要每次都评论，安静也是陪伴。偶尔冒出一句才自然。' })
     }
-    // Game co-play mode prompt
-    const hasGame = userMessages.some(m => m.isGameSync)
-    if (hasGame) {
-      parts.push({ role: 'system', content: '[游戏小窗模式] 用户正在小窗里边玩五子棋边和你聊天。你们在同一个棋盘上对弈或观战。可以评论棋局、讨论策略、吐槽走法、或者随便聊天。保持自然，像朋友一起下棋的氛围。如果用户没说什么，就回复"[无话]"跳过。' })
-    }
     return parts
   }
 
@@ -844,46 +839,6 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     }
     window.addEventListener('reader-page-change', onPageChange)
     return () => window.removeEventListener('reader-page-change', onPageChange)
-  }, [])
-
-  // Listen for game events from mini game window
-  const gameAccumRef = useRef({ moves: [], lastTrigger: 0 })
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    function onGameEvent(e) {
-      const { game, type, winner, moves, color, row, col } = e.detail
-      const accum = gameAccumRef.current
-      const now = Date.now()
-      if (type === 'win' || type === 'draw') {
-        const summary = type === 'win'
-          ? `[游戏小窗] 五子棋结束！${winner === 'black' ? '黑棋' : '白棋'}赢了，共${moves}手。`
-          : `[游戏小窗] 五子棋平局！下了${moves}手。`
-        accum.moves = []
-        accum.lastTrigger = now
-        const gameMsg = { role: 'user', content: summary, ts: now, isGameSync: true }
-        setMessages(prev => {
-          const next = [...prev, gameMsg]
-          setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
-          return next
-        })
-      } else if (type === 'move') {
-        accum.moves.push({ color, row, col })
-        // Trigger AI commentary every ~8 moves with 30% chance, 30s cooldown
-        if (accum.moves.length >= 8 && now - accum.lastTrigger > 30000 && Math.random() < 0.3) {
-          const moveSummary = accum.moves.map(m => `${m.color === 'black' ? '⚫' : '⚪'}(${m.row},${m.col})`).join(' → ')
-          accum.moves = []
-          accum.lastTrigger = now
-          const gameMsg = { role: 'user', content: `[游戏小窗] 五子棋进行中，最近几手：${moveSummary}`, ts: now, isGameSync: true }
-          setMessages(prev => {
-            const next = [...prev, gameMsg]
-            setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
-            return next
-          })
-        }
-      }
-    }
-    window.addEventListener('game-event', onGameEvent)
-    return () => window.removeEventListener('game-event', onGameEvent)
   }, [])
     async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
