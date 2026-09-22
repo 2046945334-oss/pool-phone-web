@@ -3591,14 +3591,7 @@ function HomeScreen({ onOpenApp, theme }) {
             <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
             <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
           </div>
-          {/* Today mood strip */}
-          <div className="hs-mood-strip" onClick={() => onOpenApp('care')}>
-            <SvgLeaf />
-            <span className="hs-mood-label">{'today'}</span>
-            <span className="hs-mood-val">{careMoods.ai || '❤️'}</span>
-            <span className="hs-mood-sep">{'/'}</span>
-            <span className="hs-mood-val">{careMoods.user || '❤️'}</span>
-          </div>
+
           {/* Garden preview strip */}
           <div className="hs-garden-strip" onClick={() => onOpenApp('garden')}>
             <SvgLeaf />
@@ -4205,8 +4198,8 @@ export default function Home() {
         .hs-btn-system:active { background: rgba(255,240,248,0.12); }
 
         /* Chip row */
-        .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(255,240,245,0.85); border: 1px solid rgba(255,215,230,0.5); border-radius: 16px; margin-bottom: 8px; }
+        .hs-chip-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .home-word-card { display: flex; align-items: center; gap: 10px; padding: 16px 18px; background: rgba(255,240,245,0.85); border: 1px solid rgba(255,215,230,0.5); border-radius: 16px; margin-bottom: 8px; }
         .home-word-card.ai-word-card { text-align: right; }
         .hs-half-pill.hs-weather-pill { flex: 4; }
         .hs-half-pill { flex: 6; display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-radius: 14px; color: #5a3a4a; font-size: 12px; cursor: pointer; justify-content: center; }
@@ -4227,18 +4220,18 @@ export default function Home() {
         .word-card-input { flex: 1; background: rgba(255,250,252,0.6); border: 1px solid rgba(235,200,215,0.5); border-radius: 8px; padding: 4px 8px; font-size: 12px; color: #4a2a3a; outline: none; }
         .word-card-save { background: rgba(240,180,200,0.5); border: 1px solid rgba(225,170,195,0.5); border-radius: 6px; color: #5a3a4a; padding: 4px 10px; font-size: 12px; cursor: pointer; }
         .user-word-card { cursor: pointer; }
-        .hs-chip { display: flex; align-items: center; gap: 4px; padding: 8px 14px; background: rgba(250,240,245,0.85); border: 1px solid rgba(235,215,225,0.5); border-radius: 20px; font-size: 12px; color: #6a4a5a; cursor: pointer; }
+        .hs-chip { display: flex; align-items: center; gap: 6px; padding: 10px 18px; background: rgba(250,240,245,0.85); border: 1px solid rgba(235,215,225,0.5); border-radius: 20px; font-size: 12px; color: #6a4a5a; cursor: pointer; }
         .hs-chip:active { background: rgba(255,240,248,0.12); }
         .hs-chip svg { flex-shrink: 0; color: rgba(255,255,255,0.7); }
 
         /* Page 2 mini cards */
-        .hs-card-mini { flex: 1; padding: 20px 16px; background: rgba(255,235,242,0.85); border: 1px solid rgba(255,215,228,0.5); border-radius: 16px; text-align: center; cursor: pointer; }
+        .hs-card-mini { flex: 1; padding: 28px 16px; background: rgba(255,235,242,0.85); border: 1px solid rgba(255,215,228,0.5); border-radius: 16px; text-align: center; cursor: pointer; }
         .hs-card-mini:active { background: rgba(255,240,248,0.14); }
         .hs-card-mini-icon { color: #fff; }
         .hs-card-mini-label { font-size: 12px; color: #fff; font-weight: 500; }
 
         /* Polaroid area */
-        .hs-polaroid-area { padding: 14px; background: transparent; border: none; border-radius: 16px; }
+        .hs-polaroid-area { margin: 4px 0; padding: 14px; background: transparent; border: none; border-radius: 16px; }
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
@@ -4248,13 +4241,13 @@ export default function Home() {
         .hs-card-diary-label svg { color: rgba(255,255,255,0.7); }
         .hs-card-diary-text { font-size: 12px; color: #6a4a5a; line-height: 1.3; }
 
-        .hs-card-half { flex: 1; padding: 20px 16px; background: rgba(255,235,242,0.85); border: 1px solid rgba(255,215,228,0.5); border-radius: 16px; text-align: center; cursor: pointer; }
+        .hs-card-half { flex: 1; padding: 28px 16px; background: rgba(255,235,242,0.85); border: 1px solid rgba(255,215,228,0.5); border-radius: 16px; text-align: center; cursor: pointer; }
         .hs-card-half:active { background: rgba(255,240,248,0.14); }
         .hs-card-half-icon { color: #fff; }
         .hs-card-half-label { font-size: 12px; color: #fff; font-weight: 500; }
         .hs-card-half-sub { font-size: 10px; color: rgba(255,255,255,0.6); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
-        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 22px 16px; background: rgba(255,240,248,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.06); border-radius: 14px; cursor: pointer; font-size: 13px; color: #fff; font-weight: 500; }
+        .hs-card-wide { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 28px 16px; background: rgba(255,240,248,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,220,240,0.06); border-radius: 14px; cursor: pointer; font-size: 13px; color: #fff; font-weight: 500; }
         .hs-card-wide:active { background: rgba(255,240,248,0.12); }
         .hs-card-wide svg { color: rgba(255,255,255,0.7); }
 
