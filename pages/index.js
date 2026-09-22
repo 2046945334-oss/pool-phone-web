@@ -3691,7 +3691,7 @@ function HomeScreen({ onOpenApp, theme }) {
         {page === 2 && (<>
 
           {/* Diary card */}
-          <div className="hs-card-diary" onClick={() => onOpenApp('diary')}>
+          <div className="hs-card-diary" style={{marginBottom:8}} onClick={() => onOpenApp('diary')}>
             <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
             <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
           </div>
@@ -3722,7 +3722,6 @@ function HomeScreen({ onOpenApp, theme }) {
             <div className="hs-chip" onClick={() => onOpenApp('screenTime')}><SvgClock /><span>{'screen time'}</span></div>
           </div>
 
-          </div>
         </>)}
 
       </div>
@@ -4138,7 +4137,7 @@ export default function Home() {
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
         .dot.active { width: 16px; background: #c77dba; }
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(160deg, #1c1520 0%, #150f1a 50%, #0f0d14 100%); overflow: hidden; }
-        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 68px; display: flex; flex-direction: column; gap: 6px; -webkit-overflow-scrolling: touch; }
+        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 68px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
 
         /* Dynamic Island */
         .hs-island { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 10px; background: rgba(255,230,245,0.40); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,220,240,0.30); border-radius: 22px; cursor: pointer; transition: all 0.3s cubic-bezier(.4,0,.2,1); box-shadow: 0 2px 12px rgba(200,125,186,0.15); }
