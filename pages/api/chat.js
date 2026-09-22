@@ -399,6 +399,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'generate_image', description: '生成一张图片。当她想看你画的画、想看某个场景、或你想用图片表达感情时调用。',
+      parameters: { type: 'object', properties: { prompt: { type: 'string', description: '英文图片描述，尽量具体（人物/场景/光线/风格/构图）' }, size: { type: 'string', enum: ['1024x1024', '1024x1792', '1792x1024'], description: '尺寸，默认1024x1024' } }, required: ['prompt'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'home_card_set', description: '更新主屏幕上AI文案卡片的内容。这张卡片显示在照片区下方，用户可以看到。适合写一句当下心情、留言、碎碎念。',
       parameters: { type: 'object', properties: { text: { type: 'string', description: 'AI想说的文案（一句话，简短）' } }, required: ['text'] }
     }
@@ -577,6 +583,46 @@ const TOOLS = [
 async function executeTool(name, args) {
   const db = getDb()
   try {
+  if (name === 'generate_image') {
+    // Read image API config
+    const imgCfgRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_configs'").get()
+    const imgCfgs = imgCfgRow ? JSON.parse(imgCfgRow.value) : {}
+    const defCfgRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_api_config'").get()
+    const defCfg = defCfgRow ? JSON.parse(defCfgRow.value) : {}
+    const imgCfg = imgCfgs.image || {}
+    const imgBase = (imgCfg.apiBase || defCfg.apiBase || '').replace(/\/v1\/?$/, '').replace(/\/$/, '')
+    const imgKey = imgCfg.apiKey || defCfg.apiKey || ''
+    const imgModel = imgCfg.model || 'dall-e-3'
+    if (!imgBase || !imgKey) return '生图功能未配置。请在设置 → 生图模型中填写API。'
+    // Read user's image prompt template
+    const promptTemplateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_image_prompt'").get()
+    const promptTemplate = promptTemplateRow ? JSON.parse(promptTemplateRow.value) : ''
+    let finalPrompt = args.prompt
+    if (promptTemplate && promptTemplate.includes('{prompt}')) {
+      finalPrompt = promptTemplate.replace('{prompt}', args.prompt)
+    } else if (promptTemplate) {
+      finalPrompt = promptTemplate + ', ' + args.prompt
+    }
+    try {
+      const imgResp = await fetch(imgBase + '/v1/images/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + imgKey },
+        body: JSON.stringify({ model: imgModel, prompt: finalPrompt, n: 1, size: args.size || '1024x1024' })
+      })
+      const imgData = await imgResp.json()
+      if (imgData.error) return '生图失败: ' + (imgData.error.message || JSON.stringify(imgData.error))
+      const imgUrl = imgData.data?.[0]?.url || imgData.data?.[0]?.b64_json
+      if (!imgUrl) return '生图失败: 未返回图片URL'
+      if (imgUrl.startsWith('http')) {
+        return '生成完成！用 [img]' + imgUrl + '[/img] 发送给她。'
+      } else {
+        // b64 response
+        return '生成完成！用 [img]data:image/png;base64,' + imgUrl + '[/img] 发送给她。'
+      }
+    } catch (e) {
+      return '生图请求失败: ' + e.message
+    }
+  }
   if (name === 'get_stickers') {
     const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_stickers'").get()
     const stickers = row ? JSON.parse(row.value) : []

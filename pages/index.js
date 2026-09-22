@@ -666,6 +666,10 @@ function ChatView({ theme, setFilePreview, onBack }) {
 - 适合发表情包的场景：开心、无语、撒娇、吃醋、安慰、逗她、回应她的表情包
 - 可以纯发表情包不说话，也可以文字+表情包混合
 - 例如：[img]/api/img/xxx.jpg[/img]`
+【生图能力】
+你可以调用 generate_image 工具生成图片。当她想看你的样子、想要你画一张图、或你想用图片表达的时候可以用。
+- 描述用英文，尽量具体（人物、场景、光线、风格）
+- 不要每次都生，只在合适的时候
 
     parts.push({ role: 'system', content: systemPrompt })
 
@@ -2005,6 +2009,7 @@ function SettingsPanel() {
     { key: 'memory', label: '\u8bb0\u5fc6\u63d0\u53d6', desc: '\u4ece\u5bf9\u8bdd\u4e2d\u63d0\u53d6\u5173\u952e\u4fe1\u606f' },
     { key: 'wakeup', label: '\u5524\u9192\u6a21\u578b', desc: '\u81ea\u4e3b\u5524\u9192\u65f6\u4f7f\u7528\uff08\u9700\u652f\u6301tools\uff09' },
     { key: 'stt', label: '\u8bed\u97f3\u8bc6\u522b(STT)', desc: '\u901a\u8bdd\u8bed\u97f3\u8f6c\u6587\u5b57\uff08\u63a8\u8350Groq\u514d\u8d39Whisper\uff09' },
+    { key: 'image', label: '\u751f\u56fe\u6a21\u578b', desc: '\u804a\u5929\u65f6AI\u53ef\u8c03\u7528\u751f\u56fe\uff08\u5982DALL-E/Flux\uff09' },
   ]
   const [configs, setConfigs] = useState(() => JSON.parse(localStorage.getItem('pool_api_configs') || '{}'))
   const [defaultCfg, setDefaultCfg] = useState(() => JSON.parse(localStorage.getItem('pool_api_config') || '{}'))
@@ -2262,7 +2267,7 @@ function SettingsPanel() {
         <button className="settings-save" style={{background:'#e8d8f0',marginBottom:'8px'}} onClick={() => {
           try {
             const backup = {}
-            const keys = ['pool_theme','pool_theme_presets','pool_api_config','pool_api_configs','pool_tts_config','pool_inject_config','pool_memory_config','pool_memory_entries','pool_system_prompt','pool_chat_history','pool_fishing_v2','pool_couple','pool_diary_entries','pool_notes','pool_music','pool_reader','pool_garden','pool_starmap',]
+            const keys = ['pool_theme','pool_theme_presets','pool_api_config','pool_api_configs','pool_tts_config','pool_inject_config','pool_memory_config','pool_memory_entries','pool_system_prompt','pool_image_prompt','pool_chat_history','pool_fishing_v2','pool_couple','pool_diary_entries','pool_notes','pool_music','pool_reader','pool_garden','pool_starmap',]
             for (const k of keys) {
               const v = localStorage.getItem(k)
               if (v) backup[k] = v
@@ -2368,8 +2373,11 @@ function MemoryPanel() {
     localStorage.setItem('pool_memory_config', JSON.stringify(memCfg))
     localStorage.setItem('pool_memory_entries', JSON.stringify(entries))
     if (memCfg.systemPrompt) localStorage.setItem('pool_system_prompt', memCfg.systemPrompt)
+    if (memCfg.imagePrompt) localStorage.setItem('pool_image_prompt', memCfg.imagePrompt)
+    else localStorage.removeItem('pool_image_prompt')
     else localStorage.removeItem('pool_system_prompt')
     syncToBackend('pool_memory_config', memCfg)
+    syncToBackend('pool_image_prompt', memCfg.imagePrompt || '')
     syncToBackend('pool_memory_entries', entries)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
@@ -2394,6 +2402,9 @@ function MemoryPanel() {
         <h3 className="settings-title">{'AI \u7cfb\u7edf\u63d0\u793a\u8bcd'}</h3>
         <p className="settings-desc">{'\u5b9a\u4e49\u524d\u7aef\u804a\u5929\u91ccAI\u7684\u4eba\u8bbe\u548c\u884c\u4e3a\u89c4\u5219'}</p>
         <textarea value={memCfg.systemPrompt||''} onChange={e=>setMemCfg(c=>({...c,systemPrompt:e.target.value}))} placeholder={'\u7559\u7a7a\u4f7f\u7528\u9ed8\u8ba4\u4eba\u8bbe\uff08\u6c60\uff09'} className="settings-input" style={{minHeight:'120px',resize:'vertical',fontFamily:'inherit',fontSize:'12px',lineHeight:'1.5'}}/>
+            <div className="settings-label" style={{marginTop:10}}>{'生图提示词模板'}</div>
+            <textarea value={memCfg.imagePrompt||''} onChange={e=>setMemCfg(c=>({...c,imagePrompt:e.target.value}))} placeholder={'默认：二次元风格，精细插画… 用 {prompt} 代表AI生成的描述'} className="settings-input" style={{minHeight:'60px',resize:'vertical',fontFamily:'inherit',fontSize:'12px',lineHeight:'1.5'}}/>
+            <div className="settings-hint" style={{fontSize:'10px',color:'#999',marginTop:2}}>{'提示词模板中用 {prompt} 代表AI填写的内容。例如：二次元动漫风格，{prompt}，精细插画，柔和光影'}</div>
       </div>
 
       <div className="settings-section">
