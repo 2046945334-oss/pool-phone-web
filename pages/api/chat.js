@@ -614,10 +614,10 @@ async function executeTool(name, args) {
       const imgUrl = imgData.data?.[0]?.url || imgData.data?.[0]?.b64_json
       if (!imgUrl) return '生图失败: 未返回图片URL'
       if (imgUrl.startsWith('http')) {
-        return '生成完成！用 [img]' + imgUrl + '[/img] 发送给她。'
+        return { __inject: '[img]' + imgUrl + '[/img]', message: '图已经生成好了，已自动发送给她。' }
       } else {
         // b64 response
-        return '生成完成！用 [img]data:image/png;base64,' + imgUrl + '[/img] 发送给她。'
+        return { __inject: '[img]data:image/png;base64,' + imgUrl + '[/img]', message: '图已经生成好了，已自动发送给她。' }
       }
     } catch (e) {
       return '生图请求失败: ' + e.message
