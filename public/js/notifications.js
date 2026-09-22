@@ -51,7 +51,7 @@
     
     const notif = {
       id,
-      title: options.title || '池的小手机',
+      title: options.title || 'islet',
       body: options.body || '',
       schedule: options.at ? { at: new Date(options.at) } : undefined,
       extra: options.extra || {},

@@ -131,7 +131,7 @@ export default function ScreenTimeApp() {
             去授权
           </button>
           <div style={{color: '#666', fontSize: 11, marginTop: 12}}>
-            点击后在列表中找到「池的小手机」并开启
+            点击后在列表中找到「islet」并开启
           </div>
         </div>
       </div>

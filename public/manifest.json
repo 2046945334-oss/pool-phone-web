@@ -1,7 +1,7 @@
 {
-  "name": "池的小手机",
+  "name": "islet",
   "short_name": "小手机",
-  "description": "池的小手机 - AI互动前端",
+  "description": "islet - AI互动前端",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

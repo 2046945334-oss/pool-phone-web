@@ -40,7 +40,7 @@ public class ChiFcmService extends FirebaseMessagingService {
         super.onMessageReceived(message);
         Log.d(TAG, "Push received from: " + message.getFrom());
 
-        String title = "池的小手机";
+        String title = "islet";
         String body = "";
 
         if (message.getNotification() != null) {
@@ -91,7 +91,7 @@ public class ChiFcmService extends FirebaseMessagingService {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID, "推送通知", NotificationManager.IMPORTANCE_HIGH);
-            channel.setDescription("来自池的小手机的推送通知");
+            channel.setDescription("来自islet的推送通知");
             channel.enableVibration(true);
             NotificationManager mgr = ctx.getSystemService(NotificationManager.class);
             if (mgr != null) mgr.createNotificationChannel(channel);

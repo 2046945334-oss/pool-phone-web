@@ -119,7 +119,7 @@ public class NotificationPollService extends Service {
             // 弹出所有未读通知
             for (int i = 0; i < queue.length(); i++) {
                 JSONObject n = queue.getJSONObject(i);
-                String title = n.optString("title", "池的小手机");
+                String title = n.optString("title", "islet");
                 String body = n.optString("body", "");
                 if (!body.isEmpty()) {
                     showMessageNotification(title, body, (int) (System.currentTimeMillis() % 100000));
@@ -167,7 +167,7 @@ public class NotificationPollService extends Service {
             // Message notification channel (high priority)
             NotificationChannel msgChannel = new NotificationChannel(
                     MSG_CHANNEL_ID, "池的消息", NotificationManager.IMPORTANCE_HIGH);
-            msgChannel.setDescription("来自池的小手机的消息通知");
+            msgChannel.setDescription("来自islet的消息通知");
             msgChannel.enableVibration(true);
             mgr.createNotificationChannel(msgChannel);
         }
@@ -181,7 +181,7 @@ public class NotificationPollService extends Service {
         return new NotificationCompat.Builder(this, FG_CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
-                .setContentTitle("池的小手机")
+                .setContentTitle("islet")
                 .setContentText("消息接收中…")
                 .setContentIntent(pending)
                 .setOngoing(true)

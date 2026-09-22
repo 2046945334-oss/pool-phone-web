@@ -1072,7 +1072,7 @@ async function executeTool(name, args) {
       const tokenRow = db.prepare('SELECT value FROM kv WHERE key = ?').get('pool_fcm_token')
       if (tokenRow) {
         const fcmToken = typeof tokenRow.value === 'string' ? tokenRow.value.replace(/^"|"$/g, '') : tokenRow.value
-        fcmResult = await sendPush(fcmToken, args.title || '池的小手机', args.body || '', {})
+        fcmResult = await sendPush(fcmToken, args.title || 'islet', args.body || '', {})
       }
     } catch (e) {
       fcmResult = { success: false, error: e.message }
@@ -2387,7 +2387,7 @@ export default async function handler(req, res) {
           let queue = []
           try { queue = queueRow ? JSON.parse(queueRow.value) : [] } catch {}
           if (!Array.isArray(queue)) queue = []
-          queue.push({ id: String(Date.now()), title: '池的小手机', body: pushBody, time: Date.now() })
+          queue.push({ id: String(Date.now()), title: 'islet', body: pushBody, time: Date.now() })
           if (queue.length > 20) queue = queue.slice(-20)
           db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)').run('pool_notification_pending', JSON.stringify(queue), Date.now())
         }

@@ -279,7 +279,7 @@ export default function SplashScreen({ onFinish }) {
         fontSize: 12, fontWeight: 300,
         letterSpacing: 3,
       }}>
-        池的小手机
+        islet
       </div>
 
       {/* 内嵌关键帧动画 */}

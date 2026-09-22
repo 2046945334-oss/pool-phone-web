@@ -91,7 +91,7 @@ public class NotificationWorker extends Worker {
                     continue;
                 }
 
-                String title = n.optString("title", "池的小手机");
+                String title = n.optString("title", "islet");
                 String body = n.optString("body", "");
 
                 showNotification(title, body, i + 1000);
@@ -110,7 +110,7 @@ public class NotificationWorker extends Worker {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID, "池的消息", NotificationManager.IMPORTANCE_HIGH);
-            channel.setDescription("来自池的小手机的消息通知");
+            channel.setDescription("来自islet的消息通知");
             channel.enableVibration(true);
             NotificationManager manager = getApplicationContext().getSystemService(NotificationManager.class);
             if (manager != null) manager.createNotificationChannel(channel);

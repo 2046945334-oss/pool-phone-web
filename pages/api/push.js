@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: false, error: 'FCM token 未注册，设备未打开过App' })
   }
 
-  const result = await sendPush(fcmToken, title || '池的小手机', body || '', data || {})
+  const result = await sendPush(fcmToken, title || 'islet', body || '', data || {})
 
   // 同时写入通知队列（备用）
   try {

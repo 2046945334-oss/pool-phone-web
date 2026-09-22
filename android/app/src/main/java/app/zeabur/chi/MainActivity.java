@@ -158,7 +158,7 @@ public class MainActivity extends BridgeActivity {
             NotificationManager mgr = getSystemService(NotificationManager.class);
             NotificationChannel pushChannel = new NotificationChannel(
                     "chi_push", "推送通知", NotificationManager.IMPORTANCE_HIGH);
-            pushChannel.setDescription("来自池的小手机的推送通知");
+            pushChannel.setDescription("来自islet的推送通知");
             pushChannel.enableVibration(true);
             mgr.createNotificationChannel(pushChannel);
         }
