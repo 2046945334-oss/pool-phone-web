@@ -1,13 +1,4 @@
-import Database from 'better-sqlite3'
-import path from 'path'
-
-function getDb() {
-  const dbPath = path.join(process.cwd(), 'data', 'pool.db')
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
-  db.exec('CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT, updated_at INTEGER)')
-  return db
-}
+import { getDb } from '../../lib/db'
 
 function checkWin(board, r, c) {
   const p = board[r][c]
@@ -33,11 +24,10 @@ export default function handler(req, res) {
     if (req.method === 'POST') {
       const { action, row: r, col: c } = req.body
 
-      // New game
       if (action === 'new') {
         const game = {
           board: Array.from({ length: 15 }, () => Array(15).fill(null)),
-          turn: 'B', // Black (user) goes first
+          turn: 'B',
           moves: 0,
           lastMove: null,
           winner: null,
@@ -47,7 +37,6 @@ export default function handler(req, res) {
         return res.json(game)
       }
 
-      // User places black stone
       if (action === 'move') {
         const ri = parseInt(r), ci = parseInt(c)
         if (ri < 0 || ri > 14 || ci < 0 || ci > 14) return res.status(400).json({ error: '坐标越界' })
@@ -66,7 +55,7 @@ export default function handler(req, res) {
         } else if (game.moves >= 225) {
           game.winner = 'draw'
         } else {
-          game.turn = 'W' // AI's turn
+          game.turn = 'W'
         }
         db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gomoku', JSON.stringify(game))
         return res.json(game)
@@ -76,7 +65,8 @@ export default function handler(req, res) {
     }
 
     return res.status(405).json({ error: 'Method not allowed' })
-  } finally {
-    try { db.close() } catch {}
+  } catch (e) {
+    console.error('[gomoku] error:', e)
+    return res.status(500).json({ error: e.message })
   }
 }
