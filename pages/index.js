@@ -4187,13 +4187,13 @@ export default function Home() {
         .hs-garden-strip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(235,248,240,0.8); border: 1px solid rgba(210,235,220,0.5); border-radius: 12px; color: #5a7a6a; font-size: 12px; cursor: pointer; }
         .hs-garden-dots { display: flex; gap: 4px; margin-left: auto; }
         .hs-g-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .word-card-avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(255,220,240,0.3); }
+        .word-card-avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(225,190,210,0.5); }
         .word-card-ava-img { width: 100%; height: 100%; object-fit: cover; }
-        .word-card-ava-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,220,240,0.15); color: rgba(255,255,255,0.6); font-size: 13px; }
+        .word-card-ava-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(240,210,225,0.5); color: #6a4a5a; font-size: 13px; }
         .word-card-text { flex: 1; min-width: 0; }
-        .word-card-content { font-size: 12.5px; color: rgba(255,255,255,0.75); line-height: 1.5; word-break: break-all; }
-        .word-card-input { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,220,240,0.2); border-radius: 8px; padding: 4px 8px; font-size: 12px; color: #fff; outline: none; }
-        .word-card-save { background: rgba(255,180,220,0.25); border: 1px solid rgba(255,220,240,0.3); border-radius: 6px; color: #fff; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+        .word-card-content { font-size: 12.5px; color: #5a3a4a; line-height: 1.5; word-break: break-all; }
+        .word-card-input { flex: 1; background: rgba(255,250,252,0.6); border: 1px solid rgba(235,200,215,0.5); border-radius: 8px; padding: 4px 8px; font-size: 12px; color: #4a2a3a; outline: none; }
+        .word-card-save { background: rgba(240,180,200,0.5); border: 1px solid rgba(225,170,195,0.5); border-radius: 6px; color: #5a3a4a; padding: 4px 10px; font-size: 12px; cursor: pointer; }
         .user-word-card { cursor: pointer; }
         .hs-chip { display: flex; align-items: center; gap: 4px; padding: 8px 14px; background: rgba(250,240,245,0.85); border: 1px solid rgba(235,215,225,0.5); border-radius: 20px; font-size: 12px; color: #6a4a5a; cursor: pointer; }
         .hs-chip:active { background: rgba(255,240,248,0.12); }
@@ -4206,7 +4206,7 @@ export default function Home() {
         .hs-card-mini-label { font-size: 12px; color: #fff; font-weight: 500; }
 
         /* Polaroid area */
-        .hs-polaroid-area { padding: 14px; background: rgba(255,245,248,0.8); border: 1px solid rgba(255,225,235,0.5); border-radius: 16px; }
+        .hs-polaroid-area { padding: 14px; background: transparent; border: none; border-radius: 16px; }
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
