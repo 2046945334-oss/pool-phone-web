@@ -10,7 +10,12 @@ import android.webkit.WebSettings;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.ValueCallback;
+import android.webkit.URLUtil;
 import android.net.Uri;
+import android.app.DownloadManager;
+import android.content.Context;
+import android.os.Environment;
+import android.widget.Toast;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
@@ -82,6 +87,24 @@ public class MainActivity extends BridgeActivity {
                 WebSettings settings = webView.getSettings();
                 // Allow audio/video to autoplay without user gesture
                 settings.setMediaPlaybackRequiresUserGesture(false);
+                // Handle downloads from WebView
+                webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+                    try {
+                        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                        String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                        request.setTitle(filename);
+                        request.setDescription("下载图片中...");
+                        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+                        request.setMimeType(mimeType);
+                        DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                        dm.enqueue(request);
+                        Toast.makeText(MainActivity.this, "开始下载: " + filename, Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        Log.e(TAG, "Download failed: " + e.getMessage());
+                        Toast.makeText(MainActivity.this, "下载失败", Toast.LENGTH_SHORT).show();
+                    }
+                });
                 // Handle WebView permission requests (microphone, camera) and file upload
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
