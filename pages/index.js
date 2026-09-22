@@ -3544,8 +3544,8 @@ function HomeScreen({ onOpenApp, theme }) {
           {/* Duo Status Card */}
           <div className="hs-duo-card">
             <div className="hs-duo-side">
-              <div className="hs-duo-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} alt="" /> : <span>{'她'}</span>}</div>
-              <div className="hs-duo-mood">{careMoods.user || 'good'}</div>
+              <div className="hs-duo-avatar hs-duo-ava-user">{theme?.avatarUser ? <img src={theme.avatarUser} alt="" /> : <span>{'她'}</span>}</div>
+              <div className="hs-duo-name">{'小水'}</div>
               <div className="hs-duo-line">{homeCards.userText?.slice(0,20) || '...'}</div>
             </div>
             <div className="hs-duo-center">
@@ -3554,8 +3554,8 @@ function HomeScreen({ onOpenApp, theme }) {
               <div className="hs-duo-vline"></div>
             </div>
             <div className="hs-duo-side">
-              <div className="hs-duo-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} alt="" /> : <span>{'池'}</span>}</div>
-              <div className="hs-duo-mood">{careMoods.ai || 'good'}</div>
+              <div className="hs-duo-avatar hs-duo-ava-ai">{theme?.avatarAI ? <img src={theme.avatarAI} alt="" /> : <span>{'池'}</span>}</div>
+              <div className="hs-duo-name">{'池屿'}</div>
               <div className="hs-duo-line">{homeCards.aiText?.slice(0,20) || '...'}</div>
             </div>
           </div>
@@ -3722,6 +3722,7 @@ function HomeScreen({ onOpenApp, theme }) {
             <div className="hs-chip" onClick={() => onOpenApp('screenTime')}><SvgClock /><span>{'screen time'}</span></div>
           </div>
 
+          </div>
         </>)}
 
       </div>
@@ -4151,10 +4152,13 @@ export default function Home() {
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
         .hs-duo-card { display: flex; align-items: stretch; padding: 20px 16px; background: linear-gradient(135deg, rgba(230,180,220,0.85) 0%, rgba(200,170,230,0.85) 100%); border-radius: 18px; min-height: 120px; }
         .hs-duo-side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .hs-duo-avatar { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.5); }
+        .hs-duo-avatar { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; border: 2.5px solid rgba(255,255,255,0.5); }
+        .hs-duo-ava-user { border-color: rgba(255,150,180,0.8); box-shadow: 0 0 8px rgba(255,150,180,0.3); }
+        .hs-duo-ava-ai { border-color: rgba(180,140,220,0.8); box-shadow: 0 0 8px rgba(180,140,220,0.3); }
+        .hs-duo-name { font-size: 12px; color: rgba(255,255,255,0.95); font-weight: 600; letter-spacing: 0.5px; }
         .hs-duo-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .hs-duo-avatar span { color: #fff; font-size: 16px; font-weight: 600; }
-        .hs-duo-mood { font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 500; }
+        
         .hs-duo-line { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.3; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-duo-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; }
         .hs-duo-center svg { color: rgba(255,255,255,0.9); width: 18px; height: 18px; fill: rgba(255,200,220,0.6); }
@@ -4205,7 +4209,8 @@ export default function Home() {
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(255,240,245,0.85); border: 1px solid rgba(255,215,230,0.5); border-radius: 16px; margin-bottom: 8px; }
         .home-word-card.ai-word-card { text-align: right; }
-        .hs-half-pill { flex: 1; display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-radius: 14px; color: #5a3a4a; font-size: 12px; cursor: pointer; justify-content: center; }
+        .hs-half-pill.hs-weather-pill { flex: 4; }
+        .hs-half-pill { flex: 6; display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-radius: 14px; color: #5a3a4a; font-size: 12px; cursor: pointer; justify-content: center; }
         .hs-half-pill:first-child { background: rgba(255,200,210,0.75); border: 1px solid rgba(255,180,200,0.5); }
         .hs-weather-pill { background: rgba(230,235,250,0.8); border: 1px solid rgba(210,218,240,0.5); color: #4a4a6a; }
         .hs-mood-strip { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(255,235,240,0.8); border: 1px solid rgba(255,215,225,0.5); border-radius: 12px; color: #7a5a6a; font-size: 12px; cursor: pointer; }
