@@ -1843,6 +1843,12 @@ function ThemePanel() {
           <label>{'\u6807\u98983'}</label>
           <input className="settings-input" value={theme.polaroidCaption3||''} onChange={e=>handleUrlInput('polaroidCaption3',e.target.value)} placeholder={'\u5199\u70b9\u4ec0\u4e48...'} />
         </div>
+        <div className="theme-item">
+          <label>{'\u6e38\u620f\u5c01\u9762'}</label>
+          <input className="settings-input" value={theme.gameCover||''} onChange={e=>handleUrlInput('gameCover',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('gameCover',e)} hidden /></label>
+          {theme.gameCover && <img src={theme.gameCover} className="theme-preview-sm" />}
+        </div>
       </div>
       <div className="settings-section">
         <h3 className="settings-title">{'\ud83c\udf08 \u4e3b\u9898\u8272'}</h3>
@@ -3693,10 +3699,10 @@ function HomeScreen({ onOpenApp, theme }) {
         </>)}
 
         {/* ===== PAGE 2 ===== */}
-        {page === 2 && (<>
+        {page === 2 && (<div style={{display:'flex',flexDirection:'column',gap:14}}>
 
           {/* Diary card */}
-          <div className="hs-card-diary" style={{marginBottom:8}} onClick={() => onOpenApp('diary')}>
+          <div className="hs-card-diary" onClick={() => onOpenApp('diary')}>
             <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
             <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
           </div>
@@ -3751,7 +3757,7 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
           </div>
 
-        </>)}
+        </div>)}
 
       </div>
 
@@ -4307,18 +4313,18 @@ export default function Home() {
         .hs-chip svg { flex-shrink: 0; color: rgba(255,255,255,0.7); }
 
         /* PS Vita game card */
-        .hs-vita-card { margin-top: 8px; cursor: pointer; }
+        .hs-vita-card { margin-top: 4px; cursor: pointer; }
         .hs-vita-card:active { opacity: 0.85; transform: scale(0.98); }
-        .hs-vita-body { display: flex; align-items: center; gap: 0; background: #f0e8e0; border: 2px solid #e0d5c8; border-radius: 24px; padding: 10px 14px; box-shadow: 0 3px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6); position: relative; }
-        .hs-vita-screen { flex: 1; height: 90px; border-radius: 6px; overflow: hidden; border: 2px solid #d8cfc4; background: #333; }
-        .hs-vita-dpad { width: 36px; height: 36px; position: relative; margin-right: 10px; flex-shrink: 0; }
-        .hs-vita-dpad-v { position: absolute; left: 50%; top: 2px; bottom: 2px; width: 12px; transform: translateX(-50%); background: #d8cfc4; border-radius: 3px; }
-        .hs-vita-dpad-h { position: absolute; top: 50%; left: 2px; right: 2px; height: 12px; transform: translateY(-50%); background: #d8cfc4; border-radius: 3px; }
-        .hs-vita-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-left: 10px; flex-shrink: 0; }
-        .hs-vita-btn-dot { width: 12px; height: 12px; border-radius: 50%; opacity: 0.8; }
+        .hs-vita-body { display: flex; align-items: center; gap: 0; background: rgba(255,245,250,0.92); border: 1px solid rgba(235,215,228,0.5); border-radius: 24px; padding: 16px 18px; box-shadow: 0 3px 12px rgba(0,0,0,0.06); position: relative; }
+        .hs-vita-screen { flex: 1; height: 100px; border-radius: 8px; overflow: hidden; border: 1.5px solid rgba(220,200,210,0.5); background: #333; }
+        .hs-vita-dpad { width: 36px; height: 36px; position: relative; margin-right: 12px; flex-shrink: 0; }
+        .hs-vita-dpad-v { position: absolute; left: 50%; top: 2px; bottom: 2px; width: 12px; transform: translateX(-50%); background: rgba(220,200,210,0.6); border-radius: 3px; }
+        .hs-vita-dpad-h { position: absolute; top: 50%; left: 2px; right: 2px; height: 12px; transform: translateY(-50%); background: rgba(220,200,210,0.6); border-radius: 3px; }
+        .hs-vita-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-left: 12px; flex-shrink: 0; }
+        .hs-vita-btn-dot { width: 12px; height: 12px; border-radius: 50%; opacity: 0.7; }
 
         /* Page 2 mini cards */
-        .hs-card-mini { flex: 1; padding: 28px 16px; background: rgba(255,235,242,0.85); border: 1px solid rgba(255,215,228,0.5); border-radius: 16px; text-align: center; cursor: pointer; }
+        .hs-card-mini { flex: 1; padding: 32px 16px; background: rgba(255,248,252,0.92); border: 1px solid rgba(240,220,232,0.5); border-radius: 16px; text-align: center; cursor: pointer; }
         .hs-card-mini:active { background: rgba(255,240,248,0.14); }
         .hs-card-mini-icon { color: #fff; }
         .hs-card-mini-label { font-size: 12px; color: #fff; font-weight: 500; }
