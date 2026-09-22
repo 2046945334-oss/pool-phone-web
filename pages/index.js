@@ -516,7 +516,7 @@ function MusicIsland({ theme }) {
   )
 }
 
-function ChatView({ theme, setFilePreview, onBack }) {
+function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
@@ -1124,7 +1124,7 @@ function ChatView({ theme, setFilePreview, onBack }) {
     if (parts.length === 0) return stripThink(content)
     return parts.map((p, j) => {
       if (p.type === 'text') return <span key={j}>{stripThink(p.value)}</span>
-      if (p.type === 'img') return <img key={j} src={p.url} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px'}} />
+      if (p.type === 'img') return <img key={j} src={p.url} onClick={() => setImgPreview && setImgPreview(p.url)} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px',cursor:'pointer'}} />
       if (p.type === 'file') return (
         <div key={j} onClick={() => {
           fetch(p.url).then(r => r.text()).then(text => setFilePreview({ name: p.name, content: text })).catch(() => setFilePreview({ name: p.name, content: '无法加载文件内容' }))
@@ -3751,6 +3751,7 @@ export default function Home() {
   const [callMinimized, setCallMinimized] = useState(false)
   const [showCallConfirm, setShowCallConfirm] = useState(false)
   const [filePreview, setFilePreview] = useState(null)
+  const [imgPreview, setImgPreview] = useState(null)
   const [theme, setTheme] = useState({})
   const [appBg, setAppBg] = useState({})
   const [customizerApp, setCustomizerApp] = useState(null)
@@ -3976,7 +3977,7 @@ export default function Home() {
               <PreloadedApps currentApp={currentApp} onBack={handleBack} />
               {(() => { try { const ms = localStorage.getItem('pool_music_server'); if (ms) { const mt = localStorage.getItem('pool_music_token') || ''; return <iframe id="persistent-music-iframe" src={ms + (mt ? '/?token=' + encodeURIComponent(mt) : '/')} allow="autoplay; encrypted-media" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',zIndex: currentApp === 'music' ? 10 : -1,opacity: currentApp === 'music' ? 1 : 0,pointerEvents: currentApp === 'music' ? 'auto' : 'none'}} /> } } catch {} return null })()}
             </div>
-            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} setFilePreview={setFilePreview} onBack={() => setActiveTab("phone")} /></div>
+            <div style={{display: activeTab === 'chat' ? 'flex' : 'none', height:'100%', flexDirection:'column'}}><ChatView theme={theme} setFilePreview={setFilePreview} setImgPreview={setImgPreview} onBack={() => setActiveTab("phone")} /></div>
               {readerMini && (
                 <div style={{
                   position:'absolute', top:0, left:0, right:0, height:'55%',
@@ -4049,6 +4050,17 @@ export default function Home() {
                     }
                   }} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg, #f0a0c0, #e8b0d0)', fontSize:13, color:'#fff', fontWeight:600, cursor:'pointer', boxShadow:'0 4px 12px rgba(230,160,180,0.3)' }}>{'填好了，发回去'}</button>
                 </div>
+              </div>
+            </div>
+          )}
+          {imgPreview && (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.9)', zIndex:10000, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }} onClick={() => setImgPreview(null)}>
+              <img src={imgPreview} style={{ maxWidth:'96vw', maxHeight:'80vh', objectFit:'contain', borderRadius:4 }} onClick={e => e.stopPropagation()} />
+              <div style={{ display:'flex', gap:20, marginTop:20 }} onClick={e => e.stopPropagation()}>
+                <button onClick={() => {
+                  const a = document.createElement('a'); a.href = imgPreview; a.download = 'image_' + Date.now() + '.png'; a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a)
+                }} style={{ padding:'10px 28px', borderRadius:20, border:'none', background:'rgba(255,255,255,0.15)', color:'#fff', fontSize:14, cursor:'pointer', backdropFilter:'blur(4px)' }}>{'⬇ 保存图片'}</button>
+                <button onClick={() => setImgPreview(null)} style={{ padding:'10px 28px', borderRadius:20, border:'1px solid rgba(255,255,255,0.3)', background:'transparent', color:'#fff', fontSize:14, cursor:'pointer' }}>{'✕ 关闭'}</button>
               </div>
             </div>
           )}
