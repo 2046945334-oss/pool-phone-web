@@ -3541,6 +3541,24 @@ function HomeScreen({ onOpenApp, theme }) {
             )}
           </div>
 
+          {/* Duo Status Card */}
+          <div className="hs-duo-card">
+            <div className="hs-duo-side">
+              <div className="hs-duo-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} alt="" /> : <span>{'她'}</span>}</div>
+              <div className="hs-duo-mood">{careMoods.user || 'good'}</div>
+              <div className="hs-duo-line">{homeCards.userText?.slice(0,20) || '...'}</div>
+            </div>
+            <div className="hs-duo-center">
+              <div className="hs-duo-vline"></div>
+              <SvgHeart />
+              <div className="hs-duo-vline"></div>
+            </div>
+            <div className="hs-duo-side">
+              <div className="hs-duo-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} alt="" /> : <span>{'池'}</span>}</div>
+              <div className="hs-duo-mood">{careMoods.ai || 'good'}</div>
+              <div className="hs-duo-line">{homeCards.aiText?.slice(0,20) || '...'}</div>
+            </div>
+          </div>
           {/* Row: couple days + weather side by side */}
           <div className="hs-row" style={{gap:6}}>
             <div className="hs-half-pill" onClick={() => onOpenApp('couple')}>
@@ -4131,6 +4149,16 @@ export default function Home() {
         .hs-island-status { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
+        .hs-duo-card { display: flex; align-items: stretch; padding: 20px 16px; background: linear-gradient(135deg, rgba(230,180,220,0.85) 0%, rgba(200,170,230,0.85) 100%); border-radius: 18px; min-height: 120px; }
+        .hs-duo-side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .hs-duo-avatar { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.5); }
+        .hs-duo-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .hs-duo-avatar span { color: #fff; font-size: 16px; font-weight: 600; }
+        .hs-duo-mood { font-size: 12px; color: rgba(255,255,255,0.9); font-weight: 500; }
+        .hs-duo-line { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.3; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hs-duo-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; }
+        .hs-duo-center svg { color: rgba(255,255,255,0.9); width: 18px; height: 18px; fill: rgba(255,200,220,0.6); }
+        .hs-duo-vline { width: 1px; flex: 1; background: rgba(255,255,255,0.3); }
         .hs-listen-card { padding: 20px; background: rgba(255,220,230,0.85); border: 1px solid rgba(255,200,215,0.6); border-radius: 18px; cursor: pointer; color: #5a3a4a; }
         .hs-listen-card:active { transform: scale(0.98); }
         .hs-listen-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
