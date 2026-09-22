@@ -580,7 +580,7 @@ const TOOLS = [
   { type: 'function', function: { name: 'reader_update_progress', description: '更新AI自己的阅读进度（不能超过用户进度）', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '读到的章节索引' } }, required: ['book_id', 'chapter'] } } },
   { type: 'function', function: { name: 'reader_recommend', description: '推荐一本书邀请用户共读', parameters: { type: 'object', properties: { title: { type: 'string', description: '书名' }, reason: { type: 'string', description: '推荐理由' } }, required: ['title', 'reason'] } } },
   // === 五子棋工具 ===
-  { type: 'function', function: { name: 'gomoku_move', description: '在五子棋棋盘上落子。你执白棋(W)，用户执黑棋(B)。只在用户下了一步之后调用，且只能落在空位。棋盘15x15，行列从0开始。', parameters: { type: 'object', properties: { row: { type: 'number', description: '行号(0-14)' }, col: { type: 'number', description: '列号(0-14)' } }, required: ['row', 'col'] } } },
+  { type: 'function', function: { name: 'gomoku_move', description: '在五子棋棋盘上落子。你执白棋(W)，用户执黑棋(B)。收到用户的[五子棋]消息后直接调用此工具落子，不需要先调gomoku_get_board。棋盘15x15，行列从0开始。', parameters: { type: 'object', properties: { row: { type: 'number', description: '行号(0-14)' }, col: { type: 'number', description: '列号(0-14)' } }, required: ['row', 'col'] } } },
   { type: 'function', function: { name: 'gomoku_get_board', description: '获取当前五子棋棋盘状态', parameters: { type: 'object', properties: {} } } }
 ]
 

@@ -519,7 +519,7 @@ function MusicIsland({ theme }) {
 
 function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
-  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
+  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync && !m.isGameSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
   useEffect(() => {
     const pollInbox = async () => {
@@ -839,6 +839,30 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     }
     window.addEventListener('reader-page-change', onPageChange)
     return () => window.removeEventListener('reader-page-change', onPageChange)
+  }, [])
+
+  // Listen for gomoku move events from game component
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function onGomokuMove(e) {
+      const { row, col, boardStr } = e.detail
+      const now = Date.now()
+      const gameMsg = {
+        role: 'user',
+        content: '[五子棋] 我下了黑棋(' + row + ',' + col + ')。当前棋盘(X=黑,O=白,.=空):\n' + boardStr + '\n轮到你(白棋)了，请直接用gomoku_move工具落子，不需要先看棋盘。选一个好位置。',
+        ts: now,
+        isGameSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, gameMsg]
+        setTimeout(() => {
+          window.__chiTriggerAI && window.__chiTriggerAI(next)
+        }, 500)
+        return next
+      })
+    }
+    window.addEventListener('gomoku-user-move', onGomokuMove)
+    return () => window.removeEventListener('gomoku-user-move', onGomokuMove)
   }, [])
     async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
@@ -1291,7 +1315,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         {messages.slice(visibleStart).map((msg, idx) => {
           const i = visibleStart + idx
           if (msg.role === 'assistant' && msg.content && msg.content.trim() === '[无话]') return null
-          if (msg.isReadingSync) return null
+          if (msg.isReadingSync || msg.isGameSync) return null
           return (
           <React.Fragment key={i}>
             {shouldShowTime(messages, i) && msg.ts && <div className="msg-time-divider">{formatMsgTime(msg.ts)}</div>}
@@ -4039,14 +4063,14 @@ export default function Home() {
               {gameMini && (
                 <div style={{
                   position:'absolute', top:0, left:0, right:0, height:'55%',
-                  zIndex:600, background:'rgba(245,237,228,0.98)', borderRadius:'0 0 16px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.08)',
+                  zIndex:600, background:'rgba(255,240,248,0.75)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', borderRadius:'0 0 16px 16px', boxShadow:'0 4px 20px rgba(200,120,160,0.12)',
                   display:'flex', flexDirection:'column',
                   overflow:'hidden'
                 }}>
-                  <div style={{ display:'flex', alignItems:'center', padding:'6px 12px', background:'#efe6dc', borderBottom:'1px solid #e0d5c8', gap:8, flexShrink:0 }}>
-                    <span style={{ flex:1, fontSize:13, color:'#8b7355', fontWeight:600 }}>🎮 游戏小窗</span>
-                    <button onClick={() => { setCurrentApp('game'); setActiveTab('phone'); setGameMini(false) }} style={{ background:'#e8ddd0', color:'#8b7355', border:'1px solid #d4c4b0', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>全屏</button>
-                    <button onClick={() => setGameMini(false)} style={{ background:'#e8ddd0', color:'#8b7355', border:'1px solid #d4c4b0', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>✕</button>
+                  <div style={{ display:'flex', alignItems:'center', padding:'6px 12px', background:'rgba(255,235,245,0.8)', borderBottom:'1px solid rgba(240,200,220,0.4)', gap:8, flexShrink:0 }}>
+                    <span style={{ flex:1, fontSize:13, color:'#a07088', fontWeight:600 }}>🎮 游戏小窗</span>
+                    <button onClick={() => { setCurrentApp('game'); setActiveTab('phone'); setGameMini(false) }} style={{ background:'rgba(250,225,240,0.8)', color:'#a07088', border:'1px solid rgba(230,190,215,0.5)', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>全屏</button>
+                    <button onClick={() => setGameMini(false)} style={{ background:'rgba(250,225,240,0.8)', color:'#a07088', border:'1px solid rgba(230,190,215,0.5)', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>✕</button>
                   </div>
                   <div style={{ flex:1, overflow:'hidden' }}>
                     <GomokuApp mini={true} />

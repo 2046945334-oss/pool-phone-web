@@ -87,19 +87,10 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
       }
       setAiThinking(true); setLoading(false)
       const boardStr = data.board.map(row => row.map(v => v === 'B' ? 'X' : v === 'W' ? 'O' : '.').join('')).join('\n')
-      try {
-        const cfg = JSON.parse(localStorage.getItem('pool_api_config') || '{}')
-        const cfgs = JSON.parse(localStorage.getItem('pool_api_configs') || '{}')
-        const tc = cfgs.tool || {}
-        await fetch('/api/chat', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            messages: [{ role:'user', content:'[五子棋] 我下了黑棋(' + r + ',' + c + ')。当前棋盘(X=黑,O=白,.=空):\n' + boardStr + '\n轮到你(白棋)了，请用gomoku_move工具落子。选一个好位置。' }],
-            apiBase: tc.apiBase || cfg.apiBase || '', apiKey: tc.apiKey || cfg.apiKey || '',
-            model: tc.model || cfg.model || '', stream: false
-          })
-        })
-      } catch {}
+      // Dispatch event so ChatView injects hidden message and triggers AI
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gomoku-user-move', { detail: { row: r, col: c, boardStr } }))
+      }
       pollForAiMove()
     } catch (e) { setError(e.message); setLoading(false) }
   }
