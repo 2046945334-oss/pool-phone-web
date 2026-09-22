@@ -18,6 +18,7 @@ import starmapHtml from '../public/apps/_starmap.html'
 import stickersHtml from '../public/apps/_stickers.html'
 // import careHtml from '../public/apps/_care.html' // removed: 72KB bloat
 import ScreenTimeApp from '../components/apps/ScreenTimeApp'
+import GomokuApp from '../components/apps/GomokuApp'
 
 // ===== Capacitor 通知初始化 =====
 function initCapacitorNotifications() {
@@ -796,6 +797,11 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     if (hasReading) {
       parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻了几页后，偶尔会把内容发给你。你不需要每次都回应——大多数时候安静陪读就好。只在真正觉得内容有意思、有感触、想讨论的时候才开口。如果没什么想说的，就回复"[无话]"跳过。不要为了说话而说话，不要每次都评论，安静也是陪伴。偶尔冒出一句才自然。' })
     }
+    // Game co-play mode prompt
+    const hasGame = userMessages.some(m => m.isGameSync)
+    if (hasGame) {
+      parts.push({ role: 'system', content: '[游戏小窗模式] 用户正在小窗里边玩五子棋边和你聊天。你们在同一个棋盘上对弈或观战。可以评论棋局、讨论策略、吐槽走法、或者随便聊天。保持自然，像朋友一起下棋的氛围。如果用户没说什么，就回复"[无话]"跳过。' })
+    }
     return parts
   }
 
@@ -838,6 +844,46 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     }
     window.addEventListener('reader-page-change', onPageChange)
     return () => window.removeEventListener('reader-page-change', onPageChange)
+  }, [])
+
+  // Listen for game events from mini game window
+  const gameAccumRef = useRef({ moves: [], lastTrigger: 0 })
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function onGameEvent(e) {
+      const { game, type, winner, moves, color, row, col } = e.detail
+      const accum = gameAccumRef.current
+      const now = Date.now()
+      if (type === 'win' || type === 'draw') {
+        const summary = type === 'win'
+          ? `[游戏小窗] 五子棋结束！${winner === 'black' ? '黑棋' : '白棋'}赢了，共${moves}手。`
+          : `[游戏小窗] 五子棋平局！下了${moves}手。`
+        accum.moves = []
+        accum.lastTrigger = now
+        const gameMsg = { role: 'user', content: summary, ts: now, isGameSync: true }
+        setMessages(prev => {
+          const next = [...prev, gameMsg]
+          setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+          return next
+        })
+      } else if (type === 'move') {
+        accum.moves.push({ color, row, col })
+        // Trigger AI commentary every ~8 moves with 30% chance, 30s cooldown
+        if (accum.moves.length >= 8 && now - accum.lastTrigger > 30000 && Math.random() < 0.3) {
+          const moveSummary = accum.moves.map(m => `${m.color === 'black' ? '⚫' : '⚪'}(${m.row},${m.col})`).join(' → ')
+          accum.moves = []
+          accum.lastTrigger = now
+          const gameMsg = { role: 'user', content: `[游戏小窗] 五子棋进行中，最近几手：${moveSummary}`, ts: now, isGameSync: true }
+          setMessages(prev => {
+            const next = [...prev, gameMsg]
+            setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+            return next
+          })
+        }
+      }
+    }
+    window.addEventListener('game-event', onGameEvent)
+    return () => window.removeEventListener('game-event', onGameEvent)
   }, [])
     async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
@@ -1611,8 +1657,8 @@ function AvatarGalleryPanel() {
 function ThemePanel() {
   const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
   const [saved, setSaved] = useState(false)
-  const APP_LIST = ['notes','messages','music','couple','system','fishing','reader','theme','avatarGallery','memoryMgr','diary','garden','cabin','starmap','screenTime','care','stickers']
-  const APP_NAMES = {notes:'\u4fbf\u7b7e',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',theme:'\u7f8e\u5316',avatarGallery:'\u5934\u50cf\u5e93',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',screenTime:'屏幕时间',care:'养护手册',stickers:'表情包管理'}
+  const APP_LIST = ['notes','messages','music','couple','system','fishing','reader','theme','avatarGallery','memoryMgr','diary','garden','cabin','starmap','screenTime','care','stickers','game']
+  const APP_NAMES = {notes:'\u4fbf\u7b7e',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',theme:'\u7f8e\u5316',avatarGallery:'\u5934\u50cf\u5e93',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',screenTime:'屏幕时间',care:'养护手册',stickers:'表情包管理',game:'游戏'}
 
   function save() {
     try {
@@ -3726,6 +3772,30 @@ function HomeScreen({ onOpenApp, theme }) {
             <div className="hs-chip" onClick={() => onOpenApp('screenTime')}><SvgClock /><span>{'screen time'}</span></div>
           </div>
 
+          {/* PS Vita style game card */}
+          <div className="hs-vita-card" onClick={() => onOpenApp('game')}>
+            <div className="hs-vita-body">
+              <div className="hs-vita-dpad">
+                <div className="hs-vita-dpad-v" />
+                <div className="hs-vita-dpad-h" />
+              </div>
+              <div className="hs-vita-screen">
+                {theme?.gameCover
+                  ? <img src={theme.gameCover} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : <div style={{ width:'100%', height:'100%', background:'linear-gradient(135deg, #f5ede4, #dcb97a)', display:'flex', alignItems:'center', justifyContent:'center', color:'#8b7355', fontSize:13, fontWeight:600, gap:6 }}>
+                      <span>{'🎮'}</span><span>{'五子棋'}</span>
+                    </div>
+                }
+              </div>
+              <div className="hs-vita-btns">
+                <div className="hs-vita-btn-dot" style={{background:'#f8b4c8'}} />
+                <div className="hs-vita-btn-dot" style={{background:'#a8d8f0'}} />
+                <div className="hs-vita-btn-dot" style={{background:'#b8e8b8'}} />
+                <div className="hs-vita-btn-dot" style={{background:'#f8d8a8'}} />
+              </div>
+            </div>
+          </div>
+
         </>)}
 
       </div>
@@ -3746,6 +3816,7 @@ export default function Home() {
   const [currentApp, setCurrentApp] = useState(null)
   const [activeTab, setActiveTab] = useState('phone')
   const [readerMini, setReaderMini] = useState(false)
+  const [gameMini, setGameMini] = useState(false)
   const [callActive, setCallActive] = useState(false)
   const [callIncoming, setCallIncoming] = useState(false)
   const [callMinimized, setCallMinimized] = useState(false)
@@ -3868,8 +3939,8 @@ export default function Home() {
       </div>
     )
 
-    const appTitles = { fishing:'钓鱼', reader:'阅读', notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', care:'养护手册', stickers:'表情包管理' }
-    const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, }
+    const appTitles = { fishing:'钓鱼', reader:'阅读', notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', care:'养护手册', stickers:'表情包管理', game:'游戏' }
+    const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, game: <GomokuApp /> }
     const htmlApps = { notes: notesHtml, messages: messagesHtml, couple: coupleHtml, diary: diaryHtml, garden: gardenHtml, cabin: cabinHtml, starmap: starmapHtml, stickers: stickersHtml }
     // Lazy-loaded HTML apps: fetched on demand to reduce initial bundle size
     const lazyHtmlApps = { care: '/apps/_care.html' }
@@ -3920,6 +3991,15 @@ export default function Home() {
         return (
           <div className="app-page" style={{padding:0,...bgStyle}}>
             <ReaderApp onBack={handleBack} onMinimize={() => { setReaderMini(true); setActiveTab('chat'); handleBack() }} />
+          </div>
+        )
+      }
+
+      // Game app: render full-screen with mini-window support
+      if (currentApp === 'game') {
+        return (
+          <div className="app-page" style={{padding:0,...bgStyle}}>
+            <GomokuApp onBack={handleBack} onMinimize={() => { setGameMini(true); setActiveTab('chat'); handleBack() }} />
           </div>
         )
       }
@@ -3992,6 +4072,23 @@ export default function Home() {
                   </div>
                   <div style={{ flex:1, overflow:'hidden' }}>
                     <ReaderApp mini={true} />
+                  </div>
+                </div>
+              )}
+              {gameMini && (
+                <div style={{
+                  position:'absolute', top:0, left:0, right:0, height:'55%',
+                  zIndex:600, background:'rgba(245,237,228,0.98)', borderRadius:'0 0 16px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.08)',
+                  display:'flex', flexDirection:'column',
+                  overflow:'hidden'
+                }}>
+                  <div style={{ display:'flex', alignItems:'center', padding:'6px 12px', background:'#efe6dc', borderBottom:'1px solid #e0d5c8', gap:8, flexShrink:0 }}>
+                    <span style={{ flex:1, fontSize:13, color:'#8b7355', fontWeight:600 }}>🎮 游戏小窗</span>
+                    <button onClick={() => { setCurrentApp('game'); setActiveTab('phone'); setGameMini(false) }} style={{ background:'#e8ddd0', color:'#8b7355', border:'1px solid #d4c4b0', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>全屏</button>
+                    <button onClick={() => setGameMini(false)} style={{ background:'#e8ddd0', color:'#8b7355', border:'1px solid #d4c4b0', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>✕</button>
+                  </div>
+                  <div style={{ flex:1, overflow:'hidden' }}>
+                    <GomokuApp mini={true} />
                   </div>
                 </div>
               )}
@@ -4253,6 +4350,17 @@ export default function Home() {
         .hs-chip { display: flex; align-items: center; gap: 6px; padding: 10px 18px; background: rgba(250,240,245,0.85); border: 1px solid rgba(235,215,225,0.5); border-radius: 20px; font-size: 12px; color: #6a4a5a; cursor: pointer; }
         .hs-chip:active { background: rgba(255,240,248,0.12); }
         .hs-chip svg { flex-shrink: 0; color: rgba(255,255,255,0.7); }
+
+        /* PS Vita game card */
+        .hs-vita-card { margin-top: 8px; cursor: pointer; }
+        .hs-vita-card:active { opacity: 0.85; transform: scale(0.98); }
+        .hs-vita-body { display: flex; align-items: center; gap: 0; background: #f0e8e0; border: 2px solid #e0d5c8; border-radius: 24px; padding: 10px 14px; box-shadow: 0 3px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6); position: relative; }
+        .hs-vita-screen { flex: 1; height: 90px; border-radius: 6px; overflow: hidden; border: 2px solid #d8cfc4; background: #333; }
+        .hs-vita-dpad { width: 36px; height: 36px; position: relative; margin-right: 10px; flex-shrink: 0; }
+        .hs-vita-dpad-v { position: absolute; left: 50%; top: 2px; bottom: 2px; width: 12px; transform: translateX(-50%); background: #d8cfc4; border-radius: 3px; }
+        .hs-vita-dpad-h { position: absolute; top: 50%; left: 2px; right: 2px; height: 12px; transform: translateY(-50%); background: #d8cfc4; border-radius: 3px; }
+        .hs-vita-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-left: 10px; flex-shrink: 0; }
+        .hs-vita-btn-dot { width: 12px; height: 12px; border-radius: 50%; opacity: 0.8; }
 
         /* Page 2 mini cards */
         .hs-card-mini { flex: 1; padding: 28px 16px; background: rgba(255,235,242,0.85); border: 1px solid rgba(255,215,228,0.5); border-radius: 16px; text-align: center; cursor: pointer; }
