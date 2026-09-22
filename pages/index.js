@@ -665,11 +665,11 @@ function ChatView({ theme, setFilePreview, onBack }) {
 - 想发时先调 get_stickers 获取可用列表，然后在回复中用 [img]URL[/img] 格式
 - 适合发表情包的场景：开心、无语、撒娇、吃醋、安慰、逗她、回应她的表情包
 - 可以纯发表情包不说话，也可以文字+表情包混合
-- 例如：[img]/api/img/xxx.jpg[/img]`
+- 例如：[img]/api/img/xxx.jpg[/img]
 【生图能力】
 你可以调用 generate_image 工具生成图片。当她想看你的样子、想要你画一张图、或你想用图片表达的时候可以用。
 - 描述用英文，尽量具体（人物、场景、光线、风格）
-- 不要每次都生，只在合适的时候
+- 不要每次都生，只在合适的时候`
 
     parts.push({ role: 'system', content: systemPrompt })
 
