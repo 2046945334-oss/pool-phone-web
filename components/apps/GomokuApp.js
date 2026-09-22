@@ -15,24 +15,58 @@ function getWinLine(board, r, c) {
   return null
 }
 
+function StatsCard({ stats, mini }) {
+  if (!stats) return null
+  const total = stats.wins + stats.losses + stats.draws
+  const rate = total > 0 ? Math.round(stats.wins / total * 100) : 0
+  return (
+    <div style={{ padding: mini ? '6px 10px' : '10px 14px', background:'rgba(255,240,248,0.6)', borderRadius:12, border:'1px solid rgba(240,215,230,0.4)', marginBottom: mini ? 4 : 8 }}>
+      <div style={{ display:'flex', justifyContent:'center', gap: mini ? 16 : 24, fontSize: mini ? 11 : 13, color:'#7a5a6a' }}>
+        <span>🏆 <b>{stats.wins}</b>胜</span>
+        <span>💔 <b>{stats.losses}</b>负</span>
+        <span>🤝 <b>{stats.draws}</b>平</span>
+        <span style={{color:'#b08a9a'}}>胜率 {rate}%</span>
+      </div>
+      {!mini && stats.history && stats.history.length > 0 && (
+        <div style={{ marginTop:8, display:'flex', gap:3, flexWrap:'wrap', justifyContent:'center' }}>
+          {stats.history.slice(0, 20).map((g, i) => (
+            <div key={i} title={`${g.moves}步 ${new Date(g.date).toLocaleDateString()}`} style={{
+              width:18, height:18, borderRadius:4, fontSize:10, display:'flex', alignItems:'center', justifyContent:'center',
+              background: g.winner === 'B' ? 'rgba(200,120,160,0.25)' : g.winner === 'W' ? 'rgba(120,100,140,0.2)' : 'rgba(180,180,180,0.2)',
+              color: g.winner === 'B' ? '#a06080' : g.winner === 'W' ? '#7a6a8a' : '#999',
+              border: '1px solid ' + (g.winner === 'B' ? 'rgba(200,120,160,0.3)' : 'rgba(180,160,190,0.3)')
+            }}>{g.winner === 'B' ? 'W' : g.winner === 'W' ? 'L' : 'D'}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function GomokuApp({ mini = false, onBack, onMinimize }) {
   const [game, setGame] = useState(null)
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [aiThinking, setAiThinking] = useState(false)
   const [winLine, setWinLine] = useState(null)
   const [error, setError] = useState(null)
   const pollRef = useRef(null)
+  const gameIdRef = useRef(null)
 
   const loadGame = useCallback(async () => {
     try {
       const res = await fetch('/api/gomoku')
       if (!res.ok) { setError('加载失败: ' + res.status); setLoading(false); return }
       const data = await res.json()
-      setGame(data)
-      if (data?.winner && data.lastMove) {
-        setWinLine(getWinLine(data.board, data.lastMove[0], data.lastMove[1]))
-      } else { setWinLine(null) }
-      if (data && data.turn === 'W' && !data.winner) { setAiThinking(true); pollForAiMove() }
+      setGame(data.game)
+      setStats(data.stats)
+      if (data.game) {
+        gameIdRef.current = data.game.gameId
+        if (data.game.winner && data.game.lastMove) {
+          setWinLine(getWinLine(data.game.board, data.game.lastMove[0], data.game.lastMove[1]))
+        }
+        if (data.game.turn === 'W' && !data.game.winner) { setAiThinking(true); pollForAiMove(data.game.gameId) }
+      }
     } catch (e) { setError(e.message) }
     setLoading(false)
   }, [])
@@ -40,30 +74,35 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
   useEffect(() => { loadGame() }, [loadGame])
 
   async function newGame() {
-    setLoading(true); setWinLine(null); setError(null)
+    setLoading(true); setWinLine(null); setError(null); setAiThinking(false)
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
     try {
       const res = await fetch('/api/gomoku', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'new' }) })
       if (!res.ok) { const t = await res.text(); setError('创建失败: ' + t.slice(0,80)); setLoading(false); return }
       const data = await res.json()
-      if (data.error) { setError(data.error); setLoading(false); return }
-      setGame(data)
+      setGame(data.game)
+      setStats(data.stats)
+      gameIdRef.current = data.game.gameId
     } catch (e) { setError(e.message) }
     setLoading(false)
   }
 
-  function pollForAiMove() {
+  function pollForAiMove(gid) {
     let attempts = 0
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(async () => {
       attempts++
+      if (gid !== gameIdRef.current) { clearInterval(pollRef.current); pollRef.current = null; return }
       try {
         const res = await fetch('/api/gomoku')
         if (!res.ok) return
         const data = await res.json()
-        if (data && (data.turn === 'B' || data.winner)) {
+        const g = data.game
+        if (!g || g.gameId !== gid) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false); return }
+        if (g.turn === 'B' || g.winner) {
           clearInterval(pollRef.current); pollRef.current = null
-          setGame(data); setAiThinking(false)
-          if (data.winner && data.lastMove) setWinLine(getWinLine(data.board, data.lastMove[0], data.lastMove[1]))
+          setGame(g); setStats(data.stats); setAiThinking(false)
+          if (g.winner && g.lastMove) setWinLine(getWinLine(g.board, g.lastMove[0], g.lastMove[1]))
         }
       } catch {}
       if (attempts >= 40) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false); loadGame() }
@@ -76,22 +115,22 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
     if (!game || game.board[r][c] || game.winner || game.turn !== 'B' || aiThinking) return
     setLoading(true); setError(null)
     try {
-      const res = await fetch('/api/gomoku', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'move', row:r, col:c }) })
+      const gid = gameIdRef.current
+      const res = await fetch('/api/gomoku', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'move', row:r, col:c, gameId: gid }) })
       if (!res.ok) { const t = await res.text(); setError('落子失败: ' + t.slice(0,80)); setLoading(false); return }
       const data = await res.json()
       if (data.error) { setError(data.error); setLoading(false); return }
-      setGame(data)
-      if (data.winner === 'B' && data.lastMove) {
-        setWinLine(getWinLine(data.board, data.lastMove[0], data.lastMove[1]))
+      setGame(data.game); setStats(data.stats)
+      if (data.game.winner === 'B' && data.game.lastMove) {
+        setWinLine(getWinLine(data.game.board, data.game.lastMove[0], data.game.lastMove[1]))
         setLoading(false); return
       }
       setAiThinking(true); setLoading(false)
-      const boardStr = data.board.map(row => row.map(v => v === 'B' ? 'X' : v === 'W' ? 'O' : '.').join('')).join('\n')
-      // Dispatch event so ChatView injects hidden message and triggers AI
+      const boardStr = data.game.board.map(row => row.map(v => v === 'B' ? 'X' : v === 'W' ? 'O' : '.').join('')).join('\n')
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('gomoku-user-move', { detail: { row: r, col: c, boardStr } }))
+        window.dispatchEvent(new CustomEvent('gomoku-user-move', { detail: { row: r, col: c, boardStr, gameId: gid } }))
       }
-      pollForAiMove()
+      pollForAiMove(gid)
     } catch (e) { setError(e.message); setLoading(false) }
   }
 
@@ -100,7 +139,6 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
   const pad = cellSize / 2
   const isWinCell = (r, c) => winLine && winLine.some(([wr,wc]) => wr === r && wc === c)
 
-  // Pink-white header
   const header = !mini ? (
     <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', background:'rgba(255,245,250,0.98)', borderBottom:'1px solid rgba(240,215,230,0.5)', flexShrink:0, gap:8 }}>
       {onBack && <button onClick={onBack} style={{ background:'none', border:'none', fontSize:18, cursor:'pointer', color:'#b08a9a', padding:'2px 6px' }}>{'←'}</button>}
@@ -109,14 +147,14 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
     </div>
   ) : null
 
-  // No game yet
   if (!game) {
     return (
       <div style={{ display:'flex', flexDirection:'column', height:'100%', background: mini ? 'transparent' : 'linear-gradient(180deg, rgba(255,245,250,1) 0%, rgba(255,240,248,0.95) 100%)' }}>
         {header}
-        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12 }}>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:'0 16px' }}>
           <div style={{ fontSize:16, color:'#7a5a6a', fontWeight:600 }}>{'🎮 五子棋'}</div>
           <div style={{ fontSize:13, color:'#b08a9a' }}>{'你执黑棋(先手) vs AI执白棋'}</div>
+          <StatsCard stats={stats} mini={mini} />
           {error && <div style={{ fontSize:12, color:'#c44', padding:'6px 14px', background:'rgba(200,50,50,0.06)', borderRadius:10, maxWidth:'85%', textAlign:'center', wordBreak:'break-all' }}>{error}</div>}
           <button onClick={newGame} disabled={loading} style={{ background:'linear-gradient(135deg,#e8a0bf,#d4a0c8)', color:'#fff', border:'none', borderRadius:14, padding:'10px 28px', fontSize:14, cursor:'pointer', opacity:loading?0.6:1, boxShadow:'0 2px 8px rgba(200,120,160,0.2)' }}>
             {loading ? '加载中...' : '开始对弈'}
@@ -127,11 +165,12 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
   }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', background: mini ? 'transparent' : 'linear-gradient(180deg, rgba(255,245,250,1) 0%, rgba(255,240,248,0.95) 100%)', fontFamily:"'PingFang SC','Hiragino Sans GB',sans-serif" }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background: mini ? 'transparent' : 'linear-gradient(180deg, rgba(255,245,250,1) 0%, rgba(255,240,248,0.95) 100%)' }}>
       {header}
-      <div style={{ textAlign:'center', padding: mini ? '6px 0 4px' : '10px 0 6px', fontSize: mini ? 12 : 14, color:'#7a5a6a', fontWeight:500 }}>
+      {!mini && <StatsCard stats={stats} mini={true} />}
+      <div style={{ textAlign:'center', padding: mini ? '4px 0 2px' : '6px 0 4px', fontSize: mini ? 12 : 14, color:'#7a5a6a', fontWeight:500 }}>
         {game.winner === 'draw' ? '平局！' : game.winner === 'B' ? '⚫ 你赢了！' : game.winner === 'W' ? '⚪ AI赢了！' : aiThinking ? '⚪ AI思考中...' : game.turn === 'B' ? '⚫ 轮到你了' : '⚪ 等待AI...'}
-        {game.winner && <button onClick={newGame} disabled={loading} style={{ marginLeft:12, background:'linear-gradient(135deg,#e8a0bf,#d4a0c8)', color:'#fff', border:'none', borderRadius:12, padding:'4px 14px', fontSize:12, cursor:'pointer', boxShadow:'0 2px 6px rgba(200,120,160,0.15)' }}>{loading ? '...' : '再来一局'}</button>}
+        {game.winner && <button onClick={newGame} disabled={loading} style={{ marginLeft:12, background:'linear-gradient(135deg,#e8a0bf,#d4a0c8)', color:'#fff', border:'none', borderRadius:12, padding:'4px 14px', fontSize:12, cursor:'pointer' }}>{loading ? '...' : '再来一局'}</button>}
       </div>
       {error && <div style={{ textAlign:'center', fontSize:12, color:'#c44', padding:'2px 8px' }}>{error}</div>}
       <div style={{ flex:1, display:'flex', alignItems:'flex-start', justifyContent:'center', overflow:'auto', padding: mini ? '0 4px 4px' : '0 8px 8px' }}>
@@ -147,7 +186,7 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
             const sr = cellSize * 0.42
             return (
               <div key={r+'-'+c} onClick={() => handlePlace(r, c)} style={{ position:'absolute', left:cx-cellSize/2, top:cy-cellSize/2, width:cellSize, height:cellSize, cursor:(stone||game.winner||game.turn!=='B'||aiThinking)?'default':'pointer', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1 }}>
-                {stone && <div style={{ width:sr*2, height:sr*2, borderRadius:'50%', background: stone==='B' ? 'radial-gradient(circle at 35% 35%, #6a4a5a, #2a1a2a)' : 'radial-gradient(circle at 35% 35%, #fff, #e8d8e0)', boxShadow: isWin ? '0 0 0 2px #e06080, 0 2px 4px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.2)', border: isLast&&!isWin ? '2px solid #d4a0c0' : 'none', transition:'box-shadow 0.2s' }} />}
+                {stone && <div style={{ width:sr*2, height:sr*2, borderRadius:'50%', background: stone==='B' ? 'radial-gradient(circle at 35% 35%, #6a4a5a, #2a1a2a)' : 'radial-gradient(circle at 35% 35%, #fff, #e8d8e0)', boxShadow: isWin ? '0 0 0 2px #e06080, 0 2px 4px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.2)', border: isLast&&!isWin ? '2px solid #d4a0c0' : 'none' }} />}
               </div>
             )
           }))}

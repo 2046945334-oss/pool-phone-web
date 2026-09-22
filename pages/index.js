@@ -3767,7 +3767,7 @@ function HomeScreen({ onOpenApp, theme }) {
               <div className="hs-vita-screen">
                 {theme?.gameCover
                   ? <img src={theme.gameCover} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                  : <div style={{ width:'100%', height:'100%', background:'linear-gradient(135deg, #f5ede4, #dcb97a)', display:'flex', alignItems:'center', justifyContent:'center', color:'#8b7355', fontSize:13, fontWeight:600, gap:6 }}>
+                  : <div style={{ width:'100%', height:'100%', background:'linear-gradient(135deg, #f0dce5, #e8c8d8)', display:'flex', alignItems:'center', justifyContent:'center', color:'#7a5a6a', fontSize:13, fontWeight:600, gap:6 }}>
                       <span>{'🎮'}</span><span>{'五子棋'}</span>
                     </div>
                 }
@@ -3779,6 +3779,13 @@ function HomeScreen({ onOpenApp, theme }) {
                 <div className="hs-vita-btn-dot" style={{background:'#f8d8a8'}} />
               </div>
             </div>
+            {gameStats && (gameStats.wins > 0 || gameStats.losses > 0 || gameStats.draws > 0) && (
+              <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 0 4px', fontSize:11, color:'#a08898' }}>
+                <span>🏆 {gameStats.wins}胜</span>
+                <span>💔 {gameStats.losses}负</span>
+                <span>🤝 {gameStats.draws}平</span>
+              </div>
+            )}
           </div>
 
         </div>)}
@@ -3802,6 +3809,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('phone')
   const [readerMini, setReaderMini] = useState(false)
   const [gameMini, setGameMini] = useState(false)
+  const [gameStats, setGameStats] = useState(null)
+  useEffect(() => { fetch('/api/gomoku').then(r => r.json()).then(d => setGameStats(d.stats)).catch(() => {}) }, [])
   const [callActive, setCallActive] = useState(false)
   const [callIncoming, setCallIncoming] = useState(false)
   const [callMinimized, setCallMinimized] = useState(false)

@@ -1812,7 +1812,7 @@ async function executeTool(name, args) {
         game.turn = 'B'
       }
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gomoku', JSON.stringify(game))
-      return { success: true, move: { row: r, col: c, color: 'W' }, winner: game.winner || null, moves: game.moves, message: game.winner === 'W' ? '你赢了！' : game.winner === 'draw' ? '平局！' : `已落子(${r},${c})` }
+      return { success: true, move: { row: r, col: c, color: 'W' }, gameId: game.gameId, winner: game.winner || null, moves: game.moves, message: game.winner === 'W' ? '你赢了！' : game.winner === 'draw' ? '平局！' : `已落子(${r},${c})` }
     } catch (e) { return { error: e.message } }
   }
     return { error: 'Unknown tool: ' + name }
