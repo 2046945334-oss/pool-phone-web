@@ -3542,23 +3542,23 @@ function HomeScreen({ onOpenApp, theme }) {
           </div>
 
           {/* Row: couple days + weather side by side */}
-          <div className="hs-row" style={{gap:8}}>
+          <div className="hs-row" style={{gap:6}}>
             <div className="hs-half-pill" onClick={() => onOpenApp('couple')}>
               <SvgHeart />
               <span>{coupleDays + 'd together'}</span>
             </div>
             <div className="hs-half-pill hs-weather-pill">
               <SvgSun />
-              <span>{weatherInfo ? weatherInfo.replace(/\+/g,'').trim().slice(0,14) : '--'}</span>
+              <span>{weatherInfo ? weatherInfo.replace(/\+/g,'').trim().slice(0,14) : '☁️'}</span>
             </div>
           </div>
           {/* Moments - latest chat preview */}
           <div className="hs-card-moments" onClick={() => onOpenApp('messages')}>
             <div className="hs-card-moments-header"><SvgHeart /> <span>{'Moments'}</span></div>
-            <div className="hs-card-moments-preview">{latestChatMsg || 'no moments yet...'}</div>
+            <div className="hs-card-moments-preview">{homeCards.aiText || 'no moments yet...'}</div>
           </div>
           {/* Sticky note card + system btn side by side */}
-          <div className="hs-row" style={{gap:10}}>
+          <div className="hs-row" style={{gap:6}}>
             <div className="hs-card-note" onClick={() => onOpenApp('notes')}>
               <div className="hs-card-note-label"><SvgNote /> <span>{'memo'}</span></div>
               <div className="hs-card-note-text">{latestNote?.text ? latestNote.text.slice(0,60) : 'tap to write...'}</div>
@@ -3577,20 +3577,20 @@ function HomeScreen({ onOpenApp, theme }) {
           <div className="hs-mood-strip" onClick={() => onOpenApp('care')}>
             <SvgLeaf />
             <span className="hs-mood-label">{'today'}</span>
-            <span className="hs-mood-val">{careMoods.ai || '--'}</span>
+            <span className="hs-mood-val">{careMoods.ai || '❤️'}</span>
             <span className="hs-mood-sep">{'/'}</span>
-            <span className="hs-mood-val">{careMoods.user || '--'}</span>
+            <span className="hs-mood-val">{careMoods.user || '❤️'}</span>
           </div>
           {/* Garden preview strip */}
           <div className="hs-garden-strip" onClick={() => onOpenApp('garden')}>
             <SvgLeaf />
             <span>{'garden'}</span>
             <div className="hs-garden-dots">
-              <span className="hs-g-dot" style={{background:'#b8d4c2'}}></span>
-              <span className="hs-g-dot" style={{background:'#c5dece'}}></span>
-              <span className="hs-g-dot" style={{background:'#d2e8d9'}}></span>
-              <span className="hs-g-dot" style={{background:'#dff1e4'}}></span>
-              <span className="hs-g-dot" style={{background:'#ecf7ef'}}></span>
+              <span className="hs-g-dot" style={{background:'#f0a0b0'}}></span>
+              <span className="hs-g-dot" style={{background:'#b0d0a0'}}></span>
+              <span className="hs-g-dot" style={{background:'#a0c0e0'}}></span>
+              <span className="hs-g-dot" style={{background:'#e0b0d0'}}></span>
+              <span className="hs-g-dot" style={{background:'#f0d0a0'}}></span>
             </div>
           </div>
 
@@ -3602,7 +3602,7 @@ function HomeScreen({ onOpenApp, theme }) {
         {page === 1 && (<>
 
           {/* Score display card */}
-          <div className="hs-row" style={{gap:10}}>
+          <div className="hs-row" style={{gap:6}}>
             <div className="hs-card-mini" onClick={() => onOpenApp('fishing')}>
               <div className="hs-card-mini-icon"><SvgFish /></div>
               <div className="hs-card-mini-label">{'fishing'}</div>
@@ -3622,12 +3622,12 @@ function HomeScreen({ onOpenApp, theme }) {
                 {theme?.polaroid1 ? <img src={theme.polaroid1} className="polaroid-img" alt="" /> : <div className="polaroid-empty">{'+'}</div>}
                 <div className="polaroid-caption">{theme?.polaroidCaption1 || ''}</div>
               </div>
-              <div className="polaroid-card" style={{transform:'rotate(2deg)',marginTop:'12px'}}>
+              <div className="polaroid-card" style={{transform:'rotate(2deg)'}}>
                 <div className="polaroid-tape tape-center"></div>
                 {theme?.polaroid2 ? <img src={theme.polaroid2} className="polaroid-img" alt="" /> : <div className="polaroid-empty">{'+'}</div>}
                 <div className="polaroid-caption">{theme?.polaroidCaption2 || ''}</div>
               </div>
-              <div className="polaroid-card" style={{transform:'rotate(-2deg)',marginTop:'-8px'}}>
+              <div className="polaroid-card" style={{transform:'rotate(-2deg)'}}>
                 <div className="polaroid-tape tape-right"></div>
                 {theme?.polaroid3 ? <img src={theme.polaroid3} className="polaroid-img" alt="" /> : <div className="polaroid-empty">{'+'}</div>}
                 <div className="polaroid-caption">{theme?.polaroidCaption3 || ''}</div>
@@ -3679,7 +3679,7 @@ function HomeScreen({ onOpenApp, theme }) {
           </div>
 
           {/* Garden + Wake log side by side */}
-          <div className="hs-row" style={{gap:10}}>
+          <div className="hs-row" style={{gap:6}}>
             <div className="hs-card-half" onClick={() => onOpenApp('garden')}>
               <div className="hs-card-half-icon"><SvgSword /></div>
               <div className="hs-card-half-label">{'challenge'}</div>
@@ -4119,7 +4119,7 @@ export default function Home() {
         .dot { width: 6px; height: 6px; border-radius: 3px; background: #444; cursor: pointer; transition: all 0.3s; }
         .dot.active { width: 16px; background: #c77dba; }
         .home-screen { width: 100%; height: 100%; display: flex; flex-direction: column; background: linear-gradient(160deg, #1c1520 0%, #150f1a 50%, #0f0d14 100%); overflow: hidden; }
-        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 68px; display: flex; flex-direction: column; gap: 16px; -webkit-overflow-scrolling: touch; }
+        .hs-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 68px; display: flex; flex-direction: column; gap: 6px; -webkit-overflow-scrolling: touch; }
 
         /* Dynamic Island */
         .hs-island { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 10px; background: rgba(255,230,245,0.40); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,220,240,0.30); border-radius: 22px; cursor: pointer; transition: all 0.3s cubic-bezier(.4,0,.2,1); box-shadow: 0 2px 12px rgba(200,125,186,0.15); }
@@ -4131,7 +4131,7 @@ export default function Home() {
         .hs-island-status { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .hs-island-music { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,200,220,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,200,220,0.6); flex-shrink: 0; }
         .hs-island-music:active { background: rgba(255,200,220,0.2); }
-        .hs-listen-card { padding: 16px; background: rgba(255,220,230,0.85); border: 1px solid rgba(255,200,215,0.6); border-radius: 18px; cursor: pointer; color: #5a3a4a; }
+        .hs-listen-card { padding: 20px; background: rgba(255,220,230,0.85); border: 1px solid rgba(255,200,215,0.6); border-radius: 18px; cursor: pointer; color: #5a3a4a; }
         .hs-listen-card:active { transform: scale(0.98); }
         .hs-listen-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
         .hs-listen-avatars { display: flex; align-items: center; }
@@ -4153,7 +4153,7 @@ export default function Home() {
         .hs-couple-bar svg { color: #fff; }
 
         /* Moments card */
-        .hs-card-moments { padding: 14px 18px; background: rgba(255,240,245,0.85); border: 1px solid rgba(255,215,230,0.5); border-radius: 16px; cursor: pointer; }
+        .hs-card-moments { padding: 16px 20px; background: rgba(255,240,245,0.85); border: 1px solid rgba(255,215,230,0.5); border-radius: 16px; cursor: pointer; }
         .hs-card-moments:active { background: rgba(255,240,248,0.16); }
         .hs-card-moments-header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9a7080; margin-bottom: 6px; }
         .hs-card-moments-preview { font-size: 13px; color: #5a3a4a; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4163,7 +4163,7 @@ export default function Home() {
         .hs-row { display: flex; align-items: stretch; }
 
         /* Note card */
-        .hs-card-note { flex: 1; padding: 14px 16px; background: rgba(255,250,252,0.9); border: 1px solid rgba(255,230,240,0.5); border-left: 3px solid rgba(235,140,170,0.7); border-radius: 14px; cursor: pointer; }
+        .hs-card-note { flex: 1; padding: 16px 18px; background: rgba(255,250,252,0.9); border: 1px solid rgba(255,230,240,0.5); border-left: 3px solid rgba(235,140,170,0.7); border-radius: 14px; cursor: pointer; }
         .hs-card-note:active { background: rgba(255,240,248,0.14); }
         .hs-card-note-label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #9a7080; margin-bottom: 4px; }
         .hs-card-note-label svg { color: rgba(255,255,255,0.7); }
@@ -4177,14 +4177,14 @@ export default function Home() {
         .hs-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .home-word-card { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(255,240,245,0.85); border: 1px solid rgba(255,215,230,0.5); border-radius: 16px; margin-bottom: 8px; }
         .home-word-card.ai-word-card { text-align: right; }
-        .hs-half-pill { flex: 1; display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 14px; color: #5a3a4a; font-size: 12px; cursor: pointer; justify-content: center; }
+        .hs-half-pill { flex: 1; display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-radius: 14px; color: #5a3a4a; font-size: 12px; cursor: pointer; justify-content: center; }
         .hs-half-pill:first-child { background: rgba(255,200,210,0.75); border: 1px solid rgba(255,180,200,0.5); }
         .hs-weather-pill { background: rgba(230,235,250,0.8); border: 1px solid rgba(210,218,240,0.5); color: #4a4a6a; }
-        .hs-mood-strip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255,235,240,0.8); border: 1px solid rgba(255,215,225,0.5); border-radius: 12px; color: #7a5a6a; font-size: 12px; cursor: pointer; }
+        .hs-mood-strip { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(255,235,240,0.8); border: 1px solid rgba(255,215,225,0.5); border-radius: 12px; color: #7a5a6a; font-size: 12px; cursor: pointer; }
         .hs-mood-label { font-size: 11px; opacity: 0.6; }
         .hs-mood-emoji { font-size: 12px; }
         .hs-mood-dot { opacity: 0.4; font-size: 10px; }
-        .hs-garden-strip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(235,248,240,0.8); border: 1px solid rgba(210,235,220,0.5); border-radius: 12px; color: #5a7a6a; font-size: 12px; cursor: pointer; }
+        .hs-garden-strip { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(255,240,245,0.8); border: 1px solid rgba(255,220,235,0.5); border-radius: 14px; color: #8a6a7a; font-size: 12px; cursor: pointer; }
         .hs-garden-dots { display: flex; gap: 4px; margin-left: auto; }
         .hs-g-dot { width: 8px; height: 8px; border-radius: 50%; }
         .word-card-avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(225,190,210,0.5); }
@@ -4210,7 +4210,7 @@ export default function Home() {
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
-        .hs-card-diary { padding: 18px 18px; background: rgba(240,225,235,0.85); border: 1px solid rgba(225,205,218,0.5); border-radius: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(180,140,160,0.1); }
+        .hs-card-diary { padding: 18px 18px; background: rgba(255,250,252,0.9); border: 1px solid rgba(240,220,235,0.5); border-left: 3px solid rgba(180,140,200,0.7); border-radius: 16px; cursor: pointer; }
         .hs-card-diary:active { background: rgba(255,240,248,0.14); }
         .hs-card-diary-label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #9a7080; margin-bottom: 6px; }
         .hs-card-diary-label svg { color: rgba(255,255,255,0.7); }
@@ -4488,8 +4488,8 @@ export default function Home() {
         .customizer-section-title { font-size: 14px; font-weight: 600; color: #333; margin: 4px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #f0e8f0; }
 
         /* Polaroid Photo Wall */
-        .polaroid-wall { display: flex; justify-content: center; align-items: flex-start; gap: 8px; padding: 8px 8px 10px; flex-wrap: wrap; }
-        .polaroid-card { width: 100px; background: rgba(255,252,254,0.95); border: 1px solid rgba(240,220,230,0.4); border-radius: 4px; padding: 6px 6px 20px; position: relative; box-shadow: 0 2px 6px rgba(180,140,160,0.12); }
+        .polaroid-wall { display: flex; justify-content: center; align-items: flex-start; gap: 10px; padding: 8px 4px 10px; flex-wrap: nowrap; }
+        .polaroid-card { width: 30%; flex-shrink: 0; background: rgba(255,252,254,0.95); border: 1px solid rgba(240,220,230,0.4); border-radius: 4px; padding: 6px 6px 20px; position: relative; box-shadow: 0 2px 6px rgba(180,140,160,0.12); }
         .polaroid-tape { position: absolute; width: 32px; height: 12px; background: rgba(240,200,220,0.5); top: -6px; border-radius: 1px; }
         .tape-left { left: 12px; transform: rotate(-8deg); }
         .tape-center { left: 50%; margin-left: -16px; transform: rotate(3deg); }
