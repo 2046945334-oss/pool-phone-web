@@ -3781,9 +3781,9 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
             {gameStats && (gameStats.wins > 0 || gameStats.losses > 0 || gameStats.draws > 0) && (
               <div style={{ display:'flex', justifyContent:'center', gap:16, padding:'8px 0 4px', fontSize:11, color:'#a08898' }}>
-                <span>🏆 {gameStats.wins}胜</span>
-                <span>💔 {gameStats.losses}负</span>
-                <span>🤝 {gameStats.draws}平</span>
+                <span>{gameStats.wins}胜</span>
+                <span>{gameStats.losses}负</span>
+                <span>{gameStats.draws}平</span>
               </div>
             )}
           </div>

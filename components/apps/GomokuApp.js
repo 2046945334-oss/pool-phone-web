@@ -22,9 +22,9 @@ function StatsCard({ stats, mini }) {
   return (
     <div style={{ padding: mini ? '6px 10px' : '10px 14px', background:'rgba(255,240,248,0.6)', borderRadius:12, border:'1px solid rgba(240,215,230,0.4)', marginBottom: mini ? 4 : 8 }}>
       <div style={{ display:'flex', justifyContent:'center', gap: mini ? 16 : 24, fontSize: mini ? 11 : 13, color:'#7a5a6a' }}>
-        <span>🏆 <b>{stats.wins}</b>胜</span>
-        <span>💔 <b>{stats.losses}</b>负</span>
-        <span>🤝 <b>{stats.draws}</b>平</span>
+        <span><b>{stats.wins}</b> 胜</span>
+        <span><b>{stats.losses}</b> 负</span>
+        <span><b>{stats.draws}</b> 平</span>
         <span style={{color:'#b08a9a'}}>胜率 {rate}%</span>
       </div>
       {!mini && stats.history && stats.history.length > 0 && (
