@@ -3446,6 +3446,9 @@ function HomeScreen({ onOpenApp, theme }) {
   const [latestChatMsg, setLatestChatMsg] = useState('')
   const [editingUserCard, setEditingUserCard] = useState(false)
   const [userCardDraft, setUserCardDraft] = useState('')
+  const [gameStats, setGameStats] = useState(null)
+
+  useEffect(() => { fetch('/api/gomoku').then(r => r.json()).then(d => setGameStats(d.stats)).catch(() => {}) }, [])
 
   useEffect(() => {
     let active = true
@@ -3809,8 +3812,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('phone')
   const [readerMini, setReaderMini] = useState(false)
   const [gameMini, setGameMini] = useState(false)
-  const [gameStats, setGameStats] = useState(null)
-  useEffect(() => { fetch('/api/gomoku').then(r => r.json()).then(d => setGameStats(d.stats)).catch(() => {}) }, [])
   const [callActive, setCallActive] = useState(false)
   const [callIncoming, setCallIncoming] = useState(false)
   const [callMinimized, setCallMinimized] = useState(false)
