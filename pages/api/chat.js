@@ -1738,10 +1738,13 @@ async function executeTool(name, args) {
       const db = getDb()
       const booksRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_books'").get()
       const books = booksRow ? JSON.parse(booksRow.value) : []
-      const book = books.find(b => b.id === args.book_id)
-      if (!book) return { error: '书籍不存在' }
-      const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
-      const state = stateRow ? JSON.parse(stateRow.value) : {}
+      // 如果没传book_id或传的找不到，自动用state里的currentBookId
+      const stateRowPre = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
+      const statePre = stateRowPre ? JSON.parse(stateRowPre.value) : {}
+      const bookId = args.book_id || statePre.currentBookId
+      const book = books.find(b => b.id === bookId)
+      if (!book) return { error: '书籍不存在', tried_id: bookId, available: books.map(b => b.id) }
+      const state = statePre
       const ch = parseInt(args.chapter) || 0
       if (ch > (state.userChapter || 0)) return { error: '用户还没读到这一章，你不能提前看' }
       const chapter = book.chapters[ch]
