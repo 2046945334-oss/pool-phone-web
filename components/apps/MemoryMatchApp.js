@@ -59,7 +59,7 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
               setBusy(false); setAiThinking(true)
               if (typeof window !== 'undefined') {
                 const boardStr = rd.game.board.map((s, i) => `${i}:${s}`).join(' ')
-                const hist = rd.game.flipHistory ? rd.game.flipHistory.map(h => `${h.index}→${h.symbol}`).join(', ') : ''
+                const hist = rd.game.flipHistory ? rd.game.flipHistory.map(h => `${h.index}\u2192${h.symbol}`).join(', ') : ''
                 window.dispatchEvent(new CustomEvent('memory-user-done', {
                   detail: { boardStr, flipHistory: hist, userScore: rd.game.userScore, aiScore: rd.game.aiScore }
                 }))
@@ -99,6 +99,7 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
         // If AI flipped 2 cards (pendingResolve), show them then resolve after delay
         if (data.game.pendingResolve && data.game.revealed?.length === 2) {
           resolving = true
+          const resolveTimeout = setTimeout(() => { resolving = false }, 8000) // safety reset
           setTimeout(async () => {
             try {
               const rr = await fetch('/api/memory-match', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'resolve' }) })
@@ -108,11 +109,13 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
                 if (rd.game.result) {
                   clearInterval(pollRef.current); pollRef.current = null
                   setAiThinking(false); setLastResult(rd.game.result); setGame(null)
+                  clearTimeout(resolveTimeout); resolving = false
                   return
                 }
                 if (rd.game.turn === 'user') {
                   clearInterval(pollRef.current); pollRef.current = null
                   setAiThinking(false)
+                  clearTimeout(resolveTimeout); resolving = false
                   return
                 }
                 // AI matched and continues — keep polling
@@ -120,11 +123,27 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
                 clearInterval(pollRef.current); pollRef.current = null
                 setAiThinking(false); setGame(null); setStats(rd.stats)
                 if (rd.stats?.history?.length > 0) setLastResult(rd.stats.history[0].result)
+                clearTimeout(resolveTimeout); resolving = false
                 return
               }
             } catch {}
+            clearTimeout(resolveTimeout)
             resolving = false
           }, 1500)
+          return
+        }
+
+        // If pendingResolve but no cards revealed, resolve got stuck — force resolve
+        if (data.game.pendingResolve && (!data.game.revealed || data.game.revealed.length === 0)) {
+          if (!resolving) {
+            resolving = true
+            try {
+              const rr = await fetch('/api/memory-match', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'resolve' }) })
+              const rd = await rr.json()
+              if (rd.game) { setGame(rd.game); setStats(rd.stats) }
+            } catch {}
+            resolving = false
+          }
           return
         }
 
@@ -140,11 +159,11 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
   const header = (!mini && (onBack || onMinimize)) ? (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', borderBottom:'1px solid rgba(240,215,230,0.3)' }}>
       <div style={{ display:'flex', gap:8 }}>
-        {onBack && <button onClick={onBack} style={{ background:'none', border:'none', fontSize:16, cursor:'pointer', color:'#7a5a6a' }}>{'←'}</button>}
+        {onBack && <button onClick={onBack} style={{ background:'none', border:'none', fontSize:16, cursor:'pointer', color:'#7a5a6a' }}>{'\u2190'}</button>}
       </div>
       <span style={{ fontSize:14, fontWeight:600, color:'#7a5a6a' }}>翻牌配对</span>
       <div style={{ display:'flex', gap:8 }}>
-        {onMinimize && <button onClick={onMinimize} style={{ background:'none', border:'none', fontSize:14, cursor:'pointer', color:'#b08a9a' }}>{'−'}</button>}
+        {onMinimize && <button onClick={onMinimize} style={{ background:'none', border:'none', fontSize:14, cursor:'pointer', color:'#b08a9a' }}>{'\u2212'}</button>}
       </div>
     </div>
   ) : null
