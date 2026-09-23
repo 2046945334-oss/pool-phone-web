@@ -2386,8 +2386,8 @@ export default async function handler(req, res) {
         messages: reqMessages,
         stream: false,
       }
-      // 工具定义通过系统提示词注入，不使用API tools参数（避免中转站incomplete_tool_use）
-      // if (allTools.length > 0) bodyObj.tools = allTools
+      // 启用原生function calling + 文本<tool_call>兜底
+      if (allTools.length > 0) bodyObj.tools = allTools
       const response = await fetch(reqUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + reqKey },
