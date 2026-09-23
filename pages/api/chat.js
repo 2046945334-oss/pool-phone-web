@@ -1753,6 +1753,8 @@ async function executeTool(name, args) {
       const maxChars = args.max_chars && args.max_chars > 0 ? args.max_chars : fullContent.length
       const content = fullContent.slice(0, maxChars)
       const truncated = maxChars < fullContent.length
+      // Auto-update AI reading progress when reading a chapter
+      if (ch > (state.aiChapter || 0)) { state.aiChapter = ch; state.aiLastRead = Date.now(); db.prepare("INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())").run("pool_reader_state", JSON.stringify(state)); }
       return { title: chapter.title, content, chapterIndex: ch, totalChapters: book.chapters.length, totalChars: fullContent.length, truncated }
     } catch (e) { return { error: e.message } }
   }
