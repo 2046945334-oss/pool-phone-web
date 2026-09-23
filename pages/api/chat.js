@@ -575,7 +575,7 @@ const TOOLS = [
   },
   // === 共读工具 ===
   { type: 'function', function: { name: 'reader_get_state', description: '获取共读状态（当前在读的书、用户/AI进度、书签、批注）', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'reader_read_chapter', description: '阅读指定书籍的某一章内容（只能读用户已读过的章节）', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '章节索引(从0开始)' } }, required: ['book_id', 'chapter'] } } },
+  { type: 'function', function: { name: 'reader_read_chapter', description: '阅读指定书籍的某一章内容（只能读用户已读过的章节）。不传book_id会自动用当前在读的书。', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID（可不传，自动用当前在读的书）' }, chapter: { type: 'number', description: '章节索引(从0开始)' }, max_chars: { type: 'number', description: '最多返回多少字符，不传则返回整章全文' } }, required: ['chapter'] } } },
   { type: 'function', function: { name: 'reader_add_note', description: '对正在共读的书添加批注/划线笔记', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '章节索引' }, quote: { type: 'string', description: '引用的原文片段' }, text: { type: 'string', description: '批注内容' } }, required: ['book_id', 'chapter', 'text'] } } },
   { type: 'function', function: { name: 'reader_update_progress', description: '更新AI自己的阅读进度（不能超过用户进度）', parameters: { type: 'object', properties: { book_id: { type: 'string', description: '书籍ID' }, chapter: { type: 'number', description: '读到的章节索引' } }, required: ['book_id', 'chapter'] } } },
   { type: 'function', function: { name: 'reader_recommend', description: '推荐一本书邀请用户共读', parameters: { type: 'object', properties: { title: { type: 'string', description: '书名' }, reason: { type: 'string', description: '推荐理由' } }, required: ['title', 'reason'] } } },
@@ -1749,7 +1749,11 @@ async function executeTool(name, args) {
       if (ch > (state.userChapter || 0)) return { error: '用户还没读到这一章，你不能提前看' }
       const chapter = book.chapters[ch]
       if (!chapter) return { error: '章节不存在' }
-      return { title: chapter.title, content: chapter.content.slice(0, 3000), chapterIndex: ch, totalChapters: book.chapters.length }
+      const fullContent = chapter.content
+      const maxChars = args.max_chars && args.max_chars > 0 ? args.max_chars : fullContent.length
+      const content = fullContent.slice(0, maxChars)
+      const truncated = maxChars < fullContent.length
+      return { title: chapter.title, content, chapterIndex: ch, totalChapters: book.chapters.length, totalChars: fullContent.length, truncated }
     } catch (e) { return { error: e.message } }
   }
   if (name === 'reader_add_note') {
