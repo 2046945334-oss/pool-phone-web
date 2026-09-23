@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import GomokuApp from './GomokuApp'
-import GuessNumberApp from './GuessNumberApp'
 import MemoryMatchApp from './MemoryMatchApp'
 
 const GAMES = [
   { id: 'gomoku', name: '五子棋', desc: '你执黑 vs AI执白' },
-  { id: 'guess', name: '1A2B', desc: '猜对方的4位数' },
   { id: 'memory', name: '翻牌配对', desc: '记住位置配成对' },
 ]
 
@@ -13,7 +11,6 @@ export default function GameHub({ mini = false, onBack, onMinimize }) {
   const [activeGame, setActiveGame] = useState(null)
 
   if (activeGame === 'gomoku') return <GomokuApp mini={mini} onBack={() => setActiveGame(null)} onMinimize={onMinimize} />
-  if (activeGame === 'guess') return <GuessNumberApp mini={mini} onBack={() => setActiveGame(null)} onMinimize={onMinimize} />
   if (activeGame === 'memory') return <MemoryMatchApp mini={mini} onBack={() => setActiveGame(null)} onMinimize={onMinimize} />
 
   const header = (!mini && (onBack || onMinimize)) ? (
