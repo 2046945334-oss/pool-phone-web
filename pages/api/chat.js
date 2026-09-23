@@ -1850,16 +1850,58 @@ async function executeTool(name, args) {
       const game = JSON.parse(row.value)
       if (game.result) return { error: '游戏已结束' }
       if (game.turn !== 'ai') return { error: '当前不是你的回合' }
-      // If there's a pending resolve, block AI from flipping — frontend will resolve it
-      if (game.pendingResolve) return { error: '等待结算中，请稍后再翻', waitForResolve: true }
+      // pendingResolve is now auto-resolved, but handle legacy state
+      if (game.pendingResolve) {
+        // Auto-resolve stale pendingResolve
+        const [i1, i2] = game.revealed
+        if (i1 !== undefined && i2 !== undefined) {
+          const m = game.board[i1] === game.board[i2]
+          if (m) { game.matched.push(i1, i2); game.aiScore++ }
+          if (!m) game.turn = 'user'
+        }
+        game.revealed = []
+        game.pendingResolve = false
+        db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match', JSON.stringify(game))
+        if (game.turn !== 'ai') return { error: '已自动结算，现在轮到用户', resolved: true }
+      }
       if (game.matched.includes(idx) || game.revealed.includes(idx)) return { error: `位置${idx}已翻开或已配对` }
       game.revealed.push(idx)
       game.flipHistory.push({ index: idx, symbol: game.board[idx] })
       const symbol = game.board[idx]
 
       if (game.revealed.length === 2) {
-        // Mark as pending — let frontend show both cards then call resolve
-        game.pendingResolve = true
+        // Auto-resolve: check if matched, update scores and turn
+        const [i1, i2] = game.revealed
+        const matched = game.board[i1] === game.board[i2]
+        if (matched) {
+          game.matched.push(i1, i2)
+          game.aiScore++
+        }
+        game.revealed = []
+        game.pendingResolve = false
+        // If not matched, switch turn to user
+        if (!matched) {
+          game.turn = 'user'
+        }
+        // Check if all matched
+        if (game.matched.length === 16) {
+          game.result = game.userScore > game.aiScore ? 'win' : game.userScore < game.aiScore ? 'lose' : 'draw'
+          // Update stats
+          try {
+            const statsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_match_stats'").get()
+            const stats = statsRow ? JSON.parse(statsRow.value) : { wins: 0, losses: 0, draws: 0, history: [] }
+            if (game.result === 'win') stats.wins++
+            else if (game.result === 'lose') stats.losses++
+            else stats.draws++
+            stats.history.unshift({ result: game.result, userScore: game.userScore, aiScore: game.aiScore, date: Date.now() })
+            if (stats.history.length > 20) stats.history = stats.history.slice(0, 20)
+            db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match_stats', JSON.stringify(stats))
+          } catch {}
+          db.prepare("DELETE FROM kv WHERE key = 'pool_match'").run()
+        } else {
+          db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match', JSON.stringify(game))
+        }
+        return { index: idx, symbol, revealed: 0, matched, pendingResolve: false, turn: game.turn, aiScore: game.aiScore, userScore: game.userScore, result: game.result || null, message: matched ? `配对成功！${game.result ? '游戏结束' : '继续翻'}` : `没配上，轮到用户` }
       }
 
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match', JSON.stringify(game))
