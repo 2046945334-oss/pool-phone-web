@@ -1897,6 +1897,19 @@ async function executeTool(name, args) {
       const game = JSON.parse(row.value)
       if (game.result) return { error: '游戏已结束' }
       if (game.turn !== 'ai') return { error: '当前不是你的回合' }
+      // If there's a pending resolve from previous flip pair, resolve it first
+      if (game.pendingResolve && game.revealed.length === 2) {
+        const [pa, pb] = game.revealed
+        const wasMatch = game.board[pa] === game.board[pb]
+        game.pendingResolve = false
+        if (wasMatch) {
+          game.matched.push(pa, pb); game.aiScore++; game.revealed = []
+        } else {
+          game.revealed = []; game.turn = 'user'
+          db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match', JSON.stringify(game))
+          return { error: '上一轮没配上，已轮到用户' }
+        }
+      }
       if (game.matched.includes(idx) || game.revealed.includes(idx)) return { error: `位置${idx}已翻开或已配对` }
       game.revealed.push(idx)
       game.flipHistory.push({ index: idx, symbol: game.board[idx] })

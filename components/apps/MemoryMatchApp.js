@@ -36,30 +36,44 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
 
   async function handleFlip(idx) {
     if (busy || !game || game.turn !== 'user' || game.matched?.includes(idx) || game.revealed?.includes(idx)) return
+    if (game.pendingResolve) return // waiting for resolve
     setBusy(true); setError(null)
     try {
       const res = await fetch('/api/memory-match', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'flip', index: idx }) })
       const data = await res.json()
       if (data.error) { setError(data.error); setBusy(false); return }
       setGame(data.game); setStats(data.stats)
-      if (data.game?.result) {
-        setLastResult(data.game.result); setGame(null); setBusy(false); return
+
+      // If 2 cards are now revealed (pendingResolve), show them then resolve after delay
+      if (data.game?.pendingResolve) {
+        setTimeout(async () => {
+          try {
+            const rr = await fetch('/api/memory-match', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'resolve' }) })
+            const rd = await rr.json()
+            if (rd.error) { setError(rd.error); setBusy(false); return }
+            setGame(rd.game); setStats(rd.stats)
+            if (rd.game?.result) {
+              setLastResult(rd.game.result); setGame(null); setBusy(false); return
+            }
+            if (rd.game?.turn === 'ai') {
+              setBusy(false); setAiThinking(true)
+              if (typeof window !== 'undefined') {
+                const boardStr = rd.game.board.map((s, i) => `${i}:${s}`).join(' ')
+                const hist = rd.game.flipHistory ? rd.game.flipHistory.map(h => `${h.index}→${h.symbol}`).join(', ') : ''
+                window.dispatchEvent(new CustomEvent('memory-user-done', {
+                  detail: { boardStr, flipHistory: hist, userScore: rd.game.userScore, aiScore: rd.game.aiScore }
+                }))
+              }
+              pollForAi()
+            } else {
+              setBusy(false)
+            }
+          } catch (e) { setError(e.message); setBusy(false) }
+        }, 1000) // 1s delay so user can see both cards
+        return
       }
-      // If turn switched to AI, trigger chat and poll
-      if (data.game?.turn === 'ai') {
-        setBusy(false); setAiThinking(true)
-        // Dispatch event to trigger AI via chat
-        if (typeof window !== 'undefined') {
-          const boardStr = data.game.board.map((s, i) => `${i}:${s}`).join(' ')
-          const hist = data.game.flipHistory ? data.game.flipHistory.map(h => `${h.index}→${h.symbol}`).join(', ') : ''
-          window.dispatchEvent(new CustomEvent('memory-user-done', {
-            detail: { boardStr, flipHistory: hist, userScore: data.game.userScore, aiScore: data.game.aiScore }
-          }))
-        }
-        pollForAi()
-      } else {
-        setBusy(false)
-      }
+
+      setBusy(false)
     } catch (e) { setError(e.message); setBusy(false) }
   }
 
