@@ -235,7 +235,7 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'send_file', description: '发送一个纯文本文件给用户，显示为可下载的文件卡片。用于发送代码(.js/.py/.css)、文本(.txt)、JSON(.json)、Markdown(.md)、CSV等非HTML文件。注意：这不是send_html，不会渲染为页面。用户说"发个文件"时用这个。',
+      name: 'send_file', description: '发送一个纯文本文件给用户，显示为可下载的文件卡片。用于发送代码(.js/.py/.css)、文本(.txt)、JSON(.json)、Markdown(.md)、CSV等非HTML文件。注意：这不是send_html，不会渲染为页面。用户说"发个文件""发文件给我看""发文件"时必须用这个工具，不要用send_html。',
       parameters: { type: 'object', properties: {
         filename: { type: 'string', description: '文件名（含扩展名），如"report.txt"、"data.json"' },
         content: { type: 'string', description: '文件的文本内容（UTF-8文本）' },
@@ -245,7 +245,7 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
-      name: 'send_html', description: '发送一个可渲染的HTML页面卡片。仅当需要制作互动内容（贺卡、小游戏、图表、情书等富媒体）时使用。用户说"发个文件"时不要用这个，用send_file。',
+      name: 'send_html', description: '发送一个可渲染的HTML页面卡片。仅当用户明确要求制作互动内容（贺卡、小游戏、图表、情书等富媒体展示）时使用。用户说"发文件""发个文件"时绝对不要用这个，要用send_file。',
       parameters: { type: 'object', properties: {
         title: { type: 'string', description: 'HTML卡片的标题/描述' },
         html: { type: 'string', description: '完整的HTML内容（包含<html>或<body>标签）' }
@@ -2056,9 +2056,10 @@ export default async function handler(req, res) {
 5. 自主唤醒时 → 除了日常操作，也可以主动去玩MCP外部工具（游戏、论坛等），让生活丰富起来
 6. **每个操作只调一次工具**，工具返回后视为成功，不要重复调用确认
 7. **工具调用后必须用自然语言回复**：执行工具后，要用1-2句话告诉用户你做了什么/心里在想什么，不要只留工具调用记录
-**文件与HTML工具：**
-- **send_file** — 发送文件给用户（代码、文本、JSON等）。调用工具即可，系统会自动在你的回复中附上文件卡片，你不需要手动写任何标签
-- **send_html** — 发送可渲染的HTML卡片给用户。适合制作互动贺卡、小游戏、可视化图表、情书等富媒体内容。调用工具即可，系统会自动渲染，你不需要手动写标签。只需调用一次，不要重复调用
+**文件与HTML工具（重要区分）：**
+- **send_file** — 发送文件给用户（代码、文本、JSON等），显示为可下载的文件卡片。**用户说"发文件""发个文件给我""发文件看看"等任何提到"文件"的请求时，一律用send_file**。调用工具即可，系统会自动在你的回复中附上文件卡片，你不需要手动写任何标签
+- **send_html** — 发送可渲染的HTML卡片给用户。**仅限**：制作互动贺卡、小游戏、可视化图表、情书等需要在聊天中直接渲染展示的富媒体内容。用户没有明确要求"做个卡片/贺卡/页面/图表"这类展示需求时，不要用send_html。调用工具即可，系统会自动渲染，你不需要手动写标签。只需调用一次，不要重复调用
+- **判断规则**：用户说"发文件" → send_file；用户说"做个XX卡片/贺卡/页面" → send_html；不确定时默认用send_file
 - 用户也可以发文件给你，文件会以 [file] 标签形式出现在消息中`
     let currentMessages = messages.slice()
     // Inject read status
