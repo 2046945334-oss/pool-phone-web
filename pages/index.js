@@ -19,6 +19,7 @@ import stickersHtml from '../public/apps/_stickers.html'
 // import careHtml from '../public/apps/_care.html' // removed: 72KB bloat
 import ScreenTimeApp from '../components/apps/ScreenTimeApp'
 import GomokuApp from '../components/apps/GomokuApp'
+import GameHub from '../components/apps/GameHub'
 
 // ===== Capacitor 通知初始化 =====
 function initCapacitorNotifications() {
@@ -3771,7 +3772,7 @@ function HomeScreen({ onOpenApp, theme }) {
                 {theme?.gameCover
                   ? <img src={theme.gameCover} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                   : <div style={{ width:'100%', height:'100%', background:'linear-gradient(135deg, #f0dce5, #e8c8d8)', display:'flex', alignItems:'center', justifyContent:'center', color:'#7a5a6a', fontSize:13, fontWeight:600, gap:6 }}>
-                      <span>{'🎮'}</span><span>{'五子棋'}</span>
+                      <span>{'游戏'}</span>
                     </div>
                 }
               </div>
@@ -3935,7 +3936,7 @@ export default function Home() {
     )
 
     const appTitles = { fishing:'钓鱼', reader:'阅读', notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', care:'养护手册', stickers:'表情包管理', game:'游戏' }
-    const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, game: <GomokuApp /> }
+    const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, game: <GameHub /> }
     const htmlApps = { notes: notesHtml, messages: messagesHtml, couple: coupleHtml, diary: diaryHtml, garden: gardenHtml, cabin: cabinHtml, starmap: starmapHtml, stickers: stickersHtml }
     // Lazy-loaded HTML apps: fetched on demand to reduce initial bundle size
     const lazyHtmlApps = { care: '/apps/_care.html' }
@@ -3994,7 +3995,7 @@ export default function Home() {
       if (currentApp === 'game') {
         return (
           <div className="app-page" style={{padding:0,...bgStyle}}>
-            <GomokuApp onBack={handleBack} onMinimize={() => { setGameMini(true); setActiveTab('chat'); handleBack() }} />
+            <GameHub onBack={handleBack} onMinimize={() => { setGameMini(true); setActiveTab('chat'); handleBack() }} />
           </div>
         )
       }
@@ -4083,7 +4084,7 @@ export default function Home() {
                     <button onClick={() => setGameMini(false)} style={{ background:'rgba(250,225,240,0.8)', color:'#a07088', border:'1px solid rgba(230,190,215,0.5)', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>✕</button>
                   </div>
                   <div style={{ flex:1, overflow:'hidden' }}>
-                    <GomokuApp mini={true} />
+                    <GameHub mini={true} />
                   </div>
                 </div>
               )}
