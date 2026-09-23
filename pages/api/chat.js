@@ -1812,6 +1812,18 @@ async function executeTool(name, args) {
         game.turn = 'B'
       }
       db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gomoku', JSON.stringify(game))
+      // If game ended, archive stats and clear active game
+      if (game.winner) {
+        const statsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_gomoku_stats'").get()
+        const stats = statsRow ? JSON.parse(statsRow.value) : { wins: 0, losses: 0, draws: 0, history: [] }
+        if (game.winner === 'B') stats.wins++
+        else if (game.winner === 'W') stats.losses++
+        else if (game.winner === 'draw') stats.draws++
+        stats.history.unshift({ winner: game.winner, moves: game.moves, date: Date.now(), gameId: game.gameId || '' })
+        if (stats.history.length > 50) stats.history = stats.history.slice(0, 50)
+        db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gomoku_stats', JSON.stringify(stats))
+        db.prepare("DELETE FROM kv WHERE key = 'pool_gomoku'").run()
+      }
       return { success: true, move: { row: r, col: c, color: 'W' }, gameId: game.gameId, winner: game.winner || null, moves: game.moves, message: game.winner === 'W' ? '你赢了！' : game.winner === 'draw' ? '平局！' : `已落子(${r},${c})` }
     } catch (e) { return { error: e.message } }
   }

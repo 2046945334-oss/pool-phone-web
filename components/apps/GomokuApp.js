@@ -50,6 +50,7 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
   const [aiThinking, setAiThinking] = useState(false)
   const [winLine, setWinLine] = useState(null)
   const [error, setError] = useState(null)
+  const [lastResult, setLastResult] = useState(null)
   const pollRef = useRef(null)
   const gameIdRef = useRef(null)
 
@@ -98,11 +99,21 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
         if (!res.ok) return
         const data = await res.json()
         const g = data.game
-        if (!g || g.gameId !== gid) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false); return }
-        if (g.turn === 'B' || g.winner) {
+        if (!g) {
+          // Game was archived (AI won or draw) — server deleted it
+          clearInterval(pollRef.current); pollRef.current = null
+          setStats(data.stats); setAiThinking(false); setGame(null)
+          // Check latest history to determine result
+          if (data.stats && data.stats.history && data.stats.history.length > 0) {
+            const last = data.stats.history[0]
+            setLastResult(last.winner === 'B' ? 'win' : last.winner === 'W' ? 'lose' : 'draw')
+          }
+          return
+        }
+        if (g.gameId !== gid) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false); return }
+        if (g.turn === 'B' && !g.winner) {
           clearInterval(pollRef.current); pollRef.current = null
           setGame(g); setStats(data.stats); setAiThinking(false)
-          if (g.winner && g.lastMove) setWinLine(getWinLine(g.board, g.lastMove[0], g.lastMove[1]))
         }
       } catch {}
       if (attempts >= 40) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false); loadGame() }
@@ -120,11 +131,14 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
       if (!res.ok) { const t = await res.text(); setError('落子失败: ' + t.slice(0,80)); setLoading(false); return }
       const data = await res.json()
       if (data.error) { setError(data.error); setLoading(false); return }
-      setGame(data.game); setStats(data.stats)
-      if (data.game.winner === 'B' && data.game.lastMove) {
-        setWinLine(getWinLine(data.game.board, data.game.lastMove[0], data.game.lastMove[1]))
+      setStats(data.stats)
+      if (data.game.winner) {
+        // Game ended (user won or draw) — server already archived, just show result
+        setLastResult(data.game.winner === 'B' ? 'win' : data.game.winner === 'W' ? 'lose' : 'draw')
+        setGame(null)
         setLoading(false); return
       }
+      setGame(data.game)
       setAiThinking(true); setLoading(false)
       const boardStr = data.game.board.map(row => row.map(v => v === 'B' ? 'X' : v === 'W' ? 'O' : '.').join('')).join('\n')
       if (typeof window !== 'undefined') {
@@ -152,12 +166,16 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
       <div style={{ display:'flex', flexDirection:'column', height:'100%', background: mini ? 'transparent' : 'linear-gradient(180deg, rgba(255,245,250,1) 0%, rgba(255,240,248,0.95) 100%)' }}>
         {header}
         <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:'0 16px' }}>
-          <div style={{ fontSize:16, color:'#7a5a6a', fontWeight:600 }}>{'🎮 五子棋'}</div>
-          <div style={{ fontSize:13, color:'#b08a9a' }}>{'你执黑棋(先手) vs AI执白棋'}</div>
+          {lastResult && (
+            <div style={{ fontSize:16, fontWeight:600, color: lastResult === 'win' ? '#7a5a6a' : lastResult === 'lose' ? '#8a6a7a' : '#999', padding:'8px 20px', background:'rgba(255,240,248,0.8)', borderRadius:12, marginBottom:4 }}>
+              {lastResult === 'win' ? '你赢了' : lastResult === 'lose' ? 'AI赢了' : '平局'}
+            </div>
+          )}
+          {!lastResult && <div style={{ fontSize:13, color:'#b08a9a' }}>{'你执黑棋(先手) vs AI执白棋'}</div>}
           <StatsCard stats={stats} mini={mini} />
           {error && <div style={{ fontSize:12, color:'#c44', padding:'6px 14px', background:'rgba(200,50,50,0.06)', borderRadius:10, maxWidth:'85%', textAlign:'center', wordBreak:'break-all' }}>{error}</div>}
-          <button onClick={newGame} disabled={loading} style={{ background:'linear-gradient(135deg,#e8a0bf,#d4a0c8)', color:'#fff', border:'none', borderRadius:14, padding:'10px 28px', fontSize:14, cursor:'pointer', opacity:loading?0.6:1, boxShadow:'0 2px 8px rgba(200,120,160,0.2)' }}>
-            {loading ? '加载中...' : '开始对弈'}
+          <button onClick={() => { setLastResult(null); newGame() }} disabled={loading} style={{ background:'linear-gradient(135deg,#e8a0bf,#d4a0c8)', color:'#fff', border:'none', borderRadius:14, padding:'10px 28px', fontSize:14, cursor:'pointer', opacity:loading?0.6:1, boxShadow:'0 2px 8px rgba(200,120,160,0.2)' }}>
+            {loading ? '加载中...' : lastResult ? '再来一局' : '开始对弈'}
           </button>
         </div>
       </div>
@@ -169,8 +187,7 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
       {header}
       {!mini && <StatsCard stats={stats} mini={true} />}
       <div style={{ textAlign:'center', padding: mini ? '4px 0 2px' : '6px 0 4px', fontSize: mini ? 12 : 14, color:'#7a5a6a', fontWeight:500 }}>
-        {game.winner === 'draw' ? '平局！' : game.winner === 'B' ? '⚫ 你赢了！' : game.winner === 'W' ? '⚪ AI赢了！' : aiThinking ? '⚪ AI思考中...' : game.turn === 'B' ? '⚫ 轮到你了' : '⚪ 等待AI...'}
-        {game.winner && <button onClick={newGame} disabled={loading} style={{ marginLeft:12, background:'linear-gradient(135deg,#e8a0bf,#d4a0c8)', color:'#fff', border:'none', borderRadius:12, padding:'4px 14px', fontSize:12, cursor:'pointer' }}>{loading ? '...' : '再来一局'}</button>}
+        {aiThinking ? '等待AI...' : '轮到你了'}
       </div>
       {error && <div style={{ textAlign:'center', fontSize:12, color:'#c44', padding:'2px 8px' }}>{error}</div>}
       <div style={{ flex:1, display:'flex', alignItems:'flex-start', justifyContent:'center', overflow:'auto', padding: mini ? '0 4px 4px' : '0 8px 8px' }}>

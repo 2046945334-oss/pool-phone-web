@@ -92,6 +92,11 @@ export default function handler(req, res) {
           game.turn = stone === 'B' ? 'W' : 'B'
         }
         db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_gomoku', JSON.stringify(game))
+        // If game ended, archive and clear active game immediately
+        if (game.winner) {
+          archiveGame(db, game)
+          db.prepare("DELETE FROM kv WHERE key = 'pool_gomoku'").run()
+        }
         const stats = getStats(db)
         return res.json({ game, stats })
       }
