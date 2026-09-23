@@ -258,15 +258,20 @@ async function executeTool(name, args) {
     try {
       const booksRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_books'").get()
       const books = booksRow ? JSON.parse(booksRow.value) : []
-      const book = books.find(b => b.id === args.book_id)
-      if (!book) return { error: '书籍不存在' }
       const stateRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_state'").get()
       const state = stateRow ? JSON.parse(stateRow.value) : {}
+      const bookId = args.book_id || state.currentBookId
+      const book = books.find(b => b.id === bookId)
+      if (!book) return { error: '书籍不存在', tried_id: bookId, available: books.map(b => b.id) }
       const ch = parseInt(args.chapter) || 0
       if (ch > (state.userChapter || 0)) return { error: '用户还没读到这一章，你不能提前看' }
       const chapter = book.chapters[ch]
       if (!chapter) return { error: '章节不存在' }
-      return { title: chapter.title, content: chapter.content.slice(0, 3000), chapterIndex: ch, totalChapters: book.chapters.length }
+      const fullContent = chapter.content
+      const maxChars = args.max_chars && args.max_chars > 0 ? args.max_chars : 3000
+      const content = fullContent.slice(0, maxChars)
+      const truncated = maxChars < fullContent.length
+      return { title: chapter.title, content, chapterIndex: ch, totalChapters: book.chapters.length, totalChars: fullContent.length, truncated }
     } catch (e) { return { error: e.message } }
   }
 
