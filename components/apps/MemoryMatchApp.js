@@ -80,7 +80,9 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
   function pollForAi() {
     if (pollRef.current) clearInterval(pollRef.current)
     let attempts = 0
+    let resolving = false
     pollRef.current = setInterval(async () => {
+      if (resolving) return // wait for resolve to finish
       attempts++
       try {
         const res = await fetch('/api/memory-match')
@@ -93,12 +95,45 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
           return
         }
         setGame(data.game); setStats(data.stats)
-        if (data.game.turn === 'user') {
+
+        // If AI flipped 2 cards (pendingResolve), show them then resolve after delay
+        if (data.game.pendingResolve && data.game.revealed?.length === 2) {
+          resolving = true
+          setTimeout(async () => {
+            try {
+              const rr = await fetch('/api/memory-match', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'resolve' }) })
+              const rd = await rr.json()
+              if (rd.game) {
+                setGame(rd.game); setStats(rd.stats)
+                if (rd.game.result) {
+                  clearInterval(pollRef.current); pollRef.current = null
+                  setAiThinking(false); setLastResult(rd.game.result); setGame(null)
+                  return
+                }
+                if (rd.game.turn === 'user') {
+                  clearInterval(pollRef.current); pollRef.current = null
+                  setAiThinking(false)
+                  return
+                }
+                // AI matched and continues — keep polling
+              } else if (!rd.game && rd.stats) {
+                clearInterval(pollRef.current); pollRef.current = null
+                setAiThinking(false); setGame(null); setStats(rd.stats)
+                if (rd.stats?.history?.length > 0) setLastResult(rd.stats.history[0].result)
+                return
+              }
+            } catch {}
+            resolving = false
+          }, 1500)
+          return
+        }
+
+        if (data.game.turn === 'user' && !data.game.pendingResolve) {
           clearInterval(pollRef.current); pollRef.current = null
           setAiThinking(false)
         }
       } catch {}
-      if (attempts >= 60) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false) }
+      if (attempts >= 120) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false) }
     }, 800)
   }
 
