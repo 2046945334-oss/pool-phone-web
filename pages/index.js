@@ -866,6 +866,28 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     return () => window.removeEventListener('gomoku-user-move', onGomokuMove)
   }, [])
 
+  // Listen for gomoku game-over events
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function onGomokuGameOver(e) {
+      const { result } = e.detail
+      const resultText = result === 'win' ? '你赢了' : result === 'lose' ? 'AI赢了' : '平局'
+      const gameMsg = {
+        role: 'user',
+        content: `[五子棋结束] ${resultText}！`,
+        ts: Date.now(),
+        isGameSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, gameMsg]
+        setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+        return next
+      })
+    }
+    window.addEventListener('gomoku-game-over', onGomokuGameOver)
+    return () => window.removeEventListener('gomoku-game-over', onGomokuGameOver)
+  }, [])
+
   // Listen for memory match events
   useEffect(() => {
     if (typeof window === 'undefined') return

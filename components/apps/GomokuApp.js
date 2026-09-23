@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 const SIZE = 15
 
+function dispatchGomokuGameOver(winner) {
+  if (typeof window === 'undefined') return
+  const result = winner === 'B' ? 'win' : winner === 'W' ? 'lose' : 'draw'
+  window.dispatchEvent(new CustomEvent('gomoku-game-over', { detail: { result, winner } }))
+}
+
 function getWinLine(board, r, c) {
   const p = board[r][c]
   if (!p) return null
@@ -104,10 +110,11 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
           clearInterval(pollRef.current); pollRef.current = null
           setStats(data.stats); setAiThinking(false); setGame(null)
           // Check latest history to determine result
-          if (data.stats && data.stats.history && data.stats.history.length > 0) {
-            const last = data.stats.history[0]
-            setLastResult(last.winner === 'B' ? 'win' : last.winner === 'W' ? 'lose' : 'draw')
-          }
+if (data.stats && data.stats.history && data.stats.history.length > 0) {
+             const last = data.stats.history[0]
+             setLastResult(last.winner === 'B' ? 'win' : last.winner === 'W' ? 'lose' : 'draw')
+             dispatchGomokuGameOver(last.winner)
+           }
           return
         }
         if (g.gameId !== gid) { clearInterval(pollRef.current); pollRef.current = null; setAiThinking(false); return }
@@ -135,6 +142,7 @@ export default function GomokuApp({ mini = false, onBack, onMinimize }) {
       if (data.game.winner) {
         // Game ended (user won or draw) — server already archived, just show result
         setLastResult(data.game.winner === 'B' ? 'win' : data.game.winner === 'W' ? 'lose' : 'draw')
+        dispatchGomokuGameOver(data.game.winner)
         setGame(null)
         setLoading(false); return
       }
