@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
+function dispatchGameOver(result, userScore, aiScore) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('memory-game-over', {
+    detail: { result, userScore, aiScore }
+  }))
+}
+
 export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
   const [game, setGame] = useState(null)
   const [stats, setStats] = useState(null)
@@ -53,7 +60,9 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
             if (rd.error) { setError(rd.error); setBusy(false); return }
             setGame(rd.game); setStats(rd.stats)
             if (rd.game?.result) {
-              setLastResult(rd.game.result); setGame(null); setBusy(false); return
+              setLastResult(rd.game.result); setGame(null); setBusy(false)
+              dispatchGameOver(rd.game.result, rd.game.userScore, rd.game.aiScore)
+              return
             }
             if (rd.game?.turn === 'ai') {
               setBusy(false); setAiThinking(true)
@@ -91,7 +100,11 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
         if (!data.game) {
           clearInterval(pollRef.current); pollRef.current = null
           setAiThinking(false); setGame(null); setStats(data.stats)
-          if (data.stats?.history?.length > 0) setLastResult(data.stats.history[0].result)
+          if (data.stats?.history?.length > 0) {
+            const h = data.stats.history[0]
+            setLastResult(h.result)
+            dispatchGameOver(h.result, h.userScore, h.aiScore)
+          }
           return
         }
         setGame(data.game); setStats(data.stats)
@@ -109,6 +122,7 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
                 if (rd.game.result) {
                   clearInterval(pollRef.current); pollRef.current = null
                   setAiThinking(false); setLastResult(rd.game.result); setGame(null)
+                  dispatchGameOver(rd.game.result, rd.game.userScore, rd.game.aiScore)
                   clearTimeout(resolveTimeout); resolving = false
                   return
                 }
@@ -122,7 +136,11 @@ export default function MemoryMatchApp({ mini = false, onBack, onMinimize }) {
               } else if (!rd.game && rd.stats) {
                 clearInterval(pollRef.current); pollRef.current = null
                 setAiThinking(false); setGame(null); setStats(rd.stats)
-                if (rd.stats?.history?.length > 0) setLastResult(rd.stats.history[0].result)
+                if (rd.stats?.history?.length > 0) {
+                  const h = rd.stats.history[0]
+                  setLastResult(h.result)
+                  dispatchGameOver(h.result, h.userScore, h.aiScore)
+                }
                 clearTimeout(resolveTimeout); resolving = false
                 return
               }

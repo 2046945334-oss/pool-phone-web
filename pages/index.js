@@ -883,8 +883,27 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
         return next
       })
     }
+    function onMemoryGameOver(e) {
+      const { result, userScore, aiScore } = e.detail
+      const resultText = result === 'win' ? '你赢了' : result === 'lose' ? 'AI赢了' : '平局'
+      const gameMsg = {
+        role: 'user',
+        content: `[翻牌结束] ${resultText}！最终比分: 你${userScore} - AI${aiScore}`,
+        ts: Date.now(),
+        isGameSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, gameMsg]
+        setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+        return next
+      })
+    }
     window.addEventListener('memory-user-done', onMemoryUserDone)
-    return () => window.removeEventListener('memory-user-done', onMemoryUserDone)
+    window.addEventListener('memory-game-over', onMemoryGameOver)
+    return () => {
+      window.removeEventListener('memory-user-done', onMemoryUserDone)
+      window.removeEventListener('memory-game-over', onMemoryGameOver)
+    }
   }, [])
     async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
