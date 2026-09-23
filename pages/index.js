@@ -869,11 +869,12 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   // Listen for 1A2B guess game events
   useEffect(() => {
     if (typeof window === 'undefined') return
-    function onGuessSetSecret(e) {
-      const { userSecret, userRounds } = e.detail
+
+    // New game — AI needs to set its secret
+    function onGuessNewGame() {
       const gameMsg = {
         role: 'user',
-        content: `[猜数字] 我设好了数字，你来猜。我的数字是4位不重复的。之前我猜你的数字用了${userRounds}轮，现在看你几轮能猜到。请用guess_number工具猜，根据每次反馈的xAyB来推理。`,
+        content: `[猜数字-新游戏] 开始1A2B猜数字！请用guess_set_secret工具设置你的4位不重复秘密数字。`,
         ts: Date.now(),
         isGameSync: true
       }
@@ -883,8 +884,62 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
         return next
       })
     }
+
+    // User guessed — inject result into chat (informational, no AI action needed)
+    function onGuessUserGuessed(e) {
+      const { guess, result, round, guessedCorrect } = e.detail
+      const gameMsg = {
+        role: 'user',
+        content: `[猜数字-我猜了] 第${round}轮：我猜${guess}，结果${result}。${guessedCorrect ? '猜对了！' : ''}`,
+        ts: Date.now(),
+        isGameSync: true
+      }
+      setMessages(prev => [...prev, gameMsg])
+    }
+
+    // User set their secret — AI needs to start guessing
+    function onGuessSetSecret(e) {
+      const { userRounds } = e.detail
+      const gameMsg = {
+        role: 'user',
+        content: `[猜数字-轮到你猜] 我设好了数字。我猜你的用了${userRounds}轮。现在轮到你猜我的数字，用guess_number工具猜。`,
+        ts: Date.now(),
+        isGameSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, gameMsg]
+        setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+        return next
+      })
+    }
+
+    // User provides feedback for AI's guess — AI needs to guess again
+    function onGuessUserFeedback(e) {
+      const { guess, feedback, correct, round } = e.detail
+      if (correct) return // game over, no need to trigger AI
+      const gameMsg = {
+        role: 'user',
+        content: `[猜数字-用户反馈] 你第${round}轮猜${guess}，结果${feedback}。请根据历史反馈继续用guess_number工具猜。`,
+        ts: Date.now(),
+        isGameSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, gameMsg]
+        setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+        return next
+      })
+    }
+
+    window.addEventListener('guess-new-game', onGuessNewGame)
+    window.addEventListener('guess-user-guessed', onGuessUserGuessed)
     window.addEventListener('guess-user-set-secret', onGuessSetSecret)
-    return () => window.removeEventListener('guess-user-set-secret', onGuessSetSecret)
+    window.addEventListener('guess-user-feedback', onGuessUserFeedback)
+    return () => {
+      window.removeEventListener('guess-new-game', onGuessNewGame)
+      window.removeEventListener('guess-user-guessed', onGuessUserGuessed)
+      window.removeEventListener('guess-user-set-secret', onGuessSetSecret)
+      window.removeEventListener('guess-user-feedback', onGuessUserFeedback)
+    }
   }, [])
 
   // Listen for memory match events
