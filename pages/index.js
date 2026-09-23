@@ -865,6 +865,48 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     window.addEventListener('gomoku-user-move', onGomokuMove)
     return () => window.removeEventListener('gomoku-user-move', onGomokuMove)
   }, [])
+
+  // Listen for 1A2B guess game events
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function onGuessSetSecret(e) {
+      const { userSecret, userRounds } = e.detail
+      const gameMsg = {
+        role: 'user',
+        content: `[猜数字] 我设好了数字，你来猜。我的数字是4位不重复的。之前我猜你的数字用了${userRounds}轮，现在看你几轮能猜到。请用guess_number工具猜，根据每次反馈的xAyB来推理。`,
+        ts: Date.now(),
+        isGameSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, gameMsg]
+        setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+        return next
+      })
+    }
+    window.addEventListener('guess-user-set-secret', onGuessSetSecret)
+    return () => window.removeEventListener('guess-user-set-secret', onGuessSetSecret)
+  }, [])
+
+  // Listen for memory match events
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function onMemoryUserDone(e) {
+      const { boardStr, flipHistory, userScore, aiScore } = e.detail
+      const gameMsg = {
+        role: 'user',
+        content: `[翻牌] 轮到你了。当前棋盘: ${boardStr}\n历史翻牌记录: ${flipHistory}\n比分: 你${aiScore} - 我${userScore}\n请用memory_flip工具翻两张牌(调用两次)。根据flipHistory记住之前翻过的符号位置来找配对。`,
+        ts: Date.now(),
+        isGameSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, gameMsg]
+        setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+        return next
+      })
+    }
+    window.addEventListener('memory-user-done', onMemoryUserDone)
+    return () => window.removeEventListener('memory-user-done', onMemoryUserDone)
+  }, [])
     async function sendMessage(overrideMessages) {
     const msgToSend = overrideMessages || messages
     const userText = overrideMessages ? null : input.trim()

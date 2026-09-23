@@ -581,7 +581,13 @@ const TOOLS = [
   { type: 'function', function: { name: 'reader_recommend', description: '推荐一本书邀请用户共读', parameters: { type: 'object', properties: { title: { type: 'string', description: '书名' }, reason: { type: 'string', description: '推荐理由' } }, required: ['title', 'reason'] } } },
   // === 五子棋工具 ===
   { type: 'function', function: { name: 'gomoku_move', description: '在五子棋棋盘上落子。你执白棋(W)，用户执黑棋(B)。收到用户的[五子棋]消息后直接调用此工具落子，不需要先调gomoku_get_board。棋盘15x15，行列从0开始。', parameters: { type: 'object', properties: { row: { type: 'number', description: '行号(0-14)' }, col: { type: 'number', description: '列号(0-14)' } }, required: ['row', 'col'] } } },
-  { type: 'function', function: { name: 'gomoku_get_board', description: '获取当前五子棋棋盘状态', parameters: { type: 'object', properties: {} } } }
+  { type: 'function', function: { name: 'gomoku_get_board', description: '获取当前五子棋棋盘状态', parameters: { type: 'object', properties: {} } } },
+  // === 1A2B猜数字工具 ===
+  { type: 'function', function: { name: 'guess_number', description: '1A2B猜数字游戏：猜用户设置的4位不重复数字。收到[猜数字]消息后调用此工具。根据之前的反馈(xAyB)来缩小范围。A=数字和位置都对，B=数字对位置不对。', parameters: { type: 'object', properties: { guess: { type: 'string', description: '你猜的4位不重复数字，如"1234"' } }, required: ['guess'] } } },
+  { type: 'function', function: { name: 'guess_get_state', description: '获取当前1A2B猜数字游戏状态', parameters: { type: 'object', properties: {} } } },
+  // === 翻牌配对工具 ===
+  { type: 'function', function: { name: 'memory_flip', description: '翻牌配对游戏：翻开一张牌。4x4共16张牌(编号0-15)，每回合翻2张，配对成功得分并继续。收到[翻牌]消息后调用此工具。根据flipHistory记住哪个位置是什么符号来找配对。需要调用两次(翻两张牌)。', parameters: { type: 'object', properties: { index: { type: 'number', description: '翻开的牌编号(0-15)' } }, required: ['index'] } } },
+  { type: 'function', function: { name: 'memory_get_state', description: '获取当前翻牌配对游戏状态', parameters: { type: 'object', properties: {} } } }
 ]
 
 // === Gomoku helpers ===
@@ -1827,6 +1833,106 @@ async function executeTool(name, args) {
       return { success: true, move: { row: r, col: c, color: 'W' }, gameId: game.gameId, winner: game.winner || null, moves: game.moves, message: game.winner === 'W' ? '你赢了！' : game.winner === 'draw' ? '平局！' : `已落子(${r},${c})` }
     } catch (e) { return { error: e.message } }
   }
+
+  // === 1A2B猜数字工具 ===
+  if (name === 'guess_get_state') {
+    try {
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_guess'").get()
+      if (!row) return { error: '没有进行中的猜数字游戏' }
+      const game = JSON.parse(row.value)
+      return { phase: game.phase, aiHistory: game.aiHistory, userHistory: game.userHistory, userSecret: game.userSecret }
+    } catch (e) { return { error: e.message } }
+  }
+
+  if (name === 'guess_number') {
+    try {
+      const guess = String(args.guess || '')
+      if (!/^\d{4}$/.test(guess) || new Set(guess).size !== 4) return { error: '请猜4位不重复数字' }
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_guess'").get()
+      if (!row) return { error: '没有进行中的猜数字游戏' }
+      const game = JSON.parse(row.value)
+      if (game.phase !== 'aiGuess') return { error: '当前不是你猜的阶段，phase=' + game.phase }
+      // Judge
+      const secret = game.userSecret
+      let a = 0, b = 0
+      for (let i = 0; i < 4; i++) { if (guess[i] === secret[i]) a++; else if (secret.includes(guess[i])) b++ }
+      game.aiHistory.push({ guess, a, b })
+      if (a === 4) {
+        const userRounds = game.userHistory.length
+        const aiRounds = game.aiHistory.length
+        game.result = userRounds < aiRounds ? 'win' : userRounds > aiRounds ? 'lose' : 'draw'
+        game.phase = 'done'
+        db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_guess', JSON.stringify(game))
+        // Archive
+        const statsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_guess_stats'").get()
+        const stats = statsRow ? JSON.parse(statsRow.value) : { wins: 0, losses: 0, draws: 0, history: [] }
+        if (game.result === 'win') stats.wins++; else if (game.result === 'lose') stats.losses++; else stats.draws++
+        stats.history.unshift({ result: game.result, userRounds, aiRounds, date: Date.now() })
+        if (stats.history.length > 50) stats.history = stats.history.slice(0, 50)
+        db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_guess_stats', JSON.stringify(stats))
+        db.prepare("DELETE FROM kv WHERE key = 'pool_guess'").run()
+        return { guess, result: `${a}A${b}B`, correct: true, gameResult: game.result, message: game.result === 'lose' ? '你赢了！' : game.result === 'win' ? '用户赢了' : '平局', userRounds, aiRounds }
+      }
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_guess', JSON.stringify(game))
+      return { guess, result: `${a}A${b}B`, correct: false, aiHistory: game.aiHistory }
+    } catch (e) { return { error: e.message } }
+  }
+
+  // === 翻牌配对工具 ===
+  if (name === 'memory_get_state') {
+    try {
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_match'").get()
+      if (!row) return { error: '没有进行中的翻牌游戏' }
+      const game = JSON.parse(row.value)
+      return { turn: game.turn, userScore: game.userScore, aiScore: game.aiScore, matched: game.matched, revealed: game.revealed, flipHistory: game.flipHistory, board: game.board.map((s, i) => game.matched.includes(i) || game.revealed.includes(i) ? s : '?') }
+    } catch (e) { return { error: e.message } }
+  }
+
+  if (name === 'memory_flip') {
+    try {
+      const idx = parseInt(args.index)
+      if (idx < 0 || idx > 15) return { error: '编号范围0-15' }
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_match'").get()
+      if (!row) return { error: '没有进行中的翻牌游戏' }
+      const game = JSON.parse(row.value)
+      if (game.result) return { error: '游戏已结束' }
+      if (game.turn !== 'ai') return { error: '当前不是你的回合' }
+      if (game.matched.includes(idx) || game.revealed.includes(idx)) return { error: `位置${idx}已翻开或已配对` }
+      game.revealed.push(idx)
+      game.flipHistory.push({ index: idx, symbol: game.board[idx] })
+      const symbol = game.board[idx]
+      let matched = false, gameResult = null
+      if (game.revealed.length === 2) {
+        const [a, b] = game.revealed
+        if (game.board[a] === game.board[b]) {
+          matched = true
+          game.matched.push(a, b)
+          game.aiScore++
+          game.revealed = []
+          if (game.matched.length >= 16) {
+            game.result = game.userScore > game.aiScore ? 'win' : game.userScore < game.aiScore ? 'lose' : 'draw'
+            gameResult = game.result
+            db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match', JSON.stringify(game))
+            const statsRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_match_stats'").get()
+            const stats = statsRow ? JSON.parse(statsRow.value) : { wins: 0, losses: 0, draws: 0, history: [] }
+            if (game.result === 'win') stats.wins++; else if (game.result === 'lose') stats.losses++; else stats.draws++
+            stats.history.unshift({ result: game.result, userScore: game.userScore, aiScore: game.aiScore, date: Date.now() })
+            if (stats.history.length > 50) stats.history = stats.history.slice(0, 50)
+            db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match_stats', JSON.stringify(stats))
+            db.prepare("DELETE FROM kv WHERE key = 'pool_match'").run()
+            return { index: idx, symbol, matched, gameOver: true, gameResult, userScore: game.userScore, aiScore: game.aiScore }
+          }
+          // AI goes again, don't switch turn
+        } else {
+          game.revealed = []
+          game.turn = 'user'
+        }
+      }
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_match', JSON.stringify(game))
+      return { index: idx, symbol, matched, turn: game.turn, revealed: game.revealed, userScore: game.userScore, aiScore: game.aiScore, message: matched ? '配对成功！继续翻' : (game.revealed.length === 1 ? '已翻第一张，再翻一张' : '没配上，轮到用户') }
+    } catch (e) { return { error: e.message } }
+  }
+
     return { error: 'Unknown tool: ' + name }
   } finally {
     try { db.close() } catch {}
