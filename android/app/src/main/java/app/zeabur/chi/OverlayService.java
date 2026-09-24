@@ -86,8 +86,6 @@ public class OverlayService extends Service {
     private MediaProjection mediaProjection;
     private static int sResultCode;
     private static Intent sResultData;
-    private ImageReader imageReader;
-    private VirtualDisplay virtualDisplay;
     private int screenW, screenH;
 
     public static void setMediaProjectionResult(int resultCode, Intent data) {
