@@ -543,6 +543,33 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     return () => clearInterval(timer)
   }, [])
 
+  // Poll overlay messages from backend (overlay-chat writes to pool_chat_history)
+  const overlaySeenRef = useRef(new Set())
+  useEffect(() => {
+    const pollOverlay = async () => {
+      try {
+        const res = await fetch('/api/data/pool_chat_history')
+        if (!res.ok) return
+        const data = await res.json()
+        const backendMsgs = data.value ? (typeof data.value === 'string' ? JSON.parse(data.value) : data.value) : []
+        if (!Array.isArray(backendMsgs)) return
+        // Find overlay AI replies not yet in frontend
+        const overlayAiMsgs = backendMsgs.filter(m => m.source === 'overlay' && m.role === 'assistant' && m.ts && !overlaySeenRef.current.has(m.ts))
+        if (!overlayAiMsgs.length) return
+        setMessages(prev => {
+          const prevTsSet = new Set(prev.filter(m => m.ts).map(m => m.ts))
+          const toAdd = overlayAiMsgs.filter(m => !prevTsSet.has(m.ts))
+          if (!toAdd.length) return prev
+          toAdd.forEach(m => overlaySeenRef.current.add(m.ts))
+          return [...prev, ...toAdd]
+        })
+      } catch {}
+    }
+    pollOverlay()
+    const timer = setInterval(pollOverlay, 10000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Poll notification queue from backend and trigger Capacitor LocalNotifications
   useEffect(() => {
     if (typeof window === 'undefined') return
