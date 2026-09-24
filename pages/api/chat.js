@@ -2125,19 +2125,12 @@ export default async function handler(req, res) {
     }
     // 注入引用语法和拍一拍提示
     {
-      const quoteAndPatHint = "【特殊格式】
-" +
-        "1. 引用消息：当你想引用对方之前说过的话来回复时，使用 [quote]被引用的内容[/quote] 格式。例如：
-" +
-        "[quote]今天好累啊[/quote]
-累了就休息一会儿嘛
-
-" +
+      const quoteAndPatHint = "【特殊格式】\n" +
+        "1. 引用消息：当你想引用对方之前说过的话来回复时，使用 [quote]被引用的内容[/quote] 格式。例如：\n" +
+        "[quote]今天好累啊[/quote]\n累了就休息一会儿嘛\n\n" +
         "2. 拍一拍：你有 pat_user 工具，想拍对方时随时可以调用，文案自由发挥。"
       const sysIdx2 = currentMessages.findIndex(m => m.role === "system")
-      if (sysIdx2 >= 0) currentMessages[sysIdx2].content += "
-
-" + quoteAndPatHint
+      if (sysIdx2 >= 0) currentMessages[sysIdx2].content += "\n\n" + quoteAndPatHint
       else currentMessages.unshift({ role: "system", content: quoteAndPatHint })
     }
     // 注入表情包使用提示
