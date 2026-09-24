@@ -983,7 +983,7 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: await (async () => {
           // 合并连续同角色消息，避免拆句导致上下文浪费
-          const raw = newMessages.filter(m => m.role !== 'system' && m.role !== 'tool_log')
+          const raw = newMessages.filter(m => m.role !== 'tool_log' && !(m.role === 'system' && !m.isPat)).map(m => m.isPat ? { role: 'user', content: `[拍一拍] ${m.content}` } : m)
           const merged = []
           for (const m of raw) {
             const last = merged[merged.length - 1]
