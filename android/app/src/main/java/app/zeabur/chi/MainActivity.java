@@ -38,11 +38,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import android.media.projection.MediaProjectionManager;
+import android.provider.Settings;
+import android.webkit.JavascriptInterface;
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "ChiFcm";
     private static final int AUDIO_PERMISSION_REQUEST_CODE = 1001;
+    private static final int MEDIA_PROJECTION_REQUEST_CODE = 1002;
     private ValueCallback<Uri[]> fileUploadCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
+    private ActivityResultLauncher<Intent> projectionLauncher;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(UsageStatsPlugin.class);
@@ -77,6 +82,21 @@ public class MainActivity extends BridgeActivity {
                 fileUploadCallback = null;
             }
         );
+        // Register MediaProjection launcher
+        projectionLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    OverlayService.setMediaProjectionResult(result.getResultCode(), result.getData());
+                    Intent svc = new Intent(this, OverlayService.class);
+                    startForegroundService(svc);
+                    Log.d(TAG, "OverlayService started with MediaProjection");
+                } else {
+                    Log.w(TAG, "MediaProjection permission denied");
+                    Toast.makeText(this, "\u622a\u5c4f\u6743\u9650\u672a\u6388\u4e88", Toast.LENGTH_SHORT).show();
+                }
+            }
+        );
         // Configure WebView for audio playback and microphone access
         configureWebView();
     }
@@ -87,22 +107,24 @@ public class MainActivity extends BridgeActivity {
                 WebSettings settings = webView.getSettings();
                 // Allow audio/video to autoplay without user gesture
                 settings.setMediaPlaybackRequiresUserGesture(false);
+                // Add JS interface for overlay control
+                webView.addJavascriptInterface(new OverlayBridge(), "ChiOverlay");
                 // Handle downloads from WebView
                 webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
                     try {
                         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
                         String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
                         request.setTitle(filename);
-                        request.setDescription("下载图片中...");
+                        request.setDescription("\u4e0b\u8f7d\u56fe\u7247\u4e2d...");
                         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
                         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
                         request.setMimeType(mimeType);
                         DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                         dm.enqueue(request);
-                        Toast.makeText(MainActivity.this, "开始下载: " + filename, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "\u5f00\u59cb\u4e0b\u8f7d: " + filename, Toast.LENGTH_SHORT).show();
                     } catch (Exception e) {
                         Log.e(TAG, "Download failed: " + e.getMessage());
-                        Toast.makeText(MainActivity.this, "下载失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "\u4e0b\u8f7d\u5931\u8d25", Toast.LENGTH_SHORT).show();
                     }
                 });
                 // Handle WebView permission requests (microphone, camera) and file upload
@@ -145,6 +167,34 @@ public class MainActivity extends BridgeActivity {
             Log.e(TAG, "Failed to configure WebView: " + e.getMessage());
         }
     }
+    // JS bridge for overlay control from frontend
+    private class OverlayBridge {
+        @JavascriptInterface
+        public void startOverlay() {
+            runOnUiThread(() -> {
+                // Check overlay permission
+                if (!Settings.canDrawOverlays(MainActivity.this)) {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                    return;
+                }
+                // Request MediaProjection
+                MediaProjectionManager mpm = (MediaProjectionManager)
+                        getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                projectionLauncher.launch(mpm.createScreenCaptureIntent());
+            });
+        }
+        @JavascriptInterface
+        public void stopOverlay() {
+            stopService(new Intent(MainActivity.this, OverlayService.class));
+        }
+        @JavascriptInterface
+        public boolean isOverlayRunning() {
+            // Simple check: if we can draw overlays, assume it might be running
+            return Settings.canDrawOverlays(MainActivity.this);
+        }
+    }
     private void requestAudioPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -157,8 +207,8 @@ public class MainActivity extends BridgeActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager mgr = getSystemService(NotificationManager.class);
             NotificationChannel pushChannel = new NotificationChannel(
-                    "chi_push", "推送通知", NotificationManager.IMPORTANCE_HIGH);
-            pushChannel.setDescription("来自islet的推送通知");
+                    "chi_push", "\u63a8\u9001\u901a\u77e5", NotificationManager.IMPORTANCE_HIGH);
+            pushChannel.setDescription("\u6765\u81eaislet\u7684\u63a8\u9001\u901a\u77e5");
             pushChannel.enableVibration(true);
             mgr.createNotificationChannel(pushChannel);
         }
