@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
@@ -40,6 +41,7 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -47,6 +49,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Random;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -54,17 +57,24 @@ public class OverlayService extends Service {
     private static final String TAG = "OverlayPeek";
     private static final String CHANNEL_ID = "chi_overlay";
     private static final int NOTIF_ID = 9001;
-    private static final long PEEK_THRESHOLD_MS = 3 * 60 * 1000;
-    private static final long PEEK_COOLDOWN_MS = 8 * 60 * 1000;
-    private static final long POLL_INTERVAL_MS = 30 * 1000;
+    // Min time on same app before eligible
+    private static final long PEEK_MIN_MS = 2 * 60 * 1000; // 2 min
+    // Each poll after min has this chance to trigger
+    private static final double PEEK_CHANCE = 0.30; // 30%
+    // Cooldown between peeks
+    private static final long PEEK_COOLDOWN_MS = 10 * 60 * 1000; // 10 min
+    // Poll interval
+    private static final long POLL_INTERVAL_MS = 30 * 1000; // 30s
 
     private WindowManager windowManager;
     private View bubbleView;
+    private ImageView bubbleImage;
     private View commentCard;
     private TextView commentText;
     private boolean commentVisible = false;
 
     private Handler handler;
+    private Random random = new Random();
     private String lastForegroundPkg = "";
     private long lastPkgStartTime = 0;
     private long lastPeekTime = 0;
@@ -91,6 +101,7 @@ public class OverlayService extends Service {
         createBubble();
         createCommentCard();
         initMediaProjection();
+        loadBubbleAvatar();
         startMonitoring();
     }
 
@@ -135,16 +146,17 @@ public class OverlayService extends Service {
                 .build();
     }
 
+    // ============ Bubble UI ============
     private void createBubble() {
         int size = dp(48);
-        ImageView iv = new ImageView(this);
+        bubbleImage = new ImageView(this);
         GradientDrawable circle = new GradientDrawable();
         circle.setShape(GradientDrawable.OVAL);
         circle.setColor(Color.parseColor("#e8b4d8"));
-        iv.setBackground(circle);
-        iv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        iv.setPadding(dp(4), dp(4), dp(4), dp(4));
-        bubbleView = iv;
+        bubbleImage.setBackground(circle);
+        bubbleImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        bubbleImage.setClipToOutline(true);
+        bubbleView = bubbleImage;
 
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 size, size,
@@ -155,7 +167,7 @@ public class OverlayService extends Service {
         params.x = dp(8);
         params.y = dp(200);
 
-        iv.setOnTouchListener(new View.OnTouchListener() {
+        bubbleImage.setOnTouchListener(new View.OnTouchListener() {
             int lastX, lastY, downX, downY;
             boolean dragging = false;
             @Override
@@ -181,6 +193,56 @@ public class OverlayService extends Service {
             }
         });
         windowManager.addView(bubbleView, params);
+    }
+
+    private void loadBubbleAvatar() {
+        new Thread(() -> {
+            try {
+                SharedPreferences prefs = getSharedPreferences("chi_overlay", MODE_PRIVATE);
+                String avatarUrl = prefs.getString("bubbleAvatar", "");
+                if (avatarUrl.isEmpty()) {
+                    // Try to fetch from backend KV pool_overlay_config
+                    URL url = new URL("https://chi.zeabur.app/api/data/pool_overlay_config");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setConnectTimeout(5000); conn.setReadTimeout(5000);
+                    BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line; while ((line = r.readLine()) != null) sb.append(line);
+                    r.close(); conn.disconnect();
+                    JSONObject data = new JSONObject(sb.toString());
+                    String val = data.optString("value", "");
+                    if (!val.isEmpty()) {
+                        JSONObject cfg = new JSONObject(val);
+                        avatarUrl = cfg.optString("bubbleAvatar", "");
+                        prefs.edit().putString("bubbleAvatar", avatarUrl).apply();
+                    }
+                }
+                if (!avatarUrl.isEmpty()) {
+                    URL imgUrl = new URL(avatarUrl);
+                    InputStream is = imgUrl.openStream();
+                    Bitmap bmp = BitmapFactory.decodeStream(is);
+                    is.close();
+                    if (bmp != null) {
+                        // Crop to circle
+                        int sz = Math.min(bmp.getWidth(), bmp.getHeight());
+                        Bitmap square = Bitmap.createBitmap(bmp, (bmp.getWidth()-sz)/2, (bmp.getHeight()-sz)/2, sz, sz);
+                        handler.post(() -> {
+                            bubbleImage.setImageBitmap(square);
+                            // Make it round via outline
+                            bubbleImage.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                                @Override
+                                public void getOutline(View view, android.graphics.Outline outline) {
+                                    outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                                }
+                            });
+                            bubbleImage.setClipToOutline(true);
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "loadBubbleAvatar error: " + e.getMessage());
+            }
+        }).start();
     }
 
     private void createCommentCard() {
@@ -225,6 +287,7 @@ public class OverlayService extends Service {
         });
     }
 
+    // ============ MediaProjection ============
     private void initMediaProjection() {
         if (sResultData == null) { Log.w(TAG, "No MediaProjection result"); return; }
         MediaProjectionManager mpm = (MediaProjectionManager)
@@ -274,6 +337,7 @@ public class OverlayService extends Service {
         if (imageReader != null) { imageReader.close(); imageReader = null; }
     }
 
+    // ============ App Monitoring with Random Trigger ============
     private void startMonitoring() {
         handler.postDelayed(new Runnable() {
             @Override public void run() {
@@ -292,9 +356,12 @@ public class OverlayService extends Service {
         }
         long duration = now - lastPkgStartTime;
         long sinceLast = now - lastPeekTime;
-        if (duration >= PEEK_THRESHOLD_MS && sinceLast >= PEEK_COOLDOWN_MS) {
-            lastPeekTime = now;
-            new Thread(() -> doPeek(currentPkg, duration)).start();
+        // Must meet minimum time + cooldown, then random chance each poll
+        if (duration >= PEEK_MIN_MS && sinceLast >= PEEK_COOLDOWN_MS) {
+            if (random.nextDouble() < PEEK_CHANCE) {
+                lastPeekTime = now;
+                new Thread(() -> doPeek(currentPkg, duration)).start();
+            }
         }
     }
 
@@ -313,6 +380,7 @@ public class OverlayService extends Service {
         } catch (Exception e) { return null; }
     }
 
+    // ============ Peek Logic - calls /api/overlay-chat ============
     private void doPeek(String pkg, long durationMs) {
         Log.d(TAG, "Peeking at " + pkg + " after " + (durationMs / 1000) + "s");
         String base64Img = captureScreen();
@@ -320,19 +388,6 @@ public class OverlayService extends Service {
         long minutes = durationMs / 60000;
         String textContent = "[\u60ac\u6d6e\u7a97\u6293\u62cd] \u5979\u5df2\u7ecf\u5728" + appName + "\u4e0a\u5f85\u4e86" + minutes + "\u5206\u949f\u4e86\u3002";
         try {
-            SharedPreferences prefs = getSharedPreferences("chi_overlay", MODE_PRIVATE);
-            String apiBase = prefs.getString("apiBase", "");
-            String apiKey = prefs.getString("apiKey", "");
-            String model = prefs.getString("model", "");
-            if (apiBase.isEmpty()) {
-                fetchAndCacheApiConfig(prefs);
-                apiBase = prefs.getString("apiBase", "");
-                apiKey = prefs.getString("apiKey", "");
-                model = prefs.getString("model", "");
-            }
-            if (apiBase.isEmpty() || apiKey.isEmpty()) {
-                Log.w(TAG, "No API config"); return;
-            }
             JSONObject body = new JSONObject();
             JSONArray messages = new JSONArray();
             JSONObject userMsg = new JSONObject();
@@ -341,7 +396,7 @@ public class OverlayService extends Service {
                 JSONArray contentParts = new JSONArray();
                 JSONObject textPart = new JSONObject();
                 textPart.put("type", "text");
-                textPart.put("text", textContent + "\n\u8bf7\u6839\u636e\u622a\u56fe\u5185\u5bb9\u7b80\u77ed\u8bc4\u8bba\u4e00\u53e5\uff081-2\u53e5\u8bdd\uff09\uff0c\u50cf\u5e73\u65f6\u804a\u5929\u4e00\u6837\u81ea\u7136\u3002");
+                textPart.put("text", textContent);
                 contentParts.put(textPart);
                 JSONObject imgPart = new JSONObject();
                 imgPart.put("type", "image_url");
@@ -351,13 +406,14 @@ public class OverlayService extends Service {
                 contentParts.put(imgPart);
                 userMsg.put("content", contentParts);
             } else {
-                userMsg.put("content", textContent + "\n\u8bf7\u7b80\u77ed\u8bc4\u8bba\u4e00\u53e5\u3002");
+                userMsg.put("content", textContent);
             }
             messages.put(userMsg);
             body.put("messages", messages);
             body.put("source", "overlay");
 
-            URL url = new URL("https://chi.zeabur.app/api/chat");
+            // Call our backend overlay-chat endpoint (has full context)
+            URL url = new URL("https://chi.zeabur.app/api/overlay-chat");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
@@ -373,41 +429,14 @@ public class OverlayService extends Service {
                 reader.close();
                 JSONObject resp = new JSONObject(sb.toString());
                 String reply = resp.optString("reply", "");
-                if (reply.isEmpty()) {
-                    JSONArray choices = resp.optJSONArray("choices");
-                    if (choices != null && choices.length() > 0)
-                        reply = choices.getJSONObject(0).getJSONObject("message").getString("content");
-                }
                 reply = reply.replaceAll("<think>[\\s\\S]*?</think>", "").trim();
                 if (!reply.isEmpty()) {
                     showComment(reply);
                     Log.d(TAG, "Peek reply: " + reply);
                 }
-            } else { Log.e(TAG, "Chat API returned " + code); }
+            } else { Log.e(TAG, "overlay-chat returned " + code); }
             conn.disconnect();
         } catch (Exception e) { Log.e(TAG, "doPeek error: " + e.getMessage()); }
-    }
-
-    private void fetchAndCacheApiConfig(SharedPreferences prefs) {
-        try {
-            URL url = new URL("https://chi.zeabur.app/api/data/pool_api_config");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(5000); conn.setReadTimeout(5000);
-            BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            StringBuilder sb = new StringBuilder();
-            String line; while ((line = r.readLine()) != null) sb.append(line);
-            r.close(); conn.disconnect();
-            JSONObject data = new JSONObject(sb.toString());
-            String val = data.optString("value", "");
-            if (!val.isEmpty()) {
-                JSONObject cfg = new JSONObject(val);
-                prefs.edit()
-                        .putString("apiBase", cfg.optString("apiBase", ""))
-                        .putString("apiKey", cfg.optString("apiKey", ""))
-                        .putString("model", cfg.optString("model", ""))
-                        .apply();
-            }
-        } catch (Exception e) { Log.e(TAG, "fetchApiConfig error: " + e.getMessage()); }
     }
 
     private String getAppName(String pkg) {
