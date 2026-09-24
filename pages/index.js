@@ -1099,6 +1099,7 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
               window.dispatchEvent(new Event('theme-changed'))
             }
           } catch {}
+        }
         // pat_user: 插入拍一拍系统消息
         if (toolLogs && toolLogs.some(l => l.name === "pat_user")) {
           const patLog = toolLogs.find(l => l.name === "pat_user")
@@ -1106,7 +1107,6 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
           current = [...current, { role: "system", content: patText, ts: Date.now(), isPat: true }]
           setMessages([...current])
           setPatShake(true); setTimeout(() => setPatShake(false), 600)
-        }
         }
       }
       if (data.reply) {
