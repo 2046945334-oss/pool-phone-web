@@ -334,10 +334,13 @@ public class OverlayService extends Service {
         }
     }
 
-    private String captureScreen() {
+    private String lastCaptureDiag = "";
+    private String[] captureScreenDiag() {
         if (mediaProjection == null) {
-            Log.w(TAG, "captureScreen: no mediaProjection");
-            return null;
+            return new String[]{null, "mediaProjection=null"};
+        }
+        if (screenW <= 0 || screenH <= 0) {
+            return new String[]{null, "screen=" + screenW + "x" + screenH};
         }
         ImageReader reader = null;
         VirtualDisplay vd = null;
@@ -347,21 +350,25 @@ public class OverlayService extends Service {
             reader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
             final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
             reader.setOnImageAvailableListener(r -> latch.countDown(), handler);
-            vd = mediaProjection.createVirtualDisplay(
-                    "OverlayCapture", screenW, screenH, density,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    reader.getSurface(), null, handler);
-            // Wait up to 2 seconds for a frame
-            boolean gotFrame = latch.await(2, java.util.concurrent.TimeUnit.SECONDS);
-            if (!gotFrame) {
-                Log.w(TAG, "captureScreen: timeout waiting for frame");
+            try {
+                vd = mediaProjection.createVirtualDisplay(
+                        "OverlayCapture", screenW, screenH, density,
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                        reader.getSurface(), null, handler);
+            } catch (Exception e) {
+                return new String[]{null, "createVD:" + e.getClass().getSimpleName()};
             }
-            // Small extra delay to ensure frame is fully rendered
-            Thread.sleep(100);
+            if (vd == null) {
+                return new String[]{null, "vd=null"};
+            }
+            boolean gotFrame = latch.await(3, java.util.concurrent.TimeUnit.SECONDS);
+            if (!gotFrame) {
+                return new String[]{null, "timeout3s"};
+            }
+            Thread.sleep(150);
             Image image = reader.acquireLatestImage();
             if (image == null) {
-                Log.w(TAG, "captureScreen: no image after callback");
-                return null;
+                return new String[]{null, "image=null"};
             }
             Image.Plane[] planes = image.getPlanes();
             ByteBuffer buffer = planes[0].getBuffer();
@@ -377,11 +384,9 @@ public class OverlayService extends Service {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
             bitmap.recycle();
-            Log.d(TAG, "captureScreen: got " + baos.size() + " bytes");
-            return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+            return new String[]{Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP), "ok:" + baos.size() + "B"};
         } catch (Exception e) {
-            Log.e(TAG, "captureScreen error: " + e.getMessage());
-            return null;
+            return new String[]{null, "ex:" + e.getClass().getSimpleName() + ":" + e.getMessage()};
         } finally {
             if (vd != null) try { vd.release(); } catch (Exception ignored) {}
             if (reader != null) try { reader.close(); } catch (Exception ignored) {}
