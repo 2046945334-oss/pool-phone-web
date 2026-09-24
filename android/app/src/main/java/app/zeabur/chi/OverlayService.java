@@ -122,8 +122,6 @@ public class OverlayService extends Service {
         handler.removeCallbacksAndMessages(null);
         if (bubbleView != null) windowManager.removeView(bubbleView);
         if (commentCard != null) windowManager.removeView(commentCard);
-        if (virtualDisplay != null) virtualDisplay.release();
-        if (imageReader != null) imageReader.close();
         if (mediaProjection != null) mediaProjection.stop();
     }
 
@@ -326,53 +324,43 @@ public class OverlayService extends Service {
                     getSystemService(Context.MEDIA_PROJECTION_SERVICE);
             mediaProjection = mpm.getMediaProjection(sResultCode, sResultData);
             if (mediaProjection == null) { Log.e(TAG, "Failed to get MediaProjection"); return; }
-            // Delay VirtualDisplay creation to ensure service is fully started
-            handler.postDelayed(this::createPersistentDisplay, 500);
+            DisplayMetrics metrics = getResources().getDisplayMetrics();
+            int scale = 3;
+            screenW = metrics.widthPixels / scale;
+            screenH = metrics.heightPixels / scale;
+            Log.d(TAG, "MediaProjection ready, screen: " + screenW + "x" + screenH);
         } catch (Exception e) {
             Log.e(TAG, "initMediaProjection error: " + e.getMessage());
         }
     }
 
-    private void createPersistentDisplay() {
-        if (mediaProjection == null) return;
+    private String captureScreen() {
+        if (mediaProjection == null) {
+            Log.w(TAG, "captureScreen: no mediaProjection");
+            return null;
+        }
+        ImageReader reader = null;
+        VirtualDisplay vd = null;
         try {
             DisplayMetrics metrics = getResources().getDisplayMetrics();
-            int scale = 3;
-            screenW = metrics.widthPixels / scale;
-            screenH = metrics.heightPixels / scale;
-            int density = metrics.densityDpi / scale;
-            imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
-            virtualDisplay = mediaProjection.createVirtualDisplay(
+            int density = metrics.densityDpi / 3;
+            reader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
+            final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+            reader.setOnImageAvailableListener(r -> latch.countDown(), handler);
+            vd = mediaProjection.createVirtualDisplay(
                     "OverlayCapture", screenW, screenH, density,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    imageReader.getSurface(), null, handler);
-            Log.d(TAG, "Persistent VirtualDisplay created: " + screenW + "x" + screenH);
-        } catch (Exception e) {
-            Log.e(TAG, "createPersistentDisplay error: " + e.getMessage());
-            // Fallback: clear so captureScreen will lazily create on demand
-            if (imageReader != null) { try { imageReader.close(); } catch (Exception ignored) {} imageReader = null; }
-            if (virtualDisplay != null) { try { virtualDisplay.release(); } catch (Exception ignored) {} virtualDisplay = null; }
-        }
-    }
-
-    private String captureScreen() {
-        if (imageReader == null) {
-            Log.w(TAG, "captureScreen: imageReader is null, trying lazy init");
-            createPersistentDisplay();
-            if (imageReader == null) return null;
-            // Wait a bit for first frame
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-        }
-        try {
-            // Try a few times in case frame not ready yet
-            Image image = null;
-            for (int attempt = 0; attempt < 5; attempt++) {
-                image = imageReader.acquireLatestImage();
-                if (image != null) break;
-                Thread.sleep(150);
+                    reader.getSurface(), null, handler);
+            // Wait up to 2 seconds for a frame
+            boolean gotFrame = latch.await(2, java.util.concurrent.TimeUnit.SECONDS);
+            if (!gotFrame) {
+                Log.w(TAG, "captureScreen: timeout waiting for frame");
             }
+            // Small extra delay to ensure frame is fully rendered
+            Thread.sleep(100);
+            Image image = reader.acquireLatestImage();
             if (image == null) {
-                Log.w(TAG, "captureScreen: no image after retries");
+                Log.w(TAG, "captureScreen: no image after callback");
                 return null;
             }
             Image.Plane[] planes = image.getPlanes();
@@ -394,6 +382,9 @@ public class OverlayService extends Service {
         } catch (Exception e) {
             Log.e(TAG, "captureScreen error: " + e.getMessage());
             return null;
+        } finally {
+            if (vd != null) try { vd.release(); } catch (Exception ignored) {}
+            if (reader != null) try { reader.close(); } catch (Exception ignored) {}
         }
     }
 
