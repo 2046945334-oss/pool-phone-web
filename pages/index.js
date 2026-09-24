@@ -600,6 +600,9 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   // Register Service Worker for app caching (instant load)
   // ===== 拍一拍 =====
   const [patShake, setPatShake] = useState(false)
+  const [overlayOn, setOverlayOn] = useState(false)
+  const [overlayAvatarModal, setOverlayAvatarModal] = useState(false)
+  const [overlayAvatarUrl, setOverlayAvatarUrl] = useState('')
   const patCooldown = useRef(false)
   const [patEditing, setPatEditing] = useState(false)
   const [patDraft, setPatDraft] = useState('')
@@ -1417,6 +1420,17 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           <button onClick={clearChat} style={{background:'none',border:'none',color:'#9a8a99',cursor:'pointer',padding:'4px'}} title={'\u6e05\u7a7a\u5bf9\u8bdd'}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         </div>
       </div>
+      {overlayAvatarModal && <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setOverlayAvatarModal(false)}>
+        <div style={{background:'#fff',borderRadius:'16px',padding:'24px',width:'300px',maxWidth:'90vw'}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:'15px',fontWeight:'600',color:'#3d2b3a',marginBottom:'12px'}}>{'悬浮窗头像设置'}</div>
+          <input value={overlayAvatarUrl} onChange={e=>setOverlayAvatarUrl(e.target.value)} placeholder="输入图片URL" style={{width:'100%',padding:'10px 12px',border:'1px solid #e8c8df',borderRadius:'10px',fontSize:'13px',outline:'none',boxSizing:'border-box',marginBottom:'12px'}} />
+          {overlayAvatarUrl && <div style={{textAlign:'center',marginBottom:'12px'}}><img src={overlayAvatarUrl} style={{width:'48px',height:'48px',borderRadius:'50%',objectFit:'cover',border:'2px solid #e8c8df'}} onError={e=>{e.target.style.display='none'}} /></div>}
+          <div style={{display:'flex',gap:'8px',justifyContent:'flex-end'}}>
+            <button onClick={()=>setOverlayAvatarModal(false)} style={{padding:'8px 16px',border:'1px solid #ddd',borderRadius:'8px',background:'#fff',color:'#666',cursor:'pointer',fontSize:'13px'}}>{'取消'}</button>
+            <button onClick={()=>{ fetch('/api/data/pool_overlay_config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:JSON.stringify({bubbleAvatar:overlayAvatarUrl})})}).then(()=>{setOverlayAvatarModal(false)}).catch(()=>{}) }} style={{padding:'8px 16px',border:'none',borderRadius:'8px',background:'linear-gradient(135deg,#e8b4d8,#c77dba)',color:'#fff',cursor:'pointer',fontSize:'13px'}}>{'保存'}</button>
+          </div>
+        </div>
+      </div>}
       <MusicIsland theme={theme} />
       <div className="chat-messages" style={theme?.chatBg ? {backgroundImage:`url(${theme.chatBg})`,backgroundSize:'cover',backgroundPosition:'center'} : {}} onClick={() => setMenuIdx(-1)}>
         {messages.length === 0 && <div className="chat-empty">{'\u53d1\u6761\u6d88\u606f\u5f00\u59cb\u804a\u5929'}</div>}
