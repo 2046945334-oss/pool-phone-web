@@ -84,6 +84,8 @@ public class OverlayService extends Service {
     private long lastPeekTime = 0;
 
     private MediaProjection mediaProjection;
+    private ImageReader imageReader;
+    private VirtualDisplay virtualDisplay;
     private static int sResultCode;
     private static Intent sResultData;
     private int screenW, screenH;
@@ -122,6 +124,8 @@ public class OverlayService extends Service {
         handler.removeCallbacksAndMessages(null);
         if (bubbleView != null) windowManager.removeView(bubbleView);
         if (commentCard != null) windowManager.removeView(commentCard);
+        if (virtualDisplay != null) try { virtualDisplay.release(); } catch (Exception ignored) {}
+        if (imageReader != null) try { imageReader.close(); } catch (Exception ignored) {}
         if (mediaProjection != null) mediaProjection.stop();
     }
 
@@ -328,7 +332,13 @@ public class OverlayService extends Service {
             int scale = 3;
             screenW = metrics.widthPixels / scale;
             screenH = metrics.heightPixels / scale;
-            Log.d(TAG, "MediaProjection ready, screen: " + screenW + "x" + screenH);
+            int density = metrics.densityDpi / scale;
+            imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
+            virtualDisplay = mediaProjection.createVirtualDisplay(
+                    "OverlayCapture", screenW, screenH, density,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    imageReader.getSurface(), null, handler);
+            Log.d(TAG, "Persistent VirtualDisplay created: " + screenW + "x" + screenH);
         } catch (Exception e) {
             Log.e(TAG, "initMediaProjection error: " + e.getMessage());
         }
@@ -339,36 +349,19 @@ public class OverlayService extends Service {
         if (mediaProjection == null) {
             return new String[]{null, "mediaProjection=null"};
         }
-        if (screenW <= 0 || screenH <= 0) {
-            return new String[]{null, "screen=" + screenW + "x" + screenH};
+        if (imageReader == null || virtualDisplay == null) {
+            return new String[]{null, "persistent VD not ready(ir=" + (imageReader!=null) + ",vd=" + (virtualDisplay!=null) + ")"};
         }
-        ImageReader reader = null;
-        VirtualDisplay vd = null;
         try {
-            DisplayMetrics metrics = getResources().getDisplayMetrics();
-            int density = metrics.densityDpi / 3;
-            reader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
-            final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
-            reader.setOnImageAvailableListener(r -> latch.countDown(), handler);
-            try {
-                vd = mediaProjection.createVirtualDisplay(
-                        "OverlayCapture", screenW, screenH, density,
-                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                        reader.getSurface(), null, handler);
-            } catch (Exception e) {
-                return new String[]{null, "createVD:" + e.getClass().getSimpleName()};
+            // Try multiple times - persistent VD may need a moment to deliver frames
+            Image image = null;
+            for (int attempt = 0; attempt < 8; attempt++) {
+                image = imageReader.acquireLatestImage();
+                if (image != null) break;
+                Thread.sleep(200);
             }
-            if (vd == null) {
-                return new String[]{null, "vd=null"};
-            }
-            boolean gotFrame = latch.await(3, java.util.concurrent.TimeUnit.SECONDS);
-            if (!gotFrame) {
-                return new String[]{null, "timeout3s"};
-            }
-            Thread.sleep(150);
-            Image image = reader.acquireLatestImage();
             if (image == null) {
-                return new String[]{null, "image=null"};
+                return new String[]{null, "no frame after 8 retries"};
             }
             Image.Plane[] planes = image.getPlanes();
             ByteBuffer buffer = planes[0].getBuffer();
@@ -387,9 +380,6 @@ public class OverlayService extends Service {
             return new String[]{Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP), "ok:" + baos.size() + "B"};
         } catch (Exception e) {
             return new String[]{null, "ex:" + e.getClass().getSimpleName() + ":" + e.getMessage()};
-        } finally {
-            if (vd != null) try { vd.release(); } catch (Exception ignored) {}
-            if (reader != null) try { reader.close(); } catch (Exception ignored) {}
         }
     }
 
