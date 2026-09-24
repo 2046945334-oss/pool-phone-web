@@ -1428,7 +1428,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           {overlayAvatarUrl && <div style={{textAlign:'center',marginBottom:'12px'}}><img src={overlayAvatarUrl} style={{width:'48px',height:'48px',borderRadius:'50%',objectFit:'cover',border:'2px solid #e8c8df'}} onError={e=>{e.target.style.display='none'}} /></div>}
           <div style={{display:'flex',gap:'8px',justifyContent:'flex-end'}}>
             <button onClick={()=>setOverlayAvatarModal(false)} style={{padding:'8px 16px',border:'1px solid #ddd',borderRadius:'8px',background:'#fff',color:'#666',cursor:'pointer',fontSize:'13px'}}>{'取消'}</button>
-            <button onClick={()=>{ fetch('/api/data/pool_overlay_config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:JSON.stringify({bubbleAvatar:overlayAvatarUrl})})}).then(()=>{setOverlayAvatarModal(false)}).catch(()=>{}) }} style={{padding:'8px 16px',border:'none',borderRadius:'8px',background:'linear-gradient(135deg,#e8b4d8,#c77dba)',color:'#fff',cursor:'pointer',fontSize:'13px'}}>{'保存'}</button>
+            <button onClick={()=>{ fetch('/api/data/pool_overlay_config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:JSON.stringify({bubbleAvatar: overlayAvatarUrl.startsWith('/') ? location.origin + overlayAvatarUrl : overlayAvatarUrl})})}).then(()=>{setOverlayAvatarModal(false)}).catch(()=>{}) }} style={{padding:'8px 16px',border:'none',borderRadius:'8px',background:'linear-gradient(135deg,#e8b4d8,#c77dba)',color:'#fff',cursor:'pointer',fontSize:'13px'}}>{'保存'}</button>
           </div>
         </div>
       </div>}
