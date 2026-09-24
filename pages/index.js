@@ -598,6 +598,22 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   const [memoryContext, setMemoryContext] = useState('')
   useEffect(() => { callMemory('breath', {}).then(r => { if (r && r.result && r.result.content && r.result.content[0]) setMemoryContext(r.result.content[0].text || '') }) }, [])
   // Register Service Worker for app caching (instant load)
+  // ===== 拍一拍 =====
+  const [patShake, setPatShake] = useState(false)
+  const patCooldown = useRef(false)
+  async function handlePat() {
+    if (patCooldown.current) return
+    patCooldown.current = true
+    setTimeout(() => { patCooldown.current = false }, 3000)
+    setPatShake(true)
+    setTimeout(() => setPatShake(false), 600)
+    let suffix = '的小脑袋'
+    try { const c = await fetch('/api/pat').then(r => r.json()); suffix = c.aiSuffix || suffix } catch {}
+    const patMsg = { role: 'system', content: `你拍了拍 池屿 ${suffix}`, ts: Date.now(), isPat: true }
+    setMessages(prev => [...prev, patMsg])
+    // 记录到后端
+    fetch('/api/pat', { method: 'POST', headers: { 'Content-Type': 'application/json' } }).catch(() => {})
+  }
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {})
@@ -1083,6 +1099,14 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
               window.dispatchEvent(new Event('theme-changed'))
             }
           } catch {}
+        // pat_user: 插入拍一拍系统消息
+        if (toolLogs && toolLogs.some(l => l.name === "pat_user")) {
+          const patLog = toolLogs.find(l => l.name === "pat_user")
+          const patText = (patLog.result && patLog.result.text) || (patLog.args && patLog.args.text) || "池屿 拍了拍 你"
+          current = [...current, { role: "system", content: patText, ts: Date.now(), isPat: true }]
+          setMessages([...current])
+          setPatShake(true); setTimeout(() => setPatShake(false), 600)
+        }
         }
       }
       if (data.reply) {
@@ -1162,14 +1186,23 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   async function addUserMsg() {
     const t = input.trim()
     if (!t) return
-    setMessages([...messages, { role: 'user', content: t, ts: Date.now() }])
+    let content = t
+    if (quoteMsg) {
+      const qName = quoteMsg.role === 'user' ? '我' : '池屿'
+      const qText = quoteMsg.content.slice(0, 100)
+      content = `「${qName}: ${qText}」
+———
+${t}`
+      setQuoteMsg(null)
+    }
+    setMessages([...messages, { role: 'user', content, ts: Date.now() }])
     setInput('')
     // 同步到 chat_messages 表供唤醒系统读取
     try {
       await fetch('/api/chat-append', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'user', content: t })
+        body: JSON.stringify({ role: 'user', content })
       })
     } catch {}
   }
@@ -1183,7 +1216,7 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     // Split on all special tags: [img]...[/img], [file ...]...[/file], [html ...]
     const parts = []
     let remaining = content
-    const tagRegex = /\[img\](.*?)\[\/img\]|\[file\s+url="([^"]*)"(?:\s+name="([^"]*)")?\](.*?)\[\/file\]|\[file\s+name="([^"]*)"\]([\s\S]*?)\[\/file\]|\[html\s+url="([^"]*)"(?:\s+title="([^"]*)")?\]/g
+    const tagRegex = /\[img\](.*?)\[\/img\]|\[file\s+url="([^"]*)"(?:\s+name="([^"]*)")?\](.*?)\[\/file\]|\[file\s+name="([^"]*)"\]([\s\S]*?)\[\/file\]|\[html\s+url="([^"]*)"(?:\s+title="([^"]*)")?\]|\[quote\]([\s\S]*?)\[\/quote\]/g
     let lastIndex = 0
     let match
     while ((match = tagRegex.exec(content)) !== null) {
@@ -1203,6 +1236,9 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
       } else if (match[7] !== undefined) {
         // [html url="..." title="..."]
         parts.push({ type: 'html', url: match[7], title: match[8] || 'HTML' })
+      } else if (match[9] !== undefined) {
+        // [quote]text[/quote]
+        parts.push({ type: "quote", text: match[9] })
       }
       lastIndex = tagRegex.lastIndex
     }
@@ -1212,6 +1248,7 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     if (parts.length === 0) return stripThink(content)
     return parts.map((p, j) => {
       if (p.type === 'text') return <span key={j}>{stripThink(p.value)}</span>
+      if (p.type === "quote") return <div key={j} className="msg-quote-block">{p.text}</div>
       if (p.type === 'img') return <img key={j} src={p.url} onClick={() => setImgPreview && setImgPreview(p.url)} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px',cursor:'pointer'}} />
       if (p.type === 'file') return (
         <div key={j} onClick={() => {
@@ -1270,6 +1307,9 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     setMessages(updated); setEditIdx(-1); setEditText('')
     if (messages[editIdx].role === 'user') sendMessage(updated)
   }
+  // ===== 引用回复 =====
+  const [quoteMsg, setQuoteMsg] = useState(null)
+  function quoteReply(i) { setQuoteMsg({ idx: i, role: messages[i].role, content: messages[i].content }); setMenuIdx(-1) }
 
   async function insertSummary() {
     setMenuIdx(-1)
@@ -1364,7 +1404,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
     <div className="chat-view">
       <div className="chat-header">
         <button className="chat-back-btn" onClick={onBack}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div className="chat-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60\u5c7f'}</div>
+        <div className={`chat-avatar${patShake ? " pat-shake" : ""}`} onDoubleClick={handlePat}>{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60\u5c7f'}</div>
         <div className="chat-header-info"><div className="chat-name">{'\u6c60\u5c7f'}</div><div className="chat-status">{loading ? '\u601d\u8003\u4e2d...' : '\u5728\u7ebf'}</div></div>
         <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
           <button onClick={extractMemory} style={{background:'none',border:'none',color:'#9a8a99',cursor:'pointer',padding:'4px'}} title={'\u63d0\u53d6\u8bb0\u5fc6'}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 2 2.83V11a4 4 0 0 1-1.17 2.83A4 4 0 0 1 18 16v2a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4v-2a4 4 0 0 1 1.17-2.17A4 4 0 0 1 6 11V9.83A3 3 0 0 1 8 7V6a4 4 0 0 1 4-4z"/><path d="M12 2v20"/></svg></button>
@@ -1383,7 +1423,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           <React.Fragment key={i}>
             {shouldShowTime(messages, i) && msg.ts && <div className="msg-time-divider">{formatMsgTime(msg.ts)}</div>}
           <div className={`msg-row ${msg.role}${(() => { const prev = messages[i-1]; return (!prev || prev.role !== msg.role) ? ' group-first' : ' group-cont'; })()}`} onTouchStart={() => handleTouchStart(i)} onTouchEnd={handleTouchEnd} onContextMenu={e => { e.preventDefault(); handleLongPress(i) }}>
-            {(() => { const prev = messages[i-1]; const isFirst = !prev || prev.role !== msg.role; if (!isFirst) return null; if (msg.role === 'assistant') return <div className="msg-avatar">{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>; if (msg.role === 'user') return <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>; return null; })()}
+            {(() => { const prev = messages[i-1]; const isFirst = !prev || prev.role !== msg.role; if (!isFirst) return null; if (msg.role === 'assistant') return <div className={`msg-avatar${patShake ? ' pat-shake' : ''}`} onDoubleClick={handlePat}>{theme?.avatarAI ? <img src={theme.avatarAI} className="avatar-img" /> : '\u6c60'}</div>; if (msg.role === 'user') return <div className="msg-avatar user-avatar">{theme?.avatarUser ? <img src={theme.avatarUser} className="avatar-img" /> : '\u6211'}</div>; return null; })()}
             {msg.role === 'tool_log' ? (
               (() => {
                 try {
@@ -1420,6 +1460,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
                 <button onClick={() => startEdit(i)}>{'编辑'}</button>
                 <button onClick={() => { if(confirm('确定回滚到这条吗？')) rollbackTo(i) }}>{'回滚到此'}</button>
                 <button onClick={insertSummary}>{'插入总结'}</button>
+                <button onClick={() => quoteReply(i)}>{'引用'}</button>
                 <button onClick={() => { if(confirm('确定删除吗？')) deleteMsg(i) }}>{'删除'}</button>
               </div>
             )}
@@ -1428,6 +1469,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         )})}
         <div ref={bottomRef} />
       </div>
+        {quoteMsg && <div className="quote-preview"><div className="quote-preview-text"><span className="quote-preview-role">{quoteMsg.role === "user" ? "我" : "池屿"}</span>{quoteMsg.content.slice(0, 60)}{quoteMsg.content.length > 60 ? "..." : ""}</div><button className="quote-preview-close" onClick={() => setQuoteMsg(null)}>{"✕"}</button></div>}
       <div className="chat-input-area">
         <label className="chat-plus-btn">{'+'}
           <input type="file" accept="image/*,text/*,.html,.htm,.json,.js,.css,.py,.md,.csv,.xml,.txt" hidden onChange={e => {
@@ -4612,6 +4654,17 @@ export default function Home() {
         .msg-row.user .msg-menu { left: auto; right: 10px; }
         .msg-menu button { display: block; width: 100%; padding: 8px 14px; background: none; border: none; color: #5a5a5a; font-size: 13px; text-align: left; cursor: pointer; }
         .msg-menu button:active { background: rgba(0,0,0,.05); }
+        /* 拍一拍抖动动画 */
+        @keyframes pat-shake { 0%{transform:translateX(0)} 15%{transform:translateX(-4px) rotate(-3deg)} 30%{transform:translateX(3px) rotate(2deg)} 45%{transform:translateX(-3px) rotate(-2deg)} 60%{transform:translateX(2px) rotate(1deg)} 75%{transform:translateX(-1px)} 100%{transform:translateX(0)} }
+        .pat-shake { animation: pat-shake 0.5s ease-in-out; }
+        .pat-shake .avatar-img { animation: pat-shake 0.5s ease-in-out; }
+        /* 引用预览条 */
+        .quote-preview { display: flex; align-items: center; padding: 6px 12px; margin: 0 8px 4px; background: rgba(255,230,245,0.35); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-left: 3px solid rgba(200,125,186,0.6); border-radius: 8px; position: absolute; bottom: calc(56px + env(safe-area-inset-bottom, 0px)); left: 8px; right: 8px; z-index: 11; }
+        .quote-preview-text { flex: 1; font-size: 12px; color: #bba; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .quote-preview-role { font-weight: 600; margin-right: 4px; color: #c87dba; }
+        .quote-preview-close { background: none; border: none; color: #999; font-size: 14px; cursor: pointer; padding: 2px 6px; flex-shrink: 0; }
+        /* 消息内引用块 */
+        .msg-quote-block { padding: 6px 10px; margin: 4px 0 6px; border-left: 3px solid rgba(200,125,186,0.5); background: rgba(200,125,186,0.08); border-radius: 0 6px 6px 0; font-size: 12px; color: #bba; line-height: 1.4; white-space: pre-wrap; }
         .msg-system { font-size: 12px; color: #9a8a99; background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 12px; margin: 4px auto; max-width: 85%; text-align: center; border: 1px dashed #333; }
         .tool-log-wrap { width: 90%; margin: 4px auto; background: #f8f6f3; border-radius: 10px; border: 1px solid #e8e4df; cursor: pointer; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
         .tool-log-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-size: 11px; color: #6b5d56; font-weight: 500; }

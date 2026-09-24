@@ -302,6 +302,17 @@ async function executeTool(name, args) {
       return { success: true, aiChapter: ch }
     } catch (e) { return { error: e.message } }
   }
+  // === pat_user ===
+  if (name === "pat_user") {
+    const text = args.text || "池屿 拍了拍 你"
+    try {
+      const histRow = db.prepare("SELECT value FROM kv WHERE key = 'pool_pat_history'").get()
+      const hist = histRow ? JSON.parse(histRow.value) : []
+      hist.push({ who: "ai", text, ts: Date.now() })
+      db.prepare("INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())").run("pool_pat_history", JSON.stringify(hist.slice(-50)))
+    } catch {}
+    return { ok: true, text }
+  }
 
   return { error: 'unknown tool: ' + name }
 }

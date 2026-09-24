@@ -585,6 +585,8 @@ const TOOLS = [
   // === 翻牌配对工具 ===
   { type: 'function', function: { name: 'memory_flip', description: '翻牌配对游戏：翻开一张牌。4x4共16张牌(编号0-15)，每回合翻2张，配对成功得分并继续。收到[翻牌]消息后调用此工具。根据flipHistory记住哪个位置是什么符号来找配对。需要调用两次(翻两张牌)。', parameters: { type: 'object', properties: { index: { type: 'number', description: '翻开的牌编号(0-15)' } }, required: ['index'] } } },
   { type: 'function', function: { name: 'memory_get_state', description: '获取当前翻牌配对游戏状态', parameters: { type: 'object', properties: {} } } }
+  // === 拍一拍工具 ===
+  { type: "function", function: { name: "pat_user", description: "拍一拍用户。会在聊天界面插入一条拍一拍系统消息，类似微信的拍一拍效果。你可以自定义拍一拍的文案，比如\"池屿 拍了拍 你的小脑袋\"、\"池屿 揉了揉 你的头发\"、\"池屿 戳了戳 你的脸蛋\"。想拍的时候就拍，不需要特别的理由。", parameters: { type: "object", properties: { text: { type: "string", description: "拍一拍的完整文案，例如：池屿 拍了拍 你的小脑袋" } }, required: ["text"] } } },
 ]
 
 // === Gomoku helpers ===
@@ -1917,6 +1919,16 @@ async function executeTool(name, args) {
       return { index: idx, symbol, revealed: game.revealed.length, pendingResolve: !!game.pendingResolve, message: game.revealed.length === 1 ? '已翻第一张，再翻一张' : '两张已翻，等待结算' }
     } catch (e) { return { error: e.message } }
   }
+  // === pat_user 拍一拍 ===
+  if (name === "pat_user") {
+    const text = args.text || "池屿 拍了拍 你"
+    const db2 = getDb()
+    const histRow = db2.prepare("SELECT value FROM kv WHERE key = 'pool_pat_history'").get()
+    const hist = histRow ? JSON.parse(histRow.value) : []
+    hist.push({ who: "ai", text, ts: Date.now() })
+    db2.prepare("INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())").run("pool_pat_history", JSON.stringify(hist.slice(-50)))
+    return { ok: true, text, instruction: "已发送拍一拍，前端会显示为系统消息" }
+  }
 
     return { error: 'Unknown tool: ' + name }
   } finally {
@@ -2110,6 +2122,23 @@ export default async function handler(req, res) {
       currentMessages[sysIdxForLang].content += '\n\n【语言规则】思考过程（thinking/reasoning）必须使用中文。'
     } else {
       currentMessages.unshift({ role: 'system', content: '【语言规则】思考过程（thinking/reasoning）必须使用中文。' })
+    }
+    // 注入引用语法和拍一拍提示
+    {
+      const quoteAndPatHint = "【特殊格式】
+" +
+        "1. 引用消息：当你想引用对方之前说过的话来回复时，使用 [quote]被引用的内容[/quote] 格式。例如：
+" +
+        "[quote]今天好累啊[/quote]
+累了就休息一会儿嘛
+
+" +
+        "2. 拍一拍：你有 pat_user 工具，想拍对方时随时可以调用，文案自由发挥。"
+      const sysIdx2 = currentMessages.findIndex(m => m.role === "system")
+      if (sysIdx2 >= 0) currentMessages[sysIdx2].content += "
+
+" + quoteAndPatHint
+      else currentMessages.unshift({ role: "system", content: quoteAndPatHint })
     }
     // 注入表情包使用提示
     try {
