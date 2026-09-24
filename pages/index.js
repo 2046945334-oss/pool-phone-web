@@ -601,17 +601,25 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   // ===== 拍一拍 =====
   const [patShake, setPatShake] = useState(false)
   const patCooldown = useRef(false)
+  const [patEditing, setPatEditing] = useState(false)
+  const [patDraft, setPatDraft] = useState('')
   async function handlePat() {
     if (patCooldown.current) return
+    // 弹出编辑框让用户自定义文案
+    let suffix = '的小脑袋'
+    try { const c = await fetch('/api/pat').then(r => r.json()); suffix = c.aiSuffix || suffix } catch {}
+    setPatDraft(`你拍了拍 池屿 ${suffix}`)
+    setPatEditing(true)
+  }
+  function confirmPat() {
+    if (!patDraft.trim()) { setPatEditing(false); return }
     patCooldown.current = true
     setTimeout(() => { patCooldown.current = false }, 3000)
     setPatShake(true)
     setTimeout(() => setPatShake(false), 600)
-    let suffix = '的小脑袋'
-    try { const c = await fetch('/api/pat').then(r => r.json()); suffix = c.aiSuffix || suffix } catch {}
-    const patMsg = { role: 'system', content: `你拍了拍 池屿 ${suffix}`, ts: Date.now(), isPat: true }
+    const patMsg = { role: 'system', content: patDraft.trim(), ts: Date.now(), isPat: true }
     setMessages(prev => [...prev, patMsg])
-    // 记录到后端
+    setPatEditing(false)
     fetch('/api/pat', { method: 'POST', headers: { 'Content-Type': 'application/json' } }).catch(() => {})
   }
   useEffect(() => {
@@ -1468,6 +1476,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         <div ref={bottomRef} />
       </div>
         {quoteMsg && <div className="quote-preview"><div className="quote-preview-text"><span className="quote-preview-role">{quoteMsg.role === "user" ? "我" : "池屿"}</span>{quoteMsg.content.slice(0, 60)}{quoteMsg.content.length > 60 ? "..." : ""}</div><button className="quote-preview-close" onClick={() => setQuoteMsg(null)}>{"✕"}</button></div>}
+        {patEditing && <div className="pat-edit-overlay" onClick={() => setPatEditing(false)}><div className="pat-edit-box" onClick={e => e.stopPropagation()}><input className="pat-edit-input" value={patDraft} onChange={e => setPatDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') confirmPat() }} autoFocus /><div className="pat-edit-btns"><button onClick={() => setPatEditing(false)}>{'取消'}</button><button onClick={confirmPat}>{'发送'}</button></div></div></div>}
       <div className="chat-input-area">
         <label className="chat-plus-btn">{'+'}
           <input type="file" accept="image/*,text/*,.html,.htm,.json,.js,.css,.py,.md,.csv,.xml,.txt" hidden onChange={e => {
@@ -4665,6 +4674,13 @@ export default function Home() {
         .msg-quote-block { padding: 6px 10px; margin: 4px 0 6px; border-left: 3px solid rgba(200,125,186,0.5); background: rgba(200,125,186,0.08); border-radius: 0 6px 6px 0; font-size: 12px; color: #bba; line-height: 1.4; white-space: pre-wrap; }
         .msg-quote-author { display: block; font-weight: 600; color: #c87dba; margin-bottom: 2px; font-size: 11px; }
         .msg-pat { font-size: 11px; color: #999; text-align: center; margin: 6px auto; padding: 2px 0; }
+        .pat-edit-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .pat-edit-box { background: #2a2a2a; border-radius: 12px; padding: 16px; width: 85%; max-width: 320px; }
+        .pat-edit-input { width: 100%; background: #1a1a1a; border: 1px solid #444; border-radius: 8px; color: #eee; padding: 10px 12px; font-size: 14px; outline: none; box-sizing: border-box; }
+        .pat-edit-input:focus { border-color: #c87dba; }
+        .pat-edit-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+        .pat-edit-btns button { background: none; border: 1px solid #555; color: #ccc; border-radius: 8px; padding: 6px 18px; font-size: 13px; cursor: pointer; }
+        .pat-edit-btns button:last-child { background: rgba(200,125,186,0.25); border-color: rgba(200,125,186,0.5); color: #e8b4dd; }
         .msg-system { font-size: 12px; color: #9a8a99; background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 12px; margin: 4px auto; max-width: 85%; text-align: center; border: 1px dashed #333; }
         .tool-log-wrap { width: 90%; margin: 4px auto; background: #f8f6f3; border-radius: 10px; border: 1px solid #e8e4df; cursor: pointer; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
         .tool-log-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-size: 11px; color: #6b5d56; font-weight: 500; }
