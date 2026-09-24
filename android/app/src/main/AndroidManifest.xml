@@ -43,6 +43,11 @@
             android:name=".NotificationPollService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Overlay Peek Service (screen capture + floating bubble) -->
+        <service
+            android:name=".OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
     </application>
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -52,6 +57,8 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <!-- Audio permissions for voice call -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
