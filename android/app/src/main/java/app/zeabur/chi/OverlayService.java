@@ -88,6 +88,7 @@ public class OverlayService extends Service {
     private static Intent sResultData;
     private ImageReader imageReader;
     private VirtualDisplay virtualDisplay;
+    private int screenW, screenH;
 
     public static void setMediaProjectionResult(int resultCode, Intent data) {
         sResultCode = resultCode;
@@ -325,48 +326,58 @@ public class OverlayService extends Service {
         MediaProjectionManager mpm = (MediaProjectionManager)
                 getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         mediaProjection = mpm.getMediaProjection(sResultCode, sResultData);
-        if (mediaProjection == null) Log.e(TAG, "Failed to get MediaProjection");
+        if (mediaProjection == null) { Log.e(TAG, "Failed to get MediaProjection"); return; }
+        // Create persistent VirtualDisplay so we can capture any time
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        int scale = 3;
+        screenW = metrics.widthPixels / scale;
+        screenH = metrics.heightPixels / scale;
+        int density = metrics.densityDpi / scale;
+        imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
+        virtualDisplay = mediaProjection.createVirtualDisplay(
+                "OverlayCapture", screenW, screenH, density,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                imageReader.getSurface(), null, handler);
+        Log.d(TAG, "Persistent VirtualDisplay created: " + screenW + "x" + screenH);
     }
 
     private String captureScreen() {
-        if (mediaProjection == null) return null;
+        if (imageReader == null) {
+            Log.w(TAG, "captureScreen: imageReader is null");
+            return null;
+        }
         try {
-            DisplayMetrics metrics = getResources().getDisplayMetrics();
-            int w = metrics.widthPixels; int h = metrics.heightPixels;
-            int density = metrics.densityDpi;
-            int scale = 3; int sw = w / scale; int sh = h / scale;
-            imageReader = ImageReader.newInstance(sw, sh, PixelFormat.RGBA_8888, 2);
-            virtualDisplay = mediaProjection.createVirtualDisplay(
-                    "OverlayCapture", sw, sh, density / scale,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    imageReader.getSurface(), null, handler);
-            Thread.sleep(500);
-            Image image = imageReader.acquireLatestImage();
-            if (image == null) { cleanup(); return null; }
+            // Try a few times in case frame not ready yet
+            Image image = null;
+            for (int attempt = 0; attempt < 5; attempt++) {
+                image = imageReader.acquireLatestImage();
+                if (image != null) break;
+                Thread.sleep(150);
+            }
+            if (image == null) {
+                Log.w(TAG, "captureScreen: no image after retries");
+                return null;
+            }
             Image.Plane[] planes = image.getPlanes();
             ByteBuffer buffer = planes[0].getBuffer();
             int pixelStride = planes[0].getPixelStride();
             int rowStride = planes[0].getRowStride();
-            int rowPadding = rowStride - pixelStride * sw;
+            int rowPadding = rowStride - pixelStride * screenW;
             Bitmap bitmap = Bitmap.createBitmap(
-                    sw + rowPadding / pixelStride, sh, Bitmap.Config.ARGB_8888);
+                    screenW + rowPadding / pixelStride, screenH, Bitmap.Config.ARGB_8888);
             bitmap.copyPixelsFromBuffer(buffer);
             image.close();
-            if (bitmap.getWidth() > sw)
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, sw, sh);
+            if (bitmap.getWidth() > screenW)
+                bitmap = Bitmap.createBitmap(bitmap, 0, 0, screenW, screenH);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
-            bitmap.recycle(); cleanup();
+            bitmap.recycle();
+            Log.d(TAG, "captureScreen: got " + baos.size() + " bytes");
             return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
         } catch (Exception e) {
             Log.e(TAG, "captureScreen error: " + e.getMessage());
-            cleanup(); return null;
+            return null;
         }
-    }
-
-    private void cleanup() {
-        if (virtualDisplay != null) { virtualDisplay.release(); virtualDisplay = null; }
-        if (imageReader != null) { imageReader.close(); imageReader = null; }
     }
 
     // ============ App Monitoring with Random Trigger ============
