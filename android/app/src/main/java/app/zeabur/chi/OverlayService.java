@@ -72,6 +72,8 @@ public class OverlayService extends Service {
     private View commentCard;
     private TextView commentText;
     private boolean commentVisible = false;
+    private long lastTapTime = 0;
+    private Runnable singleTapRunnable;
 
     private Handler handler;
     private Random random = new Random();
@@ -186,7 +188,20 @@ public class OverlayService extends Service {
                         windowManager.updateViewLayout(bubbleView, params);
                         return true;
                     case MotionEvent.ACTION_UP:
-                        if (!dragging) toggleComment();
+                        if (!dragging) {
+                            long now = System.currentTimeMillis();
+                            if (now - lastTapTime < 300) {
+                                // Double tap - cancel pending single tap and do manual peek
+                                if (singleTapRunnable != null) handler.removeCallbacks(singleTapRunnable);
+                                lastTapTime = 0;
+                                doManualPeek();
+                            } else {
+                                // Maybe single tap - wait to see if double
+                                lastTapTime = now;
+                                singleTapRunnable = () -> toggleComment();
+                                handler.postDelayed(singleTapRunnable, 300);
+                            }
+                        }
                         return true;
                 }
                 return false;
@@ -437,6 +452,74 @@ public class OverlayService extends Service {
             } else { Log.e(TAG, "overlay-chat returned " + code); }
             conn.disconnect();
         } catch (Exception e) { Log.e(TAG, "doPeek error: " + e.getMessage()); }
+    }
+
+    // ============ Manual Peek (user double-tap) ============
+    private void doManualPeek() {
+        showComment("截图中..."); // "截图中..."
+        new Thread(() -> {
+            String base64Img = captureScreen();
+            String pkg = getForegroundPackage();
+            String appName = (pkg != null) ? getAppName(pkg) : "未知";
+            String textContent = "[用户主动分享] 她正在看" + appName + "，想给你看看这个。";
+            try {
+                JSONObject body = new JSONObject();
+                JSONArray messages = new JSONArray();
+                JSONObject userMsg = new JSONObject();
+                userMsg.put("role", "user");
+                if (base64Img != null) {
+                    JSONArray contentParts = new JSONArray();
+                    JSONObject textPart = new JSONObject();
+                    textPart.put("type", "text");
+                    textPart.put("text", textContent);
+                    contentParts.put(textPart);
+                    JSONObject imgPart = new JSONObject();
+                    imgPart.put("type", "image_url");
+                    JSONObject imgUrl = new JSONObject();
+                    imgUrl.put("url", "data:image/jpeg;base64," + base64Img);
+                    imgPart.put("image_url", imgUrl);
+                    contentParts.put(imgPart);
+                    userMsg.put("content", contentParts);
+                } else {
+                    userMsg.put("content", textContent + " (截图失败)");
+                }
+                messages.put(userMsg);
+                body.put("messages", messages);
+                body.put("source", "overlay_manual");
+
+                URL url = new URL("https://chi.zeabur.app/api/overlay-chat");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true); conn.setConnectTimeout(30000); conn.setReadTimeout(60000);
+                OutputStream os = conn.getOutputStream();
+                os.write(body.toString().getBytes(StandardCharsets.UTF_8)); os.close();
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line; while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+                    JSONObject resp = new JSONObject(sb.toString());
+                    String reply = resp.optString("reply", "");
+                    reply = reply.replaceAll("<think>[\\s\\S]*?</think>", "").trim();
+                    if (!reply.isEmpty()) {
+                        showComment(reply);
+                        Log.d(TAG, "ManualPeek reply: " + reply);
+                    } else {
+                        showComment("看到了～");
+                    }
+                } else {
+                    Log.e(TAG, "manual overlay-chat returned " + code);
+                    showComment("网络错误 " + code);
+                }
+                conn.disconnect();
+            } catch (Exception e) {
+                Log.e(TAG, "doManualPeek error: " + e.getMessage());
+                handler.post(() -> showComment("分享失败了"));
+            }
+        }).start();
     }
 
     private String getAppName(String pkg) {
