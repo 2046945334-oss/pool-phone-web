@@ -294,8 +294,8 @@ public class OverlayService extends Service {
     private void toggleComment() {
         commentVisible = !commentVisible;
         if (commentVisible && bubbleParams != null && commentParams != null) {
-            commentParams.x = bubbleParams.x + dp(56);
-            commentParams.y = bubbleParams.y;
+            commentParams.x = bubbleParams.x;
+            commentParams.y = bubbleParams.y - dp(60);
             windowManager.updateViewLayout(commentCard, commentParams);
         }
         commentCard.setVisibility(commentVisible ? View.VISIBLE : View.GONE);
@@ -306,8 +306,8 @@ public class OverlayService extends Service {
             commentText.setText(text);
             // Position comment card relative to bubble
             if (bubbleParams != null && commentParams != null) {
-                commentParams.x = bubbleParams.x + dp(56);
-                commentParams.y = bubbleParams.y;
+                commentParams.x = bubbleParams.x;
+                commentParams.y = bubbleParams.y - dp(60);
                 windowManager.updateViewLayout(commentCard, commentParams);
             }
             commentCard.setVisibility(View.VISIBLE);
