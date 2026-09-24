@@ -1190,9 +1190,7 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     if (quoteMsg) {
       const qName = quoteMsg.role === 'user' ? '我' : '池屿'
       const qText = quoteMsg.content.slice(0, 100)
-      content = `「${qName}: ${qText}」
-———
-${t}`
+      content = `[quote="${qName}"]${qText}[/quote]${t}`
       setQuoteMsg(null)
     }
     setMessages([...messages, { role: 'user', content, ts: Date.now() }])
@@ -1216,7 +1214,7 @@ ${t}`
     // Split on all special tags: [img]...[/img], [file ...]...[/file], [html ...]
     const parts = []
     let remaining = content
-    const tagRegex = /\[img\](.*?)\[\/img\]|\[file\s+url="([^"]*)"(?:\s+name="([^"]*)")?\](.*?)\[\/file\]|\[file\s+name="([^"]*)"\]([\s\S]*?)\[\/file\]|\[html\s+url="([^"]*)"(?:\s+title="([^"]*)")?\]|\[quote\]([\s\S]*?)\[\/quote\]/g
+    const tagRegex = /\[img\](.*?)\[\/img\]|\[file\s+url="([^"]*)"(?:\s+name="([^"]*)")?\](.*?)\[\/file\]|\[file\s+name="([^"]*)"\]([\s\S]*?)\[\/file\]|\[html\s+url="([^"]*)"(?:\s+title="([^"]*)")?\]|\[quote(?:="([^"]*)")?\]([\s\S]*?)\[\/quote\]/g
     let lastIndex = 0
     let match
     while ((match = tagRegex.exec(content)) !== null) {
@@ -1236,9 +1234,9 @@ ${t}`
       } else if (match[7] !== undefined) {
         // [html url="..." title="..."]
         parts.push({ type: 'html', url: match[7], title: match[8] || 'HTML' })
-      } else if (match[9] !== undefined) {
-        // [quote]text[/quote]
-        parts.push({ type: "quote", text: match[9] })
+      } else if (match[9] !== undefined || match[10] !== undefined) {
+        // [quote="name"]text[/quote] or [quote]text[/quote]
+        parts.push({ type: "quote", author: match[9] || '', text: match[10] || '' })
       }
       lastIndex = tagRegex.lastIndex
     }
@@ -1248,7 +1246,7 @@ ${t}`
     if (parts.length === 0) return stripThink(content)
     return parts.map((p, j) => {
       if (p.type === 'text') return <span key={j}>{stripThink(p.value)}</span>
-      if (p.type === "quote") return <div key={j} className="msg-quote-block">{p.text}</div>
+      if (p.type === "quote") return <div key={j} className="msg-quote-block">{p.author && <span className="msg-quote-author">{p.author}</span>}{p.text}</div>
       if (p.type === 'img') return <img key={j} src={p.url} onClick={() => setImgPreview && setImgPreview(p.url)} style={{maxWidth:'180px',borderRadius:'8px',display:'block',marginTop:'4px',cursor:'pointer'}} />
       if (p.type === 'file') return (
         <div key={j} onClick={() => {
@@ -1437,7 +1435,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
                 }
               })()
             ) : msg.role === 'system' ? (
-              <div className="msg-system" style={theme?.systemMsgBg||theme?.systemMsgText||theme?.systemMsgBorder?{background:theme.systemMsgBg||undefined,color:theme.systemMsgText||undefined,borderColor:theme.systemMsgBorder||undefined}:{}}>{msg.content}</div>
+              msg.isPat ? <div className="msg-pat">{msg.content}</div> : <div className="msg-system" style={theme?.systemMsgBg||theme?.systemMsgText||theme?.systemMsgBorder?{background:theme.systemMsgBg||undefined,color:theme.systemMsgText||undefined,borderColor:theme.systemMsgBorder||undefined}:{}}>{msg.content}</div>
             ) : editIdx === i ? (
               <div className="msg-edit-wrap">
                 <textarea className="msg-edit-input" value={editText} onChange={e => setEditText(e.target.value)} />
@@ -4665,6 +4663,8 @@ export default function Home() {
         .quote-preview-close { background: none; border: none; color: #999; font-size: 14px; cursor: pointer; padding: 2px 6px; flex-shrink: 0; }
         /* 消息内引用块 */
         .msg-quote-block { padding: 6px 10px; margin: 4px 0 6px; border-left: 3px solid rgba(200,125,186,0.5); background: rgba(200,125,186,0.08); border-radius: 0 6px 6px 0; font-size: 12px; color: #bba; line-height: 1.4; white-space: pre-wrap; }
+        .msg-quote-author { display: block; font-weight: 600; color: #c87dba; margin-bottom: 2px; font-size: 11px; }
+        .msg-pat { font-size: 11px; color: #999; text-align: center; margin: 6px auto; padding: 2px 0; }
         .msg-system { font-size: 12px; color: #9a8a99; background: rgba(255,255,255,.03); border-radius: 8px; padding: 8px 12px; margin: 4px auto; max-width: 85%; text-align: center; border: 1px dashed #333; }
         .tool-log-wrap { width: 90%; margin: 4px auto; background: #f8f6f3; border-radius: 10px; border: 1px solid #e8e4df; cursor: pointer; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
         .tool-log-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-size: 11px; color: #6b5d56; font-weight: 500; }
