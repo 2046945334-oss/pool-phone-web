@@ -72,6 +72,8 @@ public class OverlayService extends Service {
     private View commentCard;
     private TextView commentText;
     private boolean commentVisible = false;
+    private WindowManager.LayoutParams bubbleParams;
+    private WindowManager.LayoutParams commentParams;
     private long lastTapTime = 0;
     private Runnable singleTapRunnable;
 
@@ -207,6 +209,7 @@ public class OverlayService extends Service {
                 return false;
             }
         });
+        bubbleParams = params;
         windowManager.addView(bubbleView, params);
     }
 
@@ -284,17 +287,29 @@ public class OverlayService extends Service {
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.TOP | Gravity.START;
         params.x = dp(64); params.y = dp(200);
+        commentParams = params;
         windowManager.addView(commentCard, params);
     }
 
     private void toggleComment() {
         commentVisible = !commentVisible;
+        if (commentVisible && bubbleParams != null && commentParams != null) {
+            commentParams.x = bubbleParams.x + dp(56);
+            commentParams.y = bubbleParams.y;
+            windowManager.updateViewLayout(commentCard, commentParams);
+        }
         commentCard.setVisibility(commentVisible ? View.VISIBLE : View.GONE);
     }
 
     private void showComment(String text) {
         handler.post(() -> {
             commentText.setText(text);
+            // Position comment card relative to bubble
+            if (bubbleParams != null && commentParams != null) {
+                commentParams.x = bubbleParams.x + dp(56);
+                commentParams.y = bubbleParams.y;
+                windowManager.updateViewLayout(commentCard, commentParams);
+            }
             commentCard.setVisibility(View.VISIBLE);
             commentVisible = true;
             handler.postDelayed(() -> {
