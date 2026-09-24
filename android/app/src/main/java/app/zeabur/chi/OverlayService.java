@@ -334,13 +334,27 @@ public class OverlayService extends Service {
             screenH = metrics.heightPixels / scale;
             int density = metrics.densityDpi / scale;
             imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
+            // Android 14+ requires registering a callback before createVirtualDisplay
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                mediaProjection.registerCallback(new MediaProjection.Callback() {
+                    @Override
+                    public void onStop() {
+                        Log.w(TAG, "MediaProjection stopped by system");
+                        mediaProjection = null;
+                        if (virtualDisplay != null) { try { virtualDisplay.release(); } catch (Exception ignored) {} virtualDisplay = null; }
+                        if (imageReader != null) { try { imageReader.close(); } catch (Exception ignored) {} imageReader = null; }
+                    }
+                }, handler);
+            }
             virtualDisplay = mediaProjection.createVirtualDisplay(
                     "OverlayCapture", screenW, screenH, density,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                     imageReader.getSurface(), null, handler);
             Log.d(TAG, "Persistent VirtualDisplay created: " + screenW + "x" + screenH);
         } catch (Exception e) {
-            Log.e(TAG, "initMediaProjection error: " + e.getMessage());
+            Log.e(TAG, "initMediaProjection error: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            // Surface the error for debugging via capture diagnostic
+            lastCaptureDiag = "initFail:" + e.getClass().getSimpleName() + ":" + e.getMessage();
         }
     }
 
@@ -350,7 +364,9 @@ public class OverlayService extends Service {
             return new String[]{null, "mediaProjection=null"};
         }
         if (imageReader == null || virtualDisplay == null) {
-            return new String[]{null, "persistent VD not ready(ir=" + (imageReader!=null) + ",vd=" + (virtualDisplay!=null) + ")"};
+            String msg = "VD not ready(ir=" + (imageReader!=null) + ",vd=" + (virtualDisplay!=null) + ")";
+            if (!lastCaptureDiag.isEmpty()) msg += " init:" + lastCaptureDiag;
+            return new String[]{null, msg};
         }
         try {
             // Try multiple times - persistent VD may need a moment to deliver frames
