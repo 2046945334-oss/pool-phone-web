@@ -434,7 +434,9 @@ public class OverlayService extends Service {
     // ============ Peek Logic - calls /api/overlay-chat ============
     private void doPeek(String pkg, long durationMs) {
         Log.d(TAG, "Peeking at " + pkg + " after " + (durationMs / 1000) + "s");
-        String base64Img = captureScreen();
+        String[] capResult = captureScreenDiag();
+        String base64Img = capResult[0];
+        Log.d(TAG, "doPeek capture: " + capResult[1]);
         String appName = getAppName(pkg);
         long minutes = durationMs / 60000;
         String textContent = "[\u60ac\u6d6e\u7a97\u6293\u62cd] \u5979\u5df2\u7ecf\u5728" + appName + "\u4e0a\u5f85\u4e86" + minutes + "\u5206\u949f\u4e86\u3002";
@@ -494,7 +496,12 @@ public class OverlayService extends Service {
     private void doManualPeek() {
         showComment("截图中..."); // "截图中..."
         new Thread(() -> {
-            String base64Img = captureScreen();
+            String[] capResult = captureScreenDiag();
+            String base64Img = capResult[0];
+            String capDiag = capResult[1];
+            Log.d(TAG, "doManualPeek capture: " + capDiag);
+            // Show diagnostic on bubble for debugging
+            handler.post(() -> showComment("截图: " + capDiag));
             String pkg = getForegroundPackage();
             String appName = (pkg != null) ? getAppName(pkg) : "未知";
             String textContent = "[用户主动分享] 她正在看" + appName + "，想给你看看这个。";
