@@ -323,28 +323,47 @@ public class OverlayService extends Service {
     // ============ MediaProjection ============
     private void initMediaProjection() {
         if (sResultData == null) { Log.w(TAG, "No MediaProjection result"); return; }
-        MediaProjectionManager mpm = (MediaProjectionManager)
-                getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-        mediaProjection = mpm.getMediaProjection(sResultCode, sResultData);
-        if (mediaProjection == null) { Log.e(TAG, "Failed to get MediaProjection"); return; }
-        // Create persistent VirtualDisplay so we can capture any time
-        DisplayMetrics metrics = getResources().getDisplayMetrics();
-        int scale = 3;
-        screenW = metrics.widthPixels / scale;
-        screenH = metrics.heightPixels / scale;
-        int density = metrics.densityDpi / scale;
-        imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
-        virtualDisplay = mediaProjection.createVirtualDisplay(
-                "OverlayCapture", screenW, screenH, density,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                imageReader.getSurface(), null, handler);
-        Log.d(TAG, "Persistent VirtualDisplay created: " + screenW + "x" + screenH);
+        try {
+            MediaProjectionManager mpm = (MediaProjectionManager)
+                    getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+            mediaProjection = mpm.getMediaProjection(sResultCode, sResultData);
+            if (mediaProjection == null) { Log.e(TAG, "Failed to get MediaProjection"); return; }
+            // Delay VirtualDisplay creation to ensure service is fully started
+            handler.postDelayed(this::createPersistentDisplay, 500);
+        } catch (Exception e) {
+            Log.e(TAG, "initMediaProjection error: " + e.getMessage());
+        }
+    }
+
+    private void createPersistentDisplay() {
+        if (mediaProjection == null) return;
+        try {
+            DisplayMetrics metrics = getResources().getDisplayMetrics();
+            int scale = 3;
+            screenW = metrics.widthPixels / scale;
+            screenH = metrics.heightPixels / scale;
+            int density = metrics.densityDpi / scale;
+            imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
+            virtualDisplay = mediaProjection.createVirtualDisplay(
+                    "OverlayCapture", screenW, screenH, density,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    imageReader.getSurface(), null, handler);
+            Log.d(TAG, "Persistent VirtualDisplay created: " + screenW + "x" + screenH);
+        } catch (Exception e) {
+            Log.e(TAG, "createPersistentDisplay error: " + e.getMessage());
+            // Fallback: clear so captureScreen will lazily create on demand
+            if (imageReader != null) { try { imageReader.close(); } catch (Exception ignored) {} imageReader = null; }
+            if (virtualDisplay != null) { try { virtualDisplay.release(); } catch (Exception ignored) {} virtualDisplay = null; }
+        }
     }
 
     private String captureScreen() {
         if (imageReader == null) {
-            Log.w(TAG, "captureScreen: imageReader is null");
-            return null;
+            Log.w(TAG, "captureScreen: imageReader is null, trying lazy init");
+            createPersistentDisplay();
+            if (imageReader == null) return null;
+            // Wait a bit for first frame
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
         }
         try {
             // Try a few times in case frame not ready yet
