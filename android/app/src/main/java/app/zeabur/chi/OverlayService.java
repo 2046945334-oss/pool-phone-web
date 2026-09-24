@@ -233,6 +233,8 @@ public class OverlayService extends Service {
                     }
                 }
                 if (!avatarUrl.isEmpty()) {
+                    if (avatarUrl.startsWith("/")) avatarUrl = "https://chi.zeabur.app" + avatarUrl;
+                    prefs.edit().putString("bubbleAvatar", avatarUrl).apply();
                     URL imgUrl = new URL(avatarUrl);
                     InputStream is = imgUrl.openStream();
                     Bitmap bmp = BitmapFactory.decodeStream(is);
