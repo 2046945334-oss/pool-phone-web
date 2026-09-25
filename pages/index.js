@@ -1269,7 +1269,25 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     window.addEventListener('chi-send-file', handler)
     return () => window.removeEventListener('chi-send-file', handler)
   }, [messages])
-  if (typeof window !== 'undefined') window.__chiTriggerAI = sendMessage
+  if (typeof window !== 'undefined') {
+    window.__chiTriggerAI = sendMessage
+    // Overlay inject: native OverlayService calls this to inject screenshot into chat flow
+    window.__chiOverlayInject = (base64Img, textContent, source) => {
+      const ts = Date.now()
+      const overlayHint = source === 'overlay_manual'
+        ? '[用户主动分享截图] '
+        : '[悬浮窗抓拍] '
+      const userContent = base64Img
+        ? overlayHint + textContent + '\n[img]data:image/jpeg;base64,' + base64Img + '[/img]'
+        : overlayHint + textContent
+      const userMsg = { role: 'user', content: userContent, ts, source: 'overlay' }
+      setMessages(prev => {
+        const next = [...prev, userMsg]
+        setTimeout(() => sendMessage(next), 100)
+        return next
+      })
+    }
+  }
   async function addUserMsg() {
     const t = input.trim()
     if (!t) return
