@@ -18,7 +18,7 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
   const canvasRef = useRef(null)
   const watchStartRef = useRef(null)
   const screenshotTimerRef = useRef(null)
-  const videoshotRef = useRef(null)  // stores sprite sheet data
+  const videoshotRef = useRef(null)
 
   useEffect(() => {
     try { setHistory(JSON.parse(localStorage.getItem('pool_watch_history') || '[]')) } catch {}
@@ -34,55 +34,22 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
     } catch {}
   }
 
-  // Fetch bilibili videoshot sprite data (thumbnails at various timestamps)
-  async function fetchVideoshot(bvid, cid) {
-    try {
-      const resp = await fetch(`https://api.bilibili.com/x/player/videoshot?bvid=${bvid}&cid=${cid}&index=1`)
-      const data = await resp.json()
-      if (data.code === 0 && data.data) {
-        const d = data.data
-        videoshotRef.current = {
-          images: (d.image || []).map(u => u.startsWith('//') ? 'https:' + u : u),
-          index: d.index || [],   // timestamps in seconds
-          xLen: d.img_x_len || 10,
-          yLen: d.img_y_len || 10,
-          xSize: d.img_x_size || 160,
-          ySize: d.img_y_size || 90
-        }
-        // Preload first sprite sheet
-        if (videoshotRef.current.images.length > 0) {
-          const img = new Image()
-          img.crossOrigin = 'anonymous'
-          img.src = videoshotRef.current.images[0]
-        }
-      }
-    } catch {}
-  }
-
-  // Capture a frame from videoshot sprite sheet at given elapsed seconds
   function captureFrameAtTime(elapsedSec) {
     const vs = videoshotRef.current
     const canvas = canvasRef.current
-    if (!vs || !canvas || !vs.images.length || !vs.index.length) return null
-
-    // Find closest timestamp index
+    if (!vs || !canvas || !vs.images.length || !vs.index.length) return Promise.resolve(null)
     let bestIdx = 0
     for (let i = 0; i < vs.index.length; i++) {
       if (vs.index[i] <= elapsedSec) bestIdx = i
       else break
     }
-
-    // Calculate which sprite sheet and position
     const framesPerSheet = vs.xLen * vs.yLen
     const sheetIdx = Math.floor(bestIdx / framesPerSheet)
     const frameInSheet = bestIdx % framesPerSheet
     const col = frameInSheet % vs.xLen
     const row = Math.floor(frameInSheet / vs.xLen)
-
-    if (sheetIdx >= vs.images.length) return null
-
-    // Return a promise that resolves to base64
-    return new Promise((resolve) => {
+    if (sheetIdx >= vs.images.length) return Promise.resolve(null)
+    return new Promise(resolve => {
       const img = new Image()
       img.crossOrigin = 'anonymous'
       img.onload = () => {
@@ -99,39 +66,20 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
     })
   }
 
-  // Client-side bilibili API parse
   async function parseVideo() {
     if (!searchUrl.trim()) return
     setLoading(true)
     setError('')
     try {
-      const input = searchUrl.trim()
-      let bvid = ''
-      const bvMatch = input.match(/BV[a-zA-Z0-9]+/)
-      if (bvMatch) bvid = bvMatch[0]
-      if (!bvid) { setError('\u65e0\u6cd5\u8bc6\u522bBV\u53f7'); return }
-
-      const resp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`)
+      const resp = await fetch('/api/bilibili-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: searchUrl.trim() })
+      })
       const data = await resp.json()
-      if (data.code !== 0) { setError('\u89e3\u6790\u5931\u8d25: ' + (data.message || '')); return }
-
-      const v = data.data
-      const info = {
-        bvid,
-        title: v.title || bvid,
-        desc: v.desc || '',
-        cover: (v.pic || '').replace('http:', 'https:'),
-        duration: v.duration || 0,
-        owner: v.owner?.name || '\u672a\u77e5',
-        ownerFace: (v.owner?.face || '').replace('http:', 'https:'),
-        view: v.stat?.view || 0,
-        danmaku: v.stat?.danmaku || 0,
-        cid: v.cid || 0,
-        embedUrl: `https://player.bilibili.com/player.html?bvid=${bvid}&high_quality=1&danmaku=0&autoplay=1`
-      }
-      setVideoInfo(info)
-      // Pre-fetch videoshot data
-      if (info.cid) fetchVideoshot(bvid, info.cid)
+      if (data.error) { setError(data.error); return }
+      setVideoInfo(data)
+      if (data.videoshot) videoshotRef.current = data.videoshot
     } catch (e) {
       setError('\u89e3\u6790\u5931\u8d25: ' + e.message)
     } finally {
@@ -144,10 +92,9 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
     setVideoInfo(v)
     setPlaying(true)
     watchStartRef.current = Date.now()
+    if (v?.videoshot) videoshotRef.current = v.videoshot
     if (info) saveHistory(info)
     else if (videoInfo) saveHistory(videoInfo)
-    // Fetch videoshot if not already loaded
-    if (v?.cid && !videoshotRef.current) fetchVideoshot(v.bvid, v.cid)
     startScreenshotTimer()
   }
 
@@ -155,25 +102,16 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
     setLoading(true)
     setError('')
     try {
-      const resp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${item.bvid}`)
+      const resp = await fetch('/api/bilibili-parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: item.bvid })
+      })
       const data = await resp.json()
-      if (data.code !== 0) { setError('\u89e3\u6790\u5931\u8d25'); return }
-      const v = data.data
-      const info = {
-        bvid: item.bvid,
-        title: v.title || item.title,
-        desc: v.desc || '',
-        cover: (v.pic || '').replace('http:', 'https:'),
-        duration: v.duration || 0,
-        owner: v.owner?.name || '\u672a\u77e5',
-        cid: v.cid || 0,
-        view: v.stat?.view || 0,
-        danmaku: v.stat?.danmaku || 0,
-        embedUrl: `https://player.bilibili.com/player.html?bvid=${item.bvid}&high_quality=1&danmaku=0&autoplay=1`
-      }
-      setVideoInfo(info)
-      if (info.cid) fetchVideoshot(info.bvid, info.cid)
-      startWatch(info)
+      if (data.error) { setError(data.error); return }
+      setVideoInfo(data)
+      if (data.videoshot) videoshotRef.current = data.videoshot
+      startWatch(data)
     } catch (e) {
       setError('\u89e3\u6790\u5931\u8d25: ' + e.message)
     } finally {
@@ -206,27 +144,19 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
     }
   }
 
-  // Trigger AI discussion with actual video frame
   const triggerWatchScreenshot = useCallback(async () => {
     if (!videoInfo) return
     const elapsed = watchStartRef.current ? Math.floor((Date.now() - watchStartRef.current) / 1000) : 0
-    // Try to get actual frame from videoshot sprite
     let frame = null
     try { frame = await captureFrameAtTime(elapsed) } catch {}
     const detail = {
-      title: videoInfo.title,
-      owner: videoInfo.owner,
-      elapsed: fmtTime(elapsed),
-      totalDuration: fmtTime(videoInfo.duration),
-      bvid: videoInfo.bvid,
-      cover: videoInfo.cover,
-      desc: videoInfo.desc,
-      frame  // base64 jpeg of the frame near current time, or null
+      title: videoInfo.title, owner: videoInfo.owner,
+      elapsed: fmtTime(elapsed), totalDuration: fmtTime(videoInfo.duration),
+      bvid: videoInfo.bvid, cover: videoInfo.cover, desc: videoInfo.desc, frame
     }
     window.dispatchEvent(new CustomEvent('watch-together-tick', { detail }))
   }, [videoInfo])
 
-  // Expose current watch state + frame capture for sendMessage
   useEffect(() => {
     if (playing && videoInfo) {
       window.__watchTogetherActive = true
@@ -235,29 +165,19 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
         let frame = null
         try { frame = await captureFrameAtTime(elapsed) } catch {}
         return {
-          title: videoInfo.title,
-          owner: videoInfo.owner,
-          elapsed: fmtTime(elapsed),
-          totalDuration: fmtTime(videoInfo.duration),
-          bvid: videoInfo.bvid,
-          cover: videoInfo.cover,
-          desc: videoInfo.desc,
-          frame
+          title: videoInfo.title, owner: videoInfo.owner,
+          elapsed: fmtTime(elapsed), totalDuration: fmtTime(videoInfo.duration),
+          bvid: videoInfo.bvid, cover: videoInfo.cover, desc: videoInfo.desc, frame
         }
       }
     } else {
       window.__watchTogetherActive = false
       window.__watchTogetherInfo = null
     }
-    return () => {
-      window.__watchTogetherActive = false
-      window.__watchTogetherInfo = null
-    }
+    return () => { window.__watchTogetherActive = false; window.__watchTogetherInfo = null }
   }, [playing, videoInfo])
 
-  useEffect(() => {
-    return () => clearScreenshotTimer()
-  }, [])
+  useEffect(() => { return () => clearScreenshotTimer() }, [])
 
   const headerStyle = {
     display: 'flex', alignItems: 'center', padding: mini ? '4px 10px' : '8px 12px',
@@ -309,14 +229,13 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
           {onMinimize && <button onClick={onMinimize} style={{ ...btnStyle, fontSize: 14, color: '#b08a9a' }}>{'\u2212'}</button>}
         </div>
       )}
-
       <div style={{ flex: 1, overflow: 'auto', padding: mini ? '8px' : '12px 16px' }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <input
             value={searchUrl}
             onChange={e => setSearchUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && parseVideo()}
-            placeholder="\u7c98\u8d34B\u7ad9\u94fe\u63a5\u6216BV\u53f7..."
+            placeholder={'\u7c98\u8d34B\u7ad9\u94fe\u63a5\u6216BV\u53f7...'}
             style={{
               flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(230,200,220,0.5)',
               background: 'rgba(255,250,252,0.9)', fontSize: 13, color: '#4a3a50', outline: 'none'
@@ -334,9 +253,7 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
             {loading ? '...' : '\u89e3\u6790'}
           </button>
         </div>
-
         {error && <div style={{ color: '#d06080', fontSize: 12, marginBottom: 8, padding: '6px 10px', background: 'rgba(255,220,230,0.5)', borderRadius: 8 }}>{error}</div>}
-
         {videoInfo && !playing && (
           <div style={{ background: 'rgba(255,252,254,0.95)', borderRadius: 16, overflow: 'hidden', marginBottom: 12, border: '1px solid rgba(240,215,230,0.4)', boxShadow: '0 2px 12px rgba(200,150,180,0.1)' }}>
             {videoInfo.cover && (
@@ -367,7 +284,6 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
             </div>
           </div>
         )}
-
         {!videoInfo && history.length > 0 && (
           <div>
             <div style={{ fontSize: 12, color: '#b08a9a', marginBottom: 8, fontWeight: 600 }}>{'\u6700\u8fd1\u770b\u8fc7'}</div>
@@ -389,7 +305,6 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
             ))}
           </div>
         )}
-
         {!videoInfo && history.length === 0 && !loading && (
           <div style={{ textAlign: 'center', paddingTop: 60, color: '#b8a0a8' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>{'\ud83d\udcfa'}</div>
