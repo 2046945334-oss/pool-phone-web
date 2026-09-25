@@ -2380,8 +2380,11 @@ export default async function handler(req, res) {
                     msg.content[ci] = { type: 'image_url', image_url: { url: 'data:image/png;base64,' + pngBuf.toString('base64') } }
                     continue
                   }
-                } catch (e) { /* fall through to keep original */ }
-                msg.content[ci] = { type: 'image_url', image_url: { url: imgUrl } }
+                } catch (e) {
+                  console.log('[IMG] Failed to decode data URI via sharp, falling back to text:', e.message)
+                }
+                // Sharp failed or no b64Part - DO NOT send broken base64 to API, fallback to text
+                msg.content[ci] = { type: 'text', text: '(用户之前发过一张图片)' }
                 continue
               }
               // For recent user message images: download, convert to PNG via sharp, send as data URI
@@ -2417,6 +2420,17 @@ export default async function handler(req, res) {
               } else {
                 msg.content[ci] = { type: 'text', text: '[系统提示：用户发了一张图片，你看不到内容，不要把这句话复述出来]' }
               }
+            }
+          }
+        }
+      }
+      // DEBUG: log all image_url blocks in request
+      for (const msg of reqMessages) {
+        if (Array.isArray(msg.content)) {
+          for (const block of msg.content) {
+            if (block.type === 'image_url' && block.image_url) {
+              const u = block.image_url.url || ''
+              console.log('[DEBUG-IMG]', msg.role, 'url_prefix=' + u.substring(0, 80), 'url_len=' + u.length)
             }
           }
         }
