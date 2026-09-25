@@ -20,6 +20,7 @@ import stickersHtml from '../public/apps/_stickers.html'
 import ScreenTimeApp from '../components/apps/ScreenTimeApp'
 import GomokuApp from '../components/apps/GomokuApp'
 import GameHub from '../components/apps/GameHub'
+import WatchTogetherApp from '../components/apps/WatchTogetherApp'
 
 // ===== Capacitor 通知初始化 =====
 function initCapacitorNotifications() {
@@ -520,7 +521,7 @@ function MusicIsland({ theme }) {
 
 function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
-  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync && !m.isGameSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
+  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync && !m.isGameSync && !m.isWatchSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
   useEffect(() => {
     const pollInbox = async () => {
@@ -848,6 +849,10 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     } catch {}
 
     // If recent messages contain reading sync, add reading discussion prompt
+    const hasWatching = userMessages.some(m => m.isWatchSync)
+    if (hasWatching) {
+      parts.push({ role: 'system', content: '[\u4e00\u8d77\u770b\u6a21\u5f0f] \u7528\u6237\u6b63\u5728\u5c0f\u7a97\u91cc\u548c\u4f60\u4e00\u8d77\u770b\u89c6\u9891\u3002\u5076\u5c14\u4f1a\u628a\u89c2\u770b\u8fdb\u5ea6\u53d1\u7ed9\u4f60\u3002\u4f60\u4e0d\u9700\u8981\u6bcf\u6b21\u90fd\u56de\u5e94\u2014\u2014\u5927\u591a\u6570\u65f6\u5019\u5b89\u9759\u966a\u770b\u5c31\u597d\u3002\u53ea\u5728\u771f\u6b63\u89c9\u5f97\u5185\u5bb9\u6709\u610f\u601d\u3001\u60f3\u8ba8\u8bba\u7684\u65f6\u5019\u624d\u5f00\u53e3\u3002\u5982\u679c\u6ca1\u4ec0\u4e48\u60f3\u8bf4\u7684\uff0c\u5c31\u56de\u590d\"[\u65e0\u8bdd]\"\u8df3\u8fc7\u3002' })
+    }
     const hasReading = userMessages.some(m => m.isReadingSync)
     if (hasReading) {
       parts.push({ role: 'system', content: '[共读模式] 用户正在小窗里边读书边和你聊天。当用户翻了几页后，偶尔会把内容发给你。你不需要每次都回应——大多数时候安静陪读就好。只在真正觉得内容有意思、有感触、想讨论的时候才开口。如果没什么想说的，就回复"[无话]"跳过。不要为了说话而说话，不要每次都评论，安静也是陪伴。偶尔冒出一句才自然。' })
@@ -940,6 +945,29 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     }
     window.addEventListener('gomoku-game-over', onGomokuGameOver)
     return () => window.removeEventListener('gomoku-game-over', onGomokuGameOver)
+  }, [])
+
+  // Listen for watch-together random tick events
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function onWatchTick(e) {
+      const { title, owner, elapsed, totalDuration, bvid } = e.detail
+      // ~50% chance to trigger (rest is silent companionship)
+      if (Math.random() > 0.5) return
+      const watchMsg = {
+        role: 'user',
+        content: '[\u4e00\u8d77\u770b] \u6211\u4eec\u5728\u770b\u300e' + title + '\u300f(' + owner + ')\uff0c\u5df2\u770b\u4e86' + elapsed + '/' + totalDuration + '\u3002',
+        ts: Date.now(),
+        isWatchSync: true
+      }
+      setMessages(prev => {
+        const next = [...prev, watchMsg]
+        setTimeout(() => { window.__chiTriggerAI && window.__chiTriggerAI(next) }, 500)
+        return next
+      })
+    }
+    window.addEventListener('watch-together-tick', onWatchTick)
+    return () => window.removeEventListener('watch-together-tick', onWatchTick)
   }, [])
 
   // Listen for memory match events
@@ -1790,7 +1818,7 @@ function AvatarGalleryPanel() {
 function ThemePanel() {
   const [theme, setTheme] = useState(() => JSON.parse(localStorage.getItem('pool_theme') || '{}'))
   const [saved, setSaved] = useState(false)
-  const APP_LIST = ['notes','messages','music','couple','system','fishing','reader','theme','avatarGallery','memoryMgr','diary','garden','cabin','starmap','screenTime','care','stickers','game']
+  const APP_LIST = ['notes','messages','music','couple','system','fishing','reader','theme','avatarGallery','memoryMgr','diary','garden','cabin','starmap','screenTime','care','stickers','game','watch']
   const APP_NAMES = {notes:'\u4fbf\u7b7e',messages:'\u5982\u679c\u2026',music:'\u97f3\u4e50',couple:'\u60c5\u4fa3\u7a7a\u95f4',system:'\u7cfb\u7edf',fishing:'\u94d3\u9c7c',reader:'\u9605\u8bfb',theme:'\u7f8e\u5316',avatarGallery:'\u5934\u50cf\u5e93',memoryMgr:'\u8bb0\u5fc6\u7ba1\u7406',diary:'\u65e5\u8bb0',garden:'\u5ead\u9662',cabin:'唤醒日志',starmap:'\u661f\u56fe', dwell:'\u804a\u5929',screenTime:'屏幕时间',care:'养护手册',stickers:'表情包管理',game:'游戏'}
 
   function save() {
@@ -2026,6 +2054,12 @@ function ThemePanel() {
           <input className="settings-input" value={theme.gameCover||''} onChange={e=>handleUrlInput('gameCover',e.target.value)} placeholder={'URL...'} />
           <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('gameCover',e)} hidden /></label>
           {theme.gameCover && <img src={theme.gameCover} className="theme-preview-sm" />}
+        </div>
+        <div className="theme-item">
+          <label>{'\ud83d\udcfa \u5c0f\u7535\u89c6\u5c01\u9762'}</label>
+          <input className="settings-input" value={theme.tvCover||''} onChange={e=>handleUrlInput('tvCover',e.target.value)} placeholder={'URL...'} />
+          <label className="theme-upload-btn">{'\ud83d\udcf7 \u4e0a\u4f20'}<input type="file" accept="image/*" onChange={e=>handleImageUpload('tvCover',e)} hidden /></label>
+          {theme.tvCover && <img src={theme.tvCover} className="theme-preview-sm" />}
         </div>
       </div>
       <div className="settings-section">
@@ -3785,22 +3819,21 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
           </div>
 
-          {/* Diary - thick book style */}
-          <div className="hs-card-diary hs-diary-book" onClick={() => onOpenApp('diary')}>
-            <div className="hs-card-diary-label"><SvgPen /> <span>{'diary'}</span></div>
-            <div className="hs-card-diary-text">{latestDiary?.text ? latestDiary.text.slice(0,80) : 'no entries yet...'}</div>
-          </div>
-
-          {/* Garden preview strip */}
-          <div className="hs-garden-strip" onClick={() => onOpenApp('garden')}>
-            <SvgLeaf />
-            <span>{'garden'}</span>
-            <div className="hs-garden-dots">
-              <span className="hs-g-dot" style={{background:'#f0a0b0'}}></span>
-              <span className="hs-g-dot" style={{background:'#b0d0a0'}}></span>
-              <span className="hs-g-dot" style={{background:'#a0c0e0'}}></span>
-              <span className="hs-g-dot" style={{background:'#e0b0d0'}}></span>
-              <span className="hs-g-dot" style={{background:'#f0d0a0'}}></span>
+          {/* TV card - watch together */}
+          <div className="hs-tv-card" onClick={() => onOpenApp('watch')}>
+            <div className="hs-tv-body">
+              <div className="hs-tv-screen">
+                {theme?.tvCover ? (
+                  <img src={theme.tvCover} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                ) : (
+                  <div className="hs-tv-placeholder">{'\ud83d\udcfa'}</div>
+                )}
+              </div>
+              <div className="hs-tv-side">
+                <div className="hs-tv-knob"></div>
+                <div className="hs-tv-knob"></div>
+                <div className="hs-tv-label">{'\u4e00\u8d77\u770b'}</div>
+              </div>
             </div>
           </div>
 
@@ -3966,6 +3999,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('phone')
   const [readerMini, setReaderMini] = useState(false)
   const [gameMini, setGameMini] = useState(false)
+  const [watchMini, setWatchMini] = useState(false)
   const [callActive, setCallActive] = useState(false)
   const [callIncoming, setCallIncoming] = useState(false)
   const [callMinimized, setCallMinimized] = useState(false)
@@ -4089,7 +4123,7 @@ export default function Home() {
     )
 
     const appTitles = { fishing:'钓鱼', reader:'阅读', notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', care:'养护手册', stickers:'表情包管理', game:'游戏' }
-    const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, game: <GameHub /> }
+    const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, game: <GameHub />, watch: <WatchTogetherApp /> }
     const htmlApps = { notes: notesHtml, messages: messagesHtml, couple: coupleHtml, diary: diaryHtml, garden: gardenHtml, cabin: cabinHtml, starmap: starmapHtml, stickers: stickersHtml }
     // Lazy-loaded HTML apps: fetched on demand to reduce initial bundle size
     const lazyHtmlApps = { care: '/apps/_care.html' }
@@ -4149,6 +4183,15 @@ export default function Home() {
         return (
           <div className="app-page" style={{padding:0,...bgStyle}}>
             <GameHub onBack={handleBack} onMinimize={() => { setGameMini(true); setActiveTab('chat'); handleBack() }} />
+          </div>
+        )
+      }
+
+      // Watch together app: full-screen with mini-window support
+      if (currentApp === 'watch') {
+        return (
+          <div className="app-page" style={{padding:0,...bgStyle}}>
+            <WatchTogetherApp onBack={handleBack} onMinimize={() => { setWatchMini(true); setActiveTab('chat'); handleBack() }} />
           </div>
         )
       }
@@ -4238,6 +4281,23 @@ export default function Home() {
                   </div>
                   <div style={{ flex:1, overflow:'hidden' }}>
                     <GameHub mini={true} />
+                  </div>
+                </div>
+              )}
+              {watchMini && (
+                <div style={{
+                  position:'absolute', top:0, left:0, right:0, height:'55%',
+                  zIndex:600, background:'rgba(0,0,0,0.92)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', borderRadius:'0 0 16px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.3)',
+                  display:'flex', flexDirection:'column',
+                  overflow:'hidden'
+                }}>
+                  <div style={{ display:'flex', alignItems:'center', padding:'6px 12px', background:'rgba(30,20,40,0.9)', borderBottom:'1px solid rgba(100,60,80,0.4)', gap:8, flexShrink:0 }}>
+                    <span style={{ flex:1, fontSize:13, color:'#e8a0bf', fontWeight:600 }}>{'\ud83d\udcfa \u4e00\u8d77\u770b'}</span>
+                    <button onClick={() => { setCurrentApp('watch'); setActiveTab('phone'); setWatchMini(false) }} style={{ background:'rgba(60,40,50,0.8)', color:'#e8a0bf', border:'1px solid rgba(200,120,160,0.3)', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>{'\u5168\u5c4f'}</button>
+                    <button onClick={() => setWatchMini(false)} style={{ background:'rgba(60,40,50,0.8)', color:'#e8a0bf', border:'1px solid rgba(200,120,160,0.3)', borderRadius:6, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>{'\u2715'}</button>
+                  </div>
+                  <div style={{ flex:1, overflow:'hidden' }}>
+                    <WatchTogetherApp mini={true} />
                   </div>
                 </div>
               )}
