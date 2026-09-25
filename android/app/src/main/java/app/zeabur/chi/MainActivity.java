@@ -64,8 +64,9 @@ public class MainActivity extends BridgeActivity {
     public static boolean isWebViewAvailable() { return sWebView != null; }
     // Called from OverlayBridge when frontend AI replies to overlay message
     public static void showOverlayComment(String text) {
-        if (OverlayService.sInstance != null) {
-            OverlayService.sInstance.showComment(text);
+        OverlayService svc = OverlayService.getInstance();
+        if (svc != null) {
+            svc.showComment(text);
         }
     }
     @Override
