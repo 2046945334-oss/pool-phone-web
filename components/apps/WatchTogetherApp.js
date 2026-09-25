@@ -22,8 +22,23 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
   const [videoInfo, setVideoInfo] = useState(null) // parsed video metadata
   const [playing, setPlaying] = useState(false) // whether video is actively playing
   const [history, setHistory] = useState([]) // watch history
-  const iframeRef = useRef(null)
+  const videoRef = useRef(null)
+  const canvasRef = useRef(null)
   const watchStartRef = useRef(null)
+
+  // Capture current video frame as base64 JPEG
+  function captureFrame() {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || video.readyState < 2) return null
+    try {
+      canvas.width = Math.min(video.videoWidth || 640, 480)
+      canvas.height = Math.round(canvas.width * (video.videoHeight || 360) / (video.videoWidth || 640))
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      return canvas.toDataURL('image/jpeg', 0.6)
+    } catch { return null }
+  }
   const screenshotTimerRef = useRef(null)
 
   // Load history from localStorage
@@ -68,7 +83,12 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
 
   // Start watching (switch to player)
   function startWatch(info) {
-    setVideoInfo(info || videoInfo)
+    const v = info || videoInfo
+    // Create proxied URL for <video> to bypass CORS/Referer restrictions
+    if (v && v.playUrl) {
+      v.proxyUrl = '/api/video-proxy?url=' + encodeURIComponent(v.playUrl)
+    }
+    setVideoInfo(v)
     setPlaying(true)
     watchStartRef.current = Date.now()
     if (info) saveHistory(info)
@@ -128,15 +148,18 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
   // Trigger screenshot injection into chat
   const triggerWatchScreenshot = useCallback(() => {
     if (!videoInfo) return
-    const elapsed = watchStartRef.current ? Math.floor((Date.now() - watchStartRef.current) / 1000) : 0
+    const video = videoRef.current
+    const currentTime = video ? Math.floor(video.currentTime || 0) : 0
+    const frame = captureFrame()
     const detail = {
       title: videoInfo.title,
       owner: videoInfo.owner,
-      elapsed: fmtTime(elapsed),
+      currentTime: fmtTime(currentTime),
       totalDuration: fmtTime(videoInfo.duration),
       bvid: videoInfo.bvid,
       cover: videoInfo.cover,
-      desc: videoInfo.desc
+      desc: videoInfo.desc,
+      frame: frame  // base64 jpeg of current video frame
     }
     window.dispatchEvent(new CustomEvent('watch-together-tick', { detail }))
   }, [videoInfo])
@@ -146,15 +169,16 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
     if (playing && videoInfo) {
       window.__watchTogetherActive = true
       window.__watchTogetherInfo = () => {
-        const elapsed = watchStartRef.current ? Math.floor((Date.now() - watchStartRef.current) / 1000) : 0
+        const video = videoRef.current
+        const currentTime = video ? Math.floor(video.currentTime || 0) : 0
+        const frame = captureFrame()
         return {
           title: videoInfo.title,
           owner: videoInfo.owner,
-          elapsed: fmtTime(elapsed),
+          currentTime: fmtTime(currentTime),
           totalDuration: fmtTime(videoInfo.duration),
           bvid: videoInfo.bvid,
-          cover: videoInfo.cover,
-          desc: videoInfo.desc
+          frame: frame  // base64 jpeg of current video frame
         }
       }
     } else {
@@ -192,14 +216,17 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
           </div>
         )}
         <div style={{ flex: 1, position: 'relative', background: '#000' }}>
-          <iframe
-            ref={iframeRef}
-            src={videoInfo.embedUrl}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            allow="autoplay; encrypted-media; fullscreen"
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
+          <video
+            ref={videoRef}
+            src={videoInfo.proxyUrl || videoInfo.playUrl}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            controls
+            autoPlay
+            playsInline
+            crossOrigin="anonymous"
+            poster={videoInfo.cover}
           />
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
         {mini && (
           <div style={{ display: 'flex', alignItems: 'center', padding: '4px 8px', background: 'rgba(0,0,0,0.6)', gap: 6 }}>

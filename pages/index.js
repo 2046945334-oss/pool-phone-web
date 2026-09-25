@@ -951,12 +951,12 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     function onWatchTick(e) {
-      const { title, owner, elapsed, totalDuration, bvid, cover, desc } = e.detail
+      const { title, owner, currentTime, totalDuration, bvid, cover, desc, frame } = e.detail
       // ~50% chance to trigger (rest is silent companionship)
       if (Math.random() > 0.5) return
       const watchMsg = {
         role: 'user',
-        content: '[\u4e00\u8d77\u770b] \u6211\u4eec\u5728\u770b\u300e' + title + '\u300f(' + owner + ')\uff0c\u5df2\u770b\u4e86' + elapsed + '/' + totalDuration + '\u3002' + (cover ? '\n[img]' + cover + '[/img]' : ''),
+        content: '[\u4e00\u8d77\u770b] \u6211\u4eec\u5728\u770b\u300e' + title + '\u300f(' + owner + ')\uff0c\u770b\u5230\u4e86' + currentTime + '/' + totalDuration + '\u3002' + (frame ? '\n[img]' + frame + '[/img]' : (cover ? '\n[img]' + cover + '[/img]' : '')),
         ts: Date.now(),
         isWatchSync: true
       }
