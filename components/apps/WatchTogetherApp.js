@@ -30,6 +30,8 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
 
   useEffect(() => {
     try { setHistory(JSON.parse(localStorage.getItem('pool_watch_history2') || '[]')) } catch {}
+    // If HLS.js was already loaded (e.g. component remount in mini mode), mark ready immediately
+    if (typeof window !== 'undefined' && window.Hls) setHlsReady(true)
   }, [])
 
   function saveHistory(movie, epName) {
