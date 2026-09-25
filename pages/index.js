@@ -3844,22 +3844,6 @@ function HomeScreen({ onOpenApp, theme }) {
               </div>
             </div>
           </div>
-          <div className="hs-tv-card" onClick={() => onOpenApp('watch')}>
-            <div className="hs-tv-body">
-              <div className="hs-tv-screen">
-                {theme?.tvCover ? (
-                  <img src={theme.tvCover} style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                ) : (
-                  <div className="hs-tv-placeholder">{'\ud83d\udcfa'}</div>
-                )}
-              </div>
-              <div className="hs-tv-side">
-                <div className="hs-tv-knob"></div>
-                <div className="hs-tv-knob"></div>
-                <div className="hs-tv-label">{'\u4e00\u8d77\u770b'}</div>
-              </div>
-            </div>
-          </div>
 
 
 
@@ -4606,6 +4590,17 @@ export default function Home() {
         .hs-polaroid-title { text-align: center; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 1.5px; margin-bottom: 2px; text-transform: lowercase; }
 
         /* Page 3 cards */
+.hs-tv-card { margin-bottom: 8px; cursor: pointer; transition: transform 0.15s; }
+        .hs-tv-card:active { transform: scale(0.97); }
+        .hs-tv-outer { display: flex; background: linear-gradient(145deg, #f5c8d8 0%, #e8a8c0 50%, #dda0b8 100%); border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 6px 24px rgba(200,120,160,0.2), inset 0 1px 0 rgba(255,255,255,0.4); border: 2.5px solid rgba(220,170,190,0.5); min-height: 120px; }
+        .hs-tv-left { flex: 1; display: flex; align-items: center; justify-content: center; padding: 14px 8px 14px 14px; }
+        .hs-tv-screen-frame { width: 100%; aspect-ratio: 4/3; background: rgba(245,225,235,0.6); border-radius: 14px; padding: 6px; border: 2px solid rgba(210,170,185,0.5); box-shadow: inset 0 2px 6px rgba(180,120,150,0.15); }
+        .hs-tv-screen { width: 100%; height: 100%; background: rgba(255,252,254,0.95); border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .hs-tv-static { font-size: 32px; opacity: 0.4; }
+        .hs-tv-right { width: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px 10px; }
+        .hs-tv-knob-lg { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(145deg, #f8dce8 0%, #d8a0b8 100%); border: 2.5px solid rgba(200,150,170,0.6); box-shadow: inset 0 2px 4px rgba(255,255,255,0.5), 0 2px 4px rgba(180,120,150,0.2); }
+        .hs-tv-hearts { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 14px; color: rgba(200,100,140,0.6); line-height: 1; }
+        .hs-tv-label { font-size: 10px; color: rgba(140,80,100,0.7); font-weight: 700; letter-spacing: 1px; margin-top: 2px; }
         .hs-card-diary { padding: 18px 18px; background: rgba(255,250,252,0.9); border: 1px solid rgba(240,220,235,0.5); border-left: 3px solid rgba(180,140,200,0.7); border-radius: 16px; cursor: pointer; }
         .hs-card-diary:active { background: rgba(255,240,248,0.14); }
         .hs-card-diary-label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #9a7080; margin-bottom: 6px; }
