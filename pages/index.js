@@ -850,8 +850,29 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
 
     // If recent messages contain reading sync, add reading discussion prompt
     const hasWatching = userMessages.some(m => m.isWatchSync)
-    if (hasWatching) {
-      parts.push({ role: 'system', content: '[\u4e00\u8d77\u770b\u6a21\u5f0f] \u7528\u6237\u6b63\u5728\u5c0f\u7a97\u91cc\u548c\u4f60\u4e00\u8d77\u770b\u89c6\u9891\u3002\u5076\u5c14\u4f1a\u628a\u89c2\u770b\u8fdb\u5ea6\u53d1\u7ed9\u4f60\u3002\u4f60\u4e0d\u9700\u8981\u6bcf\u6b21\u90fd\u56de\u5e94\u2014\u2014\u5927\u591a\u6570\u65f6\u5019\u5b89\u9759\u966a\u770b\u5c31\u597d\u3002\u53ea\u5728\u771f\u6b63\u89c9\u5f97\u5185\u5bb9\u6709\u610f\u601d\u3001\u60f3\u8ba8\u8bba\u7684\u65f6\u5019\u624d\u5f00\u53e3\u3002\u5982\u679c\u6ca1\u4ec0\u4e48\u60f3\u8bf4\u7684\uff0c\u5c31\u56de\u590d\"[\u65e0\u8bdd]\"\u8df3\u8fc7\u3002' })
+    // Also check if watch player is currently active (for user-initiated messages while watching)
+    const isWatchActive = typeof window !== 'undefined' && window.__watchTogetherActive
+    if (hasWatching || isWatchActive) {
+      let watchCtx = '[一起看模式] 用户正在小窗里和你一起看视频。'
+      // Try to get live watch info for real-time context
+      if (isWatchActive && window.__watchTogetherInfo) {
+        try {
+          const info = await window.__watchTogetherInfo()
+          if (info) {
+            watchCtx += `\n当前在看: 『${info.title}』${info.owner ? '(' + info.owner + ')' : ''}, 进度 ${info.elapsed}/${info.totalDuration}`
+            if (info.frame) watchCtx += '\n[当前画面已附在最后一条用户消息中]'
+            // Inject frame into last user message
+            if (info.frame) {
+              const lastIdx = userMessages.length - 1
+              if (lastIdx >= 0 && userMessages[lastIdx].role === 'user' && !userMessages[lastIdx].isWatchSync) {
+                userMessages[lastIdx] = { ...userMessages[lastIdx], content: userMessages[lastIdx].content + '\n[img]' + info.frame + '[/img]' }
+              }
+            }
+          }
+        } catch {}
+      }
+      watchCtx += '\n偶尔会把观看进度发给你。你不需要每次都回应——大多数时候安静陪看就好。只在真正觉得内容有意思、想讨论的时候才开口。用户主动跟你聊时正常回复。如果没什么想说的，就回复"[无话]"跳过。'
+      parts.push({ role: 'system', content: watchCtx })
     }
     const hasReading = userMessages.some(m => m.isReadingSync)
     if (hasReading) {
