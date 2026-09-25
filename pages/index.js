@@ -1154,6 +1154,14 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
         setMessages([...current])
         if (i < restored.length - 1) await new Promise(r => setTimeout(r, 600))
       }
+      // If this was an overlay-injected message, send reply to overlay bubble
+      const lastUserMsg2 = newMessages.filter(m => m.role === 'user').pop()
+      if (lastUserMsg2 && lastUserMsg2.source === 'overlay' && window.ChiOverlay && window.ChiOverlay.showComment) {
+        try {
+          const plainReply = reply.replace(/\[img\][\s\S]*?\[\/img\]/g, '').replace(/\[voice\][\s\S]*?\[\/voice\]/g, '').trim()
+          if (plainReply) window.ChiOverlay.showComment(plainReply.slice(0, 200))
+        } catch (e) { console.log('overlay showComment error', e) }
+      }
       const lastUserMsg = newMessages.filter(m => m.role === 'user').pop()
       if (lastUserMsg && lastUserMsg.ts) {
         setReadStatus(prev => {
