@@ -308,7 +308,7 @@ public class OverlayService extends Service {
         commentCard.setVisibility(commentVisible ? View.VISIBLE : View.GONE);
     }
 
-    private void showComment(String text) {
+    public void showComment(String text) {
         handler.post(() -> {
             commentText.setText(text);
             // Position comment card ABOVE bubble, accounting for text height
@@ -457,6 +457,7 @@ public class OverlayService extends Service {
 
     // ============ Inject into frontend chat via WebView ============
     private static OverlayService sInstance;
+    public static OverlayService getInstance() { return sInstance; }
     private boolean injectViaWebView(String base64Img, String textContent, String source) {
         if (!MainActivity.isWebViewAvailable()) return false;
         try {
