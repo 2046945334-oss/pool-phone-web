@@ -3819,7 +3819,31 @@ function HomeScreen({ onOpenApp, theme }) {
             </div>
           </div>
 
-          {/* TV card - watch together */}
+{/* TV card - retro pink television */}
+          <div className="hs-tv-card" onClick={() => onOpenApp('watch')}>
+            <div className="hs-tv-outer">
+              <div className="hs-tv-left">
+                <div className="hs-tv-screen-frame">
+                  <div className="hs-tv-screen">
+                    {theme?.tvCover ? (
+                      <img src={theme.tvCover} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                    ) : (
+                      <div className="hs-tv-static">{'📺'}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="hs-tv-right">
+                <div className="hs-tv-knob-lg"></div>
+                <div className="hs-tv-knob-lg"></div>
+                <div className="hs-tv-hearts">
+                  <span>{'♡'}</span>
+                  <span>{'♡'}</span>
+                </div>
+                <div className="hs-tv-label">{'一起看'}</div>
+              </div>
+            </div>
+          </div>
           <div className="hs-tv-card" onClick={() => onOpenApp('watch')}>
             <div className="hs-tv-body">
               <div className="hs-tv-screen">
@@ -4122,7 +4146,7 @@ export default function Home() {
       </div>
     )
 
-    const appTitles = { fishing:'钓鱼', reader:'阅读', notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', care:'养护手册', stickers:'表情包管理', game:'游戏' }
+    const appTitles = { fishing:'钓鱼', reader:'阅读', notes:'便签', messages:'朋友圈', music:'音乐', couple:'情侣空间', diary:'日记', garden:'庭院', cabin:'唤醒日志', starmap:'星图', care:'养护手册', stickers:'表情包管理', game:'游戏', watch:'一起看' }
     const reactApps = { fishing: <FishingApp />, reader: <ReaderApp />, game: <GameHub />, watch: <WatchTogetherApp /> }
     const htmlApps = { notes: notesHtml, messages: messagesHtml, couple: coupleHtml, diary: diaryHtml, garden: gardenHtml, cabin: cabinHtml, starmap: starmapHtml, stickers: stickersHtml }
     // Lazy-loaded HTML apps: fetched on demand to reduce initial bundle size
