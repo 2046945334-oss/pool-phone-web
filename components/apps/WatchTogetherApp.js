@@ -134,7 +134,9 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
       owner: videoInfo.owner,
       elapsed: fmtTime(elapsed),
       totalDuration: fmtTime(videoInfo.duration),
-      bvid: videoInfo.bvid
+      bvid: videoInfo.bvid,
+      cover: videoInfo.cover,
+      desc: videoInfo.desc
     }
     window.dispatchEvent(new CustomEvent('watch-together-tick', { detail }))
   }, [videoInfo])
@@ -150,7 +152,9 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
           owner: videoInfo.owner,
           elapsed: fmtTime(elapsed),
           totalDuration: fmtTime(videoInfo.duration),
-          bvid: videoInfo.bvid
+          bvid: videoInfo.bvid,
+          cover: videoInfo.cover,
+          desc: videoInfo.desc
         }
       }
     } else {
