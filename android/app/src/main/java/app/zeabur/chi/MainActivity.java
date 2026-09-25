@@ -1,5 +1,7 @@
 package app.zeabur.chi;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
@@ -48,6 +50,18 @@ public class MainActivity extends BridgeActivity {
     private ValueCallback<Uri[]> fileUploadCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
     private ActivityResultLauncher<Intent> projectionLauncher;
+    // Static WebView reference for OverlayService to inject JS
+    private static WebView sWebView;
+    private static Handler sMainHandler;
+    public static void evaluateOverlayJs(String js) {
+        if (sWebView != null && sMainHandler != null) {
+            sMainHandler.post(() -> {
+                try { sWebView.evaluateJavascript(js, null); }
+                catch (Exception e) { Log.e("ChiFcm", "evaluateOverlayJs error: " + e.getMessage()); }
+            });
+        }
+    }
+    public static boolean isWebViewAvailable() { return sWebView != null; }
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(UsageStatsPlugin.class);
@@ -104,6 +118,9 @@ public class MainActivity extends BridgeActivity {
         try {
             WebView webView = getBridge().getWebView();
             if (webView != null) {
+                // Save static reference for OverlayService
+                sWebView = webView;
+                sMainHandler = new Handler(Looper.getMainLooper());
                 WebSettings settings = webView.getSettings();
                 // Allow audio/video to autoplay without user gesture
                 settings.setMediaPlaybackRequiresUserGesture(false);
@@ -258,7 +275,7 @@ public class MainActivity extends BridgeActivity {
                 }
             }).start();
         }).addOnFailureListener(e -> {
-            Log.e(TAG, "Failed to get FCM token: " + e.getMessage());
+Log.e(TAG, "Failed to get FCM token: " + e.getMessage());
         });
     }
 }
