@@ -11,7 +11,6 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
   const [searchUrl, setSearchUrl] = useState('')
   const [videoInfo, setVideoInfo] = useState(null)
   const [playing, setPlaying] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [history, setHistory] = useState([])
   const iframeRef = useRef(null)
@@ -28,10 +27,50 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
     try {
       const h = JSON.parse(localStorage.getItem('pool_watch_history') || '[]')
       const filtered = h.filter(v => v.bvid !== info.bvid)
-      const next = [{ bvid: info.bvid, title: info.title, cover: info.cover, owner: info.owner, ts: Date.now() }, ...filtered].slice(0, 20)
+      const next = [{ bvid: info.bvid, title: info.title || info.bvid, cover: info.cover, owner: info.owner, ts: Date.now() }, ...filtered].slice(0, 20)
       localStorage.setItem('pool_watch_history', JSON.stringify(next))
       setHistory(next)
     } catch {}
+  }
+
+  // Extract BV number from any input
+  function extractBvid(input) {
+    const m = input.match(/BV[a-zA-Z0-9]+/)
+    return m ? m[0] : null
+  }
+
+  // Direct play: just need a BV number to construct iframe
+  function parseAndPlay() {
+    const input = searchUrl.trim()
+    if (!input) return
+    const bvid = extractBvid(input)
+    if (!bvid) { setError('\u65e0\u6cd5\u8bc6\u522bBV\u53f7\uff0c\u8bf7\u8f93\u5165BV\u53f7\u6216B\u7ad9\u94fe\u63a5'); return }
+    setError('')
+    const info = {
+      bvid,
+      title: bvid,
+      owner: '',
+      cover: '',
+      duration: 0,
+      desc: '',
+      embedUrl: 'https://player.bilibili.com/player.html?bvid=' + bvid + '&high_quality=1&danmaku=0&autoplay=1'
+    }
+    // Try to enrich info from server (non-blocking)
+    fetch('/api/bilibili-parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: bvid })
+    }).then(r => r.json()).then(data => {
+      if (data && !data.error && data.title) {
+        const enriched = { ...info, ...data }
+        setVideoInfo(enriched)
+        if (data.videoshot) videoshotRef.current = data.videoshot
+        // Update history with real title
+        saveHistory(enriched)
+      }
+    }).catch(() => {})
+    setVideoInfo(info)
+    startWatch(info)
   }
 
   function captureFrameAtTime(elapsedSec) {
@@ -66,57 +105,37 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
     })
   }
 
-  async function parseVideo() {
-    if (!searchUrl.trim()) return
-    setLoading(true)
-    setError('')
-    try {
-      const resp = await fetch('/api/bilibili-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: searchUrl.trim() })
-      })
-      const data = await resp.json()
-      if (data.error) { setError(data.error); return }
-      setVideoInfo(data)
-      if (data.videoshot) videoshotRef.current = data.videoshot
-    } catch (e) {
-      setError('\u89e3\u6790\u5931\u8d25: ' + e.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   function startWatch(info) {
-    const v = info || videoInfo
-    setVideoInfo(v)
+    setVideoInfo(info)
     setPlaying(true)
     watchStartRef.current = Date.now()
-    if (v?.videoshot) videoshotRef.current = v.videoshot
-    if (info) saveHistory(info)
-    else if (videoInfo) saveHistory(videoInfo)
+    if (info?.videoshot) videoshotRef.current = info.videoshot
+    saveHistory(info)
     startScreenshotTimer()
   }
 
-  async function watchFromHistory(item) {
-    setLoading(true)
-    setError('')
-    try {
-      const resp = await fetch('/api/bilibili-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: item.bvid })
-      })
-      const data = await resp.json()
-      if (data.error) { setError(data.error); return }
-      setVideoInfo(data)
-      if (data.videoshot) videoshotRef.current = data.videoshot
-      startWatch(data)
-    } catch (e) {
-      setError('\u89e3\u6790\u5931\u8d25: ' + e.message)
-    } finally {
-      setLoading(false)
+  function watchFromHistory(item) {
+    const info = {
+      bvid: item.bvid,
+      title: item.title || item.bvid,
+      owner: item.owner || '',
+      cover: item.cover || '',
+      duration: 0,
+      desc: '',
+      embedUrl: 'https://player.bilibili.com/player.html?bvid=' + item.bvid + '&high_quality=1&danmaku=0&autoplay=1'
     }
+    // Try enrichment in background
+    fetch('/api/bilibili-parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: item.bvid })
+    }).then(r => r.json()).then(data => {
+      if (data && !data.error && data.title) {
+        setVideoInfo(prev => ({ ...prev, ...data }))
+        if (data.videoshot) videoshotRef.current = data.videoshot
+      }
+    }).catch(() => {})
+    startWatch(info)
   }
 
   function stopWatch() {
@@ -234,7 +253,7 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
           <input
             value={searchUrl}
             onChange={e => setSearchUrl(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && parseVideo()}
+            onKeyDown={e => e.key === 'Enter' && parseAndPlay()}
             placeholder={'\u7c98\u8d34B\u7ad9\u94fe\u63a5\u6216BV\u53f7...'}
             style={{
               flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(230,200,220,0.5)',
@@ -242,49 +261,18 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
             }}
           />
           <button
-            onClick={parseVideo}
-            disabled={loading}
+            onClick={parseAndPlay}
             style={{
               padding: '8px 14px', borderRadius: 10, border: 'none',
               background: 'linear-gradient(135deg, #e8a0bf 0%, #d080a0 100%)',
-              color: '#fff', fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.6 : 1
+              color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer'
             }}
           >
-            {loading ? '...' : '\u89e3\u6790'}
+            {'\u64ad\u653e'}
           </button>
         </div>
         {error && <div style={{ color: '#d06080', fontSize: 12, marginBottom: 8, padding: '6px 10px', background: 'rgba(255,220,230,0.5)', borderRadius: 8 }}>{error}</div>}
-        {videoInfo && !playing && (
-          <div style={{ background: 'rgba(255,252,254,0.95)', borderRadius: 16, overflow: 'hidden', marginBottom: 12, border: '1px solid rgba(240,215,230,0.4)', boxShadow: '0 2px 12px rgba(200,150,180,0.1)' }}>
-            {videoInfo.cover && (
-              <div style={{ position: 'relative' }}>
-                <img src={videoInfo.cover} style={{ width: '100%', height: 'auto', display: 'block' }} alt="" />
-                <div style={{ position: 'absolute', bottom: 6, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>
-                  {fmtTime(videoInfo.duration)}
-                </div>
-              </div>
-            )}
-            <div style={{ padding: '10px 12px' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#4a3040', marginBottom: 4, lineHeight: 1.4 }}>{videoInfo.title}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#9a7a8a' }}>
-                <span>{videoInfo.owner}</span>
-                <span>{'\u25b6 ' + (videoInfo.view || 0).toLocaleString() + ' \u00b7 \u5f39\u5e55 ' + (videoInfo.danmaku || 0)}</span>
-              </div>
-              <button
-                onClick={() => startWatch()}
-                style={{
-                  width: '100%', marginTop: 10, padding: '10px', borderRadius: 12, border: 'none',
-                  background: 'linear-gradient(135deg, #e8a0bf 0%, #c88098 100%)',
-                  color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                }}
-              >
-                {'\ud83d\udcfa \u4e00\u8d77\u770b'}
-              </button>
-            </div>
-          </div>
-        )}
-        {!videoInfo && history.length > 0 && (
+        {history.length > 0 && (
           <div>
             <div style={{ fontSize: 12, color: '#b08a9a', marginBottom: 8, fontWeight: 600 }}>{'\u6700\u8fd1\u770b\u8fc7'}</div>
             {history.map((item, idx) => (
@@ -296,20 +284,20 @@ export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
                   background: 'rgba(255,250,252,0.8)', cursor: 'pointer', border: '1px solid rgba(240,220,230,0.3)'
                 }}
               >
-                {item.cover && <img src={item.cover} style={{ width: 80, height: 50, objectFit: 'cover', borderRadius: 6 }} alt="" />}
+                {item.cover ? <img src={item.cover} style={{ width: 80, height: 50, objectFit: 'cover', borderRadius: 6 }} alt="" /> : <div style={{ width: 80, height: 50, borderRadius: 6, background: 'rgba(200,160,180,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{'\ud83d\udcfa'}</div>}
                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#5a3a4a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
-                  <div style={{ fontSize: 10, color: '#a08090', marginTop: 2 }}>{item.owner}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#5a3a4a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title || item.bvid}</div>
+                  <div style={{ fontSize: 10, color: '#a08090', marginTop: 2 }}>{item.owner || item.bvid}</div>
                 </div>
               </div>
             ))}
           </div>
         )}
-        {!videoInfo && history.length === 0 && !loading && (
+        {history.length === 0 && (
           <div style={{ textAlign: 'center', paddingTop: 60, color: '#b8a0a8' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>{'\ud83d\udcfa'}</div>
-            <div style={{ fontSize: 13 }}>{'\u7c98\u8d34B\u7ad9\u89c6\u9891\u94fe\u63a5'}</div>
-            <div style={{ fontSize: 12, marginTop: 4, opacity: 0.7 }}>{'\u4e00\u8d77\u770b\u89c6\u9891\u5427'}</div>
+            <div style={{ fontSize: 13 }}>{'\u7c98\u8d34B\u7ad9BV\u53f7\u6216\u94fe\u63a5'}</div>
+            <div style={{ fontSize: 12, marginTop: 4, opacity: 0.7 }}>{'\u70b9\u64ad\u653e\u76f4\u63a5\u5f00\u59cb\u770b'}</div>
           </div>
         )}
       </div>
