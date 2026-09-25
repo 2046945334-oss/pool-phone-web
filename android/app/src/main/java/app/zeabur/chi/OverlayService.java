@@ -454,7 +454,25 @@ public class OverlayService extends Service {
         } catch (Exception e) { return null; }
     }
 
-    // ============ Peek Logic - calls /api/overlay-chat ============
+    // ============ Inject into frontend chat via WebView ============
+    private boolean injectViaWebView(String base64Img, String textContent, String source) {
+        if (!MainActivity.isWebViewAvailable()) return false;
+        try {
+            // Escape for JS string
+            String escapedText = textContent.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n");
+            String imgArg = (base64Img != null) ? "'" + base64Img + "'" : "null";
+            String js = "if(window.__chiOverlayInject){window.__chiOverlayInject(" 
+                + imgArg + ",'" + escapedText + "','" + source + "');'ok'}else{'no'}";
+            MainActivity.evaluateOverlayJs(js);
+            Log.d(TAG, "Injected overlay via WebView, source=" + source);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "injectViaWebView error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ============ Peek Logic - injects into frontend chat, fallback to /api/overlay-chat ============
     private void doPeek(String pkg, long durationMs) {
         Log.d(TAG, "Peeking at " + pkg + " after " + (durationMs / 1000) + "s");
         String[] capResult = captureScreenDiag();
@@ -462,7 +480,14 @@ public class OverlayService extends Service {
         Log.d(TAG, "doPeek capture: " + capResult[1]);
         String appName = getAppName(pkg);
         long minutes = durationMs / 60000;
-        String textContent = "[\u60ac\u6d6e\u7a97\u6293\u62cd] \u5979\u5df2\u7ecf\u5728" + appName + "\u4e0a\u5f85\u4e86" + minutes + "\u5206\u949f\u4e86\u3002";
+        String textContent = "\u5979\u5df2\u7ecf\u5728" + appName + "\u4e0a\u5f85\u4e86" + minutes + "\u5206\u949f\u4e86\u3002";
+        // Try WebView injection first (shares full frontend chat context)
+        if (injectViaWebView(base64Img, textContent, "overlay")) {
+            // Reply will appear in chat, also show brief bubble
+            showComment("\u770b\u5230\u4e86\uff5e");
+            return;
+        }
+        // Fallback: direct backend API call (when app is in background)
         try {
             JSONObject body = new JSONObject();
             JSONArray messages = new JSONArray();
@@ -517,18 +542,22 @@ public class OverlayService extends Service {
 
     // ============ Manual Peek (user double-tap) ============
     private void doManualPeek() {
-        showComment("截图中..."); // "截图中..."
+        showComment("截图中...");
         new Thread(() -> {
             String[] capResult = captureScreenDiag();
             String base64Img = capResult[0];
             String capDiag = capResult[1];
             Log.d(TAG, "doManualPeek capture: " + capDiag);
-            // Show diagnostic on bubble for debugging
-            // Only show diagnostic if capture failed, otherwise wait for AI reply
             if (base64Img == null) handler.post(() -> showComment("截图: " + capDiag));
             String pkg = getForegroundPackage();
             String appName = (pkg != null) ? getAppName(pkg) : "未知";
-            String textContent = "[用户主动分享] 她正在看" + appName + "，想给你看看这个。";
+            String textContent = "\u5979\u6b63\u5728\u770b" + appName + "\uff0c\u60f3\u7ed9\u4f60\u770b\u770b\u8fd9\u4e2a\u3002";
+            // Try WebView injection first
+            if (injectViaWebView(base64Img, textContent, "overlay_manual")) {
+                showComment("\u53d1\u9001\u4e2d...");
+                return;
+            }
+            // Fallback: direct backend API call
             try {
                 JSONObject body = new JSONObject();
                 JSONArray messages = new JSONArray();
