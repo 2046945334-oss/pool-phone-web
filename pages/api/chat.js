@@ -587,6 +587,11 @@ const TOOLS = [
   { type: 'function', function: { name: 'memory_get_state', description: '获取当前翻牌配对游戏状态', parameters: { type: 'object', properties: {} } } },
   // === 拍一拍工具 ===
   { type: "function", function: { name: "pat_user", description: "拍一拍用户。会在聊天界面插入一条拍一拍系统消息，类似微信的拍一拍效果。你可以自定义拍一拍的文案，比如\"池屿 拍了拍 你的小脑袋\"、\"池屿 揉了揉 你的头发\"、\"池屿 戳了戳 你的脸蛋\"。想拍的时候就拍，不需要特别的理由。", parameters: { type: "object", properties: { text: { type: "string", description: "拍一拍的完整文案，例如：池屿 拍了拍 你的小脑袋" } }, required: ["text"] } } },
+  // === 墨墨背单词工具 ===
+  { type: 'function', function: { name: 'maimemo_study_progress', description: '获取用户今日墨墨背单词的学习进度（已完成数/总数/学习时长）', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'maimemo_today_words', description: '获取用户今日在墨墨背单词中学习的单词列表', parameters: { type: 'object', properties: { is_finished: { type: 'boolean', description: '筛选：true=已完成的, false=未完成的, 不传=全部' } } } } },
+  { type: 'function', function: { name: 'maimemo_study_records', description: '查询墨墨背单词的学习记录（可按日期范围筛选）', parameters: { type: 'object', properties: { date_start: { type: 'string', description: '开始日期 ISO格式如2026-09-01T00:00:00+08:00' }, date_end: { type: 'string', description: '结束日期 ISO格式' } } } } },
+  { type: 'function', function: { name: 'maimemo_lookup_word', description: '在墨墨词库中查询单词信息', parameters: { type: 'object', properties: { spelling: { type: 'string', description: '要查询的英文单词' } }, required: ['spelling'] } } },
 ]
 
 // === Gomoku helpers ===
@@ -1928,6 +1933,61 @@ async function executeTool(name, args) {
     hist.push({ who: "ai", text, ts: Date.now() })
     db2.prepare("INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())").run("pool_pat_history", JSON.stringify(hist.slice(-50)))
     return { ok: true, text, instruction: "已发送拍一拍，前端会显示为系统消息" }
+  }
+
+  // === 墨墨背单词工具 ===
+  const MAIMEMO_TOKEN = 'fede025564de246016c4ede012ec4bc7f3264f9875e32118f00bdc3948d6e9ea'
+  const MAIMEMO_BASE = 'https://open.maimemo.com/open/api/v1/memo'
+  async function maimemoPost(path, body = {}) {
+    const r = await fetch(`${MAIMEMO_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${MAIMEMO_TOKEN}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    return r.json()
+  }
+  if (name === 'maimemo_study_progress') {
+    try {
+      const data = await maimemoPost('/study/get_study_progress')
+      if (!data.success) return { error: data.errors?.[0]?.msg || '获取失败' }
+      const p = data.data.progress
+      const mins = Math.round((p.study_time || 0) / 60000)
+      return { finished: p.finished, total: p.total, study_time_minutes: mins, summary: `今日已背${p.finished}/${p.total}个单词，学习${mins}分钟` }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'maimemo_today_words') {
+    try {
+      const body = {}
+      if (args.is_finished !== undefined) body.is_finished = args.is_finished
+      const data = await maimemoPost('/study/get_today_items', body)
+      if (!data.success) return { error: data.errors?.[0]?.msg || '获取失败' }
+      const items = data.data?.items || []
+      return { count: items.length, words: items.slice(0, 50).map(w => ({ spelling: w.spelling, finished: w.is_finished })) }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'maimemo_study_records') {
+    try {
+      const body = {}
+      if (args.date_start || args.date_end) {
+        body.next_study_date = {}
+        if (args.date_start) body.next_study_date.start = args.date_start
+        if (args.date_end) body.next_study_date.end = args.date_end
+      }
+      const data = await maimemoPost('/study/query_study_records', body)
+      if (!data.success) return { error: data.errors?.[0]?.msg || '获取失败' }
+      const records = data.data?.records || []
+      return { count: records.length, records: records.slice(0, 30).map(r => ({ spelling: r.spelling, study_count: r.study_count, last_study: r.last_study_date, next_study: r.next_study_date })) }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'maimemo_lookup_word') {
+    try {
+      const r = await fetch(`https://open.maimemo.com/open/api/v1/vocabulary?spelling=${encodeURIComponent(args.spelling)}`, {
+        headers: { 'Authorization': `Bearer ${MAIMEMO_TOKEN}`, 'Accept': 'application/json' }
+      })
+      const data = await r.json()
+      if (!data.success) return { error: data.errors?.[0]?.msg || '未找到' }
+      return data.data
+    } catch (e) { return { error: e.message } }
   }
 
     return { error: 'Unknown tool: ' + name }
