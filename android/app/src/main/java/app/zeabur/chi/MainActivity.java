@@ -62,6 +62,12 @@ public class MainActivity extends BridgeActivity {
         }
     }
     public static boolean isWebViewAvailable() { return sWebView != null; }
+    // Called from OverlayBridge when frontend AI replies to overlay message
+    public static void showOverlayComment(String text) {
+        if (OverlayService.sInstance != null) {
+            OverlayService.sInstance.showComment(text);
+        }
+    }
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(UsageStatsPlugin.class);
@@ -210,6 +216,11 @@ public class MainActivity extends BridgeActivity {
         public boolean isOverlayRunning() {
             // Simple check: if we can draw overlays, assume it might be running
             return Settings.canDrawOverlays(MainActivity.this);
+        }
+        @JavascriptInterface
+        public void showComment(String text) {
+            // Called by frontend when AI replies to an overlay-injected message
+            MainActivity.showOverlayComment(text);
         }
     }
     private void requestAudioPermission() {
