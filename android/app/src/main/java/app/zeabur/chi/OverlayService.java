@@ -295,8 +295,13 @@ public class OverlayService extends Service {
     private void toggleComment() {
         commentVisible = !commentVisible;
         if (commentVisible && bubbleParams != null && commentParams != null) {
+            commentText.measure(
+                View.MeasureSpec.makeMeasureSpec(dp(220), View.MeasureSpec.AT_MOST),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            int cardHeight = commentText.getMeasuredHeight() + dp(8);
             commentParams.x = bubbleParams.x;
-            commentParams.y = bubbleParams.y - dp(60);
+            commentParams.y = bubbleParams.y - cardHeight - dp(8);
+            if (commentParams.y < 0) commentParams.y = 0;
             windowManager.updateViewLayout(commentCard, commentParams);
         }
         commentCard.setVisibility(commentVisible ? View.VISIBLE : View.GONE);
@@ -305,10 +310,17 @@ public class OverlayService extends Service {
     private void showComment(String text) {
         handler.post(() -> {
             commentText.setText(text);
-            // Position comment card relative to bubble
+            // Position comment card ABOVE bubble, accounting for text height
             if (bubbleParams != null && commentParams != null) {
+                // Measure how tall the comment card will be
+                commentText.measure(
+                    View.MeasureSpec.makeMeasureSpec(dp(220), View.MeasureSpec.AT_MOST),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                int cardHeight = commentText.getMeasuredHeight() + dp(8); // padding
                 commentParams.x = bubbleParams.x;
-                commentParams.y = bubbleParams.y - dp(60);
+                commentParams.y = bubbleParams.y - cardHeight - dp(8); // 8dp gap above bubble
+                // Clamp to top of screen
+                if (commentParams.y < 0) commentParams.y = 0;
                 windowManager.updateViewLayout(commentCard, commentParams);
             }
             commentCard.setVisibility(View.VISIBLE);
@@ -512,7 +524,8 @@ public class OverlayService extends Service {
             String capDiag = capResult[1];
             Log.d(TAG, "doManualPeek capture: " + capDiag);
             // Show diagnostic on bubble for debugging
-            handler.post(() -> showComment("截图: " + capDiag));
+            // Only show diagnostic if capture failed, otherwise wait for AI reply
+            if (base64Img == null) handler.post(() -> showComment("截图: " + capDiag));
             String pkg = getForegroundPackage();
             String appName = (pkg != null) ? getAppName(pkg) : "未知";
             String textContent = "[用户主动分享] 她正在看" + appName + "，想给你看看这个。";
