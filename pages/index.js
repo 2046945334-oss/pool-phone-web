@@ -951,7 +951,7 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     function onWatchTick(e) {
-      const { title, owner, elapsed, totalDuration, bvid, cover, desc } = e.detail
+      const { title, owner, elapsed, totalDuration, bvid, cover, desc, frame } = e.detail
       // ~50% chance to trigger (rest is silent companionship)
       if (Math.random() > 0.5) return
       const watchMsg = {
