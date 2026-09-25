@@ -3774,24 +3774,7 @@ function HomeScreen({ onOpenApp, theme }) {
             )}
           </div>
 
-          {/* Duo Status Card */}
-          <div className="hs-duo-card">
-            <div className="hs-duo-side">
-              <div className="hs-duo-avatar hs-duo-ava-user">{theme?.avatarUser ? <img src={theme.avatarUser} alt="" /> : <span>{'她'}</span>}</div>
-              <div className="hs-duo-name">{'小水'}</div>
-              <div className="hs-duo-line">{homeCards.userText?.slice(0,20) || '...'}</div>
-            </div>
-            <div className="hs-duo-center">
-              <div className="hs-duo-vline"></div>
-              <SvgHeart />
-              <div className="hs-duo-vline"></div>
-            </div>
-            <div className="hs-duo-side">
-              <div className="hs-duo-avatar hs-duo-ava-ai">{theme?.avatarAI ? <img src={theme.avatarAI} alt="" /> : <span>{'池'}</span>}</div>
-              <div className="hs-duo-name">{'池屿'}</div>
-              <div className="hs-duo-line">{homeCards.aiText?.slice(0,20) || '...'}</div>
-            </div>
-          </div>
+
           {/* Row: couple days + weather side by side */}
           <div className="hs-row" style={{gap:6}}>
             <div className="hs-half-pill" onClick={() => onOpenApp('couple')}>
