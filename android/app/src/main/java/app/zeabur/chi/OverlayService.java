@@ -98,6 +98,7 @@ public class OverlayService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        sInstance = this;
         handler = new Handler(Looper.getMainLooper());
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createNotificationChannel();
@@ -455,6 +456,7 @@ public class OverlayService extends Service {
     }
 
     // ============ Inject into frontend chat via WebView ============
+    private static OverlayService sInstance;
     private boolean injectViaWebView(String base64Img, String textContent, String source) {
         if (!MainActivity.isWebViewAvailable()) return false;
         try {
