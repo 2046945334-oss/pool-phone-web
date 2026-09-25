@@ -2370,8 +2370,17 @@ export default async function handler(req, res) {
             if (block.type === 'image_url_pending' || (block.type === 'image_url' && block.image_url)) {
               const imgUrl = block.url || (block.image_url && block.image_url.url) || ''
               if (!imgUrl) { msg.content[ci] = { type: 'text', text: '(图片)' }; continue }
-              // Data URIs (base64 from camera/upload) - keep as image_url for AI to see directly
+              // Data URIs (base64 from camera/upload) - normalize via sharp to ensure clean PNG base64
               if (imgUrl.startsWith('data:image/')) {
+                try {
+                  const b64Part = imgUrl.split(',')[1]
+                  if (b64Part) {
+                    const imgBuf = Buffer.from(b64Part, 'base64')
+                    const pngBuf = await sharp(imgBuf).resize({ width: 800, withoutEnlargement: true }).png().toBuffer()
+                    msg.content[ci] = { type: 'image_url', image_url: { url: 'data:image/png;base64,' + pngBuf.toString('base64') } }
+                    continue
+                  }
+                } catch (e) { /* fall through to keep original */ }
                 msg.content[ci] = { type: 'image_url', image_url: { url: imgUrl } }
                 continue
               }
