@@ -1515,7 +1515,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         {messages.slice(visibleStart).map((msg, idx) => {
           const i = visibleStart + idx
           if (msg.role === 'assistant' && msg.content && msg.content.trim() === '[无话]') return null
-          if (msg.isReadingSync || msg.isGameSync || msg.hidden) return null
+          if (msg.isReadingSync || msg.isGameSync || msg.isWatchSync || msg.hidden) return null
           return (
           <React.Fragment key={i}>
             {shouldShowTime(messages, i) && msg.ts && <div className="msg-time-divider">{formatMsgTime(msg.ts)}</div>}
