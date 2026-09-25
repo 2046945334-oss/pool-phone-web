@@ -8,48 +8,22 @@ function fmtTime(s) {
   return m + ':' + (sec < 10 ? '0' : '') + sec
 }
 
-// Format large numbers
-function fmtNum(n) {
-  if (!n) return '0'
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
-  return String(n)
-}
-
-export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
+export default function WatchTogetherApp({ onBack, onMinimize, mini = false }) {
   const [searchUrl, setSearchUrl] = useState('')
+  const [videoInfo, setVideoInfo] = useState(null)
+  const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [videoInfo, setVideoInfo] = useState(null) // parsed video metadata
-  const [playing, setPlaying] = useState(false) // whether video is actively playing
-  const [history, setHistory] = useState([]) // watch history
-  const videoRef = useRef(null)
-  const canvasRef = useRef(null)
+  const [history, setHistory] = useState([])
+  const iframeRef = useRef(null)
   const watchStartRef = useRef(null)
-
-  // Capture current video frame as base64 JPEG
-  function captureFrame() {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas || video.readyState < 2) return null
-    try {
-      canvas.width = Math.min(video.videoWidth || 640, 480)
-      canvas.height = Math.round(canvas.width * (video.videoHeight || 360) / (video.videoWidth || 640))
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      return canvas.toDataURL('image/jpeg', 0.6)
-    } catch { return null }
-  }
   const screenshotTimerRef = useRef(null)
 
-  // Load history from localStorage
+  // Load history
   useEffect(() => {
-    try {
-      const h = JSON.parse(localStorage.getItem('pool_watch_history') || '[]')
-      setHistory(h.slice(0, 20))
-    } catch {}
+    try { setHistory(JSON.parse(localStorage.getItem('pool_watch_history') || '[]')) } catch {}
   }, [])
 
-  // Save history
   function saveHistory(info) {
     try {
       const h = JSON.parse(localStorage.getItem('pool_watch_history') || '[]')
@@ -60,20 +34,37 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
     } catch {}
   }
 
-  // Parse video
+  // Client-side parse: call bilibili API directly from user's browser (in China, no blocking)
   async function parseVideo() {
     if (!searchUrl.trim()) return
     setLoading(true)
     setError('')
     try {
-      const resp = await fetch('/api/bilibili-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: searchUrl.trim() })
-      })
+      const input = searchUrl.trim()
+      let bvid = ''
+      const bvMatch = input.match(/BV[a-zA-Z0-9]+/)
+      if (bvMatch) bvid = bvMatch[0]
+      if (!bvid) { setError('无法识别BV号，请输入BV号或B站链接'); return }
+
+      // Call bilibili API directly from client
+      const resp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`)
       const data = await resp.json()
-      if (data.error) { setError(data.error); return }
-      setVideoInfo(data)
+      if (data.code !== 0) { setError('解析失败: ' + (data.message || '未知错误')); return }
+
+      const v = data.data
+      const info = {
+        bvid,
+        title: v.title || bvid,
+        desc: v.desc || '',
+        cover: (v.pic || '').replace('http:', 'https:'),
+        duration: v.duration || 0,
+        owner: v.owner?.name || '未知',
+        ownerFace: (v.owner?.face || '').replace('http:', 'https:'),
+        view: v.stat?.view || 0,
+        danmaku: v.stat?.danmaku || 0,
+        embedUrl: `https://player.bilibili.com/player.html?bvid=${bvid}&high_quality=1&danmaku=0&autoplay=1`
+      }
+      setVideoInfo(info)
     } catch (e) {
       setError('解析失败: ' + e.message)
     } finally {
@@ -81,36 +72,38 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
     }
   }
 
-  // Start watching (switch to player)
   function startWatch(info) {
     const v = info || videoInfo
-    // Create proxied URL for <video> to bypass CORS/Referer restrictions
-    if (v && v.playUrl) {
-      v.proxyUrl = '/api/video-proxy?url=' + encodeURIComponent(v.playUrl)
-    }
     setVideoInfo(v)
     setPlaying(true)
     watchStartRef.current = Date.now()
     if (info) saveHistory(info)
     else if (videoInfo) saveHistory(videoInfo)
-    // Start random screenshot timer for chat injection
     startScreenshotTimer()
   }
 
-  // Watch from history
   async function watchFromHistory(item) {
     setLoading(true)
     setError('')
     try {
-      const resp = await fetch('/api/bilibili-parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: item.bvid })
-      })
+      const resp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${item.bvid}`)
       const data = await resp.json()
-      if (data.error) { setError(data.error); return }
-      setVideoInfo(data)
-      startWatch(data)
+      if (data.code !== 0) { setError('解析失败'); return }
+      const v = data.data
+      const info = {
+        bvid: item.bvid,
+        title: v.title || item.title,
+        desc: v.desc || '',
+        cover: (v.pic || '').replace('http:', 'https:'),
+        duration: v.duration || 0,
+        owner: v.owner?.name || item.owner || '未知',
+        ownerFace: (v.owner?.face || '').replace('http:', 'https:'),
+        view: v.stat?.view || 0,
+        danmaku: v.stat?.danmaku || 0,
+        embedUrl: `https://player.bilibili.com/player.html?bvid=${item.bvid}&high_quality=1&danmaku=0&autoplay=1`
+      }
+      setVideoInfo(info)
+      startWatch(info)
     } catch (e) {
       setError('解析失败: ' + e.message)
     } finally {
@@ -118,17 +111,14 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
     }
   }
 
-  // Stop watching
   function stopWatch() {
     setPlaying(false)
     clearScreenshotTimer()
   }
 
-  // Screenshot timer for random AI discussion trigger
   function startScreenshotTimer() {
     clearScreenshotTimer()
     function scheduleNext() {
-      // Random interval: 45-120 seconds
       const delay = 45000 + Math.random() * 75000
       screenshotTimerRef.current = setTimeout(() => {
         triggerWatchScreenshot()
@@ -145,40 +135,34 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
     }
   }
 
-  // Trigger screenshot injection into chat
   const triggerWatchScreenshot = useCallback(() => {
     if (!videoInfo) return
-    const video = videoRef.current
-    const currentTime = video ? Math.floor(video.currentTime || 0) : 0
-    const frame = captureFrame()
+    const elapsed = watchStartRef.current ? Math.floor((Date.now() - watchStartRef.current) / 1000) : 0
     const detail = {
       title: videoInfo.title,
       owner: videoInfo.owner,
-      currentTime: fmtTime(currentTime),
+      elapsed: fmtTime(elapsed),
       totalDuration: fmtTime(videoInfo.duration),
       bvid: videoInfo.bvid,
       cover: videoInfo.cover,
-      desc: videoInfo.desc,
-      frame: frame  // base64 jpeg of current video frame
+      desc: videoInfo.desc
     }
     window.dispatchEvent(new CustomEvent('watch-together-tick', { detail }))
   }, [videoInfo])
 
-  // Expose current watch state for sendMessage attachment
   useEffect(() => {
     if (playing && videoInfo) {
       window.__watchTogetherActive = true
       window.__watchTogetherInfo = () => {
-        const video = videoRef.current
-        const currentTime = video ? Math.floor(video.currentTime || 0) : 0
-        const frame = captureFrame()
+        const elapsed = watchStartRef.current ? Math.floor((Date.now() - watchStartRef.current) / 1000) : 0
         return {
           title: videoInfo.title,
           owner: videoInfo.owner,
-          currentTime: fmtTime(currentTime),
+          elapsed: fmtTime(elapsed),
           totalDuration: fmtTime(videoInfo.duration),
           bvid: videoInfo.bvid,
-          frame: frame  // base64 jpeg of current video frame
+          cover: videoInfo.cover,
+          desc: videoInfo.desc
         }
       }
     } else {
@@ -191,7 +175,6 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
     }
   }, [playing, videoInfo])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => clearScreenshotTimer()
   }, [])
@@ -202,7 +185,7 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
   }
   const btnStyle = { background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: '#7a5a6a' }
 
-  // ─── PLAYING STATE: embedded player ───
+  // ─── PLAYING STATE: iframe player ───
   if (playing && videoInfo) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: mini ? 'transparent' : '#000' }}>
@@ -216,17 +199,14 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
           </div>
         )}
         <div style={{ flex: 1, position: 'relative', background: '#000' }}>
-          <video
-            ref={videoRef}
-            src={videoInfo.proxyUrl || videoInfo.playUrl}
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-            controls
-            autoPlay
-            playsInline
-            crossOrigin="anonymous"
-            poster={videoInfo.cover}
+          <iframe
+            ref={iframeRef}
+            src={videoInfo.embedUrl}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
           />
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
         {mini && (
           <div style={{ display: 'flex', alignItems: 'center', padding: '4px 8px', background: 'rgba(0,0,0,0.6)', gap: 6 }}>
@@ -279,32 +259,30 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
 
         {error && <div style={{ color: '#d06080', fontSize: 12, marginBottom: 8, padding: '6px 10px', background: 'rgba(255,220,230,0.5)', borderRadius: 8 }}>{error}</div>}
 
-        {/* Parsed video preview */}
+        {/* Video preview card */}
         {videoInfo && !playing && (
-          <div style={{
-            background: 'rgba(255,250,252,0.95)', borderRadius: 14, overflow: 'hidden',
-            border: '1px solid rgba(230,200,220,0.4)', marginBottom: 16
-          }}>
-            <div style={{ position: 'relative' }}>
-              <img src={videoInfo.cover} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
-              <div style={{ position: 'absolute', bottom: 6, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>
-                {fmtTime(videoInfo.duration)}
+          <div style={{ background: 'rgba(255,252,254,0.95)', borderRadius: 16, overflow: 'hidden', marginBottom: 12, border: '1px solid rgba(240,215,230,0.4)', boxShadow: '0 2px 12px rgba(200,150,180,0.1)' }}>
+            {videoInfo.cover && (
+              <div style={{ position: 'relative' }}>
+                <img src={videoInfo.cover} style={{ width: '100%', height: 'auto', display: 'block' }} alt="" />
+                <div style={{ position: 'absolute', bottom: 6, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}>
+                  {fmtTime(videoInfo.duration)}
+                </div>
               </div>
-            </div>
+            )}
             <div style={{ padding: '10px 12px' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#3a2a40', lineHeight: 1.4, marginBottom: 6 }}>{videoInfo.title}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                {videoInfo.ownerFace && <img src={videoInfo.ownerFace} style={{ width: 20, height: 20, borderRadius: '50%' }} />}
-                <span style={{ fontSize: 12, color: '#9a7a8a' }}>{videoInfo.owner}</span>
-                <span style={{ fontSize: 11, color: '#b8a0b8', marginLeft: 'auto' }}>{'▶ ' + fmtNum(videoInfo.view)}{' · 弹幕 ' + fmtNum(videoInfo.danmaku)}</span>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#4a3040', marginBottom: 4, lineHeight: 1.4 }}>{videoInfo.title}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#9a7a8a' }}>
+                <span>{videoInfo.owner}</span>
+                <span>{'▶ ' + (videoInfo.view || 0).toLocaleString() + ' · 弹幕 ' + (videoInfo.danmaku || 0)}</span>
               </div>
               <button
                 onClick={() => startWatch()}
                 style={{
-                  width: '100%', padding: '10px 0', borderRadius: 10, border: 'none',
-                  background: 'linear-gradient(135deg, #e8a0bf 0%, #c878a0 100%)',
+                  width: '100%', marginTop: 10, padding: '10px', borderRadius: 12, border: 'none',
+                  background: 'linear-gradient(135deg, #e8a0bf 0%, #c88098 100%)',
                   color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(200,120,160,0.3)'
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                 }}
               >
                 {'📺 一起看'}
@@ -313,25 +291,23 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
           </div>
         )}
 
-        {/* Watch history */}
+        {/* History */}
         {!videoInfo && history.length > 0 && (
           <div>
-            <div style={{ fontSize: 12, color: '#b08a9a', fontWeight: 600, marginBottom: 8 }}>{'最近看过'}</div>
+            <div style={{ fontSize: 12, color: '#b08a9a', marginBottom: 8, fontWeight: 600 }}>{'最近看过'}</div>
             {history.map((item, idx) => (
               <div
-                key={item.bvid + idx}
+                key={idx}
                 onClick={() => watchFromHistory(item)}
                 style={{
-                  display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(240,225,235,0.4)',
-                  cursor: 'pointer', alignItems: 'center'
+                  display: 'flex', gap: 10, padding: '8px', marginBottom: 6, borderRadius: 10,
+                  background: 'rgba(255,250,252,0.8)', cursor: 'pointer', border: '1px solid rgba(240,220,230,0.3)'
                 }}
               >
-                {item.cover && <img src={item.cover} style={{ width: 80, height: 50, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />}
+                {item.cover && <img src={item.cover} style={{ width: 80, height: 50, objectFit: 'cover', borderRadius: 6 }} alt="" />}
                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <div style={{ fontSize: 13, color: '#4a3a50', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.title}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#b8a0b8' }}>{item.owner}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#5a3a4a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                  <div style={{ fontSize: 10, color: '#a08090', marginTop: 2 }}>{item.owner}</div>
                 </div>
               </div>
             ))}
@@ -340,13 +316,10 @@ export default function WatchTogetherApp({ mini = false, onBack, onMinimize }) {
 
         {/* Empty state */}
         {!videoInfo && history.length === 0 && !loading && (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#b8a0b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>{'📺'}</div>
-            <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-              {'粘贴B站视频链接'}
-              <br />
-              {'一起看视频吧'}
-            </div>
+          <div style={{ textAlign: 'center', paddingTop: 60, color: '#b8a0a8' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>{'📺'}</div>
+            <div style={{ fontSize: 13 }}>{'粘贴B站视频链接'}</div>
+            <div style={{ fontSize: 12, marginTop: 4, opacity: 0.7 }}>{'一起看视频吧'}</div>
           </div>
         )}
       </div>
