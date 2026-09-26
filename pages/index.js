@@ -541,7 +541,27 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
   const messagesRef = useRef(messages)
   useEffect(() => { messagesRef.current = messages }, [messages])
-  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync && !m.isGameSync && !m.isWatchSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
+  // 启动时先从后端拉最新记录合并，合并完成前不向后端写，避免用 WebView 未落盘的旧 localStorage 覆盖后端
+  const chatHydratedRef = useRef(false)
+  useEffect(() => {
+    const lastTs = arr => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] && arr[i].ts) return arr[i].ts; return 0 }
+    const done = () => { chatHydratedRef.current = true }
+    const fallback = setTimeout(done, 8000)
+    fetch('/api/data/pool_chat_history').then(r => r.ok ? r.json() : null).then(d => {
+      const raw = d && d.value ? (typeof d.value === 'string' ? JSON.parse(d.value) : d.value) : []
+      if (Array.isArray(raw) && raw.length) {
+        setMessages(prev => {
+          if (!prev.length) return raw
+          const localLast = lastTs(prev)
+          // 只追加后端里比本地更新的消息（从第一条 ts 更大的消息开始）
+          const j = raw.findIndex(m => m && m.ts && m.ts > localLast)
+          return j < 0 ? prev : [...prev, ...raw.slice(j)]
+        })
+      }
+    }).catch(() => {}).finally(() => { clearTimeout(fallback); done() })
+    return () => clearTimeout(fallback)
+  }, [])
+  useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync && !m.isGameSync && !m.isWatchSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); if (chatHydratedRef.current) fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
   useEffect(() => {
     const pollInbox = async () => {
