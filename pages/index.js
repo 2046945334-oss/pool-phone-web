@@ -539,6 +539,8 @@ function MusicIsland({ theme }) {
 
 function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
   const [messages, setMessages] = useState(() => { try { return JSON.parse(localStorage.getItem('pool_chat_history') || '[]') } catch { return [] } })
+  const messagesRef = useRef(messages)
+  useEffect(() => { messagesRef.current = messages }, [messages])
   useEffect(() => { try { const saveMsgs = messages.filter(m => m.role !== 'tool_log' && !m.isReadingSync && !m.isGameSync && !m.isWatchSync); localStorage.setItem('pool_chat_history', JSON.stringify(saveMsgs)); fetch('/api/data/pool_chat_history', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({value: saveMsgs.slice(-50)}) }).catch(()=>{}) } catch {} }, [messages])
   // 定时轮询唤醒留言收件箱，每30秒一次（读后自动清空）
   useEffect(() => {
@@ -1287,20 +1289,21 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     setLoading(false)
   }
 
-  function triggerAI() { sendMessage(messages) }
+  function triggerAI() { sendMessage(messagesRef.current) }
   // Listen for file reply from file preview modal
   useEffect(() => {
     const handler = (e) => {
       const fileContent = e.detail
       if (!fileContent) return
       const userMsg = { role: 'user', content: fileContent }
-      const updated = [...messages, userMsg]
+      const updated = [...messagesRef.current, userMsg]
+      messagesRef.current = updated
       setMessages(updated)
       sendMessage(updated)
     }
     window.addEventListener('chi-send-file', handler)
     return () => window.removeEventListener('chi-send-file', handler)
-  }, [messages])
+  }, [])
   if (typeof window !== 'undefined') {
     window.__chiTriggerAI = sendMessage
     // Overlay inject: native OverlayService calls this to inject screenshot into chat flow
@@ -1313,11 +1316,10 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
         ? overlayHint + textContent + '\n[img]data:image/jpeg;base64,' + base64Img + '[/img]'
         : overlayHint + textContent
       const userMsg = { role: 'user', content: userContent, ts, source: 'overlay' }
-      setMessages(prev => {
-        const next = [...prev, userMsg]
-        setTimeout(() => sendMessage(next), 100)
-        return next
-      })
+      const next = [...messagesRef.current, userMsg]
+      messagesRef.current = next
+      setMessages(next)
+      setTimeout(() => sendMessage(next), 100)
     }
   }
   async function addUserMsg() {
@@ -1334,17 +1336,19 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     if (thinkDraft.trim()) {
       userMsg.userThinking = thinkDraft.trim()
     }
-    setMessages([...messages, userMsg])
+    const updated = [...messagesRef.current, userMsg]
+    setMessages(updated)
+    messagesRef.current = updated
     setInput('')
     setThinkDraft('')
     setShowThinkInput(false)
     // 同步到 chat_messages 表供唤醒系统读取
     try {
-      await fetch('/api/chat-append', {
+      fetch('/api/chat-append', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'user', content })
-      })
+      }).catch(() => {})
     } catch {}
   }
 

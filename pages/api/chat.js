@@ -2231,7 +2231,7 @@ export default async function handler(req, res) {
 【消息已读状态】她对你最后一条消息：${aiRead}，你对她最后一条消息：${userRead}。`
       }
     } catch {}
-    const memoryInjection = ombreRecall ? '【Ombre Brain 记忆】\n' + ombreRecall : ''
+    const memoryInjection = ombreRecall ? '【Ombre Brain 历史记忆（仅供参考，不是当前对话内容）】\n⚠️ 以下是从长期记忆中检索到的历史片段，可能与当前话题相关也可能不相关。请以用户在本次对话中实际发送的消息为准，不要把历史记忆当作当前正在发生的事情。\n' + ombreRecall : ''
     const fullInjection = [memoryInjection, toolGuidance, readStatusHint].filter(Boolean).join('\n\n')
     if (fullInjection) {
       // 在第一条system消息后插入记忆，或者作为新system消息
