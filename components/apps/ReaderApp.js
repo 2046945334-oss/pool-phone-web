@@ -75,6 +75,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   const [journalView, setJournalView] = useState(null) // null=目录, bookTitle=某本书
   const [journalNoteInput, setJournalNoteInput] = useState({}) // { entryId: text }
   const [journalCoverUploading, setJournalCoverUploading] = useState(false)
+  const [journalSortAsc, setJournalSortAsc] = useState(true) // true=正序(旧→新) false=倒序(新→旧)
   const journalCoverRef = useRef(null)
 
   const loadState = useCallback(async () => {
@@ -622,6 +623,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #f0e0e8', background:'#fff', flexShrink:0 }}>
           <button onClick={() => { if (journalView) setJournalView(null); else setView('shelf') }} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#c9909e' }}>{'<'}</button>
           <h2 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, color:'#8a5a6a' }}>{journalView || '共读笔记'}</h2>
+          {journalView && <button onClick={() => setJournalSortAsc(p => !p)} style={{ background:'#f8e8ee', color:'#9a6a7a', border:'1px solid #f0d0da', padding:'4px 10px', borderRadius:8, fontSize:11, cursor:'pointer', whiteSpace:'nowrap' }}>{journalSortAsc ? '正序 ↓' : '倒序 ↑'}</button>}
           {!journalView && <>
             <button onClick={() => journalCoverRef.current?.click()} style={{ background:'#e8c0cc', color:'#7a4a5a', border:'none', padding:'5px 10px', borderRadius:8, fontSize:11, cursor:'pointer' }}>{'封面'}</button>
             <input type="file" accept="image/*" ref={journalCoverRef} style={{ display:'none' }} onChange={async (e) => {
@@ -664,7 +666,8 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
             /* 时间线 */
             (() => {
               const bookData = journal.books?.[journalView]
-              const entries = bookData?.entries || []
+              const entries = [...(bookData?.entries || [])]
+              if (!journalSortAsc) entries.reverse()
               if (entries.length === 0) return <div style={{ textAlign:'center', padding:40, color:'#c4a0b0' }}>{'暂无笔记'}</div>
               return (
                 <div style={{ position:'relative', paddingLeft:20 }}>
