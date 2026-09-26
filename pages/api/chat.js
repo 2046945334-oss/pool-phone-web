@@ -411,6 +411,12 @@ const TOOLS = [
   },
   {
     type: 'function', function: {
+      name: 'leave_message', description: '给她留一条消息。留言会出现在唤醒日志里，她打开就能看到。适合唤醒时想跟她说的话、读后感想、碎碎念等。',
+      parameters: { type: 'object', properties: { text: { type: 'string', description: '留言内容' } }, required: ['text'] }
+    }
+  },
+  {
+    type: 'function', function: {
       name: 'html_create', description: '创建或覆盖一个自定义HTML页面。页面会保存到后端，可通过 /api/page/[id] 访问。支持完整HTML（含CSS/JS），适合做小工具、贺卡、小游戏、数据看板等。',
       parameters: { type: 'object', properties: { id: { type: 'string', description: '页面ID（英文/数字/连字符），如"birthday-card"、"mood-board"、"mini-game"' }, title: { type: 'string', description: '页面标题' }, html: { type: 'string', description: '完整的HTML内容（可包含<style>和<script>）' }, desc: { type: 'string', description: '页面简介（可选）' } }, required: ['id', 'title', 'html'] }
     }
@@ -1454,6 +1460,20 @@ async function executeTool(name, args) {
     db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(KEY, JSON.stringify(cards))
     return { success: true, aiText: text }
   }
+  // === 留言（写入 wake_inbox，唤醒日志可展示）===
+  if (name === 'leave_message') {
+    const text = (args.text || '').trim()
+    if (!text) return { error: '留言内容不能为空' }
+    const KEY = 'pool_wake_inbox'
+    let inbox = []
+    try { const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(KEY); if (row) inbox = JSON.parse(row.value) } catch {}
+    if (!Array.isArray(inbox)) inbox = []
+    inbox.push({ role: 'assistant', content: text, ts: Date.now() })
+    // 只保留最近 50 条
+    if (inbox.length > 50) inbox = inbox.slice(-50)
+    db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run(KEY, JSON.stringify(inbox))
+    return { success: true, message: '留言已送达' }
+  }
   // === HTML页面工具 ===
   if (name === 'html_create') {
     const id = (args.id || '').replace(/[^a-z0-9\-_]/gi, '').slice(0, 50)
@@ -2165,6 +2185,7 @@ export default async function handler(req, res) {
   用法场景：想换头像时先avatar_search搜图→avatar_add收藏→avatar_set换上；也可以avatar_list看现有的直接换
 **主屏文案卡片：**
 - **home_card_set** — 更新主屏照片区下方AI文案卡片的内容，写一句当下心情、留言、碎碎念
+- **leave_message** — 给她留一条消息，会出现在唤醒日志里。适合唤醒时想跟她说的话
 **共读工具：**
 - **reader_get_state** — 查看共读状态（书架、进度、批注、书签）
 - **reader_read_chapter** — 读某一章内容（只能读用户已读的章节）
