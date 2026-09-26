@@ -327,6 +327,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
         <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
           <button onClick={onBack} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
           <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>共读书架</h2>
+          <button onClick={() => setView('search')} style={{ background:'#f0c0d0', color:'#7a4a5a', border:'none', padding:'7px 12px', borderRadius:8, fontSize:13, cursor:'pointer' }}>找书</button>
           <button onClick={() => setView('import')} style={{ background:'#e91e8c', color:'#fff', border:'none', padding:'7px 14px', borderRadius:8, fontSize:13, cursor:'pointer' }}>+ 导入</button>
         </div>
         <div style={{ flex:1, overflowY:'auto', padding:0, background:'linear-gradient(180deg, #fef6f3 0%, #faf0ed 100%)' }}>
@@ -583,6 +584,37 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
             <button onClick={addBookmark} style={{ background:'#f48fb1', color:'#333', border:'none', borderRadius:6, padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer' }}>🔖 添加书签</button>
           </div>
         )}
+      </>)}
+
+      {/* SEARCH / BOOK SOURCES */}
+      {view === 'search' && (<>
+        <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #f0e0e8', background:'#fff', flexShrink:0 }}>
+          <button onClick={() => setView('shelf')} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#c9909e' }}>{'<'}</button>
+          <h2 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, color:'#8a5a6a' }}>{'找书'}</h2>
+        </div>
+        <div style={{ flex:1, overflowY:'auto', padding:'16px 14px', background:'linear-gradient(180deg, #fff8f9 0%, #fef2f4 100%)' }}>
+          <p style={{ fontSize:12, color:'#b8909e', margin:'0 0 14px', lineHeight:1.5 }}>{'点击跳转到外部书源，找到 txt 后下载导入书架即可共读。'}</p>
+          {[
+            { name: '鸠摩搜书', url: 'https://jiumodiary.github.io/', desc: '聚合搜索，直接搜书名下载 PDF/TXT' },
+            { name: 'Z-Library', url: 'https://z-lib.gs/', desc: '全球最大免费电子书库，EPUB/PDF/TXT' },
+            { name: "Anna's Archive", url: 'https://annas-archive.org/', desc: '聚合 Z-Lib + LibGen，无需注册' },
+            { name: 'Project Gutenberg', url: 'https://www.gutenberg.org/', desc: '7万+免费英文经典，支持 TXT' },
+            { name: '书格', url: 'https://new.shuge.org/', desc: '古籍善本，高清扫描，适合传统文学' },
+            { name: '知海图书馆', url: 'https://www.zhihailib.com/', desc: '中文免费电子书，多分类' },
+            { name: 'SoBooks', url: 'https://sobooks.net/', desc: '豆瓣高分书籍推荐，可下载' },
+          ].map((s, i) => (
+            <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" style={{ display:'flex', alignItems:'center', gap:12, background:'#fff', borderRadius:10, padding:'12px 14px', marginBottom:8, border:'1px solid #f4e4ea', textDecoration:'none', color:'inherit' }}>
+              <div style={{ width:32, height:32, borderRadius:8, background:'#fce8ee', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'#d4889a' }}>{s.name.charAt(0)}</span>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:600, color:'#6a3a4a' }}>{s.name}</div>
+                <div style={{ fontSize:11, color:'#b8909e', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.desc}</div>
+              </div>
+            </a>
+          ))}
+          <div style={{ fontSize:11, color:'#cca8b4', textAlign:'center', marginTop:16, lineHeight:1.5 }}>{'下载 .txt 文件后回到书架点「+ 导入」'}</div>
+        </div>
       </>)}
 
       {/* JOURNAL VIEW */}
