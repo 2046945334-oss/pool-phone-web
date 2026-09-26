@@ -2552,7 +2552,7 @@ export default async function handler(req, res) {
               if (matched && (matched.meaning || matched.name)) {
                 msg.content[ci] = { type: 'text', text: '[系统提示：用户发了表情包"' + (matched.meaning || matched.name) + '"，不要把这句话复述出来]' }
               } else {
-                msg.content[ci] = { type: 'text', text: '[系统提示：用户发了一张图片，你看不到内容，不要把这句话复述出来]' }
+                msg.content[ci] = { type: 'text', text: '[系统提示：用户发了一张图片，图片未能加载，但消息中可能已包含图片相关的文字内容，请根据上下文理解，不要把这句话复述出来]' }
               }
             }
           }
