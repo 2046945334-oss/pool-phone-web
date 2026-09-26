@@ -4732,7 +4732,7 @@ export default function Home() {
         .emoji-item { font-size: 20px; cursor: pointer; padding: 3px; border-radius: 6px; }
         .emoji-item:hover { background: rgba(0,0,0,0.06); }
         .fetch-models-btn { padding: 5px 9px; background: #07c160; color: #fff; border: none; border-radius: 8px; font-size: 11px; cursor: pointer; white-space: nowrap; }
-        .chat-input { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 8px 12px; color: #eee; font-size: 14px; outline: none; font-family: inherit; min-height: 30px; max-height: 96px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+        .chat-input { flex: 1; min-width: 0; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 8px 12px; color: #eee; font-size: 14px; outline: none; font-family: inherit; min-height: 30px; max-height: 96px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
         .chat-input:focus { border-color: rgba(200,125,186,0.5); box-shadow: 0 0 0 3px rgba(200,125,186,0.15); }
         .chat-send { flex-shrink: 0; min-width: 30px; width: 30px; height: 30px; border-radius: 50%; background: #07c160; color: #fff; border: none; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
         .chat-send:disabled { opacity: 0.45; background: #a3a3a3; }
