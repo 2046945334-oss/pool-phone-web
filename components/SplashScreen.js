@@ -1,293 +1,289 @@
-// components/SplashScreen.js — 开屏动画：浅色系 + 壳蟹蟹随机动画爬出来说"欢迎回家"
-import { useEffect, useState, useRef } from 'react'
+// components/SplashScreen.js — 开屏动画：亚克力钥匙扣
+// 一个金属钥匙圈挂两个小人：掉落 → 钟摆摆动（互相碰撞冒爱心）→ 反光扫过 → "our islet"
+// 交互：点小人 = 拨动它；歪手机 = 重力感应偏摆；点空白处 = 跳过
+import { useEffect, useRef, useState } from 'react'
 
-// 5 个壳蟹蟹 SVG 动画（内嵌，避免加载问题）
-const CLAWD_SVGS = [
-  // 1. 听歌 - 戴耳机摇摆
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45">
-    <defs><style>
-      .lm-body{transform-origin:7.5px 13px;animation:lm-groove 1.1s infinite ease-in-out;}
-      .lm-eye{transform-origin:7.5px 9px;animation:lm-blink 3s infinite;}
-      .lm-al{transform-origin:2px 10px;animation:lm-tap-l .55s infinite alternate ease-in-out;}
-      .lm-ar{transform-origin:13px 10px;animation:lm-tap-r .55s infinite alternate ease-in-out;}
-      .lm-note{opacity:0;animation:lm-note var(--d,2s) var(--delay,0s) infinite ease-out;}
-      @keyframes lm-groove{0%,100%{transform:rotate(-3deg) translateY(0);}50%{transform:rotate(3deg) translateY(-1px);}}
-      @keyframes lm-blink{0%,46%,54%,100%{transform:scaleY(1);}50%{transform:scaleY(.1);}}
-      @keyframes lm-tap-l{0%{transform:rotate(0);}100%{transform:rotate(22deg);}}
-      @keyframes lm-tap-r{0%{transform:rotate(0);}100%{transform:rotate(-22deg);}}
-      @keyframes lm-note{0%{opacity:0;transform:translate(0,0) rotate(0);}15%{opacity:1;}80%{opacity:.85;}100%{opacity:0;transform:translate(var(--tx,4px),-19px) rotate(var(--r,20deg));}}
-    </style></defs>
-    <g>
-      <g class="lm-note" style="--delay:0s;--d:1.9s;--tx:6px;--r:25deg" transform="translate(13,-2)" fill="#a98cff"><ellipse cx="0" cy="2" rx="1.1" ry=".85"/><rect x="1" y="-2" width=".7" height="4"/><rect x="1" y="-2" width="2.2" height=".8"/></g>
-      <g class="lm-note" style="--delay:-.7s;--d:2.2s;--tx:-5px;--r:-20deg" transform="translate(-2,-1)" fill="#c0a6ff"><ellipse cx="0" cy="1.6" rx=".9" ry=".7"/><rect x=".8" y="-1.6" width=".6" height="3.4"/></g>
-      <g class="lm-note" style="--delay:-1.3s;--d:2s;--tx:4px;--r:15deg" transform="translate(9,-3)" fill="#8c6cff"><ellipse cx="0" cy="1.6" rx="1" ry=".75"/><rect x=".9" y="-1.8" width=".6" height="3.6"/><rect x=".9" y="-1.8" width="1.8" height=".7"/></g>
-    </g>
-    <g class="lm-body">
-      <g fill="#DE886D">
-        <rect x="3" y="13" width="1" height="2"/><rect x="5" y="13" width="1" height="2"/>
-        <rect x="9" y="13" width="1" height="2"/><rect x="11" y="13" width="1" height="2"/>
-      </g>
-      <rect x="2" y="6" width="11" height="7" fill="#DE886D"/>
-      <g class="lm-al"><rect x="0" y="9" width="2" height="2" fill="#DE886D"/></g>
-      <g class="lm-ar"><rect x="13" y="9" width="2" height="2" fill="#DE886D"/></g>
-      <path d="M1 6 Q7.5 -.5 14 6" stroke="#2b2b35" stroke-width="1.5" fill="none"/>
-      <rect x="-.4" y="6.2" width="2.6" height="3.6" rx=".9" fill="#33333f"/>
-      <rect x="12.8" y="6.2" width="2.6" height="3.6" rx=".9" fill="#33333f"/>
-      <rect x=".1" y="6.8" width="1.6" height="2.4" rx=".6" fill="#6a5ad0"/>
-      <rect x="13.3" y="6.8" width="1.6" height="2.4" rx=".6" fill="#6a5ad0"/>
-      <g class="lm-eye" fill="#000"><rect x="4" y="8" width="1" height="2"/><rect x="10" y="8" width="1" height="2"/></g>
-    </g>
-  </svg>`,
+const BASE_DURATION = 3600   // 无交互时的总时长（ms）
+const EXIT_MS = 650          // 退场动画时长
+const IDLE_AFTER_TOUCH = 1800 // 最后一次拨动后再停留多久才退场
+const MAX_DURATION = 9000    // 无论怎么玩，最长停留时间
 
-  // 2. 看书 - 捧书摇头
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45">
-    <defs><style>
-      .rd-body{transform-origin:7.5px 13px;animation:rd-bob 4.2s infinite ease-in-out;}
-      .rd-eye{transform-origin:7.5px 9px;animation:rd-scan 4.2s infinite ease-in-out;}
-      .rd-page{transform-origin:7.5px 11px;animation:rd-flip 4.2s infinite ease-in-out;}
-      @keyframes rd-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-.5px);}}
-      @keyframes rd-scan{0%,8%{transform:translateX(-.9px) scaleY(1);}12%{transform:translateX(-.9px) scaleY(.15);}16%,42%{transform:translateX(-.9px) scaleY(1);}50%,90%{transform:translateX(.9px) scaleY(1);}100%{transform:translateX(-.9px) scaleY(1);}}
-      @keyframes rd-flip{0%,72%,100%{transform:scaleX(1);}80%{transform:scaleX(.08);}88%{transform:scaleX(1);}}
-    </style></defs>
-    <g class="rd-body">
-      <g fill="#DE886D">
-        <rect x="3" y="13" width="1" height="2"/><rect x="5" y="13" width="1" height="2"/>
-        <rect x="9" y="13" width="1" height="2"/><rect x="11" y="13" width="1" height="2"/>
-      </g>
-      <rect x="2" y="6" width="11" height="7" fill="#DE886D"/>
-      <g class="rd-eye" fill="#000"><rect x="4" y="8" width="1" height="2"/><rect x="10" y="8" width="1" height="2"/></g>
-      <rect x="-.3" y="9.6" width="2.6" height="2" fill="#DE886D" rx=".4" transform="rotate(28,1,10.6)"/>
-      <rect x="12.7" y="9.6" width="2.6" height="2" fill="#DE886D" rx=".4" transform="rotate(-28,14,10.6)"/>
-      <g>
-        <polygon points="1.6,12.4 2.8,9.4 7.5,9.9 7.5,12.6" fill="#8a5a2a"/>
-        <polygon points="13.4,12.4 12.2,9.4 7.5,9.9 7.5,12.6" fill="#7a4e22"/>
-        <polygon points="2.2,12.1 3.2,9.7 7.5,10.1 7.5,12.2" fill="#F5E6C8"/>
-        <g class="rd-page"><polygon points="12.8,12.1 11.8,9.7 7.5,10.1 7.5,12.2" fill="#FBF1D8"/></g>
-        <g stroke="#c9b48a" stroke-width=".25">
-          <line x1="3.4" y1="10.6" x2="6.9" y2="10.9"/>
-          <line x1="3.3" y1="11.3" x2="6.9" y2="11.5"/>
-          <line x1="8.1" y1="10.9" x2="11.6" y2="10.6"/>
-          <line x1="8.1" y1="11.5" x2="11.7" y2="11.3"/>
-        </g>
-        <rect x="7.2" y="9.7" width=".6" height="2.9" fill="#5e3c1a"/>
-      </g>
-    </g>
-  </svg>`,
+const K = 38        // 回复力系数（决定摆动周期，约 1s）
+const C = 1.35      // 阻尼
+const MIN_GAP = 18  // 两个挂件的最小夹角（度），小于即判定碰撞
+const RESTITUTION = 0.55
 
-  // 3. 打游戏 - 拿手柄晃动
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45">
-    <defs><style>
-      .gm-body{transform-origin:7.5px 13px;animation:gm-lean 2.4s infinite ease-in-out;}
-      .gm-eye{transform-origin:7.5px 9px;animation:gm-blink 2.8s infinite;}
-      .gm-ba{transform-origin:center;animation:gm-press .36s infinite alternate ease-in-out;}
-      .gm-bb{transform-origin:center;animation:gm-press .36s -.18s infinite alternate ease-in-out;}
-      @keyframes gm-lean{0%,58%,100%{transform:translateY(0) rotate(0);}74%{transform:translateY(-2px) rotate(-2deg);}84%{transform:translateY(0) rotate(0);}}
-      @keyframes gm-blink{0%,45%,55%,100%{transform:scaleY(.82);}50%{transform:scaleY(.1);}}
-      @keyframes gm-press{0%{transform:translateY(-.3px);}100%{transform:translateY(.5px);}}
-    </style></defs>
-    <g class="gm-body">
-      <g fill="#DE886D">
-        <rect x="3" y="13" width="1" height="2"/><rect x="5" y="13" width="1" height="2"/>
-        <rect x="9" y="13" width="1" height="2"/><rect x="11" y="13" width="1" height="2"/>
-      </g>
-      <rect x="2" y="6" width="11" height="7" fill="#DE886D"/>
-      <rect x="0" y="9" width="2" height="2" fill="#DE886D" transform="rotate(46,1,10)"/>
-      <rect x="13" y="9" width="2" height="2" fill="#DE886D" transform="rotate(-46,14,10)"/>
-      <g class="gm-eye" fill="#000"><rect x="4" y="8" width="1" height="2"/><rect x="10" y="8" width="1" height="2"/></g>
-      <g>
-        <rect x="2.6" y="10.4" width="9.8" height="2.8" rx="1.3" fill="#2b2b34"/>
-        <rect x="2.6" y="10.4" width="9.8" height=".9" rx="1.3" fill="#3a3a46"/>
-        <rect x="4" y="11.4" width="1.8" height=".7" fill="#555"/>
-        <rect x="4.55" y="10.85" width=".7" height="1.8" fill="#555"/>
-        <circle class="gm-ba" cx="9.4" cy="11.3" r=".7" fill="#ff5555"/>
-        <circle class="gm-bb" cx="10.8" cy="12" r=".7" fill="#ffd14a"/>
-      </g>
-    </g>
-  </svg>`,
+const PIVOT_Y = 21  // 挂点在钥匙圈中心下方的距离（px）
 
-  // 4. 基础待机 - 开心摆动（简化版）
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45">
-    <defs><style>
-      .id-body{transform-origin:7.5px 13px;animation:id-sway 2s infinite ease-in-out;}
-      .id-eye{transform-origin:7.5px 9px;animation:id-blink 3.5s infinite;}
-      .id-al{transform-origin:2px 10px;animation:id-wave 1.2s infinite ease-in-out;}
-      .id-ar{transform-origin:13px 10px;animation:id-wave 1.2s .6s infinite ease-in-out;}
-      @keyframes id-sway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
-      @keyframes id-blink{0%,44%,52%,100%{transform:scaleY(1);}48%{transform:scaleY(.1);}}
-      @keyframes id-wave{0%,100%{transform:rotate(0);}50%{transform:rotate(18deg);}}
-    </style></defs>
-    <g class="id-body">
-      <g fill="#DE886D">
-        <rect x="3" y="13" width="1" height="2"/><rect x="5" y="13" width="1" height="2"/>
-        <rect x="9" y="13" width="1" height="2"/><rect x="11" y="13" width="1" height="2"/>
-      </g>
-      <rect x="2" y="6" width="11" height="7" fill="#DE886D"/>
-      <g class="id-al"><rect x="0" y="9" width="2" height="2" fill="#DE886D"/></g>
-      <g class="id-ar"><rect x="13" y="9" width="2" height="2" fill="#DE886D"/></g>
-      <g class="id-eye" fill="#000"><rect x="4" y="8" width="1" height="2"/><rect x="10" y="8" width="1" height="2"/></g>
-      <path d="M5 11.5 Q7.5 13 10 11.5" stroke="#000" stroke-width=".6" fill="none"/>
-    </g>
-  </svg>`,
-
-  // 5. 喝咖啡 - 举杯子
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45">
-    <defs><style>
-      .cf-body{transform-origin:7.5px 13px;animation:cf-sip 3.6s infinite ease-in-out;}
-      .cf-eye{transform-origin:7.5px 9px;animation:cf-blink 3.6s infinite;}
-      .cf-steam{opacity:0;animation:cf-steam 2.4s var(--sd,0s) infinite ease-out;}
-      @keyframes cf-sip{0%,65%,100%{transform:translateY(0);}75%{transform:translateY(-1px);}}
-      @keyframes cf-blink{0%,70%,78%,100%{transform:scaleY(1);}74%{transform:scaleY(.1);}}
-      @keyframes cf-steam{0%{opacity:0;transform:translateY(0) scaleX(1);}30%{opacity:.7;}100%{opacity:0;transform:translateY(-6px) scaleX(1.5);}}
-    </style></defs>
-    <g class="cf-body">
-      <g fill="#DE886D">
-        <rect x="3" y="13" width="1" height="2"/><rect x="5" y="13" width="1" height="2"/>
-        <rect x="9" y="13" width="1" height="2"/><rect x="11" y="13" width="1" height="2"/>
-      </g>
-      <rect x="2" y="6" width="11" height="7" fill="#DE886D"/>
-      <rect x="0" y="9" width="2" height="2" fill="#DE886D"/>
-      <rect x="13" y="9" width="2" height="2" fill="#DE886D" transform="rotate(-20,14,10)"/>
-      <g class="cf-eye" fill="#000"><rect x="4" y="8" width="1" height="2"/><rect x="10" y="8" width="1" height="2"/></g>
-      <g>
-        <rect x="13" y="6" width="3.4" height="4" rx=".6" fill="#f5f0e8"/>
-        <rect x="13" y="6" width="3.4" height="1.2" rx=".6" fill="#8B4513"/>
-        <path d="M16.4 7.5 Q18 7.5 18 9 Q18 10.5 16.4 10" stroke="#ccc" stroke-width=".6" fill="none"/>
-        <ellipse class="cf-steam" cx="14.7" cy="5" rx="1" ry=".6" fill="#ddd" style="--sd:0s"/>
-        <ellipse class="cf-steam" cx="15.4" cy="4.5" rx=".8" ry=".5" fill="#ddd" style="--sd:.8s"/>
-        <ellipse class="cf-steam" cx="14" cy="4.8" rx=".7" ry=".4" fill="#ddd" style="--sd:1.6s"/>
-      </g>
-    </g>
-  </svg>`,
+// rest：静止时的外张角度（CSS rotate 正值 = 顺时针 = 底部往左）
+const CHARMS = [
+  { key: 'girl', src: '/splash/girl.webp', w: 134, h: 170, pivotX: -20, rest: 16, kick: -170, alt: '紫色洛丽塔女孩亚克力挂件' },
+  { key: 'boy',  src: '/splash/boy.webp',  w: 118, h: 200, pivotX: 20,  rest: -16, kick: 140, alt: '黑色卫衣男孩亚克力挂件' },
 ]
 
-const DURATION = 3000 // 总动画时长 ms
-
 export default function SplashScreen({ onFinish }) {
-  const [opacity, setOpacity] = useState(1)
-  const [svgIndex] = useState(() => Math.floor(Math.random() * CLAWD_SVGS.length))
-  const [phase, setPhase] = useState('enter') // enter -> show -> exit
+  const [phase, setPhase] = useState('drop') // drop -> hang -> exit
+  const [showText, setShowText] = useState(false)
+  const [hearts, setHearts] = useState([])
+
+  const charmEls = useRef([])
+  const sim = useRef(CHARMS.map(c => ({ theta: c.rest, omega: 0 })))
+  const tilt = useRef({ target: 0, value: 0 })
   const finished = useRef(false)
-  const startRef = useRef(Date.now())
+  const exiting = useRef(false)
+  const startTs = useRef(0)
+  const lastTouch = useRef(0)
+  const lastHeart = useRef(0)
+  const heartId = useRef(0)
+  const askedPermission = useRef(false)
+
+  const finish = () => {
+    if (finished.current) return
+    finished.current = true
+    onFinish && onFinish()
+  }
+
+  const startExit = () => {
+    if (exiting.current) return
+    exiting.current = true
+    setPhase('exit')
+    setTimeout(finish, EXIT_MS)
+  }
 
   useEffect(() => {
-    startRef.current = Date.now()
-    // Phase transitions
-    const t1 = setTimeout(() => setPhase('show'), 600)
-    const t2 = setTimeout(() => setPhase('exit'), DURATION - 600)
-    const t3 = setTimeout(() => {
-      if (!finished.current) {
-        finished.current = true
-        onFinish && onFinish()
+    const reduced = typeof window !== 'undefined' && window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    startTs.current = performance.now()
+    const timers = []
+
+    // 掉落：下一帧切到 hang 触发 CSS 弹簧过渡；落地瞬间给挂件一个向内的初速度
+    timers.push(setTimeout(() => setPhase('hang'), reduced ? 0 : 30))
+    if (!reduced) {
+      timers.push(setTimeout(() => {
+        sim.current.forEach((s, i) => { s.omega += CHARMS[i].kick })
+      }, 480))
+    }
+    timers.push(setTimeout(() => setShowText(true), reduced ? 100 : 1000))
+
+    // 重力感应：gamma 为左右倾斜角，手机往右歪 → 挂件底部往右（逆时针，负角度）
+    const onOrient = (e) => {
+      if (typeof e.gamma !== 'number') return
+      tilt.current.target = Math.max(-35, Math.min(35, -e.gamma * 0.6))
+    }
+    window.addEventListener('deviceorientation', onOrient)
+
+    let raf = 0
+    let prev = performance.now()
+    const loop = (now) => {
+      const dt = Math.min(0.033, (now - prev) / 1000)
+      prev = now
+      const t = tilt.current
+      t.value += (t.target - t.value) * Math.min(1, dt * 6)
+
+      if (!reduced) {
+        const s = sim.current
+        s.forEach((st, i) => {
+          const eq = CHARMS[i].rest + t.value
+          const alpha = -K * (st.theta - eq) - C * st.omega
+          st.omega += alpha * dt
+          st.theta += st.omega * dt
+        })
+        // 碰撞：girl 在左、boy 在右，夹角过小则分开并交换部分速度
+        const a = s[0], b = s[1]
+        const gap = a.theta - b.theta
+        if (gap < MIN_GAP) {
+          const push = (MIN_GAP - gap) / 2
+          a.theta += push; b.theta -= push
+          const rel = a.omega - b.omega
+          if (rel < 0) {
+            const mid = (a.omega + b.omega) / 2
+            const half = (a.omega - b.omega) / 2
+            a.omega = mid - RESTITUTION * half
+            b.omega = mid + RESTITUTION * half
+            if (-rel > 60 && now - lastHeart.current > 350) {
+              lastHeart.current = now
+              const id = ++heartId.current
+              setHearts(h => [...h, { id, dx: (Math.random() - 0.5) * 16 }])
+              setTimeout(() => setHearts(h => h.filter(x => x.id !== id)), 1100)
+            }
+          }
+        }
       }
-    }, DURATION)
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+
+      sim.current.forEach((st, i) => {
+        const el = charmEls.current[i]
+        if (el) el.style.transform = `rotate(${st.theta.toFixed(2)}deg)`
+      })
+
+      const elapsed = now - startTs.current
+      const idle = now - lastTouch.current > IDLE_AFTER_TOUCH
+      const base = reduced ? 1600 : BASE_DURATION
+      if (!exiting.current && ((elapsed > base - EXIT_MS && idle) || elapsed > MAX_DURATION)) {
+        startExit()
+      }
+      if (!finished.current) raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      timers.forEach(clearTimeout)
+      window.removeEventListener('deviceorientation', onOrient)
+    }
   }, [])
 
-  useEffect(() => {
-    if (phase === 'exit') {
-      const fade = setInterval(() => {
-        const elapsed = Date.now() - startRef.current
-        const fadeProgress = Math.min(1, (elapsed - (DURATION - 600)) / 600)
-        setOpacity(1 - fadeProgress)
-        if (fadeProgress >= 1) clearInterval(fade)
-      }, 16)
-      return () => clearInterval(fade)
+  // 点小人：点左半边往右拨，点右半边往左拨
+  const flick = (i) => (e) => {
+    e.stopPropagation()
+    if (exiting.current) return
+    lastTouch.current = performance.now()
+    // iOS 需要在用户手势内申请陀螺仪权限；安卓不需要
+    if (!askedPermission.current && typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      askedPermission.current = true
+      DeviceOrientationEvent.requestPermission().catch(() => {})
     }
-  }, [phase])
-
-  const handleTap = () => {
-    if (!finished.current) {
-      finished.current = true
-      onFinish && onFinish()
-    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const dir = e.clientX < rect.left + rect.width / 2 ? -1 : 1
+    sim.current[i].omega += dir * 220
   }
+
+  const hangerTransform =
+    phase === 'drop' ? 'translateY(-70vh)' :
+    phase === 'exit' ? 'translateY(-80vh)' : 'translateY(0)'
+  const hangerTransition =
+    phase === 'hang' ? 'transform 0.72s cubic-bezier(0.3, 1.45, 0.55, 1)' :
+    phase === 'exit' ? `transform ${EXIT_MS}ms cubic-bezier(0.55, 0, 0.8, 0.3)` : 'none'
 
   return (
     <div
-      onClick={handleTap}
+      className="ki-root"
+      onClick={finish}
+      role="button"
+      aria-label="our islet 开屏动画，点击空白处跳过"
       style={{
-        position: 'absolute', inset: 0, zIndex: 9999,
-        background: 'linear-gradient(180deg, #FFF8F0 0%, #FFE8D6 40%, #FFDBC5 100%)',
-        opacity,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        pointerEvents: opacity > 0 ? 'auto' : 'none',
-        overflow: 'hidden',
+        position: 'absolute', inset: 0, zIndex: 9999, overflow: 'hidden',
+        background: 'linear-gradient(180deg, #FCFAFF 0%, #F1E9FB 55%, #E7DDF6 100%)',
+        opacity: phase === 'exit' ? 0 : 1,
+        transition: phase === 'exit' ? `opacity ${EXIT_MS}ms ease-in ${EXIT_MS * 0.25}ms` : 'none',
+        pointerEvents: phase === 'exit' ? 'none' : 'auto',
+        touchAction: 'manipulation',
+        userSelect: 'none', WebkitUserSelect: 'none',
       }}
     >
-      {/* 装饰性淡色圆点 */}
-      <div style={{
-        position: 'absolute', top: '15%', left: '12%',
-        width: 60, height: 60, borderRadius: '50%',
-        background: 'rgba(255,180,150,0.2)',
-      }} />
-      <div style={{
-        position: 'absolute', top: '25%', right: '8%',
-        width: 40, height: 40, borderRadius: '50%',
-        background: 'rgba(255,160,130,0.15)',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '30%', left: '8%',
-        width: 50, height: 50, borderRadius: '50%',
-        background: 'rgba(255,200,170,0.18)',
-      }} />
+      {/* 背景小星星 */}
+      {[['12%', '18%', 0], ['80%', '26%', 0.8], ['20%', '72%', 1.5], ['86%', '64%', 0.4], ['62%', '10%', 1.1]].map(([l, t, d], i) => (
+        <span key={i} aria-hidden="true" className="ki-star" style={{ left: l, top: t, animationDelay: d + 's' }}>✦</span>
+      ))}
 
-      {/* 壳蟹蟹 SVG - 从底部弹跳上来 */}
+      {/* 挂件整体：链子 + 钥匙圈 + 两个小人 */}
       <div
         style={{
-          width: 180, height: 180,
-          transform: phase === 'enter' ? 'translateY(120%)' : 'translateY(0)',
-          transition: phase === 'enter' ? 'none' : 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          animation: phase === 'show' ? 'clawd-bounce 2s infinite ease-in-out' : 'none',
+          position: 'absolute', left: '50%', top: '14%', width: 0, height: 0,
+          transform: hangerTransform, transition: hangerTransition,
         }}
-        dangerouslySetInnerHTML={{ __html: CLAWD_SVGS[svgIndex] }}
-      />
+      >
+        {/* 链子：从钥匙圈顶部一直延伸到屏幕外 */}
+        <svg aria-hidden="true" width="10" height="700" style={{ position: 'absolute', left: -5, bottom: 24 }}>
+          <defs>
+            <linearGradient id="ki-chain-metal" x1="0" x2="1">
+              <stop offset="0" stopColor="#9d97ad" /><stop offset=".5" stopColor="#f4f2f8" /><stop offset="1" stopColor="#8f89a0" />
+            </linearGradient>
+            <pattern id="ki-chain" width="10" height="16" patternUnits="userSpaceOnUse" y="0">
+              <ellipse cx="5" cy="6" rx="2.7" ry="5.4" fill="none" stroke="url(#ki-chain-metal)" strokeWidth="1.6" />
+              <rect x="4.2" y="10.5" width="1.6" height="6" rx=".8" fill="#b7b1c4" />
+            </pattern>
+          </defs>
+          <rect width="10" height="700" fill="url(#ki-chain)" />
+        </svg>
 
-      {/* 气泡 "欢迎回家" */}
-      <div style={{
-        marginTop: 20,
-        padding: '10px 24px',
-        background: 'white',
-        borderRadius: 20,
-        boxShadow: '0 4px 20px rgba(222,136,109,0.15)',
-        opacity: phase === 'enter' ? 0 : 1,
-        transform: phase === 'enter' ? 'translateY(20px) scale(0.8)' : 'translateY(0) scale(1)',
-        transition: 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s',
-        position: 'relative',
-      }}>
-        {/* 气泡尖角 */}
-        <div style={{
-          position: 'absolute', top: -8, left: '50%', marginLeft: -6,
-          width: 0, height: 0,
-          borderLeft: '6px solid transparent',
-          borderRight: '6px solid transparent',
-          borderBottom: '8px solid white',
-        }} />
-        <span style={{
-          fontSize: 16, fontWeight: 600,
-          color: '#DE886D',
-          letterSpacing: 2,
-        }}>
-          欢迎回家 🦀
-        </span>
+        {/* 金属钥匙圈 */}
+        <svg aria-hidden="true" width="70" height="70" viewBox="-35 -35 70 70" style={{ position: 'absolute', left: -35, top: -35, zIndex: 3 }}>
+          <defs>
+            <linearGradient id="ki-ring-metal" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#fbfaff" /><stop offset=".35" stopColor="#b9b3c9" />
+              <stop offset=".6" stopColor="#eeeaf5" /><stop offset="1" stopColor="#8d869f" />
+            </linearGradient>
+          </defs>
+          <circle r="26" fill="none" stroke="rgba(90,70,130,.18)" strokeWidth="6" transform="translate(1,2)" />
+          <circle r="26" fill="none" stroke="url(#ki-ring-metal)" strokeWidth="5" />
+          <circle r="23.3" fill="none" stroke="#a49db6" strokeWidth=".9" opacity=".6" strokeDasharray="120 30" />
+          <path d="M -20 -16 A 26 26 0 0 1 4 -25.7" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" opacity=".85" />
+        </svg>
+
+        {/* 两个挂件 */}
+        {CHARMS.map((c, i) => (
+          <div
+            key={c.key}
+            ref={el => { charmEls.current[i] = el }}
+            onClick={flick(i)}
+            style={{
+              position: 'absolute', left: c.pivotX - c.w / 2, top: PIVOT_Y,
+              width: c.w, height: c.h + 8,
+              transformOrigin: `${c.w / 2}px 0px`,
+              transform: `rotate(${c.rest}deg)`,
+              zIndex: i === 0 ? 2 : 1,
+              cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {/* 小扣环 */}
+            <span aria-hidden="true" style={{
+              position: 'absolute', left: c.w / 2 - 7, top: -7, width: 14, height: 14, borderRadius: '50%',
+              border: '2.5px solid #c9c3d6', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.7), 0 1px 2px rgba(80,60,120,.25)',
+              boxSizing: 'border-box', zIndex: 2,
+            }} />
+            <img
+              src={c.src} alt={c.alt} width={c.w} height={c.h} draggable={false}
+              style={{
+                position: 'absolute', left: 0, top: 4, width: c.w, height: c.h,
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 6px 10px rgba(95,70,140,.22))',
+              }}
+            />
+            {/* 亚克力反光：用图片本身做遮罩，只在挂件上扫过 */}
+            <div aria-hidden="true" className="ki-shine" style={{
+              position: 'absolute', left: 0, top: 4, width: c.w, height: c.h, pointerEvents: 'none',
+              WebkitMaskImage: `url(${c.src})`, maskImage: `url(${c.src})`,
+              WebkitMaskSize: '100% 100%', maskSize: '100% 100%',
+              animationDelay: (1.7 + i * 0.12) + 's',
+            }} />
+          </div>
+        ))}
+
+        {/* 碰撞时冒出的爱心 */}
+        {hearts.map(h => (
+          <span key={h.id} aria-hidden="true" className="ki-heart" style={{ left: h.dx - 9, top: PIVOT_Y + 88 }}>♥</span>
+        ))}
       </div>
 
-      {/* 底部 app 名称 */}
+      {/* 文字 */}
       <div style={{
-        position: 'absolute', bottom: '8%',
-        color: 'rgba(222,136,109,0.5)',
-        fontSize: 12, fontWeight: 300,
-        letterSpacing: 3,
+        position: 'absolute', left: 0, right: 0, top: 'calc(14% + 300px)', textAlign: 'center',
+        fontFamily: "'Georgia', 'Times New Roman', serif", fontStyle: 'italic',
+        fontSize: 30, letterSpacing: 3, color: '#8E79C4',
+        textShadow: '0 2px 12px rgba(160,130,210,.25)',
+        opacity: showText ? 1 : 0,
+        transform: showText ? 'translateY(0)' : 'translateY(10px)',
+        transition: 'opacity .8s ease, transform .8s ease',
+        pointerEvents: 'none',
       }}>
-        islet
+        our islet
       </div>
 
-      {/* 内嵌关键帧动画 */}
       <style>{`
-        @keyframes clawd-bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+        .ki-star { position:absolute; color:#c9b6ec; font-size:12px; opacity:.35; animation: ki-twinkle 2.4s infinite ease-in-out; pointer-events:none; }
+        @keyframes ki-twinkle { 0%,100% { opacity:.15; transform:scale(.8); } 50% { opacity:.6; transform:scale(1.15); } }
+        .ki-shine {
+          background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.8) 50%, transparent 62%);
+          background-size: 300% 100%; background-position: 150% 0; background-repeat: no-repeat;
+          animation: ki-shine 1s ease-in-out 1 both;
         }
+        @keyframes ki-shine { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+        .ki-heart { position:absolute; width:18px; text-align:center; color:#D9A3E8; font-size:18px; pointer-events:none;
+          animation: ki-heart 1.1s ease-out forwards; text-shadow: 0 1px 4px rgba(200,140,220,.5); }
+        @keyframes ki-heart { 0% { opacity:0; transform:translateY(0) scale(.4); } 20% { opacity:1; transform:translateY(-6px) scale(1.15); } 100% { opacity:0; transform:translateY(-46px) scale(.9); } }
+        @media (prefers-reduced-motion: reduce) { .ki-shine, .ki-star { animation: none; } }
       `}</style>
     </div>
   )
