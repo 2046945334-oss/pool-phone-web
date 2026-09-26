@@ -6,6 +6,7 @@ const KEY_STATE = 'pool_reader_state'
 const KEY_BOOKMARKS = 'pool_reader_bookmarks'
 const KEY_NOTES = 'pool_reader_notes'
 const KEY_CHAT = 'pool_reader_chat'
+const KEY_JOURNAL = 'pool_reader_journal'
 
 function getVal(db, key) {
   const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(key)
@@ -83,6 +84,12 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && action === 'chat') {
     const chat = getVal(db, KEY_CHAT) || []
     return res.json({ messages: chat.slice(-50) })
+  }
+
+  // GET /api/reader?action=journal — 获取共读笔记
+  if (req.method === 'GET' && action === 'journal') {
+    const journal = getVal(db, KEY_JOURNAL) || { cover: '', books: {} }
+    return res.json(journal)
   }
 
   // PUT methods
@@ -177,6 +184,64 @@ export default async function handler(req, res) {
       const state = getVal(db, KEY_STATE) || {}
       state.active = false
       setVal(db, KEY_STATE, state)
+      return res.json({ ok: true })
+    }
+
+    // === 共读笔记 API ===
+
+    // PUT action=journal_entry — AI写笔记条目（一次唤醒=一个章节）
+    if (action === 'journal_entry') {
+      const { book_title, content, wake_id } = body
+      if (!book_title || !content) return res.status(400).json({ error: 'book_title and content required' })
+      const journal = getVal(db, KEY_JOURNAL) || { cover: '', books: {} }
+      if (!journal.books) journal.books = {}
+      if (!journal.books[book_title]) journal.books[book_title] = { entries: [] }
+      journal.books[book_title].entries.push({
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+        content,
+        wake_id: wake_id || null,
+        time: Date.now(),
+        author: 'ai',
+        user_notes: []
+      })
+      setVal(db, KEY_JOURNAL, journal)
+      return res.json({ ok: true, book: book_title, entry_count: journal.books[book_title].entries.length })
+    }
+
+    // PUT action=journal_user_note — 用户在某章节下添加笔记
+    if (action === 'journal_user_note') {
+      const { book_title, entry_id, note } = body
+      if (!book_title || !entry_id || !note) return res.status(400).json({ error: 'book_title, entry_id and note required' })
+      const journal = getVal(db, KEY_JOURNAL) || { cover: '', books: {} }
+      const bookData = journal.books?.[book_title]
+      if (!bookData) return res.status(404).json({ error: 'book not found in journal' })
+      const entry = bookData.entries.find(e => e.id === entry_id)
+      if (!entry) return res.status(404).json({ error: 'entry not found' })
+      if (!entry.user_notes) entry.user_notes = []
+      entry.user_notes.push({ text: note, time: Date.now() })
+      setVal(db, KEY_JOURNAL, journal)
+      return res.json({ ok: true })
+    }
+
+    // PUT action=journal_cover — 设置笔记封面
+    if (action === 'journal_cover') {
+      const { cover } = body
+      const journal = getVal(db, KEY_JOURNAL) || { cover: '', books: {} }
+      journal.cover = cover || ''
+      setVal(db, KEY_JOURNAL, journal)
+      return res.json({ ok: true })
+    }
+
+    // PUT action=journal_delete_user_note — 删除用户笔记
+    if (action === 'journal_delete_user_note') {
+      const { book_title, entry_id, note_index } = body
+      const journal = getVal(db, KEY_JOURNAL) || { cover: '', books: {} }
+      const bookData = journal.books?.[book_title]
+      if (!bookData) return res.status(404).json({ error: 'not found' })
+      const entry = bookData.entries.find(e => e.id === entry_id)
+      if (!entry || !entry.user_notes) return res.status(404).json({ error: 'not found' })
+      entry.user_notes.splice(note_index, 1)
+      setVal(db, KEY_JOURNAL, journal)
       return res.json({ ok: true })
     }
   }
