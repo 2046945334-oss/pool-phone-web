@@ -1082,7 +1082,11 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: await (async () => {
           // 合并连续同角色消息，避免拆句导致上下文浪费
-          const raw = newMessages.filter(m => m.role !== 'tool_log' && !(m.role === 'system' && !m.isPat)).map(m => m.isPat ? { role: 'user', content: `[拍一拍] ${m.content}` } : m)
+          const raw = newMessages.filter(m => m.role !== 'tool_log' && !(m.role === 'system' && !m.isPat)).map(m => {
+            if (m.isPat) return { role: 'user', content: `[拍一拍] ${m.content}` }
+            if (m.role === 'user' && m.userThinking) return { role: 'user', content: `<think>\n${m.userThinking}\n</think>\n${m.content}` }
+            return m
+          })
           const merged = []
           for (const m of raw) {
             const last = merged[merged.length - 1]
@@ -1624,7 +1628,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
         {showThinkInput && (
           <div className="think-input-panel">
             <div className="think-input-header">
-              <span>{'💭 我的思考'}</span>
+              <span>{'我的思考'}</span>
               <button onClick={() => { setShowThinkInput(false); setThinkDraft('') }} style={{background:'none',border:'none',color:'#b8909e',fontSize:14,cursor:'pointer'}}>{'✕'}</button>
             </div>
             <textarea
@@ -1680,7 +1684,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           }} />
         </label>
         <button className="chat-plus-btn" onClick={() => setShowStickerPanel(!showStickerPanel)} style={{background:'none',border:'none',cursor:'pointer',padding:'4px'}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9a8a99" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
-        <button className={`chat-plus-btn${showThinkInput || thinkDraft ? ' think-active' : ''}`} onClick={() => setShowThinkInput(!showThinkInput)} style={{background: showThinkInput || thinkDraft ? 'rgba(233,30,140,0.12)' : 'none',border: showThinkInput || thinkDraft ? '1px solid rgba(233,30,140,0.25)' : '1px solid rgba(0,0,0,0.08)',cursor:'pointer',padding:'4px',fontSize:13,color: showThinkInput || thinkDraft ? '#e91e8c' : '#9a8a99'}} title="写思考">{'💭'}</button>
+        <button className={`chat-plus-btn${showThinkInput || thinkDraft ? ' think-active' : ''}`} onClick={() => setShowThinkInput(!showThinkInput)} style={{background: showThinkInput || thinkDraft ? 'rgba(233,30,140,0.12)' : 'none',border: showThinkInput || thinkDraft ? '1px solid rgba(233,30,140,0.25)' : '1px solid rgba(0,0,0,0.08)',cursor:'pointer',padding:'4px',fontSize:13,color: showThinkInput || thinkDraft ? '#e91e8c' : '#9a8a99'}} title="写思考"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2a7 7 0 0 0-4 12.7V22l4-2 4 2v-7.3A7 7 0 0 0 12 2z" fill="none"/></svg></button>
         <input className="chat-input" style={theme?.inputBg?{background:theme.inputBg}:{}} value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
