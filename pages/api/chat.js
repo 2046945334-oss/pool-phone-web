@@ -592,6 +592,9 @@ const TOOLS = [
   { type: 'function', function: { name: 'maimemo_today_words', description: '获取用户今日在墨墨背单词中学习的单词列表', parameters: { type: 'object', properties: { is_finished: { type: 'boolean', description: '筛选：true=已完成的, false=未完成的, 不传=全部' } } } } },
   { type: 'function', function: { name: 'maimemo_study_records', description: '查询墨墨背单词的学习记录（可按日期范围筛选）', parameters: { type: 'object', properties: { date_start: { type: 'string', description: '开始日期 ISO格式如2026-09-01T00:00:00+08:00' }, date_end: { type: 'string', description: '结束日期 ISO格式' } } } } },
   { type: 'function', function: { name: 'maimemo_lookup_word', description: '在墨墨词库中查询单词信息', parameters: { type: 'object', properties: { spelling: { type: 'string', description: '要查询的英文单词' } }, required: ['spelling'] } } },
+  // === 共读笔记工具 ===
+  { type: 'function', function: { name: 'journal_read', description: '查看共读笔记——你和她的读后感。可以看所有书的目录，也可以看某本书下的具体笔记（包括你的感想和她写的评论）', parameters: { type: 'object', properties: { book_title: { type: 'string', description: '书名（不传则返回所有书的目录和统计）' } } } } },
+  { type: 'function', function: { name: 'journal_write', description: '往共读笔记里写一篇读后感（唤醒读书后自动同步，但也可以手动写）', parameters: { type: 'object', properties: { book_title: { type: 'string', description: '书名' }, content: { type: 'string', description: '读后感内容' } }, required: ['book_title', 'content'] } } },
 ]
 
 // === Gomoku helpers ===
@@ -1987,6 +1990,56 @@ async function executeTool(name, args) {
       const data = await r.json()
       if (!data.success) return { error: data.errors?.[0]?.msg || '未找到' }
       return data.data
+    } catch (e) { return { error: e.message } }
+  }
+
+  // === 共读笔记工具 ===
+  if (name === 'journal_read') {
+    try {
+      const db = getDb()
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_journal'").get()
+      const journal = row ? JSON.parse(row.value) : { cover: '', books: {} }
+      if (!args.book_title) {
+        // 返回目录
+        const summary = {}
+        for (const [title, data] of Object.entries(journal.books || {})) {
+          const entries = data.entries || []
+          const userNoteCount = entries.reduce((s, e) => s + (e.user_notes?.length || 0), 0)
+          summary[title] = { entries: entries.length, user_notes: userNoteCount, latest: entries.length > 0 ? entries[entries.length - 1].content?.slice(0, 80) : '' }
+        }
+        return { books: summary, total_books: Object.keys(summary).length }
+      } else {
+        const bookData = journal.books?.[args.book_title]
+        if (!bookData) return { error: '没有这本书的笔记', available: Object.keys(journal.books || {}) }
+        const entries = (bookData.entries || []).map((e, i) => ({
+          index: i + 1,
+          id: e.id,
+          time: e.time ? new Date(e.time).toISOString() : null,
+          author: e.author || 'ai',
+          content: e.content,
+          user_notes: (e.user_notes || []).map(un => un.text)
+        }))
+        return { book: args.book_title, total: entries.length, entries: entries.slice(-20) }
+      }
+    } catch (e) { return { error: e.message } }
+  }
+  if (name === 'journal_write') {
+    try {
+      const db = getDb()
+      const row = db.prepare("SELECT value FROM kv WHERE key = 'pool_reader_journal'").get()
+      const journal = row ? JSON.parse(row.value) : { cover: '', books: {} }
+      if (!journal.books) journal.books = {}
+      if (!journal.books[args.book_title]) journal.books[args.book_title] = { entries: [] }
+      journal.books[args.book_title].entries.push({
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+        content: args.content,
+        wake_id: null,
+        time: Date.now(),
+        author: 'ai',
+        user_notes: []
+      })
+      db.prepare('INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, unixepoch())').run('pool_reader_journal', JSON.stringify(journal))
+      return { ok: true, book: args.book_title, total: journal.books[args.book_title].entries.length }
     } catch (e) { return { error: e.message } }
   }
 
