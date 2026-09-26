@@ -387,9 +387,9 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
                       <div style={{ position:'absolute', left:5, top:0, bottom:0, width:3, background:'rgba(0,0,0,.08)', borderRadius:2 }} />
                       <div style={{ position:'absolute', left:10, top:8, right:8, bottom:8, border:'1px solid rgba(255,255,255,.3)', borderRadius:4, pointerEvents:'none' }} />
                       {!journal.cover && <>
-                        <div style={{ fontSize:14, fontWeight:700, color:'#6d4c41', textAlign:'center', lineHeight:1.3 }}>{'共读笔记'}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:'#6d4c41', textAlign:'center', lineHeight:1.3 }}>{'共读'}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:'#6d4c41', textAlign:'center', lineHeight:1.3 }}>{'笔记'}</div>
                         <div style={{ fontSize:9, color:'#8d6e63', marginTop:8 }}>{journalEntryCount + ' 篇'}</div>
-                        <div style={{ fontSize:8, color:'#a1887f', marginTop:2 }}>{'📖 ✍'}</div>
                       </>}
                       {journal.cover && <div style={{ position:'absolute', bottom:8, left:0, right:0, textAlign:'center' }}><span style={{ background:'rgba(0,0,0,.5)', color:'#fff', fontSize:10, padding:'2px 8px', borderRadius:4 }}>{'共读笔记'}</span></div>}
                     </div>
@@ -587,98 +587,106 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
 
       {/* JOURNAL VIEW */}
       {view === 'journal' && (<>
-        <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
-          <button onClick={() => { if (journalView) setJournalView(null); else setView('shelf') }} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
-          <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>{journalView ? journalView : '共读笔记'}</h2>
-          {!journalView && <button onClick={() => journalCoverRef.current?.click()} style={{ background:'#8d6e63', color:'#fff', border:'none', padding:'5px 10px', borderRadius:8, fontSize:11, cursor:'pointer' }}>{'换封面'}</button>}
-          <input type="file" accept="image/*" ref={journalCoverRef} style={{ display:'none' }} onChange={async (e) => {
-            const file = e.target.files?.[0]; if (!file) return
-            setJournalCoverUploading(true)
-            const reader = new FileReader()
-            reader.onload = async () => {
-              try {
-                const uploadRes = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: reader.result }) })
-                const uploadData = await uploadRes.json()
-                const coverUrl = uploadData.url || reader.result
-                await fetch('/api/reader?action=journal_cover', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cover: coverUrl }) })
-                await loadJournal()
-              } catch {}
-              setJournalCoverUploading(false)
-            }
-            reader.readAsDataURL(file)
-          }} />
+        <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #f0e0e8', background:'#fff', flexShrink:0 }}>
+          <button onClick={() => { if (journalView) setJournalView(null); else setView('shelf') }} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#c9909e' }}>{'<'}</button>
+          <h2 style={{ flex:1, fontSize:15, fontWeight:600, margin:0, color:'#8a5a6a' }}>{journalView || '共读笔记'}</h2>
+          {!journalView && <>
+            <button onClick={() => journalCoverRef.current?.click()} style={{ background:'#e8c0cc', color:'#7a4a5a', border:'none', padding:'5px 10px', borderRadius:8, fontSize:11, cursor:'pointer' }}>{'封面'}</button>
+            <input type="file" accept="image/*" ref={journalCoverRef} style={{ display:'none' }} onChange={async (e) => {
+              const file = e.target.files?.[0]; if (!file) return
+              setJournalCoverUploading(true)
+              const fr = new FileReader()
+              fr.onload = async () => {
+                try {
+                  await fetch('/api/reader?action=journal_cover', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cover: fr.result }) })
+                  await loadJournal()
+                } catch {}
+                setJournalCoverUploading(false)
+              }
+              fr.readAsDataURL(file)
+            }} />
+          </>}
         </div>
-        <div style={{ flex:1, overflowY:'auto', padding:12, background:'linear-gradient(180deg, #fef6f3 0%, #faf0ed 100%)' }}>
+        <div style={{ flex:1, overflowY:'auto', padding:'16px 14px', background:'linear-gradient(180deg, #fff8f9 0%, #fef2f4 100%)' }}>
           {!journalView ? (
-            /* 目录：按书名列表 */
+            /* 目录 */
             Object.keys(journal.books || {}).length === 0 ? (
-              <div style={{ textAlign:'center', padding:'60px 20px', color:'#c9a0a0' }}>
-                <div style={{ fontSize:40, marginBottom:12 }}>{'📝'}</div>
-                <p style={{ fontSize:14 }}>{'还没有笔记'}</p>
-                <p style={{ fontSize:12, color:'#aaa', marginTop:8 }}>{'池唤醒读书时会自动同步感想到这里'}</p>
+              <div style={{ textAlign:'center', padding:'60px 20px', color:'#d4a0b0' }}>
+                <div style={{ width:40, height:40, borderRadius:20, background:'#f8e0e8', margin:'0 auto 12px', display:'flex', alignItems:'center', justifyContent:'center' }}><span style={{ fontSize:16, color:'#c4889a' }}>{'~'}</span></div>
+                <p style={{ fontSize:14, color:'#b88a98' }}>{'还没有笔记'}</p>
+                <p style={{ fontSize:12, color:'#cca8b4', marginTop:6 }}>{'池唤醒读书时会自动同步感想到这里'}</p>
               </div>
             ) : (
               Object.entries(journal.books).map(([title, data]) => (
-                <div key={title} onClick={() => setJournalView(title)} style={{ cursor:'pointer', background:'#fff', borderRadius:12, padding:'14px 16px', marginBottom:10, boxShadow:'0 2px 6px rgba(0,0,0,.06)', display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ fontSize:24 }}>{'📖'}</div>
+                <div key={title} onClick={() => setJournalView(title)} style={{ cursor:'pointer', background:'#fff', borderRadius:12, padding:'14px 16px', marginBottom:10, border:'1px solid #f4e0e6', display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ width:36, height:36, borderRadius:8, background:'#fce8ee', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><span style={{ fontSize:13, color:'#d4889a', fontWeight:700 }}>{title.charAt(0)}</span></div>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:15, fontWeight:600, color:'#4a3040' }}>{title}</div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{(data.entries?.length || 0) + ' 篇笔记'}</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'#6a3a4a' }}>{title}</div>
+                    <div style={{ fontSize:11, color:'#b8909e', marginTop:2 }}>{(data.entries?.length || 0) + ' 篇'}</div>
                   </div>
-                  <div style={{ fontSize:16, color:'#ccc' }}>{'›'}</div>
+                  <div style={{ fontSize:14, color:'#dcc0ca' }}>{'>'}</div>
                 </div>
               ))
             )
           ) : (
-            /* 某本书的笔记列表 */
+            /* 时间线 */
             (() => {
               const bookData = journal.books?.[journalView]
               const entries = bookData?.entries || []
-              if (entries.length === 0) return <div style={{ textAlign:'center', padding:40, color:'#aaa' }}>{'暂无笔记'}</div>
-              return entries.map((entry, ei) => {
-                const time = entry.time ? new Date(entry.time) : null
-                const timeStr = time ? `${String(time.getMonth()+1).padStart(2,'0')}/${String(time.getDate()).padStart(2,'0')} ${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}` : ''
-                return (
-                  <div key={entry.id || ei} style={{ background:'#fff', borderRadius:12, padding:'14px 16px', marginBottom:12, boxShadow:'0 2px 6px rgba(0,0,0,.06)' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
-                      <span style={{ fontSize:11, color:'#b0a89e', fontFamily:'monospace' }}>{timeStr}</span>
-                      <span style={{ fontSize:10, background:'#fce4ec', color:'#c2185b', padding:'1px 6px', borderRadius:8 }}>{'第 ' + (ei + 1) + ' 篇'}</span>
-                    </div>
-                    <div style={{ fontSize:14, color:'#4a4540', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{entry.content}</div>
+              if (entries.length === 0) return <div style={{ textAlign:'center', padding:40, color:'#c4a0b0' }}>{'暂无笔记'}</div>
+              return (
+                <div style={{ position:'relative', paddingLeft:20 }}>
+                  {/* 时间线竖线 */}
+                  <div style={{ position:'absolute', left:7, top:0, bottom:0, width:2, background:'linear-gradient(180deg, #f0c0d0, #e8d0da)', borderRadius:1 }} />
+                  {entries.map((entry, ei) => {
+                    const time = entry.time ? new Date(entry.time) : null
+                    const timeStr = time ? `${String(time.getMonth()+1).padStart(2,'0')}.${String(time.getDate()).padStart(2,'0')}  ${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}` : ''
+                    return (
+                      <div key={entry.id || ei} style={{ position:'relative', marginBottom:20 }}>
+                        {/* 时间线圆点 */}
+                        <div style={{ position:'absolute', left:-17, top:6, width:8, height:8, borderRadius:4, background:'#e8a0b4', border:'2px solid #fff', boxShadow:'0 0 0 1px #f0d0da' }} />
+                        {/* 时间 */}
+                        <div style={{ fontSize:11, color:'#c0909e', marginBottom:6, fontFamily:'monospace', letterSpacing:0.5 }}>{timeStr}</div>
+                        {/* 内容 */}
+                        <div style={{ background:'#fff', borderRadius:10, padding:'12px 14px', border:'1px solid #f4e4ea' }}>
+                          <div style={{ fontSize:13, color:'#5a3a4a', lineHeight:1.75, whiteSpace:'pre-wrap' }}>{entry.content}</div>
 
-                    {/* 用户笔记 */}
-                    {(entry.user_notes || []).map((un, ni) => (
-                      <div key={ni} style={{ background:'#f3e5f5', borderLeft:'3px solid #ab47bc', padding:'8px 12px', margin:'10px 0 0', borderRadius:'0 8px 8px 0', display:'flex', alignItems:'flex-start', gap:8 }}>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:11, color:'#7b1fa2', fontWeight:600, marginBottom:2 }}>{'💬 我的笔记'}</div>
-                          <div style={{ fontSize:13, color:'#444' }}>{un.text}</div>
+                          {/* 用户笔记 */}
+                          {(entry.user_notes || []).map((un, ni) => (
+                            <div key={ni} style={{ background:'#fef4f6', borderLeft:'2px solid #e8a0b4', padding:'6px 10px', margin:'8px 0 0', borderRadius:'0 6px 6px 0', display:'flex', alignItems:'flex-start', gap:6 }}>
+                              <div style={{ flex:1 }}>
+                                <div style={{ fontSize:10, color:'#c4889a', fontWeight:600, marginBottom:2 }}>{'my note'}</div>
+                                <div style={{ fontSize:12, color:'#6a4a5a' }}>{un.text}</div>
+                              </div>
+                              <button onClick={async () => {
+                                await fetch('/api/reader?action=journal_delete_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note_index: ni }) })
+                                await loadJournal()
+                              }} style={{ background:'none', border:'none', color:'#dcc0ca', fontSize:12, cursor:'pointer', padding:2, flexShrink:0 }}>{'x'}</button>
+                            </div>
+                          ))}
+
+                          {/* 添加笔记 */}
+                          <div style={{ display:'flex', gap:6, marginTop:8 }}>
+                            <input value={journalNoteInput[entry.id] || ''} onChange={e => setJournalNoteInput(p => ({...p, [entry.id]: e.target.value}))} placeholder="写点什么..." style={{ flex:1, border:'1px solid #f0e0e6', borderRadius:6, padding:'5px 8px', fontSize:11, outline:'none', background:'#fefafa', color:'#6a4a5a' }} onKeyDown={async e => {
+                              if (e.key === 'Enter' && journalNoteInput[entry.id]?.trim()) {
+                                await fetch('/api/reader?action=journal_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note: journalNoteInput[entry.id].trim() }) })
+                                setJournalNoteInput(p => ({...p, [entry.id]: ''}))
+                                await loadJournal()
+                              }
+                            }} />
+                            <button onClick={async () => {
+                              if (!journalNoteInput[entry.id]?.trim()) return
+                              await fetch('/api/reader?action=journal_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note: journalNoteInput[entry.id].trim() }) })
+                              setJournalNoteInput(p => ({...p, [entry.id]: ''}))
+                              await loadJournal()
+                            }} style={{ background:'#e8a0b4', color:'#fff', border:'none', borderRadius:6, padding:'5px 10px', fontSize:11, cursor:'pointer', flexShrink:0 }}>{'+'}</button>
+                          </div>
                         </div>
-                        <button onClick={async () => {
-                          await fetch('/api/reader?action=journal_delete_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note_index: ni }) })
-                          await loadJournal()
-                        }} style={{ background:'none', border:'none', color:'#ccc', fontSize:14, cursor:'pointer', padding:2, flexShrink:0 }}>{'×'}</button>
                       </div>
-                    ))}
-
-                    {/* 添加笔记 */}
-                    <div style={{ display:'flex', gap:6, marginTop:10 }}>
-                      <input value={journalNoteInput[entry.id] || ''} onChange={e => setJournalNoteInput(p => ({...p, [entry.id]: e.target.value}))} placeholder="写点什么..." style={{ flex:1, border:'1px solid #e0d0d0', borderRadius:8, padding:'6px 10px', fontSize:12, outline:'none' }} onKeyDown={async e => {
-                        if (e.key === 'Enter' && journalNoteInput[entry.id]?.trim()) {
-                          await fetch('/api/reader?action=journal_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note: journalNoteInput[entry.id].trim() }) })
-                          setJournalNoteInput(p => ({...p, [entry.id]: ''}))
-                          await loadJournal()
-                        }
-                      }} />
-                      <button onClick={async () => {
-                        if (!journalNoteInput[entry.id]?.trim()) return
-                        await fetch('/api/reader?action=journal_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note: journalNoteInput[entry.id].trim() }) })
-                        setJournalNoteInput(p => ({...p, [entry.id]: ''}))
-                        await loadJournal()
-                      }} style={{ background:'#ab47bc', color:'#fff', border:'none', borderRadius:8, padding:'6px 12px', fontSize:12, cursor:'pointer', flexShrink:0 }}>{'添加'}</button>
-                    </div>
-                  </div>
-                )
-              })
+                    )
+                  })}
+                </div>
+              )
             })()
           )}
         </div>
