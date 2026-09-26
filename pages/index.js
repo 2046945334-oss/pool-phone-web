@@ -152,6 +152,24 @@ function ThinkingToggle({ reasoning }) {
   )
 }
 
+function UserThinkingToggle({ thinking }) {
+  const [open, setOpen] = useState(false)
+  if (!thinking) return null
+  return (
+    <div className="user-thinking-inline">
+      <div className="user-thinking-trigger" onClick={() => setOpen(!open)}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s'}}>
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+        <span>我的思考</span>
+      </div>
+      {open && (
+        <div className="user-thinking-body">{thinking}</div>
+      )}
+    </div>
+  )
+}
+
 // time helpers
 function formatMsgTime(ts) {
   if (!ts) return null
@@ -615,6 +633,8 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
     }
   }, [messages])
   const [showStickerPanel, setShowStickerPanel] = useState(false)
+  const [thinkDraft, setThinkDraft] = useState('')
+  const [showThinkInput, setShowThinkInput] = useState(false)
   const EMOJI_LIST = ['😊','😂','🥺','😭','❤️','🔥','👍','😘','🤗','😏','🙄','😴','🎉','💕','😤','🥰','😳','👀','✨','🌸','💔','🫶','😈','🤭','💋','🙈','😮','💀','🫡','🤔']
   const [editIdx, setEditIdx] = useState(-1)
   const [editText, setEditText] = useState('')
@@ -1306,8 +1326,14 @@ function ChatView({ theme, setFilePreview, setImgPreview, onBack }) {
       content = `[quote="${qName}"]${qText}[/quote]${t}`
       setQuoteMsg(null)
     }
-    setMessages([...messages, { role: 'user', content, ts: Date.now() }])
+    const userMsg = { role: 'user', content, ts: Date.now() }
+    if (thinkDraft.trim()) {
+      userMsg.userThinking = thinkDraft.trim()
+    }
+    setMessages([...messages, userMsg])
     setInput('')
+    setThinkDraft('')
+    setShowThinkInput(false)
     // 同步到 chat_messages 表供唤醒系统读取
     try {
       await fetch('/api/chat-append', {
@@ -1569,6 +1595,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
             ) : (
               <div className={`msg-bubble ${msg.role}${/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? ' sticker-only' : ''}`} style={/^\[img\][^\[]*\[\/img\]$/.test(msg.content.trim()) ? {background:'transparent',border:'none',boxShadow:'none',padding:0} : msg.role==='user'?{background:theme?.bubbleUser||undefined,color:theme?.textUser||undefined}:msg.role==='assistant'?{background:theme?.bubbleAI||undefined,color:theme?.textAI||undefined}:{}}>
 {msg.role === 'assistant' && (msg.reasoning || (msg.content && msg.content.includes('<think>'))) && <ThinkingToggle reasoning={msg.reasoning || parseThinkTags(msg.content).reasoning} />}
+{msg.role === 'user' && msg.userThinking && <UserThinkingToggle thinking={msg.userThinking} />}
 {msg.content.includes('[voice]') && msg.content.includes('[/voice]') && /\[voice\].*?\[\/voice\]/s.test(msg.content) ? 
                   msg.content.split(/\[voice\]([\s\S]*?)\[\/voice\]/g).map((part,j) => j%2===0 ? (part ? <span key={j}>{stripThink(part)}</span> : null) : <VoiceBubble key={j} text={part} />) 
                 : renderMsgContent(msg.content)}
@@ -1594,6 +1621,21 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
       </div>
         {quoteMsg && <div className="quote-preview"><div className="quote-preview-text"><span className="quote-preview-role">{quoteMsg.role === "user" ? "我" : "池屿"}</span>{quoteMsg.content.slice(0, 60)}{quoteMsg.content.length > 60 ? "..." : ""}</div><button className="quote-preview-close" onClick={() => setQuoteMsg(null)}>{"✕"}</button></div>}
         {patEditing && <div className="pat-edit-overlay" onClick={() => setPatEditing(false)}><div className="pat-edit-box" onClick={e => e.stopPropagation()}><input className="pat-edit-input" value={patDraft} onChange={e => setPatDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') confirmPat() }} autoFocus /><div className="pat-edit-btns"><button onClick={() => setPatEditing(false)}>{'取消'}</button><button onClick={confirmPat}>{'发送'}</button></div></div></div>}
+        {showThinkInput && (
+          <div className="think-input-panel">
+            <div className="think-input-header">
+              <span>{'💭 我的思考'}</span>
+              <button onClick={() => { setShowThinkInput(false); setThinkDraft('') }} style={{background:'none',border:'none',color:'#b8909e',fontSize:14,cursor:'pointer'}}>{'✕'}</button>
+            </div>
+            <textarea
+              className="think-input-textarea"
+              value={thinkDraft}
+              onChange={e => setThinkDraft(e.target.value)}
+              placeholder="写下你此刻在想什么..."
+              autoFocus
+            />
+          </div>
+        )}
       <div className="chat-input-area">
         <label className="chat-plus-btn">{'+'}
           <input type="file" accept="image/*,text/*,.html,.htm,.json,.js,.css,.py,.md,.csv,.xml,.txt" hidden onChange={e => {
@@ -1638,6 +1680,7 @@ const memPrompt = [{ role: 'system', content: `你是记忆提取助手。请仔
           }} />
         </label>
         <button className="chat-plus-btn" onClick={() => setShowStickerPanel(!showStickerPanel)} style={{background:'none',border:'none',cursor:'pointer',padding:'4px'}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9a8a99" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+        <button className={`chat-plus-btn${showThinkInput || thinkDraft ? ' think-active' : ''}`} onClick={() => setShowThinkInput(!showThinkInput)} style={{background: showThinkInput || thinkDraft ? 'rgba(233,30,140,0.12)' : 'none',border: showThinkInput || thinkDraft ? '1px solid rgba(233,30,140,0.25)' : '1px solid rgba(0,0,0,0.08)',cursor:'pointer',padding:'4px',fontSize:13,color: showThinkInput || thinkDraft ? '#e91e8c' : '#9a8a99'}} title="写思考">{'💭'}</button>
         <input className="chat-input" style={theme?.inputBg?{background:theme.inputBg}:{}} value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addUserMsg() } }}
           placeholder={'\u8f93\u5165\u6d88\u606f...'} disabled={loading} />
@@ -4862,6 +4905,14 @@ export default function Home() {
         .thinking-inline-trigger { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 11px; color: #9a9088; cursor: pointer; user-select: none; }
         .thinking-inline-trigger:active { background: rgba(0,0,0,0.03); }
         .thinking-inline-body { padding: 6px 10px 8px; border-top: 1px solid rgba(210,200,185,0.3); font-size: 11px; color: #8a8278; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; background: #f8f5ef; }
+        .user-thinking-inline { margin-bottom: 6px; background: rgba(245,225,235,0.6); border-radius: 8px; border: 1px solid rgba(233,30,140,0.15); overflow: hidden; }
+        .user-thinking-trigger { display: flex; align-items: center; gap: 5px; padding: 5px 10px; font-size: 11px; color: #c07a9a; cursor: pointer; user-select: none; }
+        .user-thinking-trigger:active { background: rgba(233,30,140,0.05); }
+        .user-thinking-body { padding: 6px 10px 8px; border-top: 1px solid rgba(233,30,140,0.12); font-size: 11px; color: #a06a8a; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; background: rgba(250,235,245,0.7); }
+        .think-input-panel { position: absolute; bottom: calc(56px + env(safe-area-inset-bottom, 0px)); left: 8px; right: 8px; background: rgba(255,245,250,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 14px; border: 1px solid rgba(233,30,140,0.15); box-shadow: 0 4px 16px rgba(233,30,140,0.08); z-index: 11; overflow: hidden; }
+        .think-input-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 4px; font-size: 12px; color: #c07a9a; font-weight: 500; }
+        .think-input-textarea { width: 100%; border: none; outline: none; resize: none; background: transparent; padding: 4px 12px 10px; font-size: 13px; color: #8a5a6a; line-height: 1.5; min-height: 48px; max-height: 100px; box-sizing: border-box; font-family: inherit; }
+        .think-input-textarea::placeholder { color: #d0a8b8; }
         .msg-edit-wrap { max-width: 72%; }
         .msg-edit-input { width: 100%; min-height: 60px; background: #1a1a1a; border: 1px solid #e8a0bf; border-radius: 12px; padding: 8px 12px; color: #e0e0e0; font-size: 14px; resize: none; outline: none; }
         .msg-edit-btns { display: flex; gap: 8px; margin-top: 4px; }
