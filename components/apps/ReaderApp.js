@@ -70,6 +70,12 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
   const [loading, setLoading] = useState(false)
   const fileRef = useRef(null)
   const contentRef = useRef(null)
+  // === 共读笔记 state ===
+  const [journal, setJournal] = useState({ cover: '', books: {} })
+  const [journalView, setJournalView] = useState(null) // null=目录, bookTitle=某本书
+  const [journalNoteInput, setJournalNoteInput] = useState({}) // { entryId: text }
+  const [journalCoverUploading, setJournalCoverUploading] = useState(false)
+  const journalCoverRef = useRef(null)
 
   const loadState = useCallback(async () => {
     try {
@@ -91,7 +97,15 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
     } catch {}
   }, [])
 
-  useEffect(() => { loadState(); loadBooks() }, [])
+  useEffect(() => { loadState(); loadBooks(); loadJournal() }, [])
+
+  const loadJournal = useCallback(async () => {
+    try {
+      const r = await fetch('/api/reader?action=journal')
+      const d = await r.json()
+      setJournal(d || { cover: '', books: {} })
+    } catch {}
+  }, [])
 
   // Mini mode: auto-open current book on mount
   useEffect(() => {
@@ -253,7 +267,7 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
     }
   }
 
-  function backToShelf() { setCurrentBookIdx(-1); setView('shelf'); loadState(); loadBooks() }
+  function backToShelf() { setCurrentBookIdx(-1); setView('shelf'); loadState(); loadBooks(); loadJournal() }
   async function delBook(idx) {
     const book = books[idx]
     if (!confirm('确定要删除《' + book.title + '》吗？')) return
@@ -331,11 +345,13 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
           ) : (() => {
             const shelfColors = ['#f8bbd0','#e1bee7','#c5cae9','#b2dfdb','#ffe0b2','#d7ccc8','#f0f4c3','#b3e5fc','#ffccbc','#dcedc8'];
             // First row: up to 3 recently viewed books (sorted by last read time)
+            // Insert journal as center book if there are recent books, otherwise just show journal alone
             const recentBooks = books
               .map((b, idx) => ({ b, idx, lastRead: state.currentBookId === b.id ? (state.lastRead || 0) : (b.lastOpenedAt || b.importedAt || 0) }))
               .sort((a, c) => c.lastRead - a.lastRead)
               .filter(x => x.lastRead > 0)
-              .slice(0, 3);
+              .slice(0, 2); // max 2 real books (journal takes center)
+            const journalEntryCount = Object.values(journal.books || {}).reduce((s, b) => s + (b.entries?.length || 0), 0)
             // All books go to spine rows
             const spineBooks = books;
             const spineRows = [];
@@ -344,39 +360,61 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
             const offsets = [12, 0, -8];
             const zIndexes = [2, 3, 1];
             return (<>
-              {/* Featured row: recently viewed books (stacked/angled covers) */}
-              {recentBooks.length > 0 && (
+              {/* Featured row: recently viewed books + journal in center */}
               <div style={{ marginBottom:0 }}>
                 <div style={{ padding:'4px 20px 0', fontSize:11, color:'#b08090', fontWeight:500 }}>{'最近在读'}</div>
                 <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', padding:'12px 20px 10px', minHeight:180, position:'relative' }}>
-                  {recentBooks.map((item, bi) => {
-                    const b = item.b;
-                    const realIdx = item.idx;
-                    const color = shelfColors[realIdx % shelfColors.length];
-                    const aiReading = state.currentBookId === b.id && state.active;
-                    const userCh = state.currentBookId === b.id ? (state.userChapter || 0) : 0;
-                    const progress = b.chapters?.length ? Math.round(((userCh + 1) / b.chapters.length) * 100) : 0;
-                    const rot = rotations[bi] || 0;
-                    const offsetY = offsets[bi] || 0;
-                    const zIdx = zIndexes[bi] || 1;
+                  {/* Left book */}
+                  {recentBooks[0] && (() => {
+                    const item = recentBooks[0]; const b = item.b; const realIdx = item.idx
+                    const color = shelfColors[realIdx % shelfColors.length]
+                    const aiReading = state.currentBookId === b.id && state.active
                     return (
-                      <div key={b.id} onClick={() => openBook(realIdx)} style={{ cursor:'pointer', position:'relative', zIndex:zIdx, marginLeft: bi === 0 ? 0 : -20, marginBottom:offsetY, transform:'rotate('+rot+'deg)', transformOrigin:'bottom center', transition:'transform 0.2s' }}>
+                      <div key={b.id} onClick={() => openBook(realIdx)} style={{ cursor:'pointer', position:'relative', zIndex:2, marginBottom:12, transform:'rotate(-8deg)', transformOrigin:'bottom center' }}>
                         <div style={{ width:105, height:140, borderRadius:'4px 10px 10px 4px', background: 'linear-gradient(145deg, ' + color + ' 0%, ' + color + 'aa 50%, ' + color + '66 100%)', boxShadow:'3px 4px 12px rgba(0,0,0,.2), inset -4px 0 8px rgba(0,0,0,.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:10, position:'relative', border:'1px solid rgba(255,255,255,.5)' }}>
                           <div style={{ position:'absolute', left:5, top:0, bottom:0, width:3, background:'rgba(0,0,0,.08)', borderRadius:2 }} />
-                          <div style={{ position:'absolute', left:10, top:8, right:8, bottom:8, border:'1px solid rgba(255,255,255,.3)', borderRadius:4, pointerEvents:'none' }} />
                           <div style={{ fontSize:14, fontWeight:700, color:'#4a3040', textAlign:'center', lineHeight:1.3, wordBreak:'break-all', maxHeight:56, overflow:'hidden' }}>{b.title.length > 8 ? b.title.slice(0,8)+'...' : b.title}</div>
                           <div style={{ fontSize:9, color:'#7a6070', marginTop:8 }}>{(b.chapters?.length || 0) + '章'}</div>
                           {aiReading && <div style={{ fontSize:8, color:'#c2185b', marginTop:2 }}>{'👀 池在读'}</div>}
                         </div>
-                        <div style={{ height:2, margin:'2px 10px 0', background:'#e0d0d0', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:progress+'%', background:'#e91e8c', borderRadius:2 }} /></div>
                       </div>
-                    );
-                  })}
+                    )
+                  })()}
+
+                  {/* Center: Journal book */}
+                  <div onClick={() => { setView('journal'); setJournalView(null); loadJournal() }} style={{ cursor:'pointer', position:'relative', zIndex:3, marginLeft: recentBooks.length > 0 ? -20 : 0 }}>
+                    <div style={{ width:110, height:148, borderRadius:'4px 10px 10px 4px', background: journal.cover ? `url(${journal.cover}) center/cover` : 'linear-gradient(145deg, #ffe8d6 0%, #f5d0b0 50%, #e8c4a0 100%)', boxShadow:'3px 4px 14px rgba(0,0,0,.25), inset -4px 0 8px rgba(0,0,0,.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:10, position:'relative', border:'1px solid rgba(255,255,255,.5)' }}>
+                      <div style={{ position:'absolute', left:5, top:0, bottom:0, width:3, background:'rgba(0,0,0,.08)', borderRadius:2 }} />
+                      <div style={{ position:'absolute', left:10, top:8, right:8, bottom:8, border:'1px solid rgba(255,255,255,.3)', borderRadius:4, pointerEvents:'none' }} />
+                      {!journal.cover && <>
+                        <div style={{ fontSize:14, fontWeight:700, color:'#6d4c41', textAlign:'center', lineHeight:1.3 }}>{'共读笔记'}</div>
+                        <div style={{ fontSize:9, color:'#8d6e63', marginTop:8 }}>{journalEntryCount + ' 篇'}</div>
+                        <div style={{ fontSize:8, color:'#a1887f', marginTop:2 }}>{'📖 ✍'}</div>
+                      </>}
+                      {journal.cover && <div style={{ position:'absolute', bottom:8, left:0, right:0, textAlign:'center' }}><span style={{ background:'rgba(0,0,0,.5)', color:'#fff', fontSize:10, padding:'2px 8px', borderRadius:4 }}>{'共读笔记'}</span></div>}
+                    </div>
+                  </div>
+
+                  {/* Right book */}
+                  {recentBooks[1] && (() => {
+                    const item = recentBooks[1]; const b = item.b; const realIdx = item.idx
+                    const color = shelfColors[realIdx % shelfColors.length]
+                    const aiReading = state.currentBookId === b.id && state.active
+                    return (
+                      <div key={b.id} onClick={() => openBook(realIdx)} style={{ cursor:'pointer', position:'relative', zIndex:1, marginLeft:-20, marginBottom:-8, transform:'rotate(5deg)', transformOrigin:'bottom center' }}>
+                        <div style={{ width:105, height:140, borderRadius:'4px 10px 10px 4px', background: 'linear-gradient(145deg, ' + color + ' 0%, ' + color + 'aa 50%, ' + color + '66 100%)', boxShadow:'3px 4px 12px rgba(0,0,0,.2), inset -4px 0 8px rgba(0,0,0,.06)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:10, position:'relative', border:'1px solid rgba(255,255,255,.5)' }}>
+                          <div style={{ position:'absolute', left:5, top:0, bottom:0, width:3, background:'rgba(0,0,0,.08)', borderRadius:2 }} />
+                          <div style={{ fontSize:14, fontWeight:700, color:'#4a3040', textAlign:'center', lineHeight:1.3, wordBreak:'break-all', maxHeight:56, overflow:'hidden' }}>{b.title.length > 8 ? b.title.slice(0,8)+'...' : b.title}</div>
+                          <div style={{ fontSize:9, color:'#7a6070', marginTop:8 }}>{(b.chapters?.length || 0) + '章'}</div>
+                          {aiReading && <div style={{ fontSize:8, color:'#c2185b', marginTop:2 }}>{'👀 池在读'}</div>}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
                 <div style={{ height:8, background:'linear-gradient(180deg, #c9a88c 0%, #b8957a 40%, #a68060 100%)', borderRadius:'0 0 3px 3px', boxShadow:'0 3px 6px rgba(0,0,0,.18)', margin:'0 10px' }} />
                 <div style={{ height:5, background:'linear-gradient(180deg, rgba(0,0,0,.06) 0%, transparent 100%)', margin:'0 14px' }} />
               </div>
-              )}
               {/* Spine rows: all books standing upright like real bookshelf */}
               {spineRows.map((row, ri) => (
                 <div key={ri} style={{ marginBottom:0 }}>
@@ -545,6 +583,105 @@ export default function ReaderApp({ onBack, onMinimize, mini }) {
             <button onClick={addBookmark} style={{ background:'#f48fb1', color:'#333', border:'none', borderRadius:6, padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer' }}>🔖 添加书签</button>
           </div>
         )}
+      </>)}
+
+      {/* JOURNAL VIEW */}
+      {view === 'journal' && (<>
+        <div style={{ display:'flex', alignItems:'center', padding:'10px 14px', gap:8, borderBottom:'1px solid #eee', background:'#fff', flexShrink:0 }}>
+          <button onClick={() => { if (journalView) setJournalView(null); else setView('shelf') }} style={{ background:'none', border:'none', fontSize:20, padding:4, cursor:'pointer', color:'#666' }}>{'←'}</button>
+          <h2 style={{ flex:1, fontSize:16, fontWeight:600, margin:0 }}>{journalView ? journalView : '共读笔记'}</h2>
+          {!journalView && <button onClick={() => journalCoverRef.current?.click()} style={{ background:'#8d6e63', color:'#fff', border:'none', padding:'5px 10px', borderRadius:8, fontSize:11, cursor:'pointer' }}>{'换封面'}</button>}
+          <input type="file" accept="image/*" ref={journalCoverRef} style={{ display:'none' }} onChange={async (e) => {
+            const file = e.target.files?.[0]; if (!file) return
+            setJournalCoverUploading(true)
+            const reader = new FileReader()
+            reader.onload = async () => {
+              try {
+                const uploadRes = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: reader.result }) })
+                const uploadData = await uploadRes.json()
+                const coverUrl = uploadData.url || reader.result
+                await fetch('/api/reader?action=journal_cover', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cover: coverUrl }) })
+                await loadJournal()
+              } catch {}
+              setJournalCoverUploading(false)
+            }
+            reader.readAsDataURL(file)
+          }} />
+        </div>
+        <div style={{ flex:1, overflowY:'auto', padding:12, background:'linear-gradient(180deg, #fef6f3 0%, #faf0ed 100%)' }}>
+          {!journalView ? (
+            /* 目录：按书名列表 */
+            Object.keys(journal.books || {}).length === 0 ? (
+              <div style={{ textAlign:'center', padding:'60px 20px', color:'#c9a0a0' }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>{'📝'}</div>
+                <p style={{ fontSize:14 }}>{'还没有笔记'}</p>
+                <p style={{ fontSize:12, color:'#aaa', marginTop:8 }}>{'池唤醒读书时会自动同步感想到这里'}</p>
+              </div>
+            ) : (
+              Object.entries(journal.books).map(([title, data]) => (
+                <div key={title} onClick={() => setJournalView(title)} style={{ cursor:'pointer', background:'#fff', borderRadius:12, padding:'14px 16px', marginBottom:10, boxShadow:'0 2px 6px rgba(0,0,0,.06)', display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ fontSize:24 }}>{'📖'}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:15, fontWeight:600, color:'#4a3040' }}>{title}</div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{(data.entries?.length || 0) + ' 篇笔记'}</div>
+                  </div>
+                  <div style={{ fontSize:16, color:'#ccc' }}>{'›'}</div>
+                </div>
+              ))
+            )
+          ) : (
+            /* 某本书的笔记列表 */
+            (() => {
+              const bookData = journal.books?.[journalView]
+              const entries = bookData?.entries || []
+              if (entries.length === 0) return <div style={{ textAlign:'center', padding:40, color:'#aaa' }}>{'暂无笔记'}</div>
+              return entries.map((entry, ei) => {
+                const time = entry.time ? new Date(entry.time) : null
+                const timeStr = time ? `${String(time.getMonth()+1).padStart(2,'0')}/${String(time.getDate()).padStart(2,'0')} ${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}` : ''
+                return (
+                  <div key={entry.id || ei} style={{ background:'#fff', borderRadius:12, padding:'14px 16px', marginBottom:12, boxShadow:'0 2px 6px rgba(0,0,0,.06)' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+                      <span style={{ fontSize:11, color:'#b0a89e', fontFamily:'monospace' }}>{timeStr}</span>
+                      <span style={{ fontSize:10, background:'#fce4ec', color:'#c2185b', padding:'1px 6px', borderRadius:8 }}>{'第 ' + (ei + 1) + ' 篇'}</span>
+                    </div>
+                    <div style={{ fontSize:14, color:'#4a4540', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{entry.content}</div>
+
+                    {/* 用户笔记 */}
+                    {(entry.user_notes || []).map((un, ni) => (
+                      <div key={ni} style={{ background:'#f3e5f5', borderLeft:'3px solid #ab47bc', padding:'8px 12px', margin:'10px 0 0', borderRadius:'0 8px 8px 0', display:'flex', alignItems:'flex-start', gap:8 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:11, color:'#7b1fa2', fontWeight:600, marginBottom:2 }}>{'💬 我的笔记'}</div>
+                          <div style={{ fontSize:13, color:'#444' }}>{un.text}</div>
+                        </div>
+                        <button onClick={async () => {
+                          await fetch('/api/reader?action=journal_delete_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note_index: ni }) })
+                          await loadJournal()
+                        }} style={{ background:'none', border:'none', color:'#ccc', fontSize:14, cursor:'pointer', padding:2, flexShrink:0 }}>{'×'}</button>
+                      </div>
+                    ))}
+
+                    {/* 添加笔记 */}
+                    <div style={{ display:'flex', gap:6, marginTop:10 }}>
+                      <input value={journalNoteInput[entry.id] || ''} onChange={e => setJournalNoteInput(p => ({...p, [entry.id]: e.target.value}))} placeholder="写点什么..." style={{ flex:1, border:'1px solid #e0d0d0', borderRadius:8, padding:'6px 10px', fontSize:12, outline:'none' }} onKeyDown={async e => {
+                        if (e.key === 'Enter' && journalNoteInput[entry.id]?.trim()) {
+                          await fetch('/api/reader?action=journal_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note: journalNoteInput[entry.id].trim() }) })
+                          setJournalNoteInput(p => ({...p, [entry.id]: ''}))
+                          await loadJournal()
+                        }
+                      }} />
+                      <button onClick={async () => {
+                        if (!journalNoteInput[entry.id]?.trim()) return
+                        await fetch('/api/reader?action=journal_user_note', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ book_title: journalView, entry_id: entry.id, note: journalNoteInput[entry.id].trim() }) })
+                        setJournalNoteInput(p => ({...p, [entry.id]: ''}))
+                        await loadJournal()
+                      }} style={{ background:'#ab47bc', color:'#fff', border:'none', borderRadius:8, padding:'6px 12px', fontSize:12, cursor:'pointer', flexShrink:0 }}>{'添加'}</button>
+                    </div>
+                  </div>
+                )
+              })
+            })()
+          )}
+        </div>
       </>)}
     </div>
   )
