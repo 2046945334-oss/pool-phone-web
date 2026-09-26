@@ -2638,6 +2638,20 @@ export default async function handler(req, res) {
         continue
       }
       let reply = (choice && choice.message && choice.message.content) || '无响应'
+      // === Extract reasoning: merge API field + inline <think> tags ===
+      const apiReasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
+      let inlineReasoning = null
+      const thinkMatch = reply.match(/<think>([\s\S]*?)<\/think>/)
+      if (thinkMatch) {
+        inlineReasoning = thinkMatch[1].trim()
+        reply = reply.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+      }
+      let reasoning = null
+      if (apiReasoning && inlineReasoning && apiReasoning.trim() !== inlineReasoning) {
+        reasoning = apiReasoning + '\n\n---\n\n' + inlineReasoning
+      } else {
+        reasoning = apiReasoning || inlineReasoning
+      }
       // === 从文本回复中解析 <tool_call> 标签 ===
       const toolCallRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g
       const textToolCalls = []
@@ -2704,7 +2718,6 @@ export default async function handler(req, res) {
         })
         if (before !== reply) console.log('[IMG CONV]', before, '->', reply)
       } catch {}
-      const reasoning = (choice && choice.message && (choice.message.reasoning_content || choice.message.thinking)) || null
       // 5. strip tool_call from reply
       reply = reply.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim() || reply
       // 5a. Append any __inject content from send_file/send_html tools
