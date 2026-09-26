@@ -89,6 +89,9 @@ export default async function handler(req, res) {
   // GET /api/reader?action=journal — 获取共读笔记
   if (req.method === 'GET' && action === 'journal') {
     const journal = getVal(db, KEY_JOURNAL) || { cover: '', books: {} }
+    // 封面单独存储，避免 base64 撑爆 journal JSON
+    const cover = getVal(db, 'pool_reader_journal_cover') || ''
+    journal.cover = cover
     return res.json(journal)
   }
 
@@ -223,12 +226,10 @@ export default async function handler(req, res) {
       return res.json({ ok: true })
     }
 
-    // PUT action=journal_cover — 设置笔记封面
+    // PUT action=journal_cover — 设置笔记封面（单独存储，不混进 journal JSON）
     if (action === 'journal_cover') {
       const { cover } = body
-      const journal = getVal(db, KEY_JOURNAL) || { cover: '', books: {} }
-      journal.cover = cover || ''
-      setVal(db, KEY_JOURNAL, journal)
+      setVal(db, 'pool_reader_journal_cover', cover || '')
       return res.json({ ok: true })
     }
 
