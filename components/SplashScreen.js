@@ -65,12 +65,24 @@ export default function SplashScreen({ onFinish }) {
     }
     timers.push(setTimeout(() => setShowText(true), reduced ? 100 : 1000))
 
-    // 重力感应：gamma 为左右倾斜角，手机往右歪 → 挂件底部往右（逆时针，负角度）
-    const onOrient = (e) => {
-      if (typeof e.gamma !== 'number') return
-      tilt.current.target = Math.max(-35, Math.min(35, -e.gamma * 0.6))
+    // 重力感应：用重力在屏幕平面上的投影算真实的"下"方向。
+    // 安卓竖握时 y≈+9.8；手机顺时针歪 φ 度 → x=-9.8·sinφ，atan2(x,y) = -φ，
+    // 正好是挂件应偏的 CSS 角度（真实钥匙扣永远指向地面，所以相对屏幕反向偏）。
+    // iOS 的符号与安卓相反，需要取反。
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const onMotion = (e) => {
+      const g = e.accelerationIncludingGravity
+      if (!g || typeof g.x !== 'number' || typeof g.y !== 'number') return
+      const x = isIOS ? -g.x : g.x
+      const y = isIOS ? -g.y : g.y
+      const mag = Math.hypot(x, y)
+      // 手机接近平放时屏幕内没有明确的"下"，逐渐减弱偏摆，避免乱抖
+      if (mag < 3) { tilt.current.target = 0; return }
+      const weight = Math.min(1, (mag - 3) / 4)
+      const deg = Math.atan2(x, y) * 180 / Math.PI
+      tilt.current.target = Math.max(-40, Math.min(40, deg * weight))
     }
-    window.addEventListener('deviceorientation', onOrient)
+    window.addEventListener('devicemotion', onMotion)
 
     let raf = 0
     let prev = performance.now()
@@ -128,7 +140,7 @@ export default function SplashScreen({ onFinish }) {
     return () => {
       cancelAnimationFrame(raf)
       timers.forEach(clearTimeout)
-      window.removeEventListener('deviceorientation', onOrient)
+      window.removeEventListener('devicemotion', onMotion)
     }
   }, [])
 
@@ -138,10 +150,10 @@ export default function SplashScreen({ onFinish }) {
     if (exiting.current) return
     lastTouch.current = performance.now()
     // iOS 需要在用户手势内申请陀螺仪权限；安卓不需要
-    if (!askedPermission.current && typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
+    if (!askedPermission.current && typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
       askedPermission.current = true
-      DeviceOrientationEvent.requestPermission().catch(() => {})
+      DeviceMotionEvent.requestPermission().catch(() => {})
     }
     const rect = e.currentTarget.getBoundingClientRect()
     const dir = e.clientX < rect.left + rect.width / 2 ? -1 : 1
